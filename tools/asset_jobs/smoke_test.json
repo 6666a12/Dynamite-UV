@@ -1,0 +1,13 @@
+[
+  {
+    "name": "cover_smoke_test",
+    "prompt": "anime style rhythm game song cover art, vibrant neon space scene with music notes and geometric sound waves, dynamic composition, clean vector-like shading, high quality",
+    "negative": "lowres, bad anatomy, bad hands, text, watermark, signature, blurry",
+    "width": 1024,
+    "height": 1024,
+    "steps": 25,
+    "cfg": 7.0,
+    "seed": 42,
+    "count": 2
+  }
+]

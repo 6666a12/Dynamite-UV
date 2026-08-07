@@ -1,0 +1,23 @@
+# Godot 4 .NET
+.godot/
+.vs/
+.idea/
+*.user
+
+# .NET build output
+bin/
+obj/
+
+# Export presets may contain keystore credentials — keep local
+export_presets.cfg
+builds/
+
+# 版权内容：测试用官方谱面/音频（仅本地，绝不分发）
+client/testdata/
+
+# 生成的素材缓存
+tools/.venv/
+tools/style_refs.json
+__pycache__/
+
+AGENTS.md

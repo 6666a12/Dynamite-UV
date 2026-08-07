@@ -1,0 +1,32 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="DUX-Community"
+config/description="Dynamix-style community rhythm game (clean-room reimplementation)."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Mobile")
+
+[display]
+
+window/size/viewport_width=2340
+window/size/viewport_height=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation="landscape"
+
+[dotnet]
+
+project/assembly_name="DuxCommunity"
+
+[rendering]
+
+renderer/rendering_method="mobile"

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUX-Community UI Mock</title>
+<style>
+/* ===== 设计语言：UV 霓虹科幻 DNA（深色底+青/品红+切角+透视线），简洁化看齐一代 ===== */
+:root{
+  --bg:#0a0e1a; --bg2:#10162a; --panel:#141b33; --line:#2a3560;
+  --cyan:#35e0ff; --pink:#ff4d8f; --text:#dfe6ff; --dim:#7c88b0;
+  --casual:#4ade80; --normal:#38bdf8; --hard:#fbbf24; --mega:#c084fc; --giga:#f87171;
+  --cut:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  --cut-sm:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+/* 科技字体：Orbitron 可变字重（OFL 开源许可，可随游戏分发），拉丁/数字用，中文回退系统黑体 */
+@font-face{font-family:'Orbitron';src:url('fonts/Orbitron.woff2') format('woff2');font-weight:100 900;font-display:swap}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;overflow:hidden}
+/* 背景：斜向透视网格，呼应 3D 隧道（极淡，不喧宾夺主） */
+.stage{position:relative;width:100vw;height:100vh;
+  background:
+    repeating-linear-gradient(105deg,transparent 0 118px,rgba(53,224,255,.045) 118px 120px),
+    radial-gradient(120% 90% at 50% 110%,#18204a 0%,var(--bg) 60%);}
+.mono{font-variant-numeric:tabular-nums;font-family:'Orbitron',Consolas,monospace}
+.logo,#mmenu .hero h1,#mmenu .hero p,.grade,.start,.dcycle,.bestline b,#result .score,
+#result .gradebox .g,.song .lv,.jcounts .jc b,#play .pscore,#play .pcombo,#play .pjudge{
+  font-family:'Orbitron','Segoe UI',sans-serif}
+
+/* ===== 顶栏 ===== */
+.topbar{position:absolute;top:0;left:0;right:0;height:56px;display:flex;align-items:center;
+  padding:0 28px;border-bottom:1px solid var(--line);background:rgba(10,14,26,.7)}
+.logo{font-size:24px;font-weight:800;letter-spacing:2px}
+.logo b{color:var(--cyan)}
+.topbar .right{margin-left:auto;display:flex;gap:14px;align-items:center;color:var(--dim);font-size:13px}
+.chip{border:1px solid var(--line);padding:5px 14px;clip-path:var(--cut-sm);background:var(--bg2);cursor:pointer;color:var(--text)}
+.chip:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* ===== 屏幕切换（mock 导航，非设计一部分） ===== */
+.navmock{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:99;display:flex;gap:8px}
+.navmock button{background:#000a;border:1px solid var(--cyan);color:var(--cyan);padding:6px 16px;cursor:pointer;font-size:13px}
+.screen{display:none;width:100%;height:100%}
+.screen.on{display:block}
+
+/* ===== 主菜单 ===== */
+#mmenu .hero{position:absolute;left:9%;top:30%}
+#mmenu .hero h1{font-size:64px;letter-spacing:6px;font-weight:800}
+#mmenu .hero h1 b{color:var(--cyan)}
+#mmenu .hero p{color:var(--dim);margin-top:10px;letter-spacing:3px}
+#mmenu .menu{position:absolute;left:9%;top:52%;display:flex;flex-direction:column;gap:14px;width:340px}
+.mbtn{clip-path:var(--cut);background:var(--panel);border:1px solid var(--line);
+  padding:16px 26px;font-size:19px;letter-spacing:4px;text-align:left;cursor:pointer;transition:.15s}
+.mbtn small{display:block;font-size:11px;color:var(--dim);letter-spacing:2px;margin-top:3px}
+.mbtn:hover{border-color:var(--cyan);background:#1a2442;transform:translateX(8px)}
+.mbtn.primary{background:var(--cyan);color:#04121a;border-color:var(--cyan);box-shadow:0 0 18px rgba(53,224,255,.25)}
+.mbtn.primary small{color:#04121a99}
+.mbtn.primary:hover{background:#5ae8ff;transform:translateX(8px)}
+#mmenu .ver{position:absolute;right:24px;bottom:46px;color:var(--dim);font-size:12px}
+
+/* ===== 选曲 ===== */
+#select .wrap{position:absolute;inset:72px 28px 86px 28px;display:flex;gap:20px}
+/* 左：选中曲目详情 */
+.detail{width:37%;clip-path:var(--cut);background:var(--panel);border:1px solid var(--line);
+  display:flex;flex-direction:column;padding:22px}
+.cover{width:100%;flex:1;min-height:0;border:1px solid var(--line);clip-path:var(--cut-sm);
+  background:linear-gradient(135deg,#243b7a,#7a2440 55%,#2a7a5e);display:flex;align-items:flex-end;padding:14px}
+.cover span{background:#0009;padding:3px 10px;font-size:12px;letter-spacing:2px;color:var(--cyan)}
+.detail h2{font-size:30px;margin:16px 0 4px}
+.detail .artist{color:var(--dim);font-size:14px}
+.metarow{display:flex;gap:28px;margin:18px 0 0;color:var(--dim);font-size:13px}
+.metarow b{color:var(--text);font-size:16px}
+/* 右：曲列表 */
+.list{flex:1;clip-path:var(--cut);background:var(--panel);border:1px solid var(--line);padding:14px;overflow:hidden}
+.list .hdr{font-size:12px;color:var(--dim);letter-spacing:2px;padding:4px 10px 10px;display:flex;justify-content:space-between}
+.song{display:flex;align-items:center;gap:14px;padding:9px 10px;border:1px solid transparent;cursor:pointer;clip-path:var(--cut-sm)}
+.song:hover{background:#1a2442}
+.song.sel{background:#18244a;border-color:var(--cyan)}
+.song .th{width:52px;height:52px;flex:none;clip-path:var(--cut-sm)}
+.song .ti{flex:1;min-width:0}
+.song .ti .t{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song .ti .a{font-size:11px;color:var(--dim)}
+.song .lv{display:flex;gap:4px}
+.lv i{width:26px;height:20px;font-style:normal;font-size:11px;display:flex;align-items:center;justify-content:center;
+  clip-path:var(--cut-sm);background:#0c1226;color:#3a4670}
+.song.sel .lv i.on{color:#0a0e1a;font-weight:700}
+/* 底部：难度循环切换（START 同款实心 cyan）+ 最佳成绩 + 开始 */
+.diffbar{position:absolute;left:28px;right:28px;bottom:20px;height:56px;display:flex;gap:12px;align-items:stretch}
+.dcycle{width:280px;clip-path:var(--cut-sm);background:var(--cyan);color:#04121a;border:none;
+  font-size:17px;font-weight:800;letter-spacing:2px;cursor:pointer}
+.dcycle:hover{box-shadow:0 0 24px rgba(53,224,255,.5)}
+.dcycle small{font-size:11px;letter-spacing:1px;opacity:.6}
+.bestline{flex:1;display:flex;align-items:center;gap:16px;border:1px solid var(--line);
+  clip-path:var(--cut-sm);background:var(--bg2);padding:0 22px;color:var(--dim);font-size:12px;letter-spacing:2px}
+.bestline b{color:var(--cyan);font-size:22px;letter-spacing:1px}
+.bestline .g{font-size:22px;font-weight:800}
+.start{width:220px;clip-path:var(--cut-sm);background:var(--cyan);color:#04121a;border:none;
+  font-size:20px;font-weight:800;letter-spacing:6px;cursor:pointer}
+.start:hover{box-shadow:0 0 24px rgba(53,224,255,.5)}
+
+/* ===== 结算 ===== */
+/* 背景：封面拉伸铺全屏 + 重模糊压暗，防止遮挡 UI */
+#result .bgcover{position:absolute;inset:0;
+  background:linear-gradient(135deg,#243b7a,#7a2440 55%,#2a7a5e);
+  filter:blur(42px) brightness(.5) saturate(1.1);transform:scale(1.2)}
+#result .panel{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);
+  width:860px;clip-path:var(--cut);background:rgba(20,27,51,.55);backdrop-filter:blur(18px);
+  border:1px solid var(--line);padding:34px 44px}
+#result .songline{color:var(--dim);font-size:14px;letter-spacing:2px}
+#result .songline b{color:var(--text);font-size:18px;letter-spacing:1px}
+#result .main{display:flex;gap:40px;margin-top:20px}
+#result .gradebox{width:190px;text-align:center}
+#result .gradebox .g{font-size:120px;font-weight:800;color:var(--cyan);text-shadow:0 0 30px rgba(53,224,255,.6);line-height:1}
+#result .newrec{margin-top:10px;display:inline-block;background:var(--pink);color:#1a0510;font-weight:700;
+  font-size:12px;padding:4px 14px;clip-path:var(--cut-sm);letter-spacing:2px}
+#result .stats{flex:1}
+#result .score{font-size:52px;font-weight:800}
+#result .acc{color:var(--dim);margin-top:2px}
+#result .acc b{color:var(--text);font-size:20px}
+.jdist{display:flex;height:12px;clip-path:var(--cut-sm);overflow:hidden;margin:18px 0 12px}
+.jdist i{display:block;height:100%}
+.jcounts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:13px}
+.jcounts .jc{border:1px solid var(--line);clip-path:var(--cut-sm);padding:8px 12px}
+.jcounts .jc b{display:block;font-size:22px;margin-top:2px}
+#result .btns{display:flex;gap:14px;margin-top:26px;justify-content:flex-end}
+.rbtn{clip-path:var(--cut-sm);border:1px solid var(--line);background:var(--bg2);color:var(--text);
+  padding:12px 30px;font-size:15px;letter-spacing:3px;cursor:pointer}
+.rbtn:hover{border-color:var(--cyan);color:var(--cyan)}
+.rbtn.primary{background:var(--cyan);color:#04121a;font-weight:700;border-color:var(--cyan)}
+
+/* ===== 游玩 ===== */
+/* 背景：暗角 + 底部渐变（无透视元素） */
+#play .ptunnel{position:absolute;inset:0;
+  background:
+    radial-gradient(120% 100% at 50% 50%,transparent 55%,rgba(4,6,14,.55) 100%),
+    radial-gradient(120% 90% at 50% 110%,#18204a 0%,var(--bg) 62%)}
+#play .pprog{position:absolute;top:0;left:0;right:0;height:3px;background:#ffffff12}
+#play .pprog i{display:block;height:100%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+#play .phud{position:absolute;top:16px;right:26px;text-align:right}
+#play .pscore{font-size:36px;font-weight:800;letter-spacing:2px;line-height:1}
+#play .pacc{font-size:13px;color:var(--dim);margin-top:4px}
+/* 实时判定统计：左上角 */
+#play .pjudges{position:absolute;top:16px;left:26px;display:flex;gap:20px;
+  border:1px solid var(--line);clip-path:var(--cut-sm);background:rgba(16,22,42,.6);
+  padding:7px 18px;font-size:10px;letter-spacing:1.5px}
+#play .pjudges b{display:block;font-size:17px;margin-top:2px;font-weight:700}
+/* 曲名+难度：左下角，填底线以下空间 */
+#play .phl{position:absolute;left:26px;bottom:32px;display:flex;align-items:center;gap:14px}
+#play .phl b{font-size:19px;letter-spacing:1px}
+#play .phl span{font-size:12px;color:var(--hard);border:1px solid var(--hard);padding:3px 10px;clip-path:var(--cut-sm);letter-spacing:2px}
+/* combo：画面几何中心，稳住视觉重心 */
+#play .pcombo{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);text-align:center;
+  font-size:52px;font-weight:700;line-height:1;text-shadow:0 0 26px rgba(223,230,255,.28)}
+#play .pcombo small{display:block;font-size:11px;letter-spacing:5px;color:var(--dim);margin-top:5px}
+#play .pjudge{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);
+  font-size:24px;font-weight:700;letter-spacing:5px;color:var(--cyan);text-shadow:0 0 18px rgba(53,224,255,.7)}
+/* 判定线：底线延长与两侧线相交，端部加斜翼（修正原版过短+生硬端点） */
+#play .jline{position:absolute;box-shadow:0 0 14px rgba(53,224,255,.55)}
+#play .jbottom{left:90px;right:90px;bottom:110px;height:3px;
+  background:linear-gradient(90deg,transparent,var(--cyan) 6%,var(--cyan) 94%,transparent)}
+#play .jleft,#play .jright{width:3px;top:120px;bottom:110px;
+  background:linear-gradient(180deg,transparent,var(--cyan) 6%,var(--cyan) 94%,transparent)}
+#play .jleft{left:90px}
+#play .jright{right:90px}
+#play .wing{position:absolute;width:52px;height:3px;background:var(--cyan);opacity:.75;box-shadow:0 0 12px rgba(53,224,255,.6)}
+#play .wl{left:38px;bottom:110px;transform:rotate(-38deg);transform-origin:right center}
+#play .wr{right:38px;bottom:110px;transform:rotate(38deg);transform-origin:left center}
+/* 击中光效 */
+#play .flare{position:absolute;width:130px;height:130px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(53,224,255,.5),rgba(53,224,255,.12) 45%,transparent 70%);
+  transform:translate(-50%,50%)}
+/* note：cyan=底轨 tap/hold，blue=侧轨 tap/chain，pink=mixer；带渐变和内高光，不扁平 */
+#play .note{position:absolute;width:64px;height:16px;clip-path:var(--cut-sm)}
+#play .tap{background:linear-gradient(180deg,#a5f3ff 0%,var(--cyan) 45%,#17a8c8 100%);
+  box-shadow:0 0 14px rgba(53,224,255,.8)}
+#play .holdfill{width:64px;clip-path:none;
+  background:linear-gradient(180deg,rgba(53,224,255,.03),rgba(53,224,255,.32));
+  border-left:1px solid rgba(53,224,255,.25);border-right:1px solid rgba(53,224,255,.25)}
+#play .snote{position:absolute;width:16px;height:64px;clip-path:var(--cut-sm);
+  background:linear-gradient(90deg,#a5ddff 0%,var(--normal) 45%,#1a8fd0 100%);
+  box-shadow:0 0 14px rgba(56,189,248,.8)}
+#play .cnode{position:absolute;width:14px;height:14px;transform:rotate(45deg);
+  background:var(--normal);box-shadow:0 0 10px rgba(56,189,248,.85)}
+#play .mixer{position:absolute;width:10px;background:rgba(255,77,143,.3);border:1px solid var(--pink)}
+#play .mixerhl{position:absolute;width:18px;height:26px;clip-path:var(--cut-sm);
+  background:var(--pink);box-shadow:0 0 16px rgba(255,77,143,.9)}
+#play .ppause{position:absolute;top:64px;left:50%;transform:translateX(-50%);
+  width:72px;height:52px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);clip-path:var(--cut-sm);background:rgba(16,22,42,.75);
+  color:var(--text);font-size:19px;cursor:pointer}
+#play .ppause:hover{border-color:var(--cyan);color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="stage">
+
+<!-- ================= 主菜单 ================= -->
+<div class="screen on" id="mmenu">
+  <div class="topbar"><div class="logo">DUX<b>·Community</b></div>
+    <div class="right"><span>v0.1.0-mock</span><span class="chip">设置</span></div></div>
+  <div class="hero"><h1>DUX<b>·</b>COMMUNITY</h1><p>COMMUNITY-DRIVEN RHYTHM GAME</p></div>
+  <div class="menu">
+    <div class="mbtn primary">游玩<small>PLAY / SONG SELECT</small></div>
+    <div class="mbtn">谱面工坊<small>WORKSHOP（阶段3）</small></div>
+    <div class="mbtn">设置<small>SETTINGS</small></div>
+  </div>
+  <div class="ver">clean-room build · no original assets</div>
+</div>
+
+<!-- ================= 选曲 ================= -->
+<div class="screen" id="select">
+  <div class="topbar"><div class="logo">DUX<b>·Community</b></div>
+    <div class="right"><span class="chip">排序: 默认</span><span class="chip">搜索</span><span class="chip">返回</span></div></div>
+  <div class="wrap">
+    <div class="detail">
+      <div class="cover"><span>COVER</span></div>
+      <h2>Neon Horizon</h2><div class="artist">DJ Sample · 谱师: community/aki</div>
+      <div class="metarow mono"><span>时长 <b>2:14</b></span><span>Note <b>1,204</b></span></div>
+    </div>
+    <div class="list">
+      <div class="hdr"><span>SONG LIBRARY · 24 CHARTS</span><span>本地谱面包</span></div>
+      <div class="song sel"><div class="th" style="background:linear-gradient(135deg,#243b7a,#7a2440)"></div>
+        <div class="ti"><div class="t">Neon Horizon</div><div class="a">DJ Sample</div></div>
+        <div class="lv mono"><i class="on" style="background:var(--casual)">3</i><i class="on" style="background:var(--normal)">6</i><i class="on" style="background:var(--hard)">10</i><i class="on" style="background:var(--mega)">13</i><i>–</i></div></div>
+      <div class="song"><div class="th" style="background:linear-gradient(135deg,#7a5e24,#24507a)"></div>
+        <div class="ti"><div class="t">Azure Drift</div><div class="a">sample unit</div></div>
+        <div class="lv mono"><i>2</i><i>5</i><i>9</i><i>–</i><i>–</i></div></div>
+      <div class="song"><div class="th" style="background:linear-gradient(135deg,#5e247a,#7a2424)"></div>
+        <div class="ti"><div class="t">Crimson Pulse</div><div class="a">ak+q style</div></div>
+        <div class="lv mono"><i>4</i><i>7</i><i>11</i><i>14</i><i>15</i></div></div>
+      <div class="song"><div class="th" style="background:linear-gradient(135deg,#247a6e,#6e247a)"></div>
+        <div class="ti"><div class="t">Midnight Relay</div><div class="a">community/mio</div></div>
+        <div class="lv mono"><i>1</i><i>4</i><i>8</i><i>12</i><i>–</i></div></div>
+      <div class="song"><div class="th" style="background:linear-gradient(135deg,#3a3f6e,#173)"></div>
+        <div class="ti"><div class="t">Glass Garden</div><div class="a">sample unit</div></div>
+        <div class="lv mono"><i>2</i><i>6</i><i>9</i><i>–</i><i>–</i></div></div>
+      <div class="song"><div class="th" style="background:linear-gradient(135deg,#6e2a3a,#2a3560)"></div>
+        <div class="ti"><div class="t">Voltage</div><div class="a">community/aki</div></div>
+        <div class="lv mono"><i>3</i><i>7</i><i>10</i><i>13</i><i>15</i></div></div>
+    </div>
+  </div>
+  <div class="diffbar">
+    <button class="dcycle" id="dcycle" onclick="cycleDiff()">CASUAL · Lv 3<br><small>点击切换难度 ▲</small></button>
+    <div class="bestline"><span>BEST</span><b class="mono" id="bestScore">—</b>
+      <span id="bestDetail">尚无成绩</span><span class="g" id="bestGrade" style="margin-left:auto"></span></div>
+    <button class="start">START ▶</button>
+  </div>
+</div>
+
+<!-- ================= 结算 ================= -->
+<div class="screen" id="result">
+  <div class="bgcover"></div>
+  <div class="topbar"><div class="logo">DUX<b>·Community</b></div></div>
+  <div class="panel">
+    <div class="songline">RESULT · <b>Neon Horizon</b> · HARD 10</div>
+    <div class="main">
+      <div class="gradebox"><div class="g">S</div><div class="newrec">NEW RECORD</div></div>
+      <div class="stats">
+        <div class="score mono">991,204</div>
+        <div class="acc">ACC <b>99.03%</b> · MAX COMBO <b class="mono">1,180</b> / 1,204</div>
+        <div class="jdist">
+          <i style="width:92%;background:var(--cyan)"></i><i style="width:5%;background:var(--hard)"></i>
+          <i style="width:2%;background:var(--casual)"></i><i style="width:1%;background:#555"></i>
+        </div>
+        <div class="jcounts mono">
+          <div class="jc" style="color:var(--cyan)">PERFECT<b>1,108</b></div>
+          <div class="jc" style="color:var(--hard)">GREAT<b>61</b></div>
+          <div class="jc" style="color:var(--casual)">GOOD<b>23</b></div>
+          <div class="jc" style="color:#888">MISS<b>12</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="rbtn">返回选曲</button><button class="rbtn">下一首</button>
+      <button class="rbtn primary">再来一次</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 游玩 ================= -->
+<div class="screen" id="play">
+  <div class="ptunnel"></div>
+  <div class="pprog"><i style="width:42%"></i></div>
+  <div class="phud"><div class="pscore">487,210</div><div class="pacc mono">ACC 99.12%</div></div>
+  <div class="pjudges">
+    <div style="color:var(--cyan)">PERFECT<b class="mono">1,108</b></div>
+    <div style="color:var(--hard)">GREAT<b class="mono">61</b></div>
+    <div style="color:var(--casual)">GOOD<b class="mono">23</b></div>
+    <div style="color:#888">MISS<b class="mono">12</b></div>
+  </div>
+  <div class="ppause">❚❚</div>
+  <div class="pcombo">312<small>COMBO</small></div>
+  <div class="pjudge">PERFECT</div>
+  <div class="jline jbottom"></div><div class="jline jleft"></div><div class="jline jright"></div>
+  <div class="wing wl"></div><div class="wing wr"></div>
+  <div class="phl"><b>Neon Horizon</b><span>HARD · Lv 10</span></div>
+  <!-- 底轨：下落 tap ×2 + 下落中的 hold + 已触线的 hold（带击中光效） -->
+  <div class="note tap" style="left:420px;bottom:340px"></div>
+  <div class="note tap" style="left:640px;bottom:228px"></div>
+  <div class="note holdfill" style="left:880px;bottom:430px;height:150px"></div>
+  <div class="note tap" style="left:880px;bottom:414px"></div>
+  <div class="flare" style="left:1112px;bottom:110px"></div>
+  <div class="note holdfill" style="left:1080px;bottom:126px;height:170px"></div>
+  <div class="note tap" style="left:1080px;bottom:102px"></div>
+  <!-- 左侧轨：两个 tap + 一组 chain 节点 -->
+  <div class="snote" style="left:82px;top:330px"></div>
+  <div class="snote" style="left:82px;top:480px"></div>
+  <div class="cnode" style="left:84px;top:150px"></div>
+  <div class="cnode" style="left:84px;top:205px"></div>
+  <div class="cnode" style="left:84px;top:260px"></div>
+  <!-- 右侧轨：mixer 粉条 + 高亮块 -->
+  <div class="mixer" style="right:86px;top:170px;height:220px"></div>
+  <div class="mixerhl" style="right:82px;top:330px"></div>
+</div>
+
+</div>
+
+<div class="navmock">
+  <button onclick="go('mmenu')">主菜单</button>
+  <button onclick="go('select')">选曲</button>
+  <button onclick="go('result')">结算</button>
+  <button onclick="go('play')">游玩</button>
+</div>
+<script>
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on')}
+/* 难度循环：从最低开始，点击向上，最高后再点回到最低；跳过该曲没有的难度 */
+var DIFFS=[{n:'CASUAL',lv:3,best:null},{n:'NORMAL',lv:6,best:null},
+  {n:'HARD',lv:10,best:{s:'987,650',acc:'98.42%',g:'S'}},{n:'MEGA',lv:13,best:null}]; // 该曲无 GIGA
+var di=0;
+function cycleDiff(){di=(di+1)%DIFFS.length;renderDiff()}
+function renderDiff(){var d=DIFFS[di];
+  document.getElementById('dcycle').innerHTML=d.n+' · Lv '+d.lv+'<br><small>点击切换难度 ▲</small>';
+  document.getElementById('bestScore').textContent=d.best?d.best.s:'—';
+  document.getElementById('bestDetail').textContent=d.best?('ACC '+d.best.acc):'尚无成绩';
+  var g=document.getElementById('bestGrade');g.textContent=d.best?d.best.g:'';
+  g.style.color=d.best?'var(--hard)':'transparent'}
+renderDiff();
+if(location.hash) go(location.hash.slice(1));
+if(new URLSearchParams(location.search).get('bare')) document.querySelector('.navmock').style.display='none';
+</script>
+</body>
+</html>

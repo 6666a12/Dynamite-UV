@@ -1,0 +1,14 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DuxCommunity</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 本机可能只有更高版本 .NET 运行时，允许前滚 -->
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../shared/DuxShared.csproj" />
+  </ItemGroup>
+</Project>
