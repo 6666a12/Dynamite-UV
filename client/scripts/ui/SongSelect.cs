@@ -30,7 +30,7 @@ public partial class SongSelect : Node2D
     {
         GameSession.EnsureInit();
 
-        AddChild(new NeonBackground { Size = new Vector2(2340, 1080) });
+        AddChild(new NeonBackground { Size = new Vector2(1920, 1080) });
 
         BuildTopBar();
         BuildDetail();
@@ -56,11 +56,11 @@ public partial class SongSelect : Node2D
         var bar = new ColorRect
         {
             Color = new Color(0.04f, 0.06f, 0.12f, 0.9f),
-            Size = new Vector2(2340, 76),
+            Size = new Vector2(1920, 76),
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         AddChild(bar);
-        AddLine(new Vector2(0, 76), new Vector2(2340, 2));
+        AddLine(new Vector2(0, 76), new Vector2(1920, 2));
 
         var logo = new Label { Position = new Vector2(66, 16), Text = "DUX·Community" };
         logo.AddThemeFontOverride("font", UiFonts.Tech);
@@ -70,7 +70,7 @@ public partial class SongSelect : Node2D
 
         var back = new CutButton
         {
-            Position = new Vector2(2160, 12),
+            Position = new Vector2(1736, 12),
             Size = new Vector2(140, 52),
             Text = "返回",
             FontSize = 22,
@@ -81,12 +81,12 @@ public partial class SongSelect : Node2D
 
     private void BuildDetail()
     {
-        AddChild(new CutPanel { Position = new Vector2(60, 112), Size = new Vector2(840, 828) });
+        AddChild(new CutPanel { Position = new Vector2(40, 112), Size = new Vector2(480, 828) });
 
         _coverFallback = new ColorRect
         {
-            Position = new Vector2(120, 152),
-            Size = new Vector2(720, 560),
+            Position = new Vector2(80, 152),
+            Size = new Vector2(400, 311),
             Color = new Color(0.12f, 0.16f, 0.30f),
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
@@ -94,26 +94,26 @@ public partial class SongSelect : Node2D
 
         _cover = new TextureRect
         {
-            Position = new Vector2(120, 152),
-            Size = new Vector2(720, 560),
+            Position = new Vector2(80, 152),
+            Size = new Vector2(400, 311),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         AddChild(_cover);
 
-        _title = new Label { Position = new Vector2(100, 740), Size = new Vector2(760, 56) };
+        _title = new Label { Position = new Vector2(64, 500), Size = new Vector2(420, 56) };
         _title.AddThemeFontOverride("font", UiFonts.Cjk);
         _title.AddThemeFontSizeOverride("font_size", 46);
         _title.AddThemeColorOverride("font_color", UiFonts.Text);
         AddChild(_title);
 
-        _artist = new Label { Position = new Vector2(100, 806), Size = new Vector2(760, 32) };
+        _artist = new Label { Position = new Vector2(64, 566), Size = new Vector2(420, 32) };
         _artist.AddThemeFontSizeOverride("font_size", 22);
         _artist.AddThemeColorOverride("font_color", UiFonts.Dim);
         AddChild(_artist);
 
-        _meta = new Label { Position = new Vector2(100, 856), Size = new Vector2(760, 34) };
+        _meta = new Label { Position = new Vector2(64, 616), Size = new Vector2(420, 34) };
         _meta.AddThemeFontOverride("font", UiFonts.Tech);
         _meta.AddThemeFontSizeOverride("font_size", 24);
         _meta.AddThemeColorOverride("font_color", UiFonts.Text);
@@ -122,11 +122,11 @@ public partial class SongSelect : Node2D
 
     private void BuildList()
     {
-        AddChild(new CutPanel { Position = new Vector2(940, 112), Size = new Vector2(1340, 828) });
+        AddChild(new CutPanel { Position = new Vector2(560, 112), Size = new Vector2(1320, 828) });
 
         var hdr = new Label
         {
-            Position = new Vector2(980, 132),
+            Position = new Vector2(590, 132),
             Size = new Vector2(1260, 30),
             Text = $"SONG LIBRARY · {GameSession.Packs.Count} CHARTS",
         };
@@ -141,8 +141,8 @@ public partial class SongSelect : Node2D
             var p = GameSession.Packs[i];
             var row = new SongRow
             {
-                Position = new Vector2(980, 180 + i * 118),
-                Size = new Vector2(1260, 96),
+                Position = new Vector2(590, 180 + i * 118),
+                Size = new Vector2(1280, 96),
                 Pack = p,
             };
             row.Pressed += () => { _packIdx = idx; _diffIdx = 0; RefreshAll(); };
@@ -154,7 +154,7 @@ public partial class SongSelect : Node2D
         {
             var empty = new Label
             {
-                Position = new Vector2(980, 200),
+                Position = new Vector2(590, 200),
                 Size = new Vector2(1260, 40),
                 Text = "曲库为空：把谱面包放进 user://charts/ 或 res://testdata/packs/",
             };
@@ -168,8 +168,8 @@ public partial class SongSelect : Node2D
     {
         _diffBtn = new CutButton
         {
-            Position = new Vector2(60, 966),
-            Size = new Vector2(400, 88),
+            Position = new Vector2(40, 966),
+            Size = new Vector2(300, 88),
             StyleKind = CutButton.ButtonStyle.Solid,
             SubText = "点击切换难度 ▲",
             FontSize = 30,
@@ -178,9 +178,9 @@ public partial class SongSelect : Node2D
         _diffBtn.Pressed += CycleDiff;
         AddChild(_diffBtn);
 
-        AddChild(new CutPanel { Position = new Vector2(484, 966), Size = new Vector2(1396, 88), Cut = 10 });
+        AddChild(new CutPanel { Position = new Vector2(360, 966), Size = new Vector2(1120, 88), Cut = 10 });
 
-        _bestLabel = new Label { Position = new Vector2(530, 992), Size = new Vector2(1000, 40) };
+        _bestLabel = new Label { Position = new Vector2(390, 992), Size = new Vector2(850, 40) };
         _bestLabel.AddThemeFontOverride("font", UiFonts.Tech);
         _bestLabel.AddThemeFontSizeOverride("font_size", 28);
         _bestLabel.AddThemeColorOverride("font_color", UiFonts.Dim);
@@ -188,8 +188,8 @@ public partial class SongSelect : Node2D
 
         _bestGrade = new Label
         {
-            Position = new Vector2(1560, 976),
-            Size = new Vector2(280, 68),
+            Position = new Vector2(1310, 976),
+            Size = new Vector2(140, 68),
             HorizontalAlignment = HorizontalAlignment.Right,
         };
         _bestGrade.AddThemeFontOverride("font", UiFonts.Tech);
@@ -198,8 +198,8 @@ public partial class SongSelect : Node2D
 
         _startBtn = new CutButton
         {
-            Position = new Vector2(1904, 966),
-            Size = new Vector2(376, 88),
+            Position = new Vector2(1500, 966),
+            Size = new Vector2(380, 88),
             Text = "START ▶",
             StyleKind = CutButton.ButtonStyle.Solid,
             FontSize = 34,
@@ -268,7 +268,7 @@ public partial class SongSelect : Node2D
         var rec = GameSession.Scores.Get(pack.Id, diff.Diff);
         if (rec != null)
         {
-            _bestLabel.Text = $"BEST {rec.Score:N0}   ACC {rec.Acc:F2}%";
+            _bestLabel.Text = $"BEST {rec.Score:N0}   CLEAR {rec.Acc:F2}%";
             _bestGrade.Text = rec.Grade;
             _bestGrade.AddThemeColorOverride("font_color", GradeColor(rec.Grade));
         }

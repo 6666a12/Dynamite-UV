@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="768" viewBox="0 0 1024 768" role="img" aria-labelledby="title desc">
+  <title id="title">DUX Community hit burst animation V1</title>
+  <desc id="desc">A twelve-frame additive hit burst sprite sheet arranged in four columns and three rows.</desc>
+  <defs>
+    <clipPath id="cell"><rect width="256" height="256"/></clipPath>
+    <radialGradient id="core">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="0.08" stop-color="#e7fcff" stop-opacity="1"/>
+      <stop offset="0.22" stop-color="#8ff4ff" stop-opacity="0.9"/>
+      <stop offset="0.48" stop-color="#35e0ff" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#35e0ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="streak" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#35e0ff" stop-opacity="0"/>
+      <stop offset="0.36" stop-color="#79efff" stop-opacity="0.2"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="0.64" stop-color="#79efff" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#35e0ff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="tight" x="-160%" y="-160%" width="420%" height="420%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feFlood flood-color="#35e0ff" flood-opacity="0.95"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="wide" x="-180%" y="-180%" width="460%" height="460%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feFlood flood-color="#35e0ff" flood-opacity="0.66"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="768" fill="#000000"/>
+
+  <!-- Frame 00: first contact. -->
+  <g transform="translate(0 0)"><g clip-path="url(#cell)">
+    <circle cx="128" cy="132" r="18" fill="url(#core)" opacity="0.52"/>
+    <path d="M105 132H151" stroke="url(#streak)" stroke-width="3"/>
+    <path d="M122 132L128 126L134 132L128 138Z" fill="#dffbff" filter="url(#tight)"/>
+  </g></g>
+
+  <!-- Frame 01: white-hot onset. -->
+  <g transform="translate(256 0)"><g clip-path="url(#cell)">
+    <ellipse cx="128" cy="132" rx="54" ry="28" fill="url(#core)" opacity="0.8"/>
+    <path d="M68 132H188" stroke="url(#streak)" stroke-width="5" filter="url(#wide)"/>
+    <path d="M88 132H168M128 102V162" stroke="#dffcff" stroke-opacity="0.72" stroke-width="2"/>
+    <circle cx="128" cy="132" r="7" fill="#ffffff" filter="url(#tight)"/>
+  </g></g>
+
+  <!-- Frame 02: main flash. -->
+  <g transform="translate(512 0)"><g clip-path="url(#cell)">
+    <ellipse cx="128" cy="132" rx="96" ry="52" fill="url(#core)" opacity="0.92"/>
+    <circle cx="128" cy="132" r="34" fill="none" stroke="#baf9ff" stroke-opacity="0.78" stroke-width="3"
+            stroke-dasharray="26 8 7 10" transform="rotate(-12 128 132)" filter="url(#tight)"/>
+    <path d="M24 132H232" stroke="url(#streak)" stroke-width="7" filter="url(#wide)"/>
+    <path d="M44 132H212M128 68V196M82 90L174 174M174 90L82 174"
+          stroke="#dcfbff" stroke-opacity="0.64" stroke-width="2.5"/>
+    <path d="M116 132L128 120L140 132L128 144Z" fill="#ffffff" filter="url(#tight)"/>
+  </g></g>
+
+  <!-- Frame 03: peak with shards. -->
+  <g transform="translate(768 0)"><g clip-path="url(#cell)">
+    <ellipse cx="128" cy="132" rx="118" ry="64" fill="url(#core)" opacity="0.9"/>
+    <circle cx="128" cy="132" r="49" fill="none" stroke="#9cf6ff" stroke-opacity="0.78" stroke-width="3"
+            stroke-dasharray="34 10 9 13" transform="rotate(-20 128 132)" filter="url(#tight)"/>
+    <circle cx="128" cy="132" r="70" fill="none" stroke="#35e0ff" stroke-opacity="0.3" stroke-width="2"
+            stroke-dasharray="10 14 36 16" transform="rotate(10 128 132)"/>
+    <path d="M8 132H248" stroke="url(#streak)" stroke-width="8" filter="url(#wide)"/>
+    <path d="M28 132H228" stroke="#ffffff" stroke-opacity="0.7" stroke-width="2"/>
+    <path d="M128 52L134 104L128 120L122 104ZM128 212L134 160L128 144L122 160Z" fill="#d8fbff" fill-opacity="0.68"/>
+    <path d="M54 78L102 113L112 122L96 116ZM202 78L154 113L144 122L160 116Z" fill="#8ef4ff" fill-opacity="0.5"/>
+    <path d="M48 184L100 151L112 142L94 150ZM208 184L156 151L144 142L162 150Z" fill="#35e0ff" fill-opacity="0.34"/>
+    <g fill="#d8fbff" filter="url(#tight)">
+      <circle cx="52" cy="110" r="2.5"/><circle cx="82" cy="58" r="2"/>
+      <circle cx="194" cy="94" r="3"/><circle cx="210" cy="164" r="2.5"/>
+    </g>
+    <path d="M114 132L128 118L142 132L128 146Z" fill="#ffffff" filter="url(#tight)"/>
+  </g></g>
+
+  <!-- Frame 04: ring expansion begins. -->
+  <g transform="translate(0 256)"><g clip-path="url(#cell)">
+    <ellipse cx="128" cy="132" rx="104" ry="58" fill="url(#core)" opacity="0.66"/>
+    <circle cx="128" cy="132" r="62" fill="none" stroke="#8cf3ff" stroke-opacity="0.7" stroke-width="3"
+            stroke-dasharray="42 14 10 16" transform="rotate(-28 128 132)" filter="url(#tight)"/>
+    <circle cx="128" cy="132" r="84" fill="none" stroke="#35e0ff" stroke-opacity="0.28" stroke-width="2"
+            stroke-dasharray="12 18 48 22" transform="rotate(14 128 132)"/>
+    <path d="M16 132H240" stroke="url(#streak)" stroke-width="6" opacity="0.82" filter="url(#wide)"/>
+    <path d="M34 132H222" stroke="#d8fbff" stroke-opacity="0.54" stroke-width="2"/>
+    <path d="M42 76L88 108L104 120L84 114ZM214 76L168 108L152 120L172 114Z" fill="#8ef4ff" fill-opacity="0.42"/>
+    <path d="M36 190L86 158L104 146L82 154ZM220 190L170 158L152 146L174 154Z" fill="#35e0ff" fill-opacity="0.3"/>
+    <g fill="#c9faff" filter="url(#tight)">
+      <circle cx="34" cy="116" r="2.5"/><circle cx="66" cy="52" r="2"/>
+      <circle cx="204" cy="76" r="2.5"/><circle cx="224" cy="174" r="2"/>
+    </g>
+    <circle cx="128" cy="132" r="8" fill="#ecfdff" filter="url(#tight)"/>
+  </g></g>
+
+  <!-- Frame 05: separated arcs and travelling particles. -->
+  <g transform="translate(256 256)"><g clip-path="url(#cell)">
+    <ellipse cx="128" cy="132" rx="88" ry="48" fill="url(#core)" opacity="0.46"/>
+    <circle cx="128" cy="132" r="76" fill="none" stroke="#7af0ff" stroke-opacity="0.58" stroke-width="3"
+            stroke-dasharray="48 18 12 22" transform="rotate(-34 128 132)" filter="url(#tight)"/>
+    <circle cx="128" cy="132" r="98" fill="none" stroke="#35e0ff" stroke-opacity="0.24" stroke-width="2"
+            stroke-dasharray="14 22 54 28" transform="rotate(18 128 132)"/>
+    <path d="M22 132H234" stroke="url(#streak)" stroke-width="5" opacity="0.64"/>
+    <path d="M26 70L78 104L98 118L72 108ZM230 70L178 104L158 118L184 108Z" fill="#7df0ff" fill-opacity="0.34"/>
+    <path d="M22 198L76 164L98 148L70 160ZM234 198L180 164L158 148L186 160Z" fill="#35e0ff" fill-opacity="0.24"/>
+    <g fill="#bbf8ff" filter="url(#tight)">
+      <circle cx="20" cy="104" r="2.5"/><circle cx="52" cy="42" r="2"/>
+      <circle cx="214" cy="60" r="2.5"/><circle cx="238" cy="184" r="2"/>
+      <circle cx="72" cy="216" r="2"/>
+    </g>
+    <circle cx="128" cy="132" r="5" fill="#d9fbff" opacity="0.9"/>
+  </g></g>
+
+  <!-- Frame 06: wide broken ring. -->
+  <g transform="translate(512 256)"><g clip-path="url(#cell)">
+    <ellipse cx="128" cy="132" rx="72" ry="40" fill="url(#core)" opacity="0.32"/>
+    <circle cx="128" cy="132" r="90" fill="none" stroke="#6deeff" stroke-opacity="0.48" stroke-width="3"
+            stroke-dasharray="54 24 12 28" transform="rotate(-40 128 132)" filter="url(#tight)"/>
+    <circle cx="128" cy="132" r="111" fill="none" stroke="#35e0ff" stroke-opacity="0.2" stroke-width="2"
+            stroke-dasharray="14 28 58 34" transform="rotate(22 128 132)"/>
+    <path d="M34 132H222" stroke="url(#streak)" stroke-width="4" opacity="0.46"/>
+    <path d="M18 62L70 98L94 116L64 102ZM238 62L186 98L162 116L192 102Z" fill="#6deeff" fill-opacity="0.26"/>
+    <path d="M14 208L68 170L94 150L62 166ZM242 208L188 170L162 150L194 166Z" fill="#35e0ff" fill-opacity="0.18"/>
+    <g fill="#a9f6ff" opacity="0.78">
+      <circle cx="14" cy="94" r="2.5"/><circle cx="42" cy="32" r="2"/>
+      <circle cx="226" cy="48" r="2.5"/><circle cx="244" cy="196" r="2"/>
+      <circle cx="58" cy="224" r="2"/>
+    </g>
+  </g></g>
+
+  <!-- Frame 07: ring fragments leave the center. -->
+  <g transform="translate(768 256)"><g clip-path="url(#cell)">
+    <ellipse cx="128" cy="132" rx="58" ry="32" fill="url(#core)" opacity="0.22"/>
+    <circle cx="128" cy="132" r="101" fill="none" stroke="#61ebff" stroke-opacity="0.36" stroke-width="3"
+            stroke-dasharray="58 30 10 34" transform="rotate(-46 128 132)" filter="url(#tight)"/>
+    <circle cx="128" cy="132" r="120" fill="none" stroke="#35e0ff" stroke-opacity="0.15" stroke-width="2"
+            stroke-dasharray="12 34 60 42" transform="rotate(26 128 132)"/>
+    <path d="M52 132H204" stroke="url(#streak)" stroke-width="3" opacity="0.32"/>
+    <path d="M8 54L58 92L86 114L52 96ZM248 54L198 92L170 114L204 96Z" fill="#61ebff" fill-opacity="0.18"/>
+    <path d="M4 218L56 178L86 152L50 174ZM252 218L200 178L170 152L206 174Z" fill="#35e0ff" fill-opacity="0.13"/>
+    <g fill="#9af4ff" opacity="0.64">
+      <circle cx="8" cy="86" r="2"/><circle cx="34" cy="22" r="1.8"/>
+      <circle cx="236" cy="36" r="2.2"/><circle cx="250" cy="206" r="1.8"/>
+      <circle cx="48" cy="232" r="1.8"/>
+    </g>
+  </g></g>
+
+  <!-- Frame 08: faint outer arcs. -->
+  <g transform="translate(0 512)"><g clip-path="url(#cell)">
+    <circle cx="128" cy="132" r="108" fill="none" stroke="#55e8ff" stroke-opacity="0.25" stroke-width="2.5"
+            stroke-dasharray="62 38 9 42" transform="rotate(-52 128 132)" filter="url(#tight)"/>
+    <circle cx="128" cy="132" r="124" fill="none" stroke="#35e0ff" stroke-opacity="0.1" stroke-width="2"
+            stroke-dasharray="10 42 54 50" transform="rotate(30 128 132)"/>
+    <ellipse cx="128" cy="132" rx="44" ry="24" fill="url(#core)" opacity="0.14"/>
+    <path d="M68 132H188" stroke="url(#streak)" stroke-width="2.5" opacity="0.22"/>
+    <g fill="#8df2ff" opacity="0.5">
+      <circle cx="18" cy="66" r="1.8"/><circle cx="28" cy="210" r="1.6"/>
+      <circle cx="228" cy="54" r="1.8"/><circle cx="242" cy="190" r="1.6"/>
+      <circle cx="72" cy="238" r="1.5"/>
+    </g>
+  </g></g>
+
+  <!-- Frame 09: residual fragments. -->
+  <g transform="translate(256 512)"><g clip-path="url(#cell)">
+    <circle cx="128" cy="132" r="114" fill="none" stroke="#4ce5ff" stroke-opacity="0.16" stroke-width="2"
+            stroke-dasharray="54 52 8 58" transform="rotate(-58 128 132)"/>
+    <path d="M82 132H174" stroke="url(#streak)" stroke-width="2" opacity="0.14"/>
+    <path d="M12 52L42 76L58 90L36 80ZM244 44L216 70L198 86L222 72Z" fill="#55e8ff" fill-opacity="0.1"/>
+    <g fill="#76edff" opacity="0.34">
+      <circle cx="10" cy="52" r="1.5"/><circle cx="20" cy="222" r="1.4"/>
+      <circle cx="238" cy="42" r="1.5"/><circle cx="246" cy="214" r="1.4"/>
+    </g>
+  </g></g>
+
+  <!-- Frame 10: last afterglow. -->
+  <g transform="translate(512 512)"><g clip-path="url(#cell)">
+    <circle cx="128" cy="132" r="118" fill="none" stroke="#35e0ff" stroke-opacity="0.07" stroke-width="2"
+            stroke-dasharray="44 78 6 88" transform="rotate(-64 128 132)"/>
+    <path d="M98 132H158" stroke="url(#streak)" stroke-width="1.5" opacity="0.08"/>
+    <g fill="#60e9ff" opacity="0.18">
+      <circle cx="12" cy="40" r="1.2"/><circle cx="244" cy="32" r="1.2"/>
+      <circle cx="248" cy="228" r="1.2"/>
+    </g>
+  </g></g>
+
+  <!-- Frame 11: fully clear. -->
+  <g transform="translate(768 512)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#000000"/>
+  </g></g>
+</svg>

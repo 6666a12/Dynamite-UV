@@ -18,9 +18,17 @@ public static class Program
 
         TestLoad(chartPath, out var chart);
         TestBarTimeConversion(chart!);
+		TestDropSpeedVisualModel();
         TestAutoFullCombo(chart!);
+        TestHeadlineCountsAcrossDevPacks(chartPath);
         TestWindowOffsets();
         TestMine();
+        TestNormalizedScore();
+		TestInputTimeGroupGate();
+		TestInputJudgeRules();
+		TestDynamicHoldingSchedule();
+		TestSustainInterpolation();
+		TestResolutionAndScaledVitals();
 
         Console.WriteLine();
         if (_failures > 0)
@@ -52,16 +60,47 @@ public static class Program
     {
         Console.WriteLine("[2] BarTime->Second vs Baked_Second (<=1ms)");
         var maxErr = 0.0;
+		var maxRoundTripErr = 0.0;
         Note? worst = null;
         foreach (var n in chart.AllNotes)
         {
             var sec = chart.BarTimeToSeconds(n.BarTime);
             var err = Math.Abs(sec - n.BakedSecond);
             if (err > maxErr) { maxErr = err; worst = n; }
+			maxRoundTripErr = Math.Max(maxRoundTripErr,
+				Math.Abs(chart.SecondsToBarTime(sec) - n.BarTime));
         }
         Console.WriteLine($"    max error = {maxErr * 1000.0:F4} ms (note Id={worst?.Id})");
         Check(maxErr <= 0.001, "全部音符换算误差 ≤1ms");
+		Check(maxRoundTripErr <= 1e-9, nameof(Chart.SecondsToBarTime));
     }
+
+	// 2b. 当前流速乘剩余 Bar 距离：升速段允许 note 先远离判定线再折返。
+	private static void TestDropSpeedVisualModel()
+	{
+		Console.WriteLine(nameof(TestDropSpeedVisualModel));
+		var speed = new DropSpeedMap(new[]
+		{
+			(0.0, 0.2),
+			(1.0, 1.1),
+		});
+
+		Check(Math.Abs(speed.SpeedAt(0.5) - 0.65) < 1e-12,
+			nameof(DropSpeedMap.SpeedAt));
+		var peakBar = 7.0 / 18.0;
+		var peak = speed.RemainingDistance(1.0, peakBar);
+		Check(peak > speed.RemainingDistance(1.0, 0.0),
+			nameof(DropSpeedMap.RemainingDistance));
+		Check(peak > speed.RemainingDistance(1.0, peakBar - 0.001) &&
+			peak > speed.RemainingDistance(1.0, peakBar + 0.001),
+			nameof(TestDropSpeedVisualModel));
+		Check(Math.Abs(speed.RemainingDistance(1.0, 1.0)) < 1e-12,
+			nameof(TestDropSpeedVisualModel));
+
+		var duplicate = new DropSpeedMap(new[] { (2.0, 0.5), (2.0, 0.8) });
+		Check(Math.Abs(duplicate.SpeedAt(2.0) - 0.8) < 1e-12,
+			nameof(TestDropSpeedVisualModel));
+	}
 
     // 3. Auto-FC：全部判定单元精确命中 → 全 Prefect、combo 最大、得分=理论满分、满血、100%
     private static void TestAutoFullCombo(Chart chart)
@@ -69,8 +108,8 @@ public static class Program
         Console.WriteLine("[3] Auto-FC simulation");
         var engine = new JudgeEngine(JudgePreset.Hard);
         var plan = JudgePlan.Build(chart, engine.Settings);
-        Console.WriteLine($"    units={plan.Units.Count} theoreticalMax={plan.TheoreticalMax} " +
-                          $"end={plan.EndTime:F2}s");
+        Console.WriteLine($"    units={plan.Units.Count} headline={plan.HeadlineUnitCount} " +
+                          $"theoreticalMax={plan.TheoreticalMax} end={plan.EndTime:F2}s");
 
         foreach (var u in plan.Units)
         {
@@ -79,11 +118,16 @@ public static class Program
                 case UnitKind.Input:
                     var r = engine.Judge(u.Time, u.Time); // 精确时刻命中
                     Check(r.Grade == JudgeGrade.Prefect, "精确命中 = Prefect");
-                    engine.Apply(u.Category, r.Grade);
+                    engine.Apply(u.Category, r.Grade,
+                        u.AffectsCombo, u.AffectsJudgeCounts);
                     break;
                 case UnitKind.Auto:
                 case UnitKind.HoldPoint:
-                    engine.Apply(u.Category, JudgeGrade.Prefect);
+                case UnitKind.Contact: // Drag 接触判定：模拟按住 → Prefect
+				case UnitKind.HoldEnd:
+				case UnitKind.MixerEnd:
+                    engine.Apply(u.Category, JudgeGrade.Prefect,
+                        u.AffectsCombo, u.AffectsJudgeCounts);
                     break;
                 case UnitKind.Mine:
                     engine.ApplyMine(touched: false);
@@ -95,12 +139,45 @@ public static class Program
         Console.WriteLine($"    score={engine.Score} maxCombo={engine.MaxCombo} " +
                           $"health={engine.Health}/{engine.MaxHealth} " +
                           $"percent={engine.Percent(plan.TheoreticalMax):F2}%");
-        Check(engine.CountPrefect == plan.Units.Count, "全部 Prefect");
+        Check(engine.CountPrefect == plan.HeadlineUnitCount, "主判定全部 Prefect");
         Check(engine.CountMiss == 0 && engine.CountGreat == 0 && engine.CountGood == 0, "无其他等级");
-        Check(engine.MaxCombo == plan.Units.Count, "combo = 判定单元总数");
+        Check(engine.MaxCombo == plan.HeadlineUnitCount, "combo = 主判定总数");
+        Check(plan.HeadlineUnitCount == chart.TotalMainNote,
+            "主判定总数 = Baked_TotalMainNote");
         Check(engine.Score == plan.TheoreticalMax, "得分 = 理论满分");
+        Check(engine.NormalizedScore(plan.TheoreticalMax) == JudgeEngine.NormalizedScoreMax,
+            "全 Prefect 归一化分数 = 1,000,000");
         Check(engine.Health == engine.MaxHealth, "Health 满");
         Check(Math.Abs(engine.Percent(plan.TheoreticalMax) - 100.0) < 1e-9, "结算 100%");
+    }
+
+    // 3b. 所有开发谱包：主判定总数必须与 Baked_TotalMainNote 一致。
+    private static void TestHeadlineCountsAcrossDevPacks(string chartPath)
+    {
+        Console.WriteLine("[3b] Headline count across dev packs");
+        var testdata = Path.GetDirectoryName(chartPath)!;
+        var packs = Path.Combine(testdata, "packs");
+        var files = Directory.Exists(packs)
+            ? Directory.GetFiles(packs, "chart_*.json", SearchOption.AllDirectories)
+            : Array.Empty<string>();
+        Check(files.Length > 0, "找到开发谱包");
+        foreach (var file in files.OrderBy(f => f))
+        {
+            var chart = DynamixChartLoader.LoadFile(file);
+            var engine = new JudgeEngine(JudgePreset.Hard);
+            var plan = JudgePlan.Build(chart, engine.Settings);
+            foreach (var unit in plan.Units)
+                engine.Apply(unit.Category, JudgeGrade.Prefect,
+                    unit.AffectsCombo, unit.AffectsJudgeCounts);
+            Console.WriteLine($"    {Path.GetFileName(file)}: " +
+							  $"units={plan.Units.Count} headline={plan.HeadlineUnitCount} " +
+							  $"baked={chart.TotalMainNote} " +
+                              $"score={engine.NormalizedScore(plan.TheoreticalMax):N0}");
+            Check(plan.HeadlineUnitCount == chart.TotalMainNote,
+                $"{Path.GetFileName(file)} 主判定数与 Baked_TotalMainNote 一致");
+            Check(engine.NormalizedScore(plan.TheoreticalMax) == 1_000_000,
+                $"{Path.GetFileName(file)} 全 Prefect 满分为 1,000,000");
+        }
     }
 
     // 4. 偏移输入（窗口数值按规格书 §6.3：Hard = ±62.5/±112.5/±162.5/±250ms，
@@ -149,22 +226,36 @@ public static class Program
         Check(hard.InWindow(t, t + 0.250), "250ms 在 Miss 窗口内");
         Check(!hard.InWindow(t, t + 0.251), "251ms 超出 Miss 窗口");
 
+        // EX-Tap 宽窗口（JudgePlan.ExTapWindowScale = 1.5，用户拍板"判定更宽松"）
+        const double ex = JudgePlan.ExTapWindowScale;
+        Check(hard.Judge(t, t + 0.200, ex).Grade == JudgeGrade.Good,
+            "EX-Tap ±200ms -> Good（Good 窗 162.5×1.5=243.75ms）");
+        Check(hard.Judge(t, t + 0.300, ex).Grade == JudgeGrade.Miss,
+            "EX-Tap ±300ms -> Miss（超 Good 窗）");
+        Check(hard.InWindow(t, t + 0.350, ex), "EX-Tap 350ms 仍在 Miss 窗内（250×1.5=375ms）");
+        Check(!hard.InWindow(t, t + 0.380, ex), "EX-Tap 380ms 超出 Miss 窗");
+
         // 窗口换算值本身（bar * 240/StandardBPM=150，规格书 §6.3）
         var s = hard.Settings;
         Check(Math.Abs(s.PrefectSec - 0.0625) < 1e-12, "Hard Prefect 窗 = ±62.5ms");
         Check(Math.Abs(s.GreatSec - 0.1125) < 1e-12, "Hard Great 窗 = ±112.5ms");
         Check(Math.Abs(s.GoodSec - 0.1625) < 1e-12, "Hard Good 窗 = ±162.5ms");
         Check(Math.Abs(s.MissSec - 0.250) < 1e-12, "Hard Miss 窗 = ±250ms");
-        Check(Math.Abs(s.HoldHoldingSec - 0.200) < 1e-12, "Holding 间隔 = 200ms");
+		Check(Math.Abs(s.HoldHoldingSec - 0.200) < 1e-12,
+			"StandardBPM 下 Holding 间隔 = 200ms");
+		Check(Math.Abs(s.HoldHoldingSeconds(90) - 0.250) < 1e-12,
+			"Holding BPM 90 钳到 120 -> 250ms");
+		Check(Math.Abs(s.HoldHoldingSeconds(240) - 0.150) < 1e-12,
+			"Holding BPM 240 钳到 200 -> 150ms");
         var sn = normal.Settings;
         Check(Math.Abs(sn.GreatSec - 0.150) < 1e-12, "Normal Great 窗 = ±150ms");
         Check(Math.Abs(sn.GoodSec - 0.200) < 1e-12, "Normal Good 窗 = ±200ms");
     }
 
-    // 5. Mine【TODO 规格书 §9#7 推测】：不碰给分（Prefect），误触 Miss 扣分
+    // 5. Mine：不碰给分（Prefect），危险窗内接触为 Miss。
     private static void TestMine()
     {
-        Console.WriteLine("[5] Mine behavior (speculated direction, TODO §9#7)");
+        Console.WriteLine("[5] Mine behavior");
         var engine = new JudgeEngine(JudgePreset.Hard);
 
         engine.ApplyMine(touched: false);
@@ -180,6 +271,187 @@ public static class Program
         Check(engine.Health == healthBefore - 1500 || engine.Health == 0,
             $"误触 Mine -> Hard 档血量 -1500（{healthBefore} -> {engine.Health}）");
     }
+
+    // 6. 所有谱面统一 1,000,000 满分，保留原始判定权重比例。
+    private static void TestNormalizedScore()
+    {
+        Console.WriteLine("[6] Normalized score ceiling");
+        var engine = new JudgeEngine(JudgePreset.Hard);
+        engine.Apply(ScoreCategory.Tap, JudgeGrade.Great); // 70 / 100
+        Check(engine.NormalizedScore(100) == 700_000,
+            "Great Tap 70/100 -> 700,000");
+
+        var perfect = new JudgeEngine(JudgePreset.Hard);
+        perfect.Apply(ScoreCategory.Tap, JudgeGrade.Prefect);
+        Check(perfect.NormalizedScore(100) == 1_000_000,
+            "Perfect Tap 100/100 -> 1,000,000");
+        Check(perfect.NormalizedScore(0) == 0, "空谱理论满分 0 -> 分数 0");
+    }
+
+	// 7. 同一输入批次只接受同一 float32 目标时刻；同刻多押继续放行。
+	private static void TestInputTimeGroupGate()
+	{
+		Console.WriteLine("[7] Input timestamp group gate");
+		var gate = new InputTimeGroupGate();
+
+		Check(!gate.IsLocked, "新门控器未锁定");
+		Check(gate.TryLock(10.0), "首个目标时刻成功锁定");
+		Check(gate.IsLocked, "锁定后 IsLocked = true");
+		Check(gate.Matches(10.0), "完全同刻允许多押");
+		Check(gate.Matches(10.0 + 1e-10), "转换为同一 float32 的时间属于同组");
+		Check(gate.TryLock(10.0 + 1e-10), "同一 float32 时间可重复通过");
+		Check(!gate.Matches(10.001), "不同目标时刻不匹配");
+		Check(!gate.TryLock(10.001), "锁定后拒绝异时目标");
+
+		gate.Reset();
+		Check(!gate.IsLocked, "Reset 清除锁定");
+		Check(gate.TryLock(10.001) && gate.Matches(10.001),
+			"Reset 后可以锁定新的目标时刻");
+	}
+
+	// 8. 逐触点空间和 phase 规则。
+	private static void TestInputJudgeRules()
+	{
+		Console.WriteLine("[8] Touch overlap and phase rules");
+		var bounds = InputJudgeRules.Bounds(1.0, 1.0);
+		Check(InputJudgeRules.Overlaps(bounds, 0.9, 0.2),
+			"普通音符按触摸半宽扩边");
+		Check(!InputJudgeRules.Overlaps(bounds, 0.89, 0.2),
+			"扩边外不重叠");
+		Check(!InputJudgeRules.Overlaps(bounds, 0.99, 0.2,
+			expandByTouchWidth: false), "Mine 不使用触摸扩边");
+
+		const double noteTime = 10.0;
+		const double prefect = 0.1;
+		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 9.925, prefect,
+			ContactPhase.Began), "Drag 早侧外半窗接受 phase 1");
+		Check(!InputJudgeRules.AcceptsContactPhase(noteTime, 9.925, prefect,
+			ContactPhase.Moved), "Drag 早侧外半窗拒绝持续接触");
+		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 9.975, prefect,
+			ContactPhase.Stationary), "Drag 最后半窗接受 phase 1..3");
+		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 10.05, prefect,
+			ContactPhase.Stationary), "Drag 晚侧接受持续接触");
+		Check(!InputJudgeRules.AcceptsContactPhase(noteTime, 9.89, prefect,
+			ContactPhase.Began), "Drag Prefect 早窗之外保持 Pending");
+
+		Check(InputJudgeRules.AcceptsMinePhase(noteTime, 9.95, prefect,
+			ContactPhase.Began), "Mine 外侧危险窗接受 phase 1");
+		Check(!InputJudgeRules.AcceptsMinePhase(noteTime, 9.95, prefect,
+			ContactPhase.Moved), "Mine 外侧危险窗拒绝持续接触");
+		Check(InputJudgeRules.AcceptsMinePhase(noteTime, 9.98, prefect,
+			ContactPhase.Stationary), "Mine 最后 Prefect/4 接受 phase 1..3");
+		Check(!InputJudgeRules.AcceptsMinePhase(noteTime, 10.001, prefect,
+			ContactPhase.Began), "Mine 到点后不再触发");
+	}
+
+	// 9. Holding tick 在 bar 域生成，跨 BPM 段自动得到 250ms/150ms 间隔。
+	private static void TestDynamicHoldingSchedule()
+	{
+		Console.WriteLine("[9] Dynamic holding schedule");
+		var head = TestNote(1, 2, NoteType.HoldHead, 0.0, 0.0, 1.0, 0.0);
+		var end = TestNote(2, -1, NoteType.HoldNode, 1.0, 1.0, 1.0, 1.6);
+		var chart = new Chart
+		{
+			Name = "test",
+			Title = "test",
+			Difficulty = 3,
+			TotalMainNote = 2,
+			Sections = new[]
+			{
+				new BarSection { Bpm = 120, BarTime = 0.0, Seconds = 0.0 },
+				new BarSection { Bpm = 200, BarTime = 0.5, Seconds = 1.0 },
+			},
+			NotesLeft = Array.Empty<Note>(),
+			NotesCenter = new[] { head, end },
+			NotesRight = Array.Empty<Note>(),
+		};
+		var plan = JudgePlan.Build(chart, JudgeSettings.ForPreset(JudgePreset.Hard));
+		var ticks = plan.Units
+			.Where(u => u.Category == ScoreCategory.HoldHolding)
+			.Select(u => u.Time).ToArray();
+		var expected = new[] { 0.25, 0.50, 0.75, 1.00, 1.15, 1.30, 1.45 };
+		Check(ticks.Length == expected.Length,
+			$"1 bar Hold 生成 {expected.Length} 个开区间 tick（{ticks.Length}）");
+		for (var i = 0; i < Math.Min(ticks.Length, expected.Length); i++)
+			Check(Math.Abs(ticks[i] - expected[i]) < 1e-9,
+				$"tick[{i}] = {expected[i]:F2}s");
+		Check(plan.Sustains.ContainsKey(head.Id), "JudgePlan 保存 sustain 路径");
+	}
+
+	// 10. Hold/Mixer 身体左右边缘分别线性插值。
+	private static void TestSustainInterpolation()
+	{
+		Console.WriteLine("[10] Sustain bounds interpolation");
+		var a = TestNote(1, 2, NoteType.HoldHead, 0, 1, 1, 0);
+		var b = TestNote(2, -1, NoteType.HoldNode, 1, 3, 2, 10);
+		var path = new SustainPath
+		{
+			Kind = SustainKind.Hold,
+			HeadId = 1,
+			Track = Track.Center,
+			Nodes = new[] { a, b },
+		};
+		var mid = path.BoundsAt(5.0);
+		Check(Math.Abs(mid.Left - 2.0) < 1e-12, "中点左缘线性插值");
+		Check(Math.Abs(mid.Right - 3.5) < 1e-12, "中点右缘线性插值");
+	}
+
+	// 11. AutoMiss/InputMiss 分源，以及 Health/Boost 按主判定数缩放。
+	private static void TestResolutionAndScaledVitals()
+	{
+		Console.WriteLine("[11] Resolution and scaled Health/Boost");
+		var result = new JudgeEngine(JudgePreset.Hard).Judge(10.0, 10.3);
+		Check(result.Resolution == JudgeResolution.InputMiss,
+			"有效超 Good 输入标记为 InputMiss");
+
+		var scaled = new JudgeEngine(JudgePreset.Hard, totalMainNote: 1200);
+		Check(scaled.HealthDelta(ScoreCategory.Tap, JudgeGrade.Miss) == -250,
+			"Health = floor(-500*600/1200)");
+		Check(scaled.HealthDelta(ScoreCategory.Mine, JudgeGrade.Miss) == -750,
+			"Mine Health = floor(-1500*600/1200)");
+		Check(scaled.BoostDelta(ScoreCategory.Tap, JudgeGrade.Prefect) == 8,
+			"Boost = floor(100*100/1200)");
+		scaled.Apply(ScoreCategory.Tap, JudgeGrade.Miss,
+			resolution: JudgeResolution.AutoMiss);
+		scaled.Apply(ScoreCategory.Tap, JudgeGrade.Miss,
+			resolution: JudgeResolution.InputMiss);
+		Check(scaled.CountAutoMiss == 1 && scaled.CountInputMiss == 1,
+			"两种 Miss 来源分别统计");
+		for (var i = 0; i < 10000; i++)
+			scaled.Apply(ScoreCategory.Tap, JudgeGrade.Prefect);
+		Check(scaled.Boost == JudgeEngine.MaxBoost, "Boost 上限钳到 3000");
+
+		Check(Math.Abs(OriginalJudgeMath.ComboMultiplier(0) - 1.0) < 1e-12,
+			"原版 Combo 0 = 1.0x");
+		Check(Math.Abs(OriginalJudgeMath.ComboMultiplier(150) - 1.25) < 1e-12,
+			"原版 Combo 150 = 1.25x");
+		Check(Math.Abs(OriginalJudgeMath.ComboMultiplier(300) - 1.5) < 1e-12,
+			"原版 Combo 300 封顶 1.5x");
+		Check(OriginalJudgeMath.RawScoreDelta(100, 300) == 1500,
+			"原版 raw score 使用命中前 Combo 倍率和固定 ×10");
+		Check(OriginalJudgeMath.ClearPercent100(100, 0, 0, 100) == 10000,
+			"原版 CLEAR 全 Prefect 快速路径 = 10000");
+		Check(OriginalJudgeMath.ClearPercent100(0, 100, 0, 100) == 6999,
+			"原版 CLEAR Great 使用实际 float 0.699999988 并截断");
+		Check(OriginalJudgeMath.MixerEndGrade(7, 10) == JudgeGrade.Great &&
+			OriginalJudgeMath.MixerEndGrade(5, 10) == JudgeGrade.Good &&
+			OriginalJudgeMath.MixerEndGrade(4, 10) == JudgeGrade.Miss,
+			"Mixer 尾判 70%/50% 边界");
+	}
+
+	private static Note TestNote(int id, int subId, NoteType type,
+		double bar, double position, double width, double second) => new()
+	{
+		Id = id,
+		SubNoteId = subId,
+		Type = type,
+		Track = Track.Center,
+		BarTime = bar,
+		Position = position,
+		Width = width,
+		Second = second,
+		BakedSecond = second,
+	};
 
     // ---- helpers ----
 

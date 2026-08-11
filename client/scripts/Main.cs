@@ -4,7 +4,7 @@ using DuxCommunity.Ui;
 
 namespace DuxCommunity;
 
-/// <summary>主菜单（样式稿 #mmenu）：Logo + 游玩/谱面工坊(阶段3)/设置(占位)。</summary>
+/// <summary>主菜单（样式稿 #mmenu）：Logo + 游玩/谱面工坊(阶段3)/设置。</summary>
 public partial class Main : Node2D
 {
 	public override void _Ready()
@@ -12,7 +12,7 @@ public partial class Main : Node2D
 		GameSession.EnsureInit();
 		GD.Print($"DUX-Community running on Godot {Engine.GetVersionInfo()["string"]}");
 
-		AddChild(new NeonBackground { Size = new Vector2(2340, 1080) });
+		AddChild(new NeonBackground { Size = new Vector2(1920, 1080) });
 
 		var title = new Label { Position = new Vector2(210, 300), Text = "DUX·COMMUNITY" };
 		title.AddThemeFontOverride("font", UiFonts.TechBold);
@@ -60,13 +60,14 @@ public partial class Main : Node2D
 			SubText = "SETTINGS",
 			FontSize = 34,
 			AlignLeft = true,
-			Disabled = true,
 		};
+		settings.Pressed += () =>
+			GetTree().ChangeSceneToFile("res://scenes/settings.tscn");
 		AddChild(settings);
 
 		var ver = new Label
 		{
-			Position = new Vector2(1860, 1020),
+			Position = new Vector2(1420, 1020),
 			Size = new Vector2(440, 30),
 			Text = "v0.1.0-mock · clean-room build · no original assets",
 			HorizontalAlignment = HorizontalAlignment.Right,

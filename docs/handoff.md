@@ -1,92 +1,195 @@
-# DUX-Community 交接文档（给后续 agent）
+# DUX-Community 交接文档
 
-> 最后更新：2026-08-06。读这一篇即可接手；细节规格见 `gameplay-spec.md`、
-> `pixel-calibration.md`、`video-geometry-analysis.md`，UI 设计稿见 `ui-mock/index.html`。
+> 最后更新：2026-08-11。本文只记录当前有效实现、固定决策、待办和验证流程。
+> 玩法数据与行为规格见 `gameplay-spec.md`，原版判定证据见
+> `original-judgement-analysis.md`，布局数值来源见 `video-geometry-analysis.md` 和
+> `pixel-calibration.md`，UI 样式稿见 `ui-mock/index.html`。
 
-## 1. 项目目标与硬约束
+## 1. 项目约束
 
-- 基于 Dynamix Universe 逆向结果做 **clean-room 社区版**：公开版 **0 原版内容**，
-  谱面几乎全自制；现有两份开发用谱面包（tablear / the_villager）仅 dev 用，不发布。
-- 难度体系沿用原版 5 档（CASUAL/NORMAL/HARD/MEGA/GIGA）。
-- UI 风格模仿 UV 但更简洁（社区风评 UV 不如前代 Dynamix）；四屏样式稿已获用户批准，
-  见 `docs/ui-mock/index.html`（Orbitron + 切角按钮 + 霓虹斜线背景）。
-- **编辑器不集成进游戏**：先网页版，再本地 app（尚未开工）。
-- 用户偏好：中文交流、说话直接；**改完代码不用启动游戏/跑测试验证，用户自己跑看效果**
-  （需要截图时才按 §4 套路抓）；额度有限，避免不必要的子代理和大动作。
+- 项目是 Dynamix 风格的 clean-room 社区版；发布内容不得包含任何原版素材或原版谱面。
+- `client/testdata/` 下的 `tablear`、`the_villager` 两个谱面包只用于开发验证。
+- 客户端使用固定 1920×1080 设计坐标，Godot stretch 为 `canvas_items` keep；比例不符时
+  留黑边。不要引入自适应游玩布局。
+- 谱面编辑器不集成进游戏：计划先做网页版，再考虑本地 app。
+- 默认使用中文直接交流。普通修改完成后不启动游戏代替用户目测；明确需要截图/录屏时才
+  执行本文 §6 流程。
 
-## 2. 当前状态（已验证 ✅ / 待办 ⬜）
+## 2. 当前实现
 
-- ✅ 渲染模型：Hold/Mixer 为**刚性形状**（整体对着判定线下落，节点只塑形），
-  命中端裁剪吞噬（与原版"连续吞噬"一致，用户确认）。
-- ✅ 游玩几何已对齐**手机原生 2340×1080** 截图实测（底线/Mixer/行程），
-  侧线按用户偏好拍板（比实测更贴边）：
-  底线 y=955（88.5% 屏高）、**侧线 x=280/2060（≈12%，用户指定；手机实测是 421/1942）**、
-  行程 790px / lead 0.77s（顶部 y≈165 生成）、Mixer 粉条 y=655、
-  侧轨纵向 SidePosUnitPx=**170**（205 时 P=0 落 y=50 顶部溢出；现 P∈[0,4]→y∈[120,800]）。
-  常量在 `client/scripts/game/GameplayMain.cs` 顶部，注释含依据。
-  ⚠️ 858/268/2072（iPad 1440 视频）和 425/1915（手机实测）都**不要回退**，现值是用户拍板。
-- ✅ 闭环：主菜单 → 选曲（难度点击循环切换+最佳成绩）→ 游玩（Esc/按钮暂停、
-  顶部实时判定计数、F1 Auto）→ 结算（封面压暗背景、评级 Ω/S/A/B/C、NEW RECORD、
-  成绩写 user://scores.json）→ 返回/下一首/再来一次。
-- ✅ 结算不进 bug 已修：音频停后时钟冻结，现检测 `!Playing && t>1` 也触发
-  （`SongClock.ManualFallback`）。headless 验证 t=170s 正常出 RESULT。
-- ✅ `tools/pack_chart.py` 谱面打包（可重复执行合并难度）；`shared/` 判定引擎单测全过。
-- ⬜ 结算屏**视觉效果未截图验证**（逻辑已验证；用 F12 跳谱尾快速验证）。
-- ⬜ **分辨率/比例适配**：现全是 2340×1080 硬编码像素，换比例会崩。已提议方案
-  （用户尚未拍板）：归一化 `PlayfieldLayout` 类——常量改占屏比例
-  （底线 0.885H、侧线 0.12W/0.88W、P 映射 0.2645W+0.1179W·P、速度用 H/s、lead 0.77s 不变），
-  宽高比插值两个实测锚点（21:9 底线 88.5% / 4:3 79.4%；P 扩散 0.118W / 0.142W），
-  HUD 改锚点，stretch=canvas_items+expand 监听 resize 重算。
-- ⬜ 侧轨 y 精确公式依赖 Frida dump il2cpp——子代理跑过 2h 超时无产出，**已搁置**，等用户定夺。
-- ⬜ 素材管线（ComfyUI 生成按钮/音符/特效贴图，参考 `tools/style_refs.json`、
-  `tools/comfy_gen.py`）未开工；用户说"可以往后放"。
-- ⬜ 谱面编辑器（网页版优先）、社区服务器（阶段 3，ASP.NET Core）未开工。
+### 2.1 应用闭环
 
-## 3. 目录地图
+- 主菜单：游玩和设置入口可用，谱面工坊入口禁用。
+- 选曲：扫描谱面包、显示曲目、循环切换可用难度、显示最佳成绩并进入游玩。
+- 游玩：三轨输入、鼠标/多点触摸、F1 Auto、Esc/按钮暂停、重开和返回选曲。
+- 结算：Ω/S/A/B/C、百万分数、CLEAR、Max Combo、P/GR/GD/M、NEW RECORD，支持
+  返回、下一首和再来一次。
+- 设置：判定偏移、落速和 Music/Hit/UI 音量持久化到 `user://settings.json`。
+- 成绩：按 `packId:diff` 保存到 `user://scores.json`；Auto 演示不写成绩。
 
-- `client/` — Godot 4.7.1 mono 工程（主场景 `scenes/main.tscn`）
-  - `scripts/game/GameplayMain.cs` — 游玩场景本体（布局常量在文件顶部，勿乱改）
-  - `scripts/game/{ChartPack,GameSession,ScoreStore,Res,NoteView}.cs`
-  - `scripts/audio/SongClock.cs`、`scripts/ui/*`（UiFonts/CutPanel/CutButton/SongRow/NeonBackground/SongSelect）
-  - `testdata/packs/{tablear,the_villager}/` — meta.json + chart_<diff>.json + wav + 封面
-- `shared/` — 纯 C# 谱面/判定核心（`tools/core-tests` 跑它的单测）
-- `tools/` — `pack_chart.py` 打包、`chart_stats.py` 统计、`frida/`、`comfy_gen.py` 等
+跨场景状态由 `GameSession` 保存。直接启动 `gameplay.tscn` 且未选择曲目时，使用开发谱
+并默认开启 Auto。
 
-## 4. 运行 / 验证套路（Windows + Git Bash，都已踩过坑）
+### 2.2 谱面与判定
 
-```bash
-# 0. 先杀旧 Godot 进程（用户要求每次启动前必做，残留窗口会污染截图）
-taskkill //F //IM Godot_v4.7.1-stable_mono_win64_console.exe \
-         //IM Godot_v4.7.1-stable_mono_win64.exe 2>/dev/null
+- `ChartPack` 先扫描 `res://testdata/packs`，再扫描 `user://charts`；同 id 的玩家包覆盖
+  开发包。
+- 时间线存在时，loader 用 `BarTimeToSeconds` 重算命中秒；空时间线使用
+  `Baked_Second`。
+- Position 是条的左缘，命中范围为 `[P,P+W]`，渲染中心使用 `P+W/2`。
+- Type 权威语义：1 Tap、2 Drag、3/4 Hold、5 EX-Tap、6/7 Mixer、8 Mine、9 BarLine。
+- T2 是接触判定；T5 使用 1.5× 判定窗口；T9 只渲染，不计分和 Combo。
+- SyncNote 非零只给 T1 Tap 画金色多押描边。
+- 普通窗口固定按 StandardBPM=150 换算；Holding tick 按当前 BPM，并钳制到 120–200。
+- 输入按触点 id 保存轨道、Position 和 phase；同帧锁定最早 float32 目标时刻，同时允许
+  完全同刻多押。
+- 普通 note 使用实际 `[P,P+W]` 与 `CommunityTouchWidth=0.30` 选择最近重叠候选；
+  Mine 使用精确范围，不扩边。
+- Hold 已实现条体左右缘插值、动态断触宽限、跨帧补 tick 和提前尾判；头部越线后 Late
+  窗仍可正常接起，Body 线外部分持续裁剪。
+- Mixer Body 始终渲染；当前范围内有同轨有效触点时在线上显示动态头，断开即隐藏，
+  Began/Moved/Stationary 均可随时重接，没有超时或永久 Miss，尾判按 tick 命中率结算。
+- Note 的下穿、回收和判定反馈按类型分流，当前权威规则见 §3；逻辑 Late 窗不依赖
+  Note 本体是否仍然可见。
 
-# 1. 编译（须 0 错误）
-cd community/client && dotnet build
+### 2.3 分数和统计
 
-# 2. 启动（同一 Bash 调用内完成 启动+截图+kill，跨调用后台进程不可靠；
-#    不带场景参数进主菜单，带 gameplay 场景且无 GameSession 时回退 testdata AUTO 演示）
-../../godot/Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe \
-  --path . --position 0,0 --resolution 1707x1067 --borderless --always-on-top \
-  res://scenes/gameplay.tscn > /tmp/g.log 2>&1 &
+- 内部按类型表累计 RawScore；Holding tick 仍影响 Score/Health/Boost。
+- Holding tick 不改变主 Combo，也不进入 P/GR/GD/M。
+- 显示与存档分数为 `round(RawScore/TheoreticalMax×1,000,000)`，上限 1,000,000。
+- HUD 实时 CLEAR 使用当前得分除以已判定单元理论满分；结算 CLEAR 使用全谱理论满分。
+- 评级阈值：Ω≥98、S≥95、A≥90、B≥80，否则 C。
+- Health/Boost 已按 TotalMainNote 缩放并钳制，但当前不显示 UI，也不触发 GameOver。
+- `OriginalJudgeMath` 保留原版 Combo/raw score/CLEAR 数学，不接入社区版 HUD 与存档。
 
-# 3. 截图（-frames:v 必须在 -i 之后；游戏画面实际渲染在窗口上部 1707x775）
-ffmpeg -y -f gdigrab -offset_x 0 -offset_y 0 -video_size 1707x1067 \
-  -i desktop -frames:v 1 /tmp/duxshots/x.png
+## 3. 游玩布局与视觉
 
-# 4. 录屏（yuv420p 要求偶数尺寸，必须加 scale）
-ffmpeg -y -f gdigrab -offset_x 0 -offset_y 0 -video_size 1707x775 -framerate 30 \
-  -i desktop -t 45 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
-  -c:v libx264 -pix_fmt yuv420p -preset veryfast /tmp/duxshots/demo.mp4
+所有坐标均为 1920×1080 设计坐标，权威常量位于 `GameplayMain.cs` 顶部。
+
+| 项目 | 当前值/规则 |
+| --- | --- |
+| Center 判定线 | `y=861` |
+| Mixer 装饰条 | `y=632`，`x=675..1244`；不是判定线 |
+| Center 左缘映射 | `x=280+273.2·P`；宽度 `W·273.2·0.95` |
+| 侧轨判定线 | `x=184/1736` |
+| 侧轨命中 y | 左右对称 `y=840−115·(P+W/2)` |
+| 侧轨条长度 | 单位 102px，实际 `W·102·0.95`；BarLine 实际 `W·190·0.95` |
+| 可见行程 | Center 790px；Side 691px |
+| 侧轨距离尺度 | 0.75 |
+| Hold | 琥珀渐变头尾 + 半透明填充 + 亮描边；中间节点隐藏，远端不钳制、不缩窄 |
+| Mixer | Body 为节点间细连线；控制节点隐藏；仅在当前接上时在线上显示动态头 |
+| DropSpeeds | 相邻事件间线性插值；距离 = 剩余 BarTime × 当前流速 × 玩家落速 |
+| 触摸区域 | `y>771` 为 Center；上部 `x<400` 为 Left、`x>1520` 为 Right |
+
+HUD 当前布局：顶部为 P/GR/GD/M、CLEAR、M.COMBO 计数行；暂停按钮位于其下方中央；
+判定字在线上方，Combo 在线下安全区；左下为曲名/难度，右下为分数。结算前隐藏舞台、
+音符和 HUD，结果层先铺不透明背景，避免封面缺失时透层。
+
+全部可见 Note 使用 `shaders/note_surface.gdshader` 的程序化切角渐变材质；类型纹理和
+左右侧亮度参数已统一。命中爆发为 12 帧式程序化效果，整体亮度系数 1.30。Hold 与侧轨
+Mixer 的持续效果在 0.28 秒内爬到满亮，之后只循环纹理，松开立即消失。
+
+| 类型 | 当前视觉生命周期 |
+| --- | --- |
+| Tap / EX-Tap / Drag | 未判定时越线后 24px 满亮、再用 40px 淡出；命中立即移除本体，只留爆发 |
+| Hold | 头部使用普通下穿，Body 在线上裁剪；命中后的头、Body 近端和效果固定在线上 |
+| Mixer | 不下穿；Miss 静默回收静态头，Body 和随时重接不受影响 |
+| Mine | 触发时显示红色危险爆发；安全到线直接回收 |
+| BarLine | 到线立即回收，不下穿、不停留 |
+
+背景和纵深参照线同样为程序化绘制。
+音符位置使用固定二维轨道映射，不做透视投影；变速回溯时，已生成 note 即使暂时退出
+画面也保留到命中或过期。
+
+## 4. 仍需处理
+
+- 最新命中爆发亮度和 Note 生命周期分流尚待用户下次运行时目测确认。
+- 发布级按钮和音效素材尚未生产；当前 Note 材质、瞬时爆发和持续效果均为程序化运行时
+  实现，预览 GIF 只作设计参考。
+- 曲绘由社区谱师随谱面包提供，不使用 AI 生成；缺失曲绘时使用 clean-room 占位符。
+- 网页谱面编辑器、本地编辑器 app、ASP.NET Core 社区服务器尚未开工。
+- 原版边界仍未确认：设备 `NSTouchWidth` 真值、重叠触点消费、BPM 切段瞬间 Holding
+  调度、模式 MaxHealth、当前版本 Type dispatch、Buff/EX Boost。
+- 设置页已有 Hit/UI 音量总线，但完整打击音和 UI 音效资产链路尚未完成。
+
+## 5. 目录地图
+
+- `client/` — Godot 4.7.1 .NET 客户端，主场景 `scenes/main.tscn`
+  - `scripts/game/GameplayMain.cs` — 输入、判定运行时、渲染、HUD、暂停和结算
+  - `scripts/game/NoteView.cs`、`GameplayHitBloom.cs`、`GameplaySustainEffect.cs` —
+    Note 材质、瞬时爆发和持续接触效果
+  - `scripts/game/ChartPack.cs`、`GameSession.cs` — 谱面包与跨场景状态
+  - `scripts/game/GameSettings.cs`、`ScoreStore.cs` — 设置与成绩持久化
+  - `scripts/audio/SongClock.cs` — 音频时钟、延迟补偿和用户偏移
+  - `scripts/ui/` — 主菜单以外的程序化 UI 与通用控件
+- `shared/` — 纯 C# 谱面模型、loader、判定计划和规则
+- `tools/core-tests/` — shared 核心断言式测试
+- `tools/` — 谱面、逆向、标定和素材辅助脚本
+- `docs/` — 当前规格、判定报告、几何标定和 UI 样式稿
+
+## 6. 构建与验证
+
+### 6.1 构建和核心测试
+
+```powershell
+cd client
+dotnet build
 ```
 
-- ReadMediaFile **读不了 /tmp**（映射到 D:\tmp）：先 `cp` 到仓库内 `tmp_shots/` 再读。
-- 游玩内调试键：**F1** 切 Auto、**Esc** 暂停、**F12** 跳到谱尾前 3s（验结算屏用）。
-- 原版参考素材：手机原生截图 `comfyui_dl/play*.png`（2340×1080 真机）；
-  录屏在 `gameplay_videos/`（注意区分手机录屏和 1440 iPad 谱面确认视频）。
+构建必须 0 错误。shared 核心测试从仓库根目录运行：
 
-## 5. 环境
+```powershell
+dotnet run --project tools/core-tests/CoreTests.csproj
+```
 
-- Godot 4.7.1 **mono** 版在 `godot/Godot_v4.7.1-stable_mono_win64/`（用户另有
-  `Z:\Godot_v4.7.1-stable_win64.exe`，标准版无 C#，别用）。
-- dotnet SDK 本机已装（net9.0 target，dotnet 10 SDK 可构建）。
-- ComfyUI 便携版在 `comfyui/ComfyUI_windows_portable/`（:8188，可能还在后台跑）。
-- AVD / Android Studio 可用（此前用于抓真机截图）；Frida 环境在 `_rev/frida` 等。
+2026-08-11 最近一次记录：客户端 0 warning / 0 error，core-tests 全部通过（含 DropSpeed
+插值、回溯换向和 BarTime 双向换算）；
+The Villager Hard 为 1262 个计分单元/684 个主判定，Tablear Giga 为 1903/1734，
+主判定数均与各自 `Baked_TotalMainNote` 一致。
+
+### 6.2 启动、截图和录屏
+
+启动 Godot 前必须先结束残留进程：
+
+```powershell
+taskkill /F /IM Godot_v4.7.1-stable_mono_win64_console.exe
+taskkill /F /IM Godot_v4.7.1-stable_mono_win64.exe
+```
+
+Godot 4.7.1 mono 位于 `../godot/Godot_v4.7.1-stable_mono_win64/`。标准版没有 C# 支持，
+不要使用。截图/录屏时在 `client/` 目录用 Git Bash，于同一次调用内完成启动、采集和结束进程：
+
+```bash
+mkdir -p ../tmp_shots
+DUX_START_SEC=0 ../../godot/Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe \
+  --path . --position 0,0 --resolution 1600x900 --borderless --always-on-top \
+  res://scenes/gameplay.tscn > ../tmp_shots/godot.log 2>&1 &
+godot_pid=$!
+sleep 3
+
+ffmpeg -y -f gdigrab -offset_x 0 -offset_y 0 -video_size 1600x900 \
+  -i desktop -frames:v 1 /d/Workspace/Dynamix/community/tmp_shots/shot.png
+
+kill $godot_pid
+```
+
+录屏时把截图命令替换为：
+
+```bash
+ffmpeg -y -f gdigrab -offset_x 0 -offset_y 0 -video_size 1600x900 -framerate 30 \
+  -i desktop -t 45 -c:v libx264 -pix_fmt yuv420p -preset veryfast \
+  /d/Workspace/Dynamix/community/tmp_shots/demo.mp4
+```
+
+`-frames:v` 必须位于 `-i` 之后；yuv420p 输出尺寸必须为偶数。直接调试游玩场景可修改
+`DUX_START_SEC` 与参考视频做同刻对比。游玩调试键：F1 切换 Auto，Esc 暂停，F12 跳到
+谱尾前 3 秒。
+
+## 7. 环境注意事项
+
+- .NET SDK 已安装；项目目标为 net9.0，可由本机更高版本 SDK 构建。
+- ComfyUI 便携版位于 `../comfyui/ComfyUI_windows_portable/`，默认端口 8188。
+- AVD 名为 `Dynamite_test`。adb root 不跨重启；Frida server 需要 root 和
+  `setenforce 0`。已安装包签名与 `_rev/apks` 不同，不可覆盖安装。
+- headless 下 `SongClock` 使用系统计时器，音频自然结束分支与窗口模式不同；结算结束逻辑
+  需要在窗口模式确认。

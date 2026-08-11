@@ -57,6 +57,16 @@ body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft Ya
 .mbtn.primary:hover{background:#5ae8ff;transform:translateX(8px)}
 #mmenu .ver{position:absolute;right:24px;bottom:46px;color:var(--dim);font-size:12px}
 
+/* ===== 设置 ===== */
+#settings .setpanel{position:absolute;left:16%;right:16%;top:16%;bottom:15%;padding:34px 54px;
+  clip-path:var(--cut);background:rgba(10,18,40,.9);border:1px solid var(--line)}
+#settings h2{font:800 38px 'Orbitron',sans-serif;letter-spacing:3px;margin-bottom:22px}
+.setrow{height:92px;border-bottom:1px solid var(--line);display:flex;align-items:center}
+.setrow .name{font-size:19px}.setrow .name small{display:block;color:var(--dim);font:12px 'Orbitron';letter-spacing:2px;margin-top:5px}
+.setrow .adjust{margin-left:auto;display:flex;align-items:center;gap:14px}
+.setrow .adjust button{width:52px;height:44px;clip-path:var(--cut-sm);border:1px solid var(--line);background:var(--bg2);color:var(--text);font-size:24px}
+.setrow .value{width:170px;text-align:center;color:var(--cyan);font:700 18px 'Orbitron'}
+
 /* ===== 选曲 ===== */
 #select .wrap{position:absolute;inset:72px 28px 86px 28px;display:flex;gap:20px}
 /* 左：选中曲目详情 */
@@ -114,8 +124,8 @@ body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft Ya
   font-size:12px;padding:4px 14px;clip-path:var(--cut-sm);letter-spacing:2px}
 #result .stats{flex:1}
 #result .score{font-size:52px;font-weight:800}
-#result .acc{color:var(--dim);margin-top:2px}
-#result .acc b{color:var(--text);font-size:20px}
+#result .clear{color:var(--dim);margin-top:2px}
+#result .clear b{color:var(--text);font-size:20px}
 .jdist{display:flex;height:12px;clip-path:var(--cut-sm);overflow:hidden;margin:18px 0 12px}
 .jdist i{display:block;height:100%}
 .jcounts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:13px}
@@ -127,67 +137,89 @@ body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft Ya
 .rbtn:hover{border-color:var(--cyan);color:var(--cyan)}
 .rbtn.primary{background:var(--cyan);color:#04121a;font-weight:700;border-color:var(--cyan)}
 
-/* ===== 游玩 ===== */
-/* 背景：暗角 + 底部渐变（无透视元素） */
+/* ===== 游玩（固定 1920×1080；判定几何与当前客户端一致） ===== */
+/* 背景：clean-room 地平线辉光 + 极淡透视参照线，不对应判定坐标 */
 #play .ptunnel{position:absolute;inset:0;
   background:
+    repeating-conic-gradient(from 72deg at 50% 23%,rgba(53,224,255,.055) 0 .12deg,transparent .12deg 8deg),
+    repeating-radial-gradient(ellipse at 50% 23%,transparent 0 72px,rgba(53,224,255,.04) 74px 76px),
     radial-gradient(120% 100% at 50% 50%,transparent 55%,rgba(4,6,14,.55) 100%),
     radial-gradient(120% 90% at 50% 110%,#18204a 0%,var(--bg) 62%)}
-#play .pprog{position:absolute;top:0;left:0;right:0;height:3px;background:#ffffff12}
-#play .pprog i{display:block;height:100%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
-#play .phud{position:absolute;top:16px;right:26px;text-align:right}
-#play .pscore{font-size:36px;font-weight:800;letter-spacing:2px;line-height:1}
-#play .pacc{font-size:13px;color:var(--dim);margin-top:4px}
-/* 实时判定统计：左上角 */
-#play .pjudges{position:absolute;top:16px;left:26px;display:flex;gap:20px;
-  border:1px solid var(--line);clip-path:var(--cut-sm);background:rgba(16,22,42,.6);
-  padding:7px 18px;font-size:10px;letter-spacing:1.5px}
-#play .pjudges b{display:block;font-size:17px;margin-top:2px;font-weight:700}
-/* 曲名+难度：左下角，填底线以下空间 */
-#play .phl{position:absolute;left:26px;bottom:32px;display:flex;align-items:center;gap:14px}
-#play .phl b{font-size:19px;letter-spacing:1px}
-#play .phl span{font-size:12px;color:var(--hard);border:1px solid var(--hard);padding:3px 10px;clip-path:var(--cut-sm);letter-spacing:2px}
-/* combo：画面几何中心，稳住视觉重心 */
-#play .pcombo{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);text-align:center;
-  font-size:52px;font-weight:700;line-height:1;text-shadow:0 0 26px rgba(223,230,255,.28)}
-#play .pcombo small{display:block;font-size:11px;letter-spacing:5px;color:var(--dim);margin-top:5px}
-#play .pjudge{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);
-  font-size:24px;font-weight:700;letter-spacing:5px;color:var(--cyan);text-shadow:0 0 18px rgba(53,224,255,.7)}
-/* 判定线：底线延长与两侧线相交，端部加斜翼（修正原版过短+生硬端点） */
-#play .jline{position:absolute;box-shadow:0 0 14px rgba(53,224,255,.55)}
-#play .jbottom{left:90px;right:90px;bottom:110px;height:3px;
-  background:linear-gradient(90deg,transparent,var(--cyan) 6%,var(--cyan) 94%,transparent)}
-#play .jleft,#play .jright{width:3px;top:120px;bottom:110px;
+#play .pforeground{position:absolute;left:0;right:0;bottom:0;height:219px;pointer-events:none;
+  border-top:1px solid rgba(53,224,255,.24);
+  background:
+    repeating-linear-gradient(180deg,transparent 0 43px,rgba(53,224,255,.045) 44px 45px),
+    linear-gradient(72deg,transparent 24%,rgba(53,224,255,.045) 24.2%,transparent 24.4%),
+    linear-gradient(108deg,transparent 24%,rgba(255,77,143,.04) 24.2%,transparent 24.4%),
+    linear-gradient(180deg,rgba(53,224,255,.025),rgba(4,7,20,.32))}
+/* 顶栏：细青框线（左右两段）+ 顶部中央 pill 计数行 + 下方居中暂停 */
+#play .ptopline{position:absolute;top:64px;height:2px;width:39%;
+  background:linear-gradient(90deg,transparent,var(--cyan) 12%,var(--cyan));opacity:.5;
+  box-shadow:0 0 8px rgba(53,224,255,.4)}
+#play .ptopl{left:40px}
+#play .ptopr{right:40px;transform:scaleX(-1)}
+#play .pills{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  display:flex;gap:10px}
+#play .pill{background:rgba(8,12,24,.72);border:1px solid var(--line);border-radius:999px;
+  width:158px;padding:6px 10px;text-align:center;font-size:10px;letter-spacing:1px;color:var(--dim);white-space:nowrap}
+#play .pill b{font-size:15px;margin-left:8px;font-weight:700;letter-spacing:1px}
+#play .pill.clear{color:#a3e635;border-color:#3f4a1f}
+#play .pill.clear b{color:#a3e635}
+/* 暂停：pill 判定行下方正中间，放大版（嵌在顶栏缺口） */
+#play .ppause{position:absolute;top:66px;left:50%;transform:translateX(-50%);
+  width:120px;height:60px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);clip-path:var(--cut-sm);background:rgba(16,22,42,.75);
+  color:var(--text);font-size:24px;cursor:pointer}
+#play .ppause:hover{border-color:var(--cyan);color:var(--cyan)}
+/* 判定线：发光青线 ∪ 形（底线延长超岀侧线、接近屏边——原版即如此；
+   底线压暗，给进度段留对比度） */
+#play .jline{position:absolute;box-shadow:0 0 12px rgba(53,224,255,.35)}
+#play .jbottom{left:36px;right:36px;bottom:200px;height:3px;opacity:.38;
+  background:linear-gradient(90deg,transparent,var(--cyan) 4%,var(--cyan) 96%,transparent)}
+#play .jleft,#play .jright{width:3px;top:70px;bottom:200px;opacity:.38;
   background:linear-gradient(180deg,transparent,var(--cyan) 6%,var(--cyan) 94%,transparent)}
-#play .jleft{left:90px}
-#play .jright{right:90px}
-#play .wing{position:absolute;width:52px;height:3px;background:var(--cyan);opacity:.75;box-shadow:0 0 12px rgba(53,224,255,.6)}
-#play .wl{left:38px;bottom:110px;transform:rotate(-38deg);transform-origin:right center}
-#play .wr{right:38px;bottom:110px;transform:rotate(38deg);transform-origin:left center}
+#play .jleft{left:100px}
+#play .jright{right:100px}
+/* 底线上的进度段：中央向两侧生长，加辉光 */
+#play .pprog2{position:absolute;bottom:199px;left:50%;transform:translateX(-50%);height:3px;
+  width:44%;background:rgba(53,224,255,.68);box-shadow:0 0 9px rgba(53,224,255,.45);border-radius:2px}
+#play .pprog2bg{position:absolute;bottom:200px;left:26%;width:48%;height:3px;background:#ffffff0c}
+/* 左下：曲名 + 难度（Dynamit 样例布局；实时评级已按用户要求删除） */
+#play .ptitlec{position:absolute;left:44px;bottom:100px;text-align:left}
+#play .ptitlec b{font-size:17px;letter-spacing:1px}
+#play .ptitlec span{font-size:11px;color:var(--giga);border:1px solid var(--giga);
+  padding:2px 10px;clip-path:var(--cut-sm);letter-spacing:2px;margin-left:10px}
+/* 右下：分数；CLEAR 位于顶部 pill */
+#play .phud{position:absolute;right:44px;bottom:118px;text-align:right}
+#play .pscore{font-size:46px;font-weight:800;letter-spacing:2px;line-height:1}
+/* 中央偏下：combo + 判定字 */
+#play .pcombo{position:absolute;top:84%;left:50%;transform:translate(-50%,-50%);text-align:center;
+  font-size:50px;font-weight:700;line-height:1;text-shadow:0 0 26px rgba(223,230,255,.28)}
+#play .pcombo small{display:block;font-size:11px;letter-spacing:5px;color:var(--dim);margin-top:6px}
+#play .pjudge{position:absolute;left:50%;bottom:340px;transform:translateX(-50%);
+  font-size:26px;font-weight:700;letter-spacing:6px;color:var(--cyan);text-shadow:0 0 18px rgba(53,224,255,.7)}
 /* 击中光效 */
 #play .flare{position:absolute;width:130px;height:130px;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,rgba(53,224,255,.5),rgba(53,224,255,.12) 45%,transparent 70%);
   transform:translate(-50%,50%)}
-/* note：cyan=底轨 tap/hold，blue=侧轨 tap/chain，pink=mixer；带渐变和内高光，不扁平 */
-#play .note{position:absolute;width:64px;height:16px;clip-path:var(--cut-sm)}
-#play .tap{background:linear-gradient(180deg,#a5f3ff 0%,var(--cyan) 45%,#17a8c8 100%);
-  box-shadow:0 0 14px rgba(53,224,255,.8)}
-#play .holdfill{width:64px;clip-path:none;
-  background:linear-gradient(180deg,rgba(53,224,255,.03),rgba(53,224,255,.32));
-  border-left:1px solid rgba(53,224,255,.25);border-right:1px solid rgba(53,224,255,.25)}
-#play .snote{position:absolute;width:16px;height:64px;clip-path:var(--cut-sm);
-  background:linear-gradient(90deg,#a5ddff 0%,var(--normal) 45%,#1a8fd0 100%);
-  box-shadow:0 0 14px rgba(56,189,248,.8)}
-#play .cnode{position:absolute;width:14px;height:14px;transform:rotate(45deg);
-  background:var(--normal);box-shadow:0 0 10px rgba(56,189,248,.85)}
-#play .mixer{position:absolute;width:10px;background:rgba(255,77,143,.3);border:1px solid var(--pink)}
-#play .mixerhl{position:absolute;width:18px;height:26px;clip-path:var(--cut-sm);
-  background:var(--pink);box-shadow:0 0 16px rgba(255,77,143,.9)}
-#play .ppause{position:absolute;top:64px;left:50%;transform:translateX(-50%);
-  width:72px;height:52px;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);clip-path:var(--cut-sm);background:rgba(16,22,42,.75);
-  color:var(--text);font-size:19px;cursor:pointer}
-#play .ppause:hover{border-color:var(--cyan);color:var(--cyan)}
+/* note（新权威映射色）：蓝 tap、绿 drag、琥珀 hold、粉 mixer、金框=多押 */
+#play .note{position:absolute;width:260px;height:24px;clip-path:var(--cut-sm)}
+#play .tap{background:linear-gradient(180deg,#c8ecff 0%,#4db8ff 45%,#1a7fd0 100%);
+  box-shadow:0 0 14px rgba(77,184,255,.8)}
+#play .sync{outline:3px solid #ffd24d;box-shadow:0 0 16px rgba(255,210,77,.8)}
+#play .drag{background:linear-gradient(180deg,#d2ffdce8 0%,#4ade80 45%,#1a9f50 100%);
+  box-shadow:0 0 14px rgba(74,222,128,.8)}
+#play .holdfill{width:260px;clip-path:none;
+  background:linear-gradient(180deg,rgba(255,178,77,.05),rgba(255,178,77,.22));
+  border-left:2px solid rgba(255,204,128,.85);border-right:2px solid rgba(255,204,128,.85)}
+#play .holdcap{background:linear-gradient(180deg,#ffe4b8 0%,#ffb84d 45%,#d08018 100%);
+  box-shadow:0 0 14px rgba(255,184,77,.8)}
+#play .snote{position:absolute;width:17px;height:102px;clip-path:var(--cut-sm);
+  background:linear-gradient(90deg,#c8ecff 0%,#4db8ff 45%,#1a7fd0 100%);
+  box-shadow:0 0 14px rgba(77,184,255,.8)}
+#play .mixerbar{position:absolute;left:35%;width:30%;height:18px;
+  background:rgba(255,77,143,.15);border:1px solid rgba(255,77,143,.68)}
+#play .mixerrib{position:absolute;width:12px;background:rgba(255,77,143,.3);border:1px solid var(--pink)}
 </style>
 </head>
 <body>
@@ -204,6 +236,20 @@ body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft Ya
     <div class="mbtn">设置<small>SETTINGS</small></div>
   </div>
   <div class="ver">clean-room build · no original assets</div>
+</div>
+
+<!-- ================= 设置 ================= -->
+<div class="screen" id="settings">
+  <div class="topbar"><div class="logo">DUX<b>·Community</b></div>
+    <div class="right"><span class="chip">返回</span></div></div>
+  <div class="setpanel">
+    <h2>设置 / SETTINGS</h2>
+    <div class="setrow"><div class="name">判定偏移<small>TIMING OFFSET</small></div><div class="adjust"><button>−</button><div class="value">+0 ms</div><button>＋</button></div></div>
+    <div class="setrow"><div class="name">音符落速<small>FALL SPEED</small></div><div class="adjust"><button>−</button><div class="value">Lv 10 · 1.0x</div><button>＋</button></div></div>
+    <div class="setrow"><div class="name">音乐音量<small>MUSIC</small></div><div class="adjust"><button>−</button><div class="value">80%</div><button>＋</button></div></div>
+    <div class="setrow"><div class="name">打击音量<small>HIT SFX</small></div><div class="adjust"><button>−</button><div class="value">80%</div><button>＋</button></div></div>
+    <div class="setrow"><div class="name">界面音量<small>UI SFX</small></div><div class="adjust"><button>−</button><div class="value">80%</div><button>＋</button></div></div>
+  </div>
 </div>
 
 <!-- ================= 选曲 ================= -->
@@ -256,7 +302,7 @@ body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft Ya
       <div class="gradebox"><div class="g">S</div><div class="newrec">NEW RECORD</div></div>
       <div class="stats">
         <div class="score mono">991,204</div>
-        <div class="acc">ACC <b>99.03%</b> · MAX COMBO <b class="mono">1,180</b> / 1,204</div>
+        <div class="clear">CLEAR <b>99.03%</b> · MAX COMBO <b class="mono">1,180</b> / 1,204</div>
         <div class="jdist">
           <i style="width:92%;background:var(--cyan)"></i><i style="width:5%;background:var(--hard)"></i>
           <i style="width:2%;background:var(--casual)"></i><i style="width:1%;background:#555"></i>
@@ -279,43 +325,53 @@ body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft Ya
 <!-- ================= 游玩 ================= -->
 <div class="screen" id="play">
   <div class="ptunnel"></div>
-  <div class="pprog"><i style="width:42%"></i></div>
-  <div class="phud"><div class="pscore">487,210</div><div class="pacc mono">ACC 99.12%</div></div>
-  <div class="pjudges">
-    <div style="color:var(--cyan)">PERFECT<b class="mono">1,108</b></div>
-    <div style="color:var(--hard)">GREAT<b class="mono">61</b></div>
-    <div style="color:var(--casual)">GOOD<b class="mono">23</b></div>
-    <div style="color:#888">MISS<b class="mono">12</b></div>
+  <div class="pforeground"></div>
+  <!-- 顶栏：中央 pill 计数行 + 下方居中暂停 -->
+  <div class="ptopline ptopl"></div><div class="ptopline ptopr"></div>
+  <div class="pills mono">
+    <div class="pill" style="color:var(--cyan)">PERFECT<b>1,108</b></div>
+    <div class="pill" style="color:var(--hard)">GREAT<b>61</b></div>
+    <div class="pill" style="color:var(--casual)">GOOD<b>23</b></div>
+    <div class="pill" style="color:#888">MISS<b>12</b></div>
+    <div class="pill clear">CLEAR<b>99.12%</b></div>
+    <div class="pill">M.COMBO<b style="color:var(--text)">312</b></div>
   </div>
   <div class="ppause">❚❚</div>
+  <!-- 判定线 ∪ + 底线进度段 -->
+  <div class="jline jbottom"></div><div class="jline jleft"></div><div class="jline jright"></div>
+  <div class="pprog2bg"></div><div class="pprog2"></div>
+  <!-- 底栏：左曲名+难度 / 右分数 -->
+  <div class="ptitlec"><b>Neon Horizon</b><span>GIGA · Lv 15</span></div>
+  <div class="phud"><div class="pscore">487,210</div></div>
+  <!-- 中央：combo + 判定字 -->
   <div class="pcombo">312<small>COMBO</small></div>
   <div class="pjudge">PERFECT</div>
-  <div class="jline jbottom"></div><div class="jline jleft"></div><div class="jline jright"></div>
-  <div class="wing wl"></div><div class="wing wr"></div>
-  <div class="phl"><b>Neon Horizon</b><span>HARD · Lv 10</span></div>
-  <!-- 底轨：下落 tap ×2 + 下落中的 hold + 已触线的 hold（带击中光效） -->
-  <div class="note tap" style="left:420px;bottom:340px"></div>
-  <div class="note tap" style="left:640px;bottom:228px"></div>
-  <div class="note holdfill" style="left:880px;bottom:430px;height:150px"></div>
-  <div class="note tap" style="left:880px;bottom:414px"></div>
-  <div class="flare" style="left:1112px;bottom:110px"></div>
-  <div class="note holdfill" style="left:1080px;bottom:126px;height:170px"></div>
-  <div class="note tap" style="left:1080px;bottom:102px"></div>
-  <!-- 左侧轨：两个 tap + 一组 chain 节点 -->
-  <div class="snote" style="left:82px;top:330px"></div>
-  <div class="snote" style="left:82px;top:480px"></div>
-  <div class="cnode" style="left:84px;top:150px"></div>
-  <div class="cnode" style="left:84px;top:205px"></div>
-  <div class="cnode" style="left:84px;top:260px"></div>
-  <!-- 右侧轨：mixer 粉条 + 高亮块 -->
-  <div class="mixer" style="right:86px;top:170px;height:220px"></div>
-  <div class="mixerhl" style="right:82px;top:330px"></div>
+  <!-- Mixer 粉条（装饰，中央偏上） -->
+  <div class="mixerbar" style="top:58%"></div>
+  <!-- 底轨：蓝 tap / 金框多押 tap / 绿 drag / 琥珀 hold（下落中+触线带光效） -->
+  <div class="note tap" style="left:22%;bottom:470px;width:245px"></div>
+  <div class="note tap sync" style="left:53%;bottom:380px;width:270px"></div>
+  <div class="note drag" style="left:34%;bottom:560px;width:330px"></div>
+  <div class="note drag" style="left:48%;bottom:650px;width:220px;opacity:.72"></div>
+  <div class="note tap" style="left:18%;bottom:675px;width:300px;opacity:.5"></div>
+  <div class="note tap" style="left:62%;bottom:580px;width:250px"></div>
+  <div class="note holdfill" style="left:68%;bottom:200px;height:230px;width:340px"></div>
+  <div class="note holdcap" style="left:68%;bottom:414px;width:340px"></div>
+  <div class="flare" style="left:24%;bottom:200px"></div>
+  <div class="note tap" style="left:20%;bottom:186px;width:290px"></div>
+  <!-- 左侧轨：竖条 tap ×2（其一金框） -->
+  <div class="snote" style="left:92px;top:440px"></div>
+  <div class="snote sync" style="left:92px;top:580px"></div>
+  <!-- 右侧轨：mixer 粉缎带 + 竖条 tap -->
+  <div class="mixerrib" style="right:94px;top:340px;height:190px"></div>
+  <div class="snote" style="right:94px;top:600px"></div>
 </div>
 
 </div>
 
 <div class="navmock">
   <button onclick="go('mmenu')">主菜单</button>
+  <button onclick="go('settings')">设置</button>
   <button onclick="go('select')">选曲</button>
   <button onclick="go('result')">结算</button>
   <button onclick="go('play')">游玩</button>
@@ -325,18 +381,18 @@ function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remo
   document.getElementById(id).classList.add('on')}
 /* 难度循环：从最低开始，点击向上，最高后再点回到最低；跳过该曲没有的难度 */
 var DIFFS=[{n:'CASUAL',lv:3,best:null},{n:'NORMAL',lv:6,best:null},
-  {n:'HARD',lv:10,best:{s:'987,650',acc:'98.42%',g:'S'}},{n:'MEGA',lv:13,best:null}]; // 该曲无 GIGA
+  {n:'HARD',lv:10,best:{s:'987,650',clear:'98.42%',g:'S'}},{n:'MEGA',lv:13,best:null}]; // 该曲无 GIGA
 var di=0;
 function cycleDiff(){di=(di+1)%DIFFS.length;renderDiff()}
 function renderDiff(){var d=DIFFS[di];
   document.getElementById('dcycle').innerHTML=d.n+' · Lv '+d.lv+'<br><small>点击切换难度 ▲</small>';
   document.getElementById('bestScore').textContent=d.best?d.best.s:'—';
-  document.getElementById('bestDetail').textContent=d.best?('ACC '+d.best.acc):'尚无成绩';
+  document.getElementById('bestDetail').textContent=d.best?('CLEAR '+d.best.clear):'尚无成绩';
   var g=document.getElementById('bestGrade');g.textContent=d.best?d.best.g:'';
   g.style.color=d.best?'var(--hard)':'transparent'}
 renderDiff();
 if(location.hash) go(location.hash.slice(1));
-if(new URLSearchParams(location.search).get('bare')) document.querySelector('.navmock').style.display='none';
+if(location.href.indexOf('bare')>=0) document.querySelector('.navmock').style.display='none';
 </script>
 </body>
 </html>

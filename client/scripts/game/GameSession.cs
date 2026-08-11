@@ -9,6 +9,7 @@ namespace DuxCommunity.Game;
 public static class GameSession
 {
     public static readonly ScoreStore Scores = new();
+    public static readonly GameSettings Settings = new();
 
     public static List<ChartPack> Packs { get; private set; } = new();
     public static ChartPack? SelectedPack;
@@ -22,6 +23,7 @@ public static class GameSession
             return;
         _init = true;
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath("user://charts"));
+        Settings.Load();
         Scores.Load();
         RescanPacks();
     }

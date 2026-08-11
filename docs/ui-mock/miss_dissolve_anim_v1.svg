@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512" viewBox="0 0 768 512" role="img" aria-labelledby="title desc">
+  <title id="title">DUX Community miss dissolve animation V1</title>
+  <desc id="desc">A six-frame muted miss dissolve sprite sheet arranged in three columns and two rows.</desc>
+  <defs>
+    <clipPath id="cell"><rect width="256" height="256"/></clipPath>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cad1dc" stop-opacity="0.58"/>
+      <stop offset="0.45" stop-color="#8993a3" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#3f4652" stop-opacity="0.22"/>
+    </linearGradient>
+    <filter id="soft" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feFlood flood-color="#8f99a8" flood-opacity="0.34"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="768" height="512" fill="#000000"/>
+
+  <g transform="translate(0 0)"><g clip-path="url(#cell)">
+    <path d="M42 114L54 104H202L214 114V142L202 152H54L42 142Z" fill="url(#bar)" stroke="#aab3c0" stroke-opacity="0.48" stroke-width="2"/>
+    <path d="M92 88L164 168M164 88L92 168" stroke="#b2bac6" stroke-opacity="0.34" stroke-width="4" filter="url(#soft)"/>
+    <circle cx="128" cy="128" r="48" fill="none" stroke="#8f99a8" stroke-opacity="0.14" stroke-width="2" stroke-dasharray="7 11"/>
+  </g></g>
+
+  <g transform="translate(256 0)"><g clip-path="url(#cell)">
+    <path d="M42 114L54 104H112L122 116L110 152H54L42 142Z" fill="url(#bar)" stroke="#9fa8b5" stroke-opacity="0.42" stroke-width="2"/>
+    <path d="M134 104H202L214 114V142L202 152H144L132 138L142 120Z" fill="url(#bar)" stroke="#9fa8b5" stroke-opacity="0.42" stroke-width="2"/>
+    <path d="M96 84L122 112M160 82L136 112M92 172L112 148M164 174L142 148" stroke="#a9b2bf" stroke-opacity="0.3" stroke-width="3"/>
+    <path d="M118 116L130 126L120 138L134 148" fill="none" stroke="#d0d5dc" stroke-opacity="0.4" stroke-width="2"/>
+    <circle cx="128" cy="128" r="58" fill="none" stroke="#8993a2" stroke-opacity="0.12" stroke-width="2" stroke-dasharray="6 13"/>
+  </g></g>
+
+  <g transform="translate(512 0)"><g clip-path="url(#cell)">
+    <path d="M30 110L50 100H96L108 116L94 146H48L34 136Z" fill="#7f8998" fill-opacity="0.34" transform="translate(-10 -8) rotate(-7 70 126)"/>
+    <path d="M146 102H204L220 114L216 142L200 154H154L138 136Z" fill="#7f8998" fill-opacity="0.32" transform="translate(12 8) rotate(8 178 128)"/>
+    <path d="M104 106L124 118L112 142L96 132Z" fill="#a5aebb" fill-opacity="0.32" transform="translate(-8 18) rotate(-16 110 126)"/>
+    <path d="M136 112L154 128L142 148L126 136Z" fill="#909aa8" fill-opacity="0.28" transform="translate(10 20) rotate(14 140 130)"/>
+    <g fill="#9ea7b4" opacity="0.34">
+      <circle cx="64" cy="82" r="3"/><circle cx="188" cy="78" r="2.5"/>
+      <circle cx="76" cy="180" r="2.5"/><circle cx="180" cy="184" r="3"/>
+    </g>
+  </g></g>
+
+  <g transform="translate(0 256)"><g clip-path="url(#cell)">
+    <path d="M32 104L72 94L92 116L78 140L42 146Z" fill="#7f8998" fill-opacity="0.2" transform="translate(-18 -20) rotate(-12 62 122)"/>
+    <path d="M158 98L206 108L214 138L188 154L150 136Z" fill="#7f8998" fill-opacity="0.18" transform="translate(20 22) rotate(14 180 128)"/>
+    <path d="M102 106L122 122L106 146L90 130Z" fill="#9aa3b0" fill-opacity="0.18" transform="translate(-18 36) rotate(-22 108 128)"/>
+    <path d="M140 112L158 132L142 152L126 134Z" fill="#8d96a4" fill-opacity="0.16" transform="translate(18 40) rotate(20 142 132)"/>
+    <g fill="#929ca9" opacity="0.24">
+      <circle cx="42" cy="66" r="2.5"/><circle cx="210" cy="62" r="2"/>
+      <circle cx="58" cy="202" r="2"/><circle cx="202" cy="210" r="2.5"/>
+    </g>
+  </g></g>
+
+  <g transform="translate(256 256)"><g clip-path="url(#cell)">
+    <path d="M24 86L54 80L68 96L54 112L30 108Z" fill="#7f8998" fill-opacity="0.1" transform="rotate(-18 46 96)"/>
+    <path d="M192 88L222 96L224 116L204 124L184 108Z" fill="#7f8998" fill-opacity="0.09" transform="rotate(18 204 106)"/>
+    <path d="M88 174L104 188L92 206L76 190Z" fill="#909aa8" fill-opacity="0.09" transform="rotate(-24 90 190)"/>
+    <path d="M164 178L180 194L166 210L152 192Z" fill="#88929f" fill-opacity="0.08" transform="rotate(22 166 194)"/>
+    <g fill="#8b95a2" opacity="0.12">
+      <circle cx="28" cy="52" r="2"/><circle cx="230" cy="48" r="1.8"/>
+      <circle cx="42" cy="224" r="1.8"/><circle cx="218" cy="230" r="2"/>
+    </g>
+  </g></g>
+
+  <g transform="translate(512 256)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#000000"/>
+  </g></g>
+</svg>

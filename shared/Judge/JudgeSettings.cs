@@ -25,20 +25,28 @@ public sealed class JudgeSettings
     public double MaxBPM { get; init; } = 200.0;
     public double StandardBPM { get; init; } = 150.0;
 
-    // TODO(规格书 §6.3【推测】/§9#3)：窗口 BarTime→秒 的换算可能按当前 BPM
-    // （钳到 MinBPM–MaxBPM）缩放而非固定 StandardBPM，需反汇编
-    // CaptureJudgeConstant/BarTimeToSeconds 验证。MVP 固定按 StandardBPM=150。
-
     private double BarToSec(double bar) => bar * 240.0 / StandardBPM;
 
-    /// <summary>± 双侧窗口（§6.3【推测】，依据：detailed grade 区分 Early/Late）。</summary>
+    /// <summary>普通双侧窗口固定按 StandardBPM=150 换算。</summary>
     public double PrefectSec => BarToSec(PrefectBarTime);
     public double GreatSec => BarToSec(GreatBarTime);
     public double GoodSec => BarToSec(GoodBarTime);
     public double MissSec => BarToSec(MissBarTime);
-    /// <summary>Holding 判定点间隔（Hard/Casual/Normal/Tutorial 均 0.125 bar = 200ms@150BPM）。</summary>
+    /// <summary>Holding interval at StandardBPM; retained for fallback charts/tests.</summary>
     public double HoldHoldingSec => BarToSec(HoldHoldingJudgeBarTime);
     public double MixerHoldingSec => BarToSec(MixerHoldingJudgeBarTime);
+
+    public double HoldHoldingSeconds(double currentBpm) =>
+        HoldingSeconds(HoldHoldingJudgeBarTime, currentBpm);
+
+    public double MixerHoldingSeconds(double currentBpm) =>
+        HoldingSeconds(MixerHoldingJudgeBarTime, currentBpm);
+
+    private double HoldingSeconds(double barTime, double currentBpm)
+    {
+        var effectiveBpm = Math.Clamp(currentBpm, MinBPM, MaxBPM);
+        return barTime * 240.0 / effectiveBpm;
+    }
 
     public static JudgeSettings ForPreset(JudgePreset preset) => preset switch
     {

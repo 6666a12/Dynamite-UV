@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024" role="img" aria-labelledby="title desc">
+  <title id="title">DUX Community note skin V1</title>
+  <desc id="desc">A clean-room concept board for center and side note sprites.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b17"/>
+      <stop offset="0.6" stop-color="#0c1326"/>
+      <stop offset="1" stop-color="#070a14"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#8ca0c0" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="tap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8f4ff"/>
+      <stop offset="0.18" stop-color="#86d8ff"/>
+      <stop offset="0.56" stop-color="#4db8ff"/>
+      <stop offset="1" stop-color="#166cae"/>
+    </linearGradient>
+    <linearGradient id="ex" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.28" stop-color="#bfefff"/>
+      <stop offset="0.64" stop-color="#75d6ff"/>
+      <stop offset="1" stop-color="#358cc5"/>
+    </linearGradient>
+    <linearGradient id="drag" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e0ffe8"/>
+      <stop offset="0.22" stop-color="#8ef3a8"/>
+      <stop offset="0.6" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#198b47"/>
+    </linearGradient>
+    <linearGradient id="hold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff2d2"/>
+      <stop offset="0.22" stop-color="#ffd18a"/>
+      <stop offset="0.6" stop-color="#ffb84d"/>
+      <stop offset="1" stop-color="#ad6512"/>
+    </linearGradient>
+    <linearGradient id="mixer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd7e7"/>
+      <stop offset="0.2" stop-color="#ff90bc"/>
+      <stop offset="0.58" stop-color="#ff4d8f"/>
+      <stop offset="1" stop-color="#a81f58"/>
+    </linearGradient>
+    <linearGradient id="mine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c44a58"/>
+      <stop offset="0.36" stop-color="#762a36"/>
+      <stop offset="1" stop-color="#35131c"/>
+    </linearGradient>
+    <linearGradient id="hold-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffcf7a" stop-opacity="0.08"/>
+      <stop offset="0.72" stop-color="#ffb84d" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffda9b" stop-opacity="0.34"/>
+    </linearGradient>
+    <filter id="glow-blue" x="-40%" y="-200%" width="180%" height="500%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feFlood flood-color="#4db8ff" flood-opacity="0.65"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-green" x="-40%" y="-200%" width="180%" height="500%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feFlood flood-color="#4ade80" flood-opacity="0.55"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-amber" x="-40%" y="-200%" width="180%" height="500%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feFlood flood-color="#ffb84d" flood-opacity="0.55"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-pink" x="-40%" y="-200%" width="180%" height="500%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feFlood flood-color="#ff4d8f" flood-opacity="0.55"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1536" height="1024" fill="url(#bg)"/>
+  <rect width="1536" height="1024" fill="url(#grid)"/>
+  <path d="M0 0H1536V8H0Z" fill="#35e0ff"/>
+  <path d="M1136 8H1536V14H1136Z" fill="#ff4d8f"/>
+
+  <g font-family="Orbitron, Segoe UI, Arial, sans-serif">
+    <text x="72" y="72" fill="#eaf3ff" font-size="32" font-weight="700">NOTE SKIN / V1</text>
+    <text x="72" y="108" fill="#8290aa" font-size="16">CLEAN-ROOM RUNTIME GEOMETRY PROTOTYPE</text>
+    <text x="1464" y="72" text-anchor="end" fill="#35e0ff" font-size="16">1920 x 1080 TARGET</text>
+
+    <text x="72" y="166" fill="#8290aa" font-size="14">CENTER TRACK / VARIABLE-WIDTH THREE-SLICE</text>
+    <path d="M72 184H1464" stroke="#8290aa" stroke-opacity="0.24"/>
+
+    <g fill="#9ba9bf" font-size="14" text-anchor="middle">
+      <text x="196" y="226">TAP</text>
+      <text x="452" y="226">EX-TAP</text>
+      <text x="708" y="226">DRAG</text>
+      <text x="964" y="226">MINE</text>
+      <text x="1270" y="226">SYNC TAP</text>
+    </g>
+
+    <g transform="translate(84 252)" filter="url(#glow-blue)">
+      <path d="M0 10L12 0H212L224 10V34L212 44H12L0 34Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M16 8H208" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M18 34H206" stroke="#0b4f82" stroke-opacity="0.65" stroke-width="3"/>
+    </g>
+    <g transform="translate(340 252)" filter="url(#glow-blue)">
+      <path d="M0 10L12 0H212L224 10V34L212 44H12L0 34Z" fill="url(#ex)" stroke="#e8fbff" stroke-width="2"/>
+      <path d="M22 22H202" stroke="#ffffff" stroke-opacity="0.74" stroke-width="5" stroke-dasharray="18 9"/>
+      <path d="M16 7H208" stroke="#ffffff" stroke-opacity="0.9" stroke-width="3"/>
+    </g>
+    <g transform="translate(596 252)" filter="url(#glow-green)">
+      <path d="M0 10L12 0H212L224 10V34L212 44H12L0 34Z" fill="url(#drag)" stroke="#c7ffd4" stroke-width="2"/>
+      <path d="M34 11L48 22L34 33M82 11L96 22L82 33M130 11L144 22L130 33M178 11L192 22L178 33" fill="none" stroke="#effff2" stroke-opacity="0.68" stroke-width="4"/>
+    </g>
+    <g transform="translate(852 252)">
+      <path d="M0 10L12 0H212L224 10V34L212 44H12L0 34Z" fill="url(#mine)" stroke="#ec6b78" stroke-width="2"/>
+      <path d="M24 6L48 38M72 6L96 38M120 6L144 38M168 6L192 38" stroke="#ff9aa4" stroke-opacity="0.52" stroke-width="7"/>
+      <path d="M16 7H208" stroke="#ffc0c6" stroke-opacity="0.45" stroke-width="2"/>
+    </g>
+    <g transform="translate(1138 246)" filter="url(#glow-blue)">
+      <path d="M0 12L14 0H250L264 12V44L250 56H14L0 44Z" fill="none" stroke="#ffd24d" stroke-width="7"/>
+      <path d="M10 18L22 8H242L254 18V38L242 48H22L10 38Z" fill="url(#tap)" stroke="#c4efff" stroke-width="2"/>
+      <path d="M30 15H234" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+    </g>
+
+    <text x="72" y="374" fill="#8290aa" font-size="14">HOLD BODY + MIXER CONTROL PATH / PROCEDURAL GEOMETRY</text>
+    <path d="M72 392H1464" stroke="#8290aa" stroke-opacity="0.24"/>
+
+    <g transform="translate(96 426)">
+      <text x="0" y="0" fill="#9ba9bf" font-size="14">HOLD / VISIBLE HEAD + TAIL + TRANSLUCENT BODY</text>
+      <path d="M0 46H572V210H0Z" fill="url(#hold-body)"/>
+      <path d="M1 46V210M571 46V210" stroke="#ffd08a" stroke-opacity="0.85" stroke-width="4"/>
+      <g filter="url(#glow-amber)">
+        <path d="M0 34L14 22H558L572 34V58L558 70H14L0 58Z" fill="url(#hold)" stroke="#fff0cd" stroke-width="2"/>
+        <path d="M22 31H550" stroke="#fff7e3" stroke-opacity="0.72" stroke-width="3"/>
+        <path d="M0 198L14 186H558L572 198V222L558 234H14L0 222Z" fill="url(#hold)" stroke="#fff0cd" stroke-width="2"/>
+        <path d="M22 195H550" stroke="#fff7e3" stroke-opacity="0.72" stroke-width="3"/>
+      </g>
+      <text x="0" y="258" fill="#687791" font-size="12">HEAD + TAIL VISIBLE / MID CONTROL NODES HIDDEN</text>
+    </g>
+
+    <g transform="translate(806 426)">
+      <text x="0" y="0" fill="#9ba9bf" font-size="14">MIXER / VISIBLE HEAD + THIN CONTROL PATH</text>
+      <path d="M72 52L204 98L372 74L518 174" fill="none" stroke="#ff4d8f" stroke-opacity="0.72" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-pink)"/>
+      <path d="M72 52L204 98L372 74L518 174" fill="none" stroke="#ffd0e2" stroke-opacity="0.54" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <g transform="translate(398 148)" filter="url(#glow-pink)">
+        <path d="M0 12L14 0H226L240 12V42L226 54H14L0 42Z" fill="url(#mixer)" stroke="#ffd1e3" stroke-width="2"/>
+        <path d="M24 12H216" stroke="#ffe8f1" stroke-opacity="0.7" stroke-width="3"/>
+      </g>
+      <text x="0" y="232" fill="#687791" font-size="12">CONTROL NODES ARE NOT RENDERED</text>
+    </g>
+
+    <text x="72" y="738" fill="#8290aa" font-size="14">SIDE TRACK / SAME SOURCE, ROTATED 90 DEG / IDENTICAL LUMINANCE</text>
+    <path d="M72 756H1464" stroke="#8290aa" stroke-opacity="0.24"/>
+
+    <g fill="#9ba9bf" font-size="14" text-anchor="middle">
+      <text x="214" y="804">LEFT TAP</text>
+      <text x="470" y="804">RIGHT TAP</text>
+      <text x="726" y="804">DRAG</text>
+      <text x="1030" y="804">HOLD HEAD + TAIL</text>
+      <text x="1270" y="804">MIXER HEAD + LINE</text>
+    </g>
+
+    <g transform="translate(190 824)" filter="url(#glow-blue)">
+      <path d="M10 0L0 10V138L10 148H38L48 138V10L38 0Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M8 14V134" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+    </g>
+    <g transform="translate(446 824)" filter="url(#glow-blue)">
+      <path d="M10 0L0 10V138L10 148H38L48 138V10L38 0Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M8 14V134" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+    </g>
+    <g transform="translate(702 824)" filter="url(#glow-green)">
+      <path d="M10 0L0 10V138L10 148H38L48 138V10L38 0Z" fill="url(#drag)" stroke="#c7ffd4" stroke-width="2"/>
+      <path d="M10 30L24 42L38 30M10 72L24 84L38 72M10 114L24 126L38 114" fill="none" stroke="#effff2" stroke-opacity="0.68" stroke-width="4"/>
+    </g>
+    <g transform="translate(930 854)">
+      <path d="M40 0H190V88H40Z" fill="url(#hold-body)"/>
+      <path d="M40 1H190M40 87H190" stroke="#ffd08a" stroke-opacity="0.76" stroke-width="3"/>
+      <g filter="url(#glow-amber)">
+        <path d="M10 0L0 10V78L10 88H38L48 78V10L38 0Z" fill="url(#hold)" stroke="#fff0cd" stroke-width="2"/>
+        <path d="M8 14V74" stroke="#fff7e3" stroke-opacity="0.72" stroke-width="3"/>
+        <path d="M190 0L200 10V78L190 88H162L152 78V10L162 0Z" fill="url(#hold)" stroke="#fff0cd" stroke-width="2"/>
+        <path d="M192 14V74" stroke="#fff7e3" stroke-opacity="0.72" stroke-width="3"/>
+      </g>
+    </g>
+    <g transform="translate(1192 824)">
+      <path d="M28 76L100 42L170 102" fill="none" stroke="#ff4d8f" stroke-opacity="0.72" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-pink)"/>
+      <path d="M28 76L100 42L170 102" fill="none" stroke="#ffd0e2" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <g filter="url(#glow-pink)">
+        <path d="M10 0L0 10V138L10 148H46L56 138V10L46 0Z" fill="url(#mixer)" stroke="#ffd1e3" stroke-width="2"/>
+        <path d="M14 24H42M14 58H42M14 92H42M14 126H42" stroke="#ffe8f1" stroke-opacity="0.64" stroke-width="4"/>
+      </g>
+    </g>
+
+    <text x="72" y="996" fill="#687791" font-size="13">BARLINE: CODE-DRAWN 6 PX NEUTRAL LINE</text>
+    <text x="1464" y="996" text-anchor="end" fill="#687791" font-size="13">NO PERSPECTIVE TRANSFORM</text>
+  </g>
+</svg>

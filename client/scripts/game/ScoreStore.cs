@@ -7,7 +7,7 @@ namespace DuxCommunity;
 /// <summary>单个 谱面×难度 的历史最佳成绩。</summary>
 public sealed class ScoreRecord
 {
-    [JsonPropertyName("score")] public int Score { get; set; }
+    [JsonPropertyName("score")] public int Score { get; set; }        // 0–1,000,000 归一化分数
     [JsonPropertyName("acc")] public double Acc { get; set; }          // Clear%（0–100）
     [JsonPropertyName("maxCombo")] public int MaxCombo { get; set; }
     [JsonPropertyName("grade")] public string Grade { get; set; } = "C";
@@ -43,7 +43,7 @@ public sealed class ScoreStore
     public ScoreRecord? Get(string packId, string diff) =>
         _records.TryGetValue(KeyOf(packId, diff), out var r) ? r : null;
 
-    /// <summary>若新成绩分数更高则写回并落盘，返回是否刷新纪录。</summary>
+    /// <summary>若新归一化分数更高则写回并落盘，返回是否刷新纪录。</summary>
     public bool TryUpdate(string packId, string diff, ScoreRecord candidate)
     {
         var key = KeyOf(packId, diff);

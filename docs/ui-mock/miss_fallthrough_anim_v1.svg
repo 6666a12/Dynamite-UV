@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1024" viewBox="0 0 1280 1024" role="img" aria-labelledby="title desc">
+  <title id="title">DUX Community miss fallthrough animation V1</title>
+  <desc id="desc">A distance-driven twenty-frame miss preview: the note passes the judgment line, stays opaque for 24 pixels, then fades out by 64 pixels.</desc>
+  <defs>
+    <linearGradient id="tap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8f4ff"/>
+      <stop offset="0.18" stop-color="#86d8ff"/>
+      <stop offset="0.56" stop-color="#4db8ff"/>
+      <stop offset="1" stop-color="#166cae"/>
+    </linearGradient>
+    <linearGradient id="judge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#35e0ff" stop-opacity="0"/>
+      <stop offset="0.12" stop-color="#35e0ff" stop-opacity="0.5"/>
+      <stop offset="0.5" stop-color="#baf8ff" stop-opacity="0.88"/>
+      <stop offset="0.88" stop-color="#35e0ff" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#35e0ff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="note-glow" x="-40%" y="-200%" width="180%" height="500%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feFlood flood-color="#4db8ff" flood-opacity="0.58"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="line-glow" x="-20%" y="-600%" width="140%" height="1300%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#35e0ff" flood-opacity="0.5"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="cell"><rect width="256" height="256"/></clipPath>
+  </defs>
+  <rect width="1280" height="1024" fill="#020407"/>
+  <g transform="translate(0 0)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>
+  </g></g>
+  <g transform="translate(256 0)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>
+  </g></g>
+  <g transform="translate(512 0)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 60)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(768 0)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 68)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(1024 0)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 76)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(0 256)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 84)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(256 256)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 92)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(512 256)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 100)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(768 256)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 108)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(1024 256)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 116)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(0 512)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 124)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(256 512)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 132)" opacity="1" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(512 512)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 140)" opacity="0.8" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(768 512)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 148)" opacity="0.6" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(1024 512)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 156)" opacity="0.4" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(0 768)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>    <g transform="translate(0 164)" opacity="0.2" filter="url(#note-glow)">
+      <path d="M38 6L46 0H210L218 6V18L210 24H46L38 18Z" fill="url(#tap)" stroke="#b8ebff" stroke-width="2"/>
+      <path d="M56 4H200" stroke="#ffffff" stroke-opacity="0.72" stroke-width="3"/>
+      <path d="M54 20H202" stroke="#0b4f82" stroke-opacity="0.62" stroke-width="2"/>
+    </g>
+  </g></g>
+  <g transform="translate(256 768)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>
+  </g></g>
+  <g transform="translate(512 768)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>
+  </g></g>
+  <g transform="translate(768 768)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>
+  </g></g>
+  <g transform="translate(1024 768)"><g clip-path="url(#cell)">
+    <rect width="256" height="256" fill="#020407"/>
+    <path d="M14 120H242" stroke="url(#judge)" stroke-width="3" filter="url(#line-glow)"/>
+    <path d="M28 120H228" stroke="#d9fbff" stroke-opacity="0.34" stroke-width="1"/>
+  </g></g>
+</svg>

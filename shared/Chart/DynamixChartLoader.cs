@@ -38,14 +38,13 @@ public static class DynamixChartLoader
             sections.Sort((a, b) => a.BarTime.CompareTo(b.BarTime));
         }
 
-        // 变速事件（§8.3）：[{BarTime, Value}]，阶跃倍率
+        // 变速事件：[{BarTime, Value}]；运行时在相邻 BarTime 之间线性插值。
         var dropSpeeds = new List<(double, double)>();
         if (root.TryGetProperty("NoteSystem__DropSpeeds", out var ds) &&
             ds.ValueKind == JsonValueKind.Array)
         {
             foreach (var e in ds.EnumerateArray())
                 dropSpeeds.Add((GetDouble(e, "BarTime", 0.0), GetDouble(e, "Value", 1.0)));
-            dropSpeeds.Sort((a, b) => a.Item1.CompareTo(b.Item1));
         }
 
         var chart = new Chart
@@ -95,6 +94,7 @@ public static class DynamixChartLoader
                 Width = GetDouble(e, "Width", 1.0),
                 Second = baked, // 先填烘焙值；有时间线时 Load 末尾统一重算
                 BakedSecond = baked,
+                SyncNote = GetInt(e, "Baked_SyncNote", 0),
             });
         }
         notes.Sort((a, b) => a.Second.CompareTo(b.Second));
