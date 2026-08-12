@@ -6,7 +6,7 @@ namespace DuxCommunity.Game;
 /// <summary>谱面包内一个难度条目（meta.json 的 charts[]）。</summary>
 public sealed class ChartDiff
 {
-    public required string Diff { get; init; }   // casual/normal/hard/mega/giga
+    public required string Diff { get; init; }   // casual/normal/hard/mega/giga/tech
     public required int Level { get; init; }
     public required string File { get; init; }
 }
@@ -17,7 +17,7 @@ public sealed class ChartDiff
 /// </summary>
 public sealed class ChartPack
 {
-    public static readonly string[] DiffOrder = { "casual", "normal", "hard", "mega", "giga" };
+    public static readonly string[] DiffOrder = { "casual", "normal", "hard", "mega", "giga", "tech" };
 
     public required string Id { get; init; }
     public required string Title { get; init; }
@@ -86,7 +86,11 @@ public sealed class ChartPack
                 });
             }
             // 按难度档排序
-            charts = charts.OrderBy(c => Array.IndexOf(DiffOrder, c.Diff)).ToList();
+            charts = charts.OrderBy(c =>
+            {
+                var index = Array.IndexOf(DiffOrder, c.Diff);
+                return index >= 0 ? index : int.MaxValue;
+            }).ToList();
             return new ChartPack
             {
                 Id = root.GetProperty("id").GetString() ?? "",

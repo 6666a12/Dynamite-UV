@@ -263,7 +263,9 @@ public partial class SongSelect : Node2D
 
         _cover.Texture = pack.CoverPath is { } cp ? Res.LoadTexture(cp) : null;
 
-        _diffBtn.Text = $"{UiFonts.DiffName(diff.Diff)} · Lv {diff.Level}";
+        _diffBtn.Text = diff.Level > 0
+            ? $"{UiFonts.DiffName(diff.Diff)} · Lv {diff.Level}"
+            : UiFonts.DiffName(diff.Diff);
 
         var rec = GameSession.Scores.Get(pack.Id, diff.Diff);
         if (rec != null)

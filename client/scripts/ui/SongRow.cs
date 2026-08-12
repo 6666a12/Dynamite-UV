@@ -78,6 +78,9 @@ public partial class SongRow : Control
         for (var i = _pack.Charts.Count - 1; i >= 0; i--)
         {
             var chart = _pack.Charts[i];
+            var badge = chart.Level > 0
+                ? chart.Level.ToString()
+                : string.IsNullOrEmpty(chart.Diff) ? "?" : UiFonts.DiffName(chart.Diff)[..1];
             x -= chipW;
             var col = UiFonts.DiffColor(chart.Diff);
             const float cc = 6f;
@@ -88,7 +91,7 @@ public partial class SongRow : Control
             };
             DrawColoredPolygon(chip, col);
             DrawString(UiFonts.TechBold, new Vector2(x, y + chipH * 0.5f + 7f),
-                chart.Level.ToString(), HorizontalAlignment.Center, chipW, 19, UiFonts.InkText);
+                badge, HorizontalAlignment.Center, chipW, 19, UiFonts.InkText);
             x -= gap;
         }
     }

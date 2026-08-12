@@ -1722,8 +1722,11 @@ public partial class GameplayMain : Node2D
 	{
 		var hex = UiFonts.DiffColor(_diffKey).ToHtml(false);
 		var auto = _auto ? "   [color=#7c88b0]AUTO (F1)[/color]" : "";
+		var diff = _diffLevel > 0
+			? $"{UiFonts.DiffName(_diffKey)} · Lv {_diffLevel}"
+			: UiFonts.DiffName(_diffKey);
 		_titleTag.Text =
-			$"{_songTitle}   [color=#{hex}]{UiFonts.DiffName(_diffKey)} · Lv {_diffLevel}[/color]{auto}";
+			$"{_songTitle}   [color=#{hex}]{diff}[/color]{auto}";
 	}
 
 	private void BuildPauseMenu()
@@ -2086,7 +2089,10 @@ public partial class GameplayMain : Node2D
 			_resultCover.Texture = tex;
 			_resultCover.Visible = true;
 		}
-		_songLine.Text = $"RESULT · {_songTitle} · {UiFonts.DiffName(_diffKey)} {_diffLevel}" +
+		var resultDiff = _diffLevel > 0
+			? $"{UiFonts.DiffName(_diffKey)} {_diffLevel}"
+			: UiFonts.DiffName(_diffKey);
+		_songLine.Text = $"RESULT · {_songTitle} · {resultDiff}" +
 						 (_auto ? " · AUTO（不计成绩）" : "");
 		_gradeLabel.Text = grade;
 		_gradeLabel.AddThemeColorOverride("font_color", grade switch

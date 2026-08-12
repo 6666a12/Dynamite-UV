@@ -46,7 +46,9 @@ public static class UiFonts
         "normal" => Normal,
         "hard" => Hard,
         "mega" => Mega,
-        _ => Giga,
+        "giga" => Giga,
+        "tech" => Giga,
+        _ => Dim,
     };
 
     public static string DiffName(string diff) => diff.ToUpperInvariant();

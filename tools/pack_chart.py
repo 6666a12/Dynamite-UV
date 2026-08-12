@@ -5,7 +5,7 @@
 
     <pack_id>/
         meta.json           曲名/曲师/谱师/音频/封面/难度表
-        chart_<diff>.json   DynamixChartLoader 可读的谱面（diff ∈ casual/normal/hard/mega/giga）
+        chart_<diff>.json   DynamixChartLoader 可读的谱面（diff ∈ casual/normal/hard/mega/giga/tech）
         <audio>             音频文件（保持原扩展名）
         <cover>             封面图（保持原扩展名，可选）
 
@@ -23,7 +23,7 @@ import shutil
 import sys
 from pathlib import Path
 
-DIFFS = ["casual", "normal", "hard", "mega", "giga"]
+DIFFS = ["casual", "normal", "hard", "mega", "giga", "tech"]
 
 
 def main() -> int:
