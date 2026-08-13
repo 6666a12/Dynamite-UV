@@ -1,6 +1,6 @@
 # DUX-Community 交接文档
 
-> 最后更新：2026-08-11。本文只记录当前有效实现、固定决策、待办和验证流程。
+> 最后更新：2026-08-13。本文只记录当前有效实现、固定决策、待办和验证流程。
 > 玩法数据与行为规格见 `gameplay-spec.md`，原版判定证据见
 > `original-judgement-analysis.md`，布局数值来源见 `video-geometry-analysis.md` 和
 > `pixel-calibration.md`，UI 样式稿见 `ui-mock/index.html`。
@@ -40,27 +40,33 @@
 - Type 权威语义：1 Tap、2 Drag、3/4 Hold、5 EX-Tap、6/7 Mixer、8 Mine、9 BarLine。
 - T2 是接触判定；T5 使用 1.5× 判定窗口；T9 只渲染，不计分和 Combo。
 - SyncNote 非零只给 T1 Tap 画金色多押描边。
-- 普通窗口固定按 StandardBPM=150 换算；Holding tick 按当前 BPM，并钳制到 120–200。
-- 输入按触点 id 保存轨道、Position 和 phase；同帧锁定最早 float32 目标时刻，同时允许
-  完全同刻多押。
-- 普通 note 使用实际 `[P,P+W]` 与 `CommunityTouchWidth=0.30` 选择最近重叠候选；
+- 普通窗口固定按 StandardBPM=150 换算；Hold 断触宽限按当前 BPM 计算并钳制到
+  120–200，该间隔不生成判定点。
+- 触摸由全局 `_Input` 采集并按触点 id 保存轨道、Position 和 phase，已关闭触摸模拟鼠标；
+  同帧 Early/Exact 锁定最早 float32 目标时刻并允许完全同刻多押，Late 不受该锁限制。
+- 普通 note 使用实际 `[P,P+W]` 与 `CommunityTouchWidth=0.40`（每侧扩 `0.20`，按 Mixer 试玩反馈从 `0.30` 提高）；每颗 Note 独立扫描触点，同刻空间重叠 Note 可共享同一触点，触点不会被消费；
   Mine 使用精确范围，不扩边。
-- Hold 已实现条体左右缘插值、动态断触宽限、跨帧补 tick 和提前尾判；头部越线后 Late
-  窗仍可正常接起，Body 线外部分持续裁剪。
+- Hold 已实现条体左右缘插值和动态断触宽限；头部与每个实际路径节点均为完整主判定。
+  头部越线后 Late 窗仍可正常接起，Body 线外部分持续裁剪。头 Miss 会批量 Miss 全部
+  剩余节点；提前释放确认断开时，未结算中间节点 Miss，尾按实际 release 时刻评级；
+  宽限内由原触点或其他覆盖触点接回会清除断触，持有过尾始终为 Prefect。
 - Mixer Body 始终渲染；当前范围内有同轨有效触点时在线上显示动态头，断开即隐藏，
-  Began/Moved/Stationary 均可随时重接，没有超时或永久 Miss，尾判按 tick 命中率结算。
+  Began/Moved/Stationary 均可随时重接，没有超时或永久 Miss。从 Mixer 头开始每
+  `1/8 chart bar` 产生完整主判定，非网格尾不补判，也没有额外命中率尾判。
 - Note 的下穿、回收和判定反馈按类型分流，当前权威规则见 §3；逻辑 Late 窗不依赖
   Note 本体是否仍然可见。
 
 ### 2.3 分数和统计
 
-- 内部按类型表累计 RawScore；Holding tick 仍影响 Score/Health/Boost。
-- Holding tick 不改变主 Combo，也不进入 P/GR/GD/M。
+- Hold 头与每个路径节点、Mixer 头与每个八分点均使用 `100/70/50/0` 权重，并进入
+  Combo、P/GR/GD/M、Score、Health、Boost、CLEAR 和理论满分。
 - 显示与存档分数为 `round(RawScore/TheoreticalMax×1,000,000)`，上限 1,000,000。
 - HUD 实时 CLEAR 使用当前得分除以已判定单元理论满分；结算 CLEAR 使用全谱理论满分。
 - 评级阈值：Ω≥98、S≥95、A≥90、B≥80，否则 C。
-- Health/Boost 已按 TotalMainNote 缩放并钳制，但当前不显示 UI，也不触发 GameOver。
+- Health/Boost 已按 `JudgePlan.HeadlineUnitCount` 缩放并钳制，但当前不显示 UI，也不
+  触发 GameOver。
 - `OriginalJudgeMath` 保留原版 Combo/raw score/CLEAR 数学，不接入社区版 HUD 与存档。
+- 判定字中 Prefect 统一显示 `PREFECT`；Great/Good 仍显示 E/L。
 
 ## 3. 游玩布局与视觉
 
@@ -92,7 +98,7 @@ Mixer 的持续效果在 0.28 秒内爬到满亮，之后只循环纹理，松�
 | 类型 | 当前视觉生命周期 |
 | --- | --- |
 | Tap / EX-Tap / Drag | 未判定时越线后 24px 满亮、再用 40px 淡出；命中立即移除本体，只留爆发 |
-| Hold | 头部使用普通下穿，Body 在线上裁剪；命中后的头、Body 近端和效果固定在线上 |
+| Hold | 头部使用普通下穿，Body 在线上裁剪；接头后头部保留在线上，暂时断触时可恢复地下穿，宽限内接回即回线，宽限耗尽才正式 Miss |
 | Mixer | 不下穿；Miss 静默回收静态头，Body 和随时重接不受影响 |
 | Mine | 触发时显示红色危险爆发；安全到线直接回收 |
 | BarLine | 到线立即回收，不下穿、不停留 |
@@ -108,8 +114,9 @@ Mixer 的持续效果在 0.28 秒内爬到满亮，之后只循环纹理，松�
   实现，预览 GIF 只作设计参考。
 - 曲绘由社区谱师随谱面包提供，不使用 AI 生成；缺失曲绘时使用 clean-room 占位符。
 - 网页谱面编辑器、本地编辑器 app、ASP.NET Core 社区服务器尚未开工。
-- 原版边界仍未确认：设备 `NSTouchWidth` 真值、重叠触点消费、BPM 切段瞬间 Holding
-  调度、模式 MaxHealth、当前版本 Type dispatch、Buff/EX Boost。
+- 原版已经确认不消费触点，同一触点可命中多颗重叠 Note；社区版 `OnPress` 已按 Note 独立扫描并允许触点复用。仍需补充端到端输入序列回归和真机多指验证。仍未知：设备 `NSTouchWidth` 真值、BPM 切段同帧
+  系统顺序、OnJudged 精确视觉动作和回收帧、模式 MaxHealth、Type dispatch、Buff/EX Boost。
+- 真机三指以上事件序列仍需用户实测；OS 焦点丢失/触摸取消还没有独立的触点清理入口。
 - 设置页已有 Hit/UI 音量总线，但完整打击音和 UI 音效资产链路尚未完成。
 
 ## 5. 目录地图
@@ -142,10 +149,11 @@ dotnet build
 dotnet run --project tools/core-tests/CoreTests.csproj
 ```
 
-2026-08-11 最近一次记录：客户端 0 warning / 0 error，core-tests 全部通过（含 DropSpeed
-插值、回溯换向和 BarTime 双向换算）；
-The Villager Hard 为 1262 个计分单元/684 个主判定，Tablear Giga 为 1903/1734，
-主判定数均与各自 `Baked_TotalMainNote` 一致。
+2026-08-13 最近一次记录：客户端 0 error，core-tests 全部通过（含 DropSpeed 插值、
+回溯换向、BarTime 双向换算、Hold 节点、Mixer 八分点、Early/Late 时间锁和按 release
+时刻结算 Hold 尾）。离线沙箱若无法读取 NuGet 漏洞索引，可能出现 `NU1900` warning。
+开发谱按社区新口径重算后：Tablear Tech 1105、Tablear Giga 1776、The Villager Hard
+2100 个主判定；旧 `Baked_TotalMainNote` 不再作为一致性依据。
 
 ### 6.2 启动、截图和录屏
 

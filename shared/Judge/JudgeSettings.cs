@@ -18,7 +18,7 @@ public sealed class JudgeSettings
     public required double GreatBarTime { get; init; }
     public required double GoodBarTime { get; init; }
     public required double MissBarTime { get; init; }
-    public required double HoldHoldingJudgeBarTime { get; init; }
+    public required double HoldContactGraceBarTime { get; init; }
     public required double MixerHoldingJudgeBarTime { get; init; }
 
     public double MinBPM { get; init; } = 120.0;
@@ -32,15 +32,11 @@ public sealed class JudgeSettings
     public double GreatSec => BarToSec(GreatBarTime);
     public double GoodSec => BarToSec(GoodBarTime);
     public double MissSec => BarToSec(MissBarTime);
-    /// <summary>Holding interval at StandardBPM; retained for fallback charts/tests.</summary>
-    public double HoldHoldingSec => BarToSec(HoldHoldingJudgeBarTime);
-    public double MixerHoldingSec => BarToSec(MixerHoldingJudgeBarTime);
+    /// <summary>Hold 断触宽限在 StandardBPM 下的秒数。</summary>
+    public double HoldContactGraceSec => BarToSec(HoldContactGraceBarTime);
 
-    public double HoldHoldingSeconds(double currentBpm) =>
-        HoldingSeconds(HoldHoldingJudgeBarTime, currentBpm);
-
-    public double MixerHoldingSeconds(double currentBpm) =>
-        HoldingSeconds(MixerHoldingJudgeBarTime, currentBpm);
+    public double HoldContactGraceSeconds(double currentBpm) =>
+        HoldingSeconds(HoldContactGraceBarTime, currentBpm);
 
     private double HoldingSeconds(double barTime, double currentBpm)
     {
@@ -56,7 +52,7 @@ public sealed class JudgeSettings
             GreatBarTime = 0.09375,
             GoodBarTime = 0.125,
             MissBarTime = 0.15625,
-            HoldHoldingJudgeBarTime = 0.125,
+            HoldContactGraceBarTime = 0.125,
             MixerHoldingJudgeBarTime = 0.125,
         },
         JudgePreset.Normal => new JudgeSettings
@@ -65,7 +61,7 @@ public sealed class JudgeSettings
             GreatBarTime = 0.09375,
             GoodBarTime = 0.125,
             MissBarTime = 0.15625,
-            HoldHoldingJudgeBarTime = 0.125,
+            HoldContactGraceBarTime = 0.125,
             MixerHoldingJudgeBarTime = 0.125,
         },
         JudgePreset.Hard => new JudgeSettings
@@ -74,7 +70,7 @@ public sealed class JudgeSettings
             GreatBarTime = 0.0703125,
             GoodBarTime = 0.1015625,
             MissBarTime = 0.15625,
-            HoldHoldingJudgeBarTime = 0.125,
+            HoldContactGraceBarTime = 0.125,
             MixerHoldingJudgeBarTime = 0.125,
         },
         _ => new JudgeSettings // Tutorial
@@ -83,7 +79,7 @@ public sealed class JudgeSettings
             GreatBarTime = 0.09375,
             GoodBarTime = 0.125,
             MissBarTime = 0.15625,
-            HoldHoldingJudgeBarTime = 0.125,
+            HoldContactGraceBarTime = 0.125,
             MixerHoldingJudgeBarTime = 0.125,
         },
     };

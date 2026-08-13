@@ -75,6 +75,7 @@ public partial class NoteView : Node2D
 	private float _stateAlpha = 1f;
 	public bool IsResolved { get; private set; }
 	public bool IsMissFalling { get; private set; }
+	public bool IsRecoverableHoldFalling { get; private set; }
 	public bool IsLineAnchored { get; private set; }
 	public float MissDistancePx { get; private set; }
 
@@ -189,11 +190,12 @@ public partial class NoteView : Node2D
 		});
 	}
 
-	/// <summary>命中/错失后的视觉反馈：淡出并在 ttl 秒后由 GameplayMain 回收。</summary>
+	/// <summary>命中/错失后的视觉反馈；ttl 为负时保留到调用方显式结束。</summary>
 	public void MarkJudged(Color flash, float ttl = 0.25f)
 	{
 		IsResolved = true;
 		IsMissFalling = false;
+		IsRecoverableHoldFalling = false;
 		if (_flatRect != null)
 			_flatRect.Color = flash;
 		foreach (var material in _surfaceMaterials)
@@ -218,14 +220,51 @@ public partial class NoteView : Node2D
 		UpdateMissAlpha();
 	}
 
-	/// <summary>推进 Miss 下穿距离；64px 后返回 true，通知 GameplayMain 回收。</summary>
+	/// <summary>
+	/// Hold 接头后的临时断触下穿。到达淡出终点后仍保留视图，以便宽限内重新接回。
+	/// </summary>
+	public void BeginRecoverableHoldFallthrough()
+	{
+		if (IsMissFalling || IsRecoverableHoldFalling)
+			return;
+		IsLineAnchored = false;
+		IsRecoverableHoldFalling = true;
+		MissDistancePx = 0f;
+		_ttl = -1f;
+		UpdateMissAlpha();
+	}
+
+	/// <summary>宽限内重新接回 Hold：撤销下穿并恢复判定线上的已接头状态。</summary>
+	public void RestoreHoldContact()
+	{
+		if (IsMissFalling)
+			return;
+		IsRecoverableHoldFalling = false;
+		IsLineAnchored = true;
+		MissDistancePx = 0f;
+		_stateAlpha = 0.45f;
+		_ttl = -1f;
+		ApplyAlpha();
+	}
+
+	/// <summary>断触宽限耗尽：把可恢复下穿转为最终 Miss 下穿。</summary>
+	public void CommitHoldMissFallthrough()
+	{
+		IsLineAnchored = false;
+		IsRecoverableHoldFalling = false;
+		IsMissFalling = true;
+		_ttl = -1f;
+		UpdateMissAlpha();
+	}
+
+	/// <summary>推进下穿距离；最终 Miss 到 64px 后回收，可恢复 Hold 始终保留。</summary>
 	public bool AdvanceMissFallthrough(float distancePx)
 	{
-		if (!IsMissFalling)
+		if (!IsMissFalling && !IsRecoverableHoldFalling)
 			return false;
 		MissDistancePx += Mathf.Max(0f, distancePx);
 		UpdateMissAlpha();
-		return MissDistancePx >= 64f;
+		return IsMissFalling && MissDistancePx >= 64f;
 	}
 
 	private void UpdateMissAlpha()

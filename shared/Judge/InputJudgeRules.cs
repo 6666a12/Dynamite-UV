@@ -22,6 +22,33 @@ public readonly record struct NoteBounds(double Left, double Right)
 /// <summary>Pure touch/phase rules shared by the client and core tests.</summary>
 public static class InputJudgeRules
 {
+    /// <summary>
+    /// Returns every candidate covered by the same touch snapshot. Candidates
+    /// are evaluated independently; the touch is deliberately not consumed.
+    /// </summary>
+    public static IReadOnlyList<T> MatchingCandidates<T>(
+        IEnumerable<T> candidates,
+        TouchSample touch,
+        Func<T, Track> track,
+        Func<T, NoteBounds> bounds,
+        Func<T, bool>? eligible = null,
+        double touchWidth = 0.0,
+        bool expandByTouchWidth = true,
+        Func<T, bool>? expandByTouchWidthFor = null)
+    {
+        var matches = new List<T>();
+        foreach (var candidate in candidates)
+        {
+            if (track(candidate) != touch.Track ||
+                eligible is not null && !eligible(candidate) ||
+                !Overlaps(bounds(candidate), touch.Position, touchWidth,
+                    expandByTouchWidthFor?.Invoke(candidate) ?? expandByTouchWidth))
+                continue;
+            matches.Add(candidate);
+        }
+        return matches;
+    }
+
     public static NoteBounds Bounds(double position, double width)
     {
         var other = position + width;

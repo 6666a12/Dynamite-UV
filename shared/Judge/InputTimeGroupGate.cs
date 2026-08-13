@@ -1,8 +1,9 @@
 namespace DuxShared.Judge;
 
 /// <summary>
-/// Locks one input update batch to a single note timestamp while still allowing
-/// every note at that exact timestamp to be judged as a chord.
+/// Locks the early/exact side of one input update batch to a single note
+/// timestamp while still allowing every note at that exact timestamp to be
+/// judged as a chord. Late inputs are intentionally not gated.
 /// </summary>
 public sealed class InputTimeGroupGate
 {
@@ -36,4 +37,11 @@ public sealed class InputTimeGroupGate
 
     public bool Matches(double noteTime) =>
         _locked && _targetSecond == (float)noteTime;
+
+	/// <summary>
+	/// 原版只在尚未到点的 early/exact 分支检查共享目标时刻；已经过点的
+	/// late 输入继续逐触点扫描，不受本批锁影响。
+	/// </summary>
+	public bool Allows(double noteTime, double inputTime) =>
+		noteTime < inputTime || Matches(noteTime);
 }

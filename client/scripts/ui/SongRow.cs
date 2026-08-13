@@ -35,7 +35,12 @@ public partial class SongRow : Control
 
     public override void _GuiInput(InputEvent e)
     {
-        if (e is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left && mb.Pressed)
+        var pressed = e is InputEventMouseButton
+            {
+                ButtonIndex: MouseButton.Left,
+                Pressed: true,
+            } or InputEventScreenTouch { Pressed: true };
+        if (pressed)
         {
             AcceptEvent();
             EmitSignal(SignalName.Pressed);

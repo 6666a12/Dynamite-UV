@@ -7,6 +7,11 @@ public static class Res
 {
     public static AudioStream? LoadAudio(string path)
     {
+        // Exported res:// audio is stored as an imported/remapped Godot resource;
+        // the original wav/ogg/mp3 file may no longer exist in the APK.
+        if (path.StartsWith("res://") && ResourceLoader.Exists(path))
+            return GD.Load<AudioStream>(path);
+
         if (!Godot.FileAccess.FileExists(path))
         {
             GD.PushError($"Res.LoadAudio: 文件不存在 {path}");

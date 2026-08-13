@@ -8,6 +8,11 @@
 bin/
 obj/
 
+# Godot/Android export tooling and generated packages
+client/build/
+*.apk
+*.idsig
+
 # Export presets may contain keystore credentials — keep local
 export_presets.cfg
 builds/

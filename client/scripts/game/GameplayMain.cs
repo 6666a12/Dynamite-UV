@@ -68,9 +68,10 @@ public partial class GameplayMain : Node2D
 	private const float LeftRegionMaxX = 400f;
 	private const float RightRegionMinX = 1520f;
 	// 原版空间扩边公式已确认，但 NSTouchWidth 的设备运行值仍未知。这里集中使用一个
-	// 偏保守的社区值（谱面 Position 单位），Mine 按原版规则不使用扩边。
-	private const double CommunityTouchWidth = 0.30;
+	// 试玩后提高的社区值（谱面 Position 单位）；每侧扩 0.20，Mine 仍不扩边。
+	private const double CommunityTouchWidth = 0.40;
 	private const int MousePointerId = -1;
+	private static readonly Rect2 PauseButtonRect = new(900f, 60f, 120f, 64f);
 
 	private static readonly Color ColBackground = new(0.08f, 0.08f, 0.12f);
 	private static readonly Color ColJudgeLine = new(0.9f, 0.9f, 0.9f);
@@ -149,19 +150,18 @@ public partial class GameplayMain : Node2D
 		public bool EndResolved;
 		public double LastContactUpdateTime;
 		public double LostContactSecond;
+		public double? ContactLostAt;
 		public bool SliderInitialized;
 		public double SliderPosition;
-		public int MixerHitTicks;
-		public int MixerTotalTicks;
 		public NoteView? MixerHeadView;
 		public GameplaySustainEffect? ContactEffect;
 	}
 	private readonly List<PendingPointerInput> _pendingPointerInputs = new();
 	private readonly Dictionary<int, ActivePointer> _activePointers = new();
+	private readonly HashSet<int> _ignoredTouchIds = new();
 	private readonly List<TouchSample> _frameTouchSamples = new();
 	private readonly InputTimeGroupGate _inputTimeGroupGate = new();
 	private readonly Dictionary<int, SustainRuntime> _sustainStates = new();
-	private readonly Dictionary<int, JudgeUnit> _sustainEndUnits = new();
 	private bool _auto;
 	private bool _finished;
 	private bool _paused;
@@ -228,8 +228,9 @@ public partial class GameplayMain : Node2D
 		BuildStage();
 
 		_chart = DynamixChartLoader.Load(Godot.FileAccess.GetFileAsString(chartPath));
-		_engine = new JudgeEngine(PresetForDifficulty(_diffKey), _chart.TotalMainNote);
-		_plan = JudgePlan.Build(_chart, _engine.Settings);
+		var preset = PresetForDifficulty(_diffKey);
+		_plan = JudgePlan.Build(_chart, JudgeSettings.ForPreset(preset));
+		_engine = new JudgeEngine(preset, _plan.HeadlineUnitCount);
 		foreach (var path in _plan.Sustains.Values)
 		{
 			_sustainStates[path.HeadId] = new SustainRuntime
@@ -239,12 +240,6 @@ public partial class GameplayMain : Node2D
 			};
 			if (path.Kind == SustainKind.Hold)
 				_holdTailIds.Add(path.End.Id);
-		}
-		foreach (var unit in _plan.Units)
-		{
-			if (unit.SustainHeadId is { } headId &&
-				unit.Kind is UnitKind.HoldEnd or UnitKind.MixerEnd)
-				_sustainEndUnits[headId] = unit;
 		}
 		_fallDistancePxPerBar = BaseFallDistancePxPerBar *
 			(float)GameSession.Settings.FallSpeedMultiplier;
@@ -290,6 +285,7 @@ public partial class GameplayMain : Node2D
 		FlushPendingInputs(t);
 		UpdateSustainStates(t);
 		SweepJudges(t);
+		FinalizeEndedMixers(t);
 		UpdateHud(t);
 
 		if (t >= _nextLogSec) // 周期性日志，便于 headless 验证判定在跑
@@ -306,6 +302,32 @@ public partial class GameplayMain : Node2D
 		var audioEnded = !_clock.ManualFallback && _clock.IsPlaying && !_player.Playing;
 		if (t > _plan.EndTime + 2.0 || audioEnded)
 			ShowResults();
+	}
+
+	public override void _Input(InputEvent e)
+	{
+		if (_finished || _paused)
+			return;
+		if (e is InputEventScreenTouch touch)
+		{
+			if (touch.Pressed && PauseButtonRect.HasPoint(touch.Position))
+			{
+				_ignoredTouchIds.Add(touch.Index);
+				return;
+			}
+			if (_ignoredTouchIds.Contains(touch.Index))
+			{
+				if (!touch.Pressed)
+					_ignoredTouchIds.Remove(touch.Index);
+				return;
+			}
+			QueuePointerInput(e);
+		}
+		else if (e is InputEventScreenDrag drag &&
+			!_ignoredTouchIds.Contains(drag.Index))
+		{
+			QueuePointerInput(e);
+		}
 	}
 
 	public override void _UnhandledInput(InputEvent e)
@@ -333,6 +355,12 @@ public partial class GameplayMain : Node2D
 			}
 		}
 		if (_paused) return;
+		if (e is InputEventMouseButton or InputEventMouseMotion)
+			QueuePointerInput(e);
+	}
+
+	private void QueuePointerInput(InputEvent e)
+	{
 
 		Vector2 pos;
 		int pointerId;
@@ -344,10 +372,10 @@ public partial class GameplayMain : Node2D
 				pointerId = MousePointerId;
 				action = mb.Pressed ? PointerAction.Press : PointerAction.Release;
 				break;
-			case InputEventScreenTouch touch:
-				pos = touch.Position;
-				pointerId = touch.Index;
-				action = touch.Pressed ? PointerAction.Press : PointerAction.Release;
+			case InputEventScreenTouch screenTouch:
+				pos = screenTouch.Position;
+				pointerId = screenTouch.Index;
+				action = screenTouch.Pressed ? PointerAction.Press : PointerAction.Release;
 				break;
 			case InputEventScreenDrag drag:
 				pos = drag.Position;
@@ -388,6 +416,7 @@ public partial class GameplayMain : Node2D
 	{
 		_frameTouchSamples.Clear();
 		var framePresses = new List<(TouchSample Touch, double Time)>();
+		var frameReleases = new List<(ActivePointer Pointer, double Time)>();
 		foreach (var pointer in _activePointers.Values)
 		{
 			pointer.Phase = ContactPhase.Stationary;
@@ -439,6 +468,8 @@ public partial class GameplayMain : Node2D
 					break;
 				}
 				case PointerAction.Release:
+					if (_activePointers.TryGetValue(input.Id, out var released))
+						frameReleases.Add((released, input.Time));
 					_activePointers.Remove(input.Id);
 					for (var i = _frameTouchSamples.Count - 1; i >= 0; i--)
 					{
@@ -457,8 +488,25 @@ public partial class GameplayMain : Node2D
 			_inputTimeGroupGate.TryLock(targetTime.Value);
 		foreach (var press in framePresses)
 			OnPress(press.Touch, press.Time, _inputTimeGroupGate);
+		foreach (var release in frameReleases)
+			RecordHoldRelease(release.Pointer, release.Time);
 
 		_pendingPointerInputs.Clear();
+	}
+
+	private void RecordHoldRelease(ActivePointer pointer, double releaseTime)
+	{
+		foreach (var state in _sustainStates.Values)
+		{
+			if (state.Path.Kind != SustainKind.Hold || !state.StartResolved ||
+				state.EndResolved || state.Path.Track != pointer.Track)
+				continue;
+			var judgedReleaseTime = Math.Min(releaseTime, state.Path.EndTime);
+			var bounds = state.Path.BoundsAt(judgedReleaseTime);
+			if (InputJudgeRules.Overlaps(bounds, pointer.Position,
+				CommunityTouchWidth))
+				state.ContactLostAt ??= judgedReleaseTime;
+		}
 	}
 
 	private void ReplaceFrameTouch(TouchSample sample)
@@ -484,13 +532,16 @@ public partial class GameplayMain : Node2D
 
 			foreach (var press in framePresses)
 			{
-				if (press.Touch.Track != u.Track)
+				// 本家的共享时间锁只出现在尚未到点的 early 分支；
+				// late 输入逐触点扫描，不参与本批目标时刻竞争。
+				if (press.Touch.Track != u.Track || u.Time < press.Time)
 					continue;
 				if (PressCanJudge(u, press.Touch.Track,
 					press.Touch.Position, press.Time))
 					return u.Time;
 			}
-			if (u.Kind is UnitKind.Contact or UnitKind.Mine &&
+			if (u.Time >= frameTime &&
+				u.Kind is UnitKind.Contact or UnitKind.Mine &&
 				FrameTouchCanJudge(u, frameTime))
 				return u.Time;
 		}
@@ -527,51 +578,59 @@ public partial class GameplayMain : Node2D
 		if (unit.Track != track || !_noteById.TryGetValue(unit.NoteId, out var note))
 			return false;
 		var bounds = InputJudgeRules.Bounds(note.Position, note.Width);
+		if (!PressTimeCanJudge(unit, time))
+			return false;
+		return InputJudgeRules.Overlaps(bounds, position, CommunityTouchWidth,
+			expandByTouchWidth: unit.Kind != UnitKind.Mine);
+	}
+
+	private bool PressTimeCanJudge(JudgeUnit unit, double time)
+	{
 		if (unit.Kind == UnitKind.Mine)
 			return InputJudgeRules.AcceptsMinePhase(unit.Time, time,
-				_engine.Settings.PrefectSec * unit.WindowScale, ContactPhase.Began) &&
-				InputJudgeRules.Overlaps(bounds, position, CommunityTouchWidth,
-					expandByTouchWidth: false);
+				_engine.Settings.PrefectSec * unit.WindowScale, ContactPhase.Began);
 		return unit.Kind == UnitKind.Input &&
-			_engine.InWindow(unit.Time, time, unit.WindowScale) &&
-			InputJudgeRules.Overlaps(bounds, position, CommunityTouchWidth);
+			_engine.InWindow(unit.Time, time, unit.WindowScale);
 	}
 
 	private void OnPress(TouchSample touch, double t, InputTimeGroupGate timeGroupGate)
 	{
-
-		// 该区域内、且属于本批锁定时刻的最近未判定输入单元
-		// （含 Mine——碰到即误触）。
-		JudgeUnit? best = null;
-		var bestDistance = double.MaxValue;
-		foreach (var u in _plan.Units)
+		// Each Note scans the complete input snapshot independently. A hit does not
+		// consume the touch, so same-time overlapping Notes can share one Press.
+		var matches = InputJudgeRules.MatchingCandidates(
+			_plan.Units,
+			touch,
+			u => u.Track,
+			u =>
+			{
+				var note = _noteById[u.NoteId];
+				return InputJudgeRules.Bounds(note.Position, note.Width);
+			},
+			u => !u.Judged &&
+				u.Kind is UnitKind.Input or UnitKind.Mine &&
+				_noteById.ContainsKey(u.NoteId) &&
+				timeGroupGate.Allows(u.Time, t) &&
+				PressTimeCanJudge(u, t),
+			CommunityTouchWidth,
+			expandByTouchWidthFor: u => u.Kind != UnitKind.Mine);
+		foreach (var u in matches)
 		{
-			if (u.Judged || u.Track != touch.Track) continue;
-			if (u.Kind is not (UnitKind.Input or UnitKind.Mine)) continue;
-			if (!timeGroupGate.Matches(u.Time)) continue;
-			if (!PressCanJudge(u, touch.Track, touch.Position, t)) continue;
-			var note = _noteById[u.NoteId];
-			var distance = Math.Abs(
-				InputJudgeRules.Bounds(note.Position, note.Width).Center - touch.Position);
-			if (distance < bestDistance) { bestDistance = distance; best = u; }
-		}
-		if (best == null) return;
+			if (u.Kind == UnitKind.Mine)
+			{
+				_engine.ApplyMine(touched: true);
+				u.Judged = true;
+				ResolveNoteView(u, JudgeGrade.Miss);
+				FlashJudge("MINE!");
+				continue;
+			}
 
-		if (best.Kind == UnitKind.Mine)
-		{
-			_engine.ApplyMine(touched: true);
-			best.Judged = true;
-			ResolveNoteView(best, JudgeGrade.Miss);
-			FlashJudge("MINE!");
-			return;
+			var r = _engine.Judge(u.Time, t, u.WindowScale);
+			ApplyUnit(u, r.Grade, r.Resolution);
+			u.Judged = true;
+			ResolveSustainStart(u, r.Grade, touch, t);
+			ResolveNoteView(u, r.Grade);
+			FlashJudge(GradeText(r));
 		}
-
-		var r = _engine.Judge(best.Time, t, best.WindowScale);
-		ApplyUnit(best, r.Grade, r.Resolution);
-		best.Judged = true;
-		ResolveSustainStart(best, r.Grade, touch, t);
-		ResolveNoteView(best, r.Grade);
-		FlashJudge(GradeText(r));
 	}
 
 	private void ResolveSustainStart(JudgeUnit unit, JudgeGrade grade,
@@ -586,9 +645,12 @@ public partial class GameplayMain : Node2D
 		state.StartResolved = true;
 		state.LastContactUpdateTime = Math.Max(state.Path.StartTime, resolvedTime);
 		state.LostContactSecond = 0.0;
+		state.ContactLostAt = null;
 		if (state.Path.Kind == SustainKind.Hold)
 		{
 			state.Holding = grade != JudgeGrade.Miss;
+			if (grade == JudgeGrade.Miss)
+				FailRemainingHold(state);
 			return;
 		}
 
@@ -611,7 +673,7 @@ public partial class GameplayMain : Node2D
 
 			if (state.Path.Kind == SustainKind.Mixer)
 			{
-				if (t >= state.Path.StartTime && t < state.Path.EndTime)
+				if (t >= state.Path.StartTime)
 					UpdateMixerState(state, t);
 				continue;
 			}
@@ -630,23 +692,43 @@ public partial class GameplayMain : Node2D
 		var touch = FindNearestTouch(state.Path.Track, bounds.Center,
 			bounds, expandByTouchWidth: true);
 		var touching = _auto || touch.HasValue;
+		UpdateHoldHeadContactView(state, touching);
 		UpdateSustainEffect(state, touching, bounds, bounds.Center);
 		if (activeUntil <= from)
 			return;
 
-		var duration = activeUntil - from;
 		if (touching)
+		{
 			state.LostContactSecond = 0.0;
+			state.ContactLostAt = null;
+		}
 		else
-			state.LostContactSecond += duration;
+		{
+			state.ContactLostAt ??= from;
+			state.LostContactSecond = Math.Max(0.0,
+				activeUntil - state.ContactLostAt.Value);
+		}
 
 		state.LastContactUpdateTime = activeUntil;
-		var grace = _engine.Settings.HoldHoldingSeconds(_chart.BpmAtSeconds(activeUntil));
+		var grace = _engine.Settings.HoldContactGraceSeconds(
+			_chart.BpmAtSeconds(activeUntil));
 		if (state.LostContactSecond > grace)
 		{
-			var breakTime = activeUntil - (state.LostContactSecond - grace);
-			BreakHold(state, breakTime);
+			BreakHold(state, state.ContactLostAt ?? activeUntil);
 		}
+	}
+
+	private void UpdateHoldHeadContactView(SustainRuntime state, bool connected)
+	{
+		if (!_viewByNoteId.TryGetValue(state.Path.HeadId, out var view))
+			return;
+		if (connected)
+		{
+			view.RestoreHoldContact();
+			view.Position = PositionAt(state.Path.Head, 0f);
+		}
+		else
+			view.BeginRecoverableHoldFallthrough();
 	}
 
 	private void UpdateMixerState(SustainRuntime state, double t)
@@ -677,6 +759,19 @@ public partial class GameplayMain : Node2D
 		state.LastContactUpdateTime = activeUntil;
 		UpdateMixerHeadView(state);
 		UpdateSustainEffect(state, state.Holding, bounds, state.SliderPosition);
+	}
+
+	private void FinalizeEndedMixers(double t)
+	{
+		foreach (var state in _sustainStates.Values)
+		{
+			if (state.Path.Kind != SustainKind.Mixer || state.EndResolved ||
+				t < state.Path.EndTime)
+				continue;
+			state.Holding = false;
+			state.EndResolved = true;
+			ReleaseMixerHeadView(state);
+		}
 	}
 
 	private void UpdateMixerHeadView(SustainRuntime state)
@@ -787,27 +882,47 @@ public partial class GameplayMain : Node2D
 		return best;
 	}
 
-	private void BreakHold(SustainRuntime state, double breakTime)
+	private void BreakHold(SustainRuntime state, double releaseTime)
 	{
 		if (state.Broken || state.EndResolved)
 			return;
 		state.Broken = true;
 		state.Holding = false;
+		if (_viewByNoteId.TryGetValue(state.Path.HeadId, out var headView))
+			headView.CommitHoldMissFallthrough();
 		ReleaseSustainEffect(state);
-		_engine.Apply(ScoreCategory.HoldHolding, JudgeGrade.Miss,
-			affectsCombo: false, affectsJudgeCounts: false,
-			resolution: JudgeResolution.AutoMiss);
+		SettleReleasedHold(state, releaseTime);
+	}
 
-		if (!_sustainEndUnits.TryGetValue(state.Path.HeadId, out var end) || end.Judged)
+	private void SettleReleasedHold(SustainRuntime state, double releaseTime)
+	{
+		if (state.EndResolved)
 			return;
-		var result = _engine.Judge(end.Time, breakTime, end.WindowScale);
-		ApplyUnit(end, result.Grade, result.Resolution);
-		end.Judged = true;
 		state.EndResolved = true;
-		// 断触可能在 Hold 尾到线前很久就结算尾判。视觉延迟到尾节点实际到线，
-		// 避免立刻把远处尾节点传送到判定线；普通 Miss 仍统一执行下穿淡出。
-		_deferredNoteViews[end.NoteId] = (end, result.Grade);
-		FlashJudge(GradeText(result));
+		foreach (var settlement in SustainJudgementRules.SettleReleasedHold(
+			_plan.Units, state.Path.HeadId, releaseTime, _engine))
+		{
+			_deferredNoteViews[settlement.Unit.NoteId] =
+				(settlement.Unit, settlement.Grade);
+			if (settlement.Unit.Category == ScoreCategory.HoldEnd)
+				FlashJudge(GradeText(settlement.Grade, settlement.Timing));
+		}
+	}
+
+	private void FailRemainingHold(SustainRuntime state)
+	{
+		if (state.EndResolved)
+			return;
+		state.Broken = true;
+		state.Holding = false;
+		state.EndResolved = true;
+		ReleaseSustainEffect(state);
+		foreach (var unit in SustainJudgementRules.FailRemainingHold(
+			_plan.Units, state.Path.HeadId, _engine))
+		{
+			// 判定立即结算；未来节点的视觉仍等实际到线后再进入 Miss 生命周期。
+			_deferredNoteViews[unit.NoteId] = (unit, JudgeGrade.Miss);
+		}
 	}
 
 	// ---- 判定扫尾 ----
@@ -874,9 +989,6 @@ public partial class GameplayMain : Node2D
 				ResolveHoldEnd(u, t);
 				break;
 
-			case UnitKind.MixerEnd:
-				ResolveMixerEnd(u, t);
-				break;
 		}
 	}
 
@@ -911,7 +1023,7 @@ public partial class GameplayMain : Node2D
 					unit.Time, t, prefect, touch.Phase) ||
 				!InputJudgeRules.Overlaps(bounds, touch.Position, CommunityTouchWidth))
 				continue;
-			if (!_inputTimeGroupGate.Matches(unit.Time))
+			if (!_inputTimeGroupGate.Allows(unit.Time, t))
 				return;
 			var result = _engine.Judge(unit.Time, t, unit.WindowScale);
 			ApplyUnit(unit, result.Grade, result.Resolution);
@@ -955,79 +1067,79 @@ public partial class GameplayMain : Node2D
 	{
 		if (t < unit.Time)
 			return;
-		unit.Judged = true;
 		if (unit.SustainHeadId is not { } headId ||
 			!_sustainStates.TryGetValue(headId, out var state))
-			return;
-
-		if (unit.Category == ScoreCategory.HoldHolding)
 		{
-			if (_auto || (state.StartResolved && state.Holding && !state.Broken))
-				ApplyUnit(unit, JudgeGrade.Prefect, JudgeResolution.Prefect);
+			ApplyUnit(unit, JudgeGrade.Miss, JudgeResolution.AutoMiss);
+			unit.Judged = true;
 			return;
 		}
 
-		state.MixerTotalTicks++;
+		if (unit.Category == ScoreCategory.HoldHolding)
+		{
+			// 头仍在 Late 窗内时保留节点；头一旦接起或 Miss，节点会在同帧结算。
+			if (!state.StartResolved)
+				return;
+			unit.Judged = true;
+			if (_auto || (state.StartResolved && state.Holding && !state.Broken))
+				ApplyUnit(unit, JudgeGrade.Prefect, JudgeResolution.Prefect);
+			else
+				ApplyUnit(unit, JudgeGrade.Miss, JudgeResolution.AutoMiss);
+			return;
+		}
+
+		unit.Judged = true;
 		var ok = _auto || state.Holding;
 		ApplyUnit(unit, ok ? JudgeGrade.Prefect : JudgeGrade.Miss,
 			ok ? JudgeResolution.Prefect : JudgeResolution.AutoMiss);
-		if (ok)
-			state.MixerHitTicks++;
 	}
 
 	private void ResolveHoldEnd(JudgeUnit unit, double t)
 	{
 		if (t < unit.Time || unit.Judged)
 			return;
-		var ok = _auto;
 		SustainRuntime? state = null;
 		if (unit.SustainHeadId is { } headId)
 			_sustainStates.TryGetValue(headId, out state);
-		ok |= state is { StartResolved: true, Holding: true, Broken: false };
-		ApplyUnit(unit, ok ? JudgeGrade.Prefect : JudgeGrade.Miss,
-			ok ? JudgeResolution.Prefect : JudgeResolution.AutoMiss);
+		var grade = JudgeGrade.Miss;
+		var resolution = JudgeResolution.AutoMiss;
+		var timing = HitTiming.Exact;
+		if (_auto || state is { StartResolved: true, ContactLostAt: null,
+			Holding: true, Broken: false })
+		{
+			grade = JudgeGrade.Prefect;
+			resolution = JudgeResolution.Prefect;
+		}
+		else if (state is { StartResolved: true, ContactLostAt: { } releaseTime,
+			Broken: false })
+		{
+			var judgedReleaseTime = Math.Min(releaseTime, unit.Time);
+			var result = _engine.Judge(unit.Time, judgedReleaseTime, unit.WindowScale);
+			grade = result.Grade;
+			resolution = result.Resolution;
+			timing = result.Timing;
+		}
+		ApplyUnit(unit, grade, resolution);
 		unit.Judged = true;
 		if (state != null)
 		{
+			if (_viewByNoteId.TryGetValue(state.Path.HeadId, out var headView))
+			{
+				if (grade != JudgeGrade.Miss)
+				{
+					headView.RestoreHoldContact();
+					headView.MarkJudged(ColHold);
+				}
+				else
+					headView.CommitHoldMissFallthrough();
+			}
 			state.Holding = false;
 			state.EndResolved = true;
 			ReleaseSustainEffect(state);
 		}
-		ResolveNoteView(unit, ok ? JudgeGrade.Prefect : JudgeGrade.Miss);
-		FlashJudge(ok ? "PREFECT" : "MISS");
-	}
-
-	private void ResolveMixerEnd(JudgeUnit unit, double t)
-	{
-		if (t < unit.Time || unit.Judged)
-			return;
-		SustainRuntime? state = null;
-		if (unit.SustainHeadId is { } headId)
-			_sustainStates.TryGetValue(headId, out state);
-		var grade = _auto ? JudgeGrade.Prefect :
-			state is { MixerTotalTicks: 0, Holding: true } ? JudgeGrade.Prefect :
-			OriginalJudgeMath.MixerEndGrade(state?.MixerHitTicks ?? 0,
-				state?.MixerTotalTicks ?? 0);
-		ApplyUnit(unit, grade, grade == JudgeGrade.Miss
-			? JudgeResolution.AutoMiss : ResolutionForGrade(grade));
-		unit.Judged = true;
-		if (state != null)
-		{
-			state.Holding = false;
-			state.EndResolved = true;
-			ReleaseMixerHeadView(state);
-		}
 		ResolveNoteView(unit, grade);
-		FlashJudge(GradeText(grade));
+		FlashJudge(GradeText(grade, timing));
 	}
-
-	private static JudgeResolution ResolutionForGrade(JudgeGrade grade) => grade switch
-	{
-		JudgeGrade.Prefect => JudgeResolution.Prefect,
-		JudgeGrade.Great => JudgeResolution.Great,
-		JudgeGrade.Good => JudgeResolution.Good,
-		_ => JudgeResolution.InputMiss,
-	};
 
 	private void ApplyUnit(JudgeUnit unit, JudgeGrade grade,
 		JudgeResolution? resolution = null) =>
@@ -1123,7 +1235,7 @@ public partial class GameplayMain : Node2D
 					recycle |= v.MissDistancePx >= 64f;
 				}
 			}
-			if (v.IsMissFalling)
+			if (v.IsMissFalling || v.IsRecoverableHoldFalling)
 			{
 				if (!startedFallthrough)
 				{
@@ -1131,7 +1243,7 @@ public partial class GameplayMain : Node2D
 					recycle |= v.AdvanceMissFallthrough(step);
 				}
 			}
-			else
+			else if (!(v.IsLineAnchored && v.Model.Type == NoteType.HoldHead))
 				recycle |= t - v.Model.Second > PostHitViewLifetimeSec;
 
 			if (recycle)
@@ -1142,12 +1254,13 @@ public partial class GameplayMain : Node2D
 				continue;
 			}
 			// 不按屏幕边界回收：变速期间 note 可能先退出画面，随后再次进入。
-			v.Position = v.IsMissFalling
+			v.Position = v.IsMissFalling || v.IsRecoverableHoldFalling
 				? PositionPastLine(v.Model, v.MissDistancePx)
 				: v.IsLineAnchored
 					? PositionAt(v.Model, 0f)
 					: PositionForActiveView(v.Model, currentBar);
-			v.SetDepthAlpha(v.IsMissFalling || v.Model.Track != Track.Center
+			v.SetDepthAlpha(v.IsMissFalling || v.IsRecoverableHoldFalling ||
+				v.Model.Track != Track.Center
 				? 1f : TopFadeAlpha(v.Position.Y));
 		}
 
@@ -1425,7 +1538,19 @@ public partial class GameplayMain : Node2D
 		var keepsLineHead = note.Type is NoteType.HoldHead or NoteType.HoldNode or
 			NoteType.MixerHead or NoteType.MixerNode;
 		var accent = HitAccentFor(note.Type);
-		if (_viewByNoteId.TryGetValue(unit.NoteId, out var view))
+		if (!_viewByNoteId.TryGetValue(unit.NoteId, out var view) &&
+			!isMiss && unit.Category == ScoreCategory.HoldStart)
+		{
+			// 极晚接头时本体可能已经完成普通下穿；重新建立在线 Hold 头。
+			view = NoteView.Create(note, SizeFor(note), ColorFor(note),
+				note.SyncNote != 0 && note.Type == NoteType.Tap);
+			view.Position = PositionAt(note, 0f);
+			view.SetDepthAlpha(1f);
+			_noteRoot.AddChild(view);
+			_viewByNoteId[note.Id] = view;
+			_active.Add(view);
+		}
+		if (view != null)
 		{
 			if (missFallthrough)
 				view.BeginMissFallthrough(
@@ -1433,7 +1558,8 @@ public partial class GameplayMain : Node2D
 			else if (keepsLineHead)
 			{
 				view.AnchorToJudgeLine();
-				view.MarkJudged(accent);
+				view.MarkJudged(accent,
+					unit.Category == ScoreCategory.HoldStart ? -1f : 0.25f);
 			}
 			else
 				RecycleNoteViewImmediately(note.Id);
@@ -1978,6 +2104,7 @@ public partial class GameplayMain : Node2D
 		_paused = !_paused;
 		if (_paused)
 		{
+			ClearPointerState();
 			_clock.Pause();
 			_pauseLayer.Visible = true;
 		}
@@ -1986,6 +2113,15 @@ public partial class GameplayMain : Node2D
 			_pauseLayer.Visible = false;
 			_clock.Resume();
 		}
+	}
+
+	private void ClearPointerState()
+	{
+		_pendingPointerInputs.Clear();
+		_activePointers.Clear();
+		_frameTouchSamples.Clear();
+		_ignoredTouchIds.Clear();
+		_inputTimeGroupGate.Reset();
 	}
 
 	private void Restart()
@@ -2163,20 +2299,13 @@ public partial class GameplayMain : Node2D
 		_ => JudgePreset.Hard, // Hard / Mega / Giga 共用 Hard 档
 	};
 
-	private static string GradeText(JudgeResult r) => r.Grade switch
-	{
-		JudgeGrade.Prefect => r.Timing == HitTiming.Exact ? "PREFECT" :
-			$"PREFECT {(r.Timing == HitTiming.Early ? "E" : "L")}",
-		JudgeGrade.Great => $"GREAT {(r.Timing == HitTiming.Early ? "E" : "L")}",
-		JudgeGrade.Good => $"GOOD {(r.Timing == HitTiming.Early ? "E" : "L")}",
-		_ => "MISS",
-	};
+	private static string GradeText(JudgeResult r) => GradeText(r.Grade, r.Timing);
 
-	private static string GradeText(JudgeGrade grade) => grade switch
+	private static string GradeText(JudgeGrade grade, HitTiming timing) => grade switch
 	{
 		JudgeGrade.Prefect => "PREFECT",
-		JudgeGrade.Great => "GREAT",
-		JudgeGrade.Good => "GOOD",
+		JudgeGrade.Great => $"GREAT {(timing == HitTiming.Early ? "E" : "L")}",
+		JudgeGrade.Good => $"GOOD {(timing == HitTiming.Early ? "E" : "L")}",
 		_ => "MISS",
 	};
 }

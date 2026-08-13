@@ -51,7 +51,7 @@ y = 840 - 115 * (P + W/2)
 | 其余上部区域 | Center |
 
 转换后的触点 Position 与 note 的 `[P,P+W]` 做重叠判定。普通 note 使用
-`CommunityTouchWidth=0.30` 扩边，Mine 不扩边。
+`CommunityTouchWidth=0.40` 扩边（每侧 `0.20`），Mine 不扩边。
 
 ## 固定舞台元素
 

@@ -26,7 +26,9 @@ public static class Program
         TestNormalizedScore();
 		TestInputTimeGroupGate();
 		TestInputJudgeRules();
-		TestDynamicHoldingSchedule();
+		TestDerivedSustainJudgements();
+		TestHoldFailureSettlement();
+		TestReleasedHoldSettlement();
 		TestSustainInterpolation();
 		TestResolutionAndScaledVitals();
 
@@ -123,9 +125,8 @@ public static class Program
                     break;
                 case UnitKind.Auto:
                 case UnitKind.HoldPoint:
-                case UnitKind.Contact: // Drag 接触判定：模拟按住 → Prefect
+				case UnitKind.Contact: // Drag 接触判定：模拟按住 → Prefect
 				case UnitKind.HoldEnd:
-				case UnitKind.MixerEnd:
                     engine.Apply(u.Category, JudgeGrade.Prefect,
                         u.AffectsCombo, u.AffectsJudgeCounts);
                     break;
@@ -142,16 +143,14 @@ public static class Program
         Check(engine.CountPrefect == plan.HeadlineUnitCount, "主判定全部 Prefect");
         Check(engine.CountMiss == 0 && engine.CountGreat == 0 && engine.CountGood == 0, "无其他等级");
         Check(engine.MaxCombo == plan.HeadlineUnitCount, "combo = 主判定总数");
-        Check(plan.HeadlineUnitCount == chart.TotalMainNote,
-            "主判定总数 = Baked_TotalMainNote");
-        Check(engine.Score == plan.TheoreticalMax, "得分 = 理论满分");
+		Check(engine.Score == plan.TheoreticalMax, "得分 = 理论满分");
         Check(engine.NormalizedScore(plan.TheoreticalMax) == JudgeEngine.NormalizedScoreMax,
             "全 Prefect 归一化分数 = 1,000,000");
         Check(engine.Health == engine.MaxHealth, "Health 满");
         Check(Math.Abs(engine.Percent(plan.TheoreticalMax) - 100.0) < 1e-9, "结算 100%");
     }
 
-    // 3b. 所有开发谱包：主判定总数必须与 Baked_TotalMainNote 一致。
+	// 3b. 所有开发谱包：派生判定均进入主统计，且全 Prefect 严格归一化满分。
     private static void TestHeadlineCountsAcrossDevPacks(string chartPath)
     {
         Console.WriteLine("[3b] Headline count across dev packs");
@@ -173,8 +172,8 @@ public static class Program
 							  $"units={plan.Units.Count} headline={plan.HeadlineUnitCount} " +
 							  $"baked={chart.TotalMainNote} " +
                               $"score={engine.NormalizedScore(plan.TheoreticalMax):N0}");
-            Check(plan.HeadlineUnitCount == chart.TotalMainNote,
-                $"{Path.GetFileName(file)} 主判定数与 Baked_TotalMainNote 一致");
+			Check(plan.Units.All(unit => unit.AffectsCombo && unit.AffectsJudgeCounts),
+				$"{Path.GetFileName(file)} 全部派生单元都是主判定");
             Check(engine.NormalizedScore(plan.TheoreticalMax) == 1_000_000,
                 $"{Path.GetFileName(file)} 全 Prefect 满分为 1,000,000");
         }
@@ -241,11 +240,11 @@ public static class Program
         Check(Math.Abs(s.GreatSec - 0.1125) < 1e-12, "Hard Great 窗 = ±112.5ms");
         Check(Math.Abs(s.GoodSec - 0.1625) < 1e-12, "Hard Good 窗 = ±162.5ms");
         Check(Math.Abs(s.MissSec - 0.250) < 1e-12, "Hard Miss 窗 = ±250ms");
-		Check(Math.Abs(s.HoldHoldingSec - 0.200) < 1e-12,
+		Check(Math.Abs(s.HoldContactGraceSec - 0.200) < 1e-12,
 			"StandardBPM 下 Holding 间隔 = 200ms");
-		Check(Math.Abs(s.HoldHoldingSeconds(90) - 0.250) < 1e-12,
+		Check(Math.Abs(s.HoldContactGraceSeconds(90) - 0.250) < 1e-12,
 			"Holding BPM 90 钳到 120 -> 250ms");
-		Check(Math.Abs(s.HoldHoldingSeconds(240) - 0.150) < 1e-12,
+		Check(Math.Abs(s.HoldContactGraceSeconds(240) - 0.150) < 1e-12,
 			"Holding BPM 240 钳到 200 -> 150ms");
         var sn = normal.Settings;
         Check(Math.Abs(sn.GreatSec - 0.150) < 1e-12, "Normal Great 窗 = ±150ms");
@@ -302,6 +301,8 @@ public static class Program
 		Check(gate.TryLock(10.0 + 1e-10), "同一 float32 时间可重复通过");
 		Check(!gate.Matches(10.001), "不同目标时刻不匹配");
 		Check(!gate.TryLock(10.001), "锁定后拒绝异时目标");
+		Check(!gate.Allows(10.001, 10.0), "异时 early 目标受共享时间锁约束");
+		Check(gate.Allows(9.999, 10.0), "late 输入不受共享 early 时间锁约束");
 
 		gate.Reset();
 		Check(!gate.IsLocked, "Reset 清除锁定");
@@ -309,7 +310,7 @@ public static class Program
 			"Reset 后可以锁定新的目标时刻");
 	}
 
-	// 8. 逐触点空间和 phase 规则。
+	// 8. 逐触点空间、重叠复用和 phase 规则。
 	private static void TestInputJudgeRules()
 	{
 		Console.WriteLine("[8] Touch overlap and phase rules");
@@ -320,6 +321,34 @@ public static class Program
 			"扩边外不重叠");
 		Check(!InputJudgeRules.Overlaps(bounds, 0.99, 0.2,
 			expandByTouchWidth: false), "Mine 不使用触摸扩边");
+		var overlapping = InputJudgeRules.Bounds(1.5, 1.0);
+		var chord = new[]
+		{
+			(Track.Center, bounds),
+			(Track.Center, overlapping),
+			(Track.Left, bounds),
+		};
+		var chordMatches = InputJudgeRules.MatchingCandidates(
+			chord,
+			new TouchSample(1, Track.Center, 1.75, ContactPhase.Began),
+			candidate => candidate.Item1,
+			candidate => candidate.Item2);
+		Check(chordMatches.Count == 2,
+			"one touch independently matches two overlapping same-track notes");
+		var mixed = new[]
+		{
+			(Bounds: bounds, Expand: true),
+			(Bounds: bounds, Expand: false),
+		};
+		var edgeMatches = InputJudgeRules.MatchingCandidates(
+			mixed,
+			new TouchSample(2, Track.Center, 0.95, ContactPhase.Began),
+			_ => Track.Center,
+			candidate => candidate.Bounds,
+			touchWidth: 0.2,
+			expandByTouchWidthFor: candidate => candidate.Expand);
+		Check(edgeMatches.Count == 1 && edgeMatches[0].Expand,
+			"touch expansion applies per candidate and never expands mines");
 
 		const double noteTime = 10.0;
 		const double prefect = 0.1;
@@ -344,38 +373,160 @@ public static class Program
 			ContactPhase.Began), "Mine 到点后不再触发");
 	}
 
-	// 9. Holding tick 在 bar 域生成，跨 BPM 段自动得到 250ms/150ms 间隔。
-	private static void TestDynamicHoldingSchedule()
+	// 9. Hold 按真实节点判定；Mixer 从头相位每 1/8 bar 派生判定。
+	private static void TestDerivedSustainJudgements()
 	{
-		Console.WriteLine("[9] Dynamic holding schedule");
-		var head = TestNote(1, 2, NoteType.HoldHead, 0.0, 0.0, 1.0, 0.0);
-		var end = TestNote(2, -1, NoteType.HoldNode, 1.0, 1.0, 1.0, 1.6);
+		Console.WriteLine("[9] Derived sustain judgements");
+		var holdHead = TestNote(1, 2, NoteType.HoldHead, 0.0, 0.0, 1.0, 0.0);
+		var holdNode = TestNote(2, 3, NoteType.HoldNode, 0.25, 0.5, 1.0, 0.5);
+		var holdTail = TestNote(3, -1, NoteType.HoldNode, 0.75, 1.0, 1.0, 1.5);
+		var mixerHead = TestNote(10, 11, NoteType.MixerHead, 2.0, 1.0, 1.0, 4.0,
+			Track.Left);
+		var mixerTail = TestNote(11, -1, NoteType.MixerNode, 3.0, 2.0, 1.0, 6.0,
+			Track.Left);
+		var shortMixerHead = TestNote(20, 21, NoteType.MixerHead, 4.0, 1.0, 1.0, 8.0,
+			Track.Right);
+		var shortMixerTail = TestNote(21, -1, NoteType.MixerNode, 4.3, 2.0, 1.0, 8.6,
+			Track.Right);
 		var chart = new Chart
 		{
 			Name = "test",
 			Title = "test",
 			Difficulty = 3,
-			TotalMainNote = 2,
+			TotalMainNote = 0,
 			Sections = new[]
 			{
 				new BarSection { Bpm = 120, BarTime = 0.0, Seconds = 0.0 },
-				new BarSection { Bpm = 200, BarTime = 0.5, Seconds = 1.0 },
 			},
+			NotesLeft = new[] { mixerHead, mixerTail },
+			NotesCenter = new[] { holdHead, holdNode, holdTail },
+			NotesRight = new[] { shortMixerHead, shortMixerTail },
+		};
+		var plan = JudgePlan.Build(chart, JudgeSettings.ForPreset(JudgePreset.Hard));
+
+		var holdUnits = plan.Units
+			.Where(unit => unit.SustainHeadId == holdHead.Id).ToArray();
+		Check(holdUnits.Length == 3, "三节点 Hold 正好生成头、中间节点和尾三个主判定");
+		Check(holdUnits.Select(unit => unit.NoteId).SequenceEqual(new[] { 1, 2, 3 }),
+			"Hold 判定严格对应实际路径节点");
+
+		var mixerUnits = plan.Units
+			.Where(unit => unit.SustainHeadId == mixerHead.Id).ToArray();
+		Check(mixerUnits.Length == 9, "1 bar Mixer 从头到尾生成 9 个主判定");
+		for (var i = 0; i < mixerUnits.Length; i++)
+			Check(Math.Abs(mixerUnits[i].Time - (4.0 + i * 0.25)) < 1e-9,
+				$"Mixer tick[{i}] 位于头部相位 + {i}/8 bar");
+
+		var shortMixerUnits = plan.Units
+			.Where(unit => unit.SustainHeadId == shortMixerHead.Id).ToArray();
+		Check(shortMixerUnits.Length == 3,
+			"0.3 bar Mixer 只生成 0、1/8、2/8 三个判定，不补非网格尾");
+		Check(shortMixerUnits.All(unit => Math.Abs(unit.Time - 8.6) > 1e-9),
+			"非网格尾不产生额外判定");
+		Check(Math.Abs(plan.EndTime - 8.6) < 1e-9,
+			"非网格尾仍决定 sustain 和谱面结束时间");
+
+		Check(plan.Units.All(unit => unit.AffectsCombo && unit.AffectsJudgeCounts),
+			"Hold 节点和 Mixer 八分点全部进入 Combo 与 P/GR/GD/M");
+		Check(plan.Units.All(unit =>
+			JudgeEngine.ScoreDelta(unit.Category, JudgeGrade.Prefect) == 100),
+			"Hold 节点和 Mixer 八分点 Prefect 权重均为 100 分");
+		Check(JudgeEngine.ScoreDelta(ScoreCategory.HoldHolding, JudgeGrade.Great) == 70 &&
+			JudgeEngine.ScoreDelta(ScoreCategory.HoldHolding, JudgeGrade.Good) == 50 &&
+			JudgeEngine.ScoreDelta(ScoreCategory.MixerHolding, JudgeGrade.Great) == 70 &&
+			JudgeEngine.ScoreDelta(ScoreCategory.MixerHolding, JudgeGrade.Good) == 50,
+			"派生主判定沿用完整 100/70/50/0 权重");
+	}
+
+	private static void TestHoldFailureSettlement()
+	{
+		Console.WriteLine(nameof(TestHoldFailureSettlement));
+		Check(JudgeEngine.ScoreDelta(ScoreCategory.MixerHolding,
+			JudgeGrade.Miss) == 0, nameof(JudgeGrade.Miss));
+		var head = TestNote(1, 2, NoteType.HoldHead, 0.0, 0.0, 1.0, 0.0);
+		var middle = TestNote(2, 3, NoteType.HoldNode, 0.5, 0.0, 1.0, 1.0);
+		var tail = TestNote(3, -1, NoteType.HoldNode, 1.0, 0.0, 1.0, 2.0);
+		var chart = new Chart
+		{
+			Name = string.Empty,
+			Title = string.Empty,
+			Difficulty = 3,
+			TotalMainNote = 0,
+			Sections = Array.Empty<BarSection>(),
 			NotesLeft = Array.Empty<Note>(),
-			NotesCenter = new[] { head, end },
+			NotesCenter = new[] { head, middle, tail },
 			NotesRight = Array.Empty<Note>(),
 		};
 		var plan = JudgePlan.Build(chart, JudgeSettings.ForPreset(JudgePreset.Hard));
-		var ticks = plan.Units
-			.Where(u => u.Category == ScoreCategory.HoldHolding)
-			.Select(u => u.Time).ToArray();
-		var expected = new[] { 0.25, 0.50, 0.75, 1.00, 1.15, 1.30, 1.45 };
-		Check(ticks.Length == expected.Length,
-			$"1 bar Hold 生成 {expected.Length} 个开区间 tick（{ticks.Length}）");
-		for (var i = 0; i < Math.Min(ticks.Length, expected.Length); i++)
-			Check(Math.Abs(ticks[i] - expected[i]) < 1e-9,
-				$"tick[{i}] = {expected[i]:F2}s");
-		Check(plan.Sustains.ContainsKey(head.Id), "JudgePlan 保存 sustain 路径");
+		var engine = new JudgeEngine(JudgePreset.Hard, plan.HeadlineUnitCount);
+		var headUnit = plan.Units.Single(
+			unit => unit.Category == ScoreCategory.HoldStart);
+		engine.Apply(headUnit.Category, JudgeGrade.Prefect);
+		headUnit.Judged = true;
+		var failed = SustainJudgementRules.FailRemainingHold(
+			plan.Units, head.Id, engine);
+		Check(failed.Count == 2, nameof(TestHoldFailureSettlement));
+		Check(failed.All(unit => unit.Judged),
+			nameof(SustainJudgementRules.FailRemainingHold));
+		Check(engine.CountPrefect == 1 && engine.CountMiss == 2 &&
+			engine.Combo == 0, nameof(JudgeEngine.Combo));
+		var score = engine.Score;
+		var misses = engine.CountMiss;
+		var repeated = SustainJudgementRules.FailRemainingHold(
+			plan.Units, head.Id, engine);
+		Check(repeated.Count == 0 && engine.Score == score &&
+			engine.CountMiss == misses, nameof(JudgeUnit.Judged));
+	}
+
+	private static void TestReleasedHoldSettlement()
+	{
+		Console.WriteLine(nameof(TestReleasedHoldSettlement));
+		var head = TestNote(1, 2, NoteType.HoldHead, 0.0, 0.0, 1.0, 0.0);
+		var middle = TestNote(2, 3, NoteType.HoldNode, 0.5, 0.0, 1.0, 1.0);
+		var tail = TestNote(3, -1, NoteType.HoldNode, 1.0, 0.0, 1.0, 2.0);
+		var chart = new Chart
+		{
+			Name = string.Empty,
+			Title = string.Empty,
+			Difficulty = 3,
+			TotalMainNote = 0,
+			Sections = Array.Empty<BarSection>(),
+			NotesLeft = Array.Empty<Note>(),
+			NotesCenter = new[] { head, middle, tail },
+			NotesRight = Array.Empty<Note>(),
+		};
+		var plan = JudgePlan.Build(chart, JudgeSettings.ForPreset(JudgePreset.Hard));
+		var engine = new JudgeEngine(JudgePreset.Hard, plan.HeadlineUnitCount);
+		var headUnit = plan.Units.Single(
+			unit => unit.Category == ScoreCategory.HoldStart);
+		engine.Apply(headUnit.Category, JudgeGrade.Prefect);
+		headUnit.Judged = true;
+
+		var settled = SustainJudgementRules.SettleReleasedHold(
+			plan.Units, head.Id, 1.9, engine);
+		Check(settled.Count == 2, nameof(TestReleasedHoldSettlement));
+		Check(settled.Single(item => item.Unit.Category == ScoreCategory.HoldHolding)
+			.Grade == JudgeGrade.Miss, "提前松手后未结算的 Hold 中间节点为 Miss");
+		Check(settled.Single(item => item.Unit.Category == ScoreCategory.HoldEnd)
+			.Grade == JudgeGrade.Great, "Hold 尾按实际松手时刻进入 Great 档");
+		Check(settled.Single(item => item.Unit.Category == ScoreCategory.HoldEnd)
+			.Timing == HitTiming.Early, "提前松手的 Hold 尾保留 Early 时序");
+		Check(engine.CountPrefect == 1 && engine.CountGreat == 1 &&
+			engine.CountMiss == 1, "提前松手结算统计正确");
+
+		var afterTailPlan = JudgePlan.Build(chart, JudgeSettings.ForPreset(JudgePreset.Hard));
+		var afterTail = new JudgeEngine(JudgePreset.Hard, afterTailPlan.HeadlineUnitCount);
+		var afterTailHead = afterTailPlan.Units.Single(
+			unit => unit.Category == ScoreCategory.HoldStart);
+		afterTail.Apply(afterTailHead.Category, JudgeGrade.Prefect);
+		afterTailHead.Judged = true;
+		var afterTailSettled = SustainJudgementRules.SettleReleasedHold(
+			afterTailPlan.Units, head.Id, 2.2, afterTail);
+		Check(afterTailSettled.Single(item => item.Unit.Category == ScoreCategory.HoldEnd)
+			.Grade == JudgeGrade.Prefect &&
+			afterTailSettled.Single(item => item.Unit.Category == ScoreCategory.HoldEnd)
+				.Timing == HitTiming.Exact,
+			"共享 Hold 结算将尾后 release 钳到尾时刻 Prefect");
 	}
 
 	// 10. Hold/Mixer 身体左右边缘分别线性插值。
@@ -440,12 +591,13 @@ public static class Program
 	}
 
 	private static Note TestNote(int id, int subId, NoteType type,
-		double bar, double position, double width, double second) => new()
+		double bar, double position, double width, double second,
+		Track track = Track.Center) => new()
 	{
 		Id = id,
 		SubNoteId = subId,
 		Type = type,
-		Track = Track.Center,
+		Track = track,
 		BarTime = bar,
 		Position = position,
 		Width = width,

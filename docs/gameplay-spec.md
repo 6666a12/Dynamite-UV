@@ -13,7 +13,7 @@
 | 字段 | 类型 | 当前用途 |
 | --- | --- | --- |
 | `name` | string | 解析标题与原始难度号 |
-| `Baked_TotalMainNote` | int | 主判定总数，用于 Health/Boost 缩放和一致性检查 |
+| `Baked_TotalMainNote` | int | 旧格式兼容字段；当前主判定总数由 `JudgePlan` 重算 |
 | `TimeLine.BakedBarSections` | array | BPM 时间线 |
 | `NoteSystem__DropSpeeds` | array | `{BarTime, Value}` 视觉速度事件 |
 | `NotesLeft` / `NotesCenter` / `NotesRight` | array | 三轨音符 |
@@ -128,13 +128,14 @@ T3/T4 和 T6/T7 通过 `SubNoteId` 组成同轨路径。构建路径时按 id �
 
 EX-Tap 对上述窗口统一乘 1.5。
 
-Hold/Mixer Holding tick 的间隔为：
+Hold 的断触宽限为：
 
 ```text
 0.125 * 240 / clamp(currentBpm, 120, 200)
 ```
 
-因此 BPM≤120 时为 250ms，BPM=150 时为 200ms，BPM≥200 时为 150ms。
+因此 BPM≤120 时为 250ms，BPM=150 时为 200ms，BPM≥200 时为 150ms。该数值只用于
+确认 Hold 断触，不生成 Hold 判定点。Mixer 判定网格见 6.3 节。
 
 ## 5. 输入与候选选择
 
@@ -158,20 +159,26 @@ Side:   (840 - y) / 115
 
 ### 5.2 触点状态
 
-客户端按触点 id 保存 Track、Position 和 phase：
+客户端从全局 `_Input` 接收 `ScreenTouch`/`ScreenDrag`，避免触摸被 HUD `Control` 截断；
+键盘和鼠标仍由 `_UnhandledInput` 接收，防止点击 HUD 被当作游玩输入。项目关闭
+`pointing/emulate_mouse_from_touch`，同一根手指不会同时生成触摸和模拟鼠标两份输入。
+暂停按钮所占触摸 id 不进入游玩输入，暂停时清空所有触点和待处理事件。
+
+每根有效触点按 id 独立保存 Track、Position 和 phase：
 
 - `Began=1`
 - `Moved=2`
 - `Stationary=3`
 
-一帧内先形成完整触点快照，再从普通输入、Drag 和 Mine 候选中寻找最早可判定时刻。
-`InputTimeGroupGate` 把该批输入锁到一个 float32 目标时间；完全同刻多押继续放行，
-不同目标时刻必须等待下一批输入。
+一帧内先形成包含全部触点 id 的完整快照，再从普通输入、Drag 和 Mine 候选中寻找最早
+可判定时刻。`InputTimeGroupGate` 只把 Early/Exact 分支锁到一个 float32 目标时间；
+完全同刻多押继续放行，不同的未来目标时刻等待下一批输入。已经过点的 Late 候选逐触点
+扫描，不参与该时间锁，也不被它拦截。
 
 ### 5.3 空间重叠
 
 普通 note 和 sustain 使用 `[P,P+W]`，并在两侧各扩展一半
-`CommunityTouchWidth=0.30`。同轨多个候选重叠时选择中心距离最近者。Mine 使用精确范围，
+`CommunityTouchWidth=0.40`（每侧扩边 `0.20`）。每颗 Note 独立扫描本帧触点；同轨同刻且空间重叠的普通 Note 可以共享同一触点，触点不会被消费。Mine 使用精确范围，
 不应用触摸宽度扩边。
 
 ### 5.4 Drag 与 Mine phase
@@ -185,8 +192,9 @@ Side:   (840 - y) / 115
 ### 6.1 路径
 
 `SustainPath.BoundsAt(time)` 分别对相邻节点的左缘 `Position` 和右缘
-`Position+Width` 做线性插值。Holding tick 在头尾开区间内每 0.125 bar 生成；空 BPM
-时间线才使用固定秒间隔回退。
+`Position+Width` 做线性插值。Hold 判定严格来自实际路径节点；Mixer 判定从头部相位
+开始按 `1/8 chart bar` 派生。空 BPM 时间线时，Mixer 派生点使用相邻路径节点的
+BarTime 与烘焙秒做局部插值回退。
 
 ### 6.2 Hold
 
@@ -198,8 +206,15 @@ Side:   (840 - y) / 115
   连续裁剪。
 - 每帧按当前插值范围寻找同轨有效触点。
 - 断触宽限使用当前 BPM 对应的动态 Holding 间隔。
-- 一帧跨过多个 tick 时补齐中间 tick。
-- 提前到达尾判条件时安全结算，避免帧间漏尾。
+- 父 Note 头部和每个实际路径节点均为完整主判定，最后一个节点天然是 Hold 尾。
+- 头部 Miss 时，全部未结算节点在同一帧批量 Miss；之后不能重新接回，也不会在未来
+  到线时重复结算。
+- 抬手会记录实际 release 时刻。若另一根同轨触点仍覆盖当前条体，下一次 Hold 更新会继续
+  视为接触；若在动态断触宽限内重新覆盖，也会清除本次断触。
+- 确认提前断开时，尚未结算的中间节点判 Miss，Hold 尾按
+  `Judge(tailTime, releaseTime)` 的普通窗口评级，而不是按宽限耗尽时刻评级。
+- 持有到尾为 Prefect；尾时刻之后才到达的 release 事件钳到尾时刻，因此不会把已经完整
+  持有的 Hold 误判为 Late/Miss。
 
 ### 6.3 Mixer
 
@@ -209,26 +224,29 @@ Side:   (840 - y) / 115
 - 有有效触点时，虚拟滑块跟随该触点并钳制在条体边界；判定线上显示一个动态 Mixer 头。
 - 没有有效触点时立即视为断开并隐藏动态头。Mixer 不存在超时或永久 Miss 状态，之后
   任意时刻重新进入条体范围都能恢复连接；漏掉 MixerStart 也不阻止 Body 接入。
-- Mixer 不使用普通 Note 的 Miss 下穿：头判或尾判得到 Miss 时不生成下穿或打击爆发；
-  静态头在线上静默回收，Body、动态头和随时重接逻辑不受影响。
-- 每个 MixerHolding tick 只依据该时刻是否连接结算，不追溯此前断开时长。
-- 尾判按 Holding 命中率：100% Prefect、≥70% Great、≥50% Good，否则 Miss。
+- Mixer 不使用普通 Note 的 Miss 下穿：头判 Miss 时静默回收静态头，不生成下穿或打击
+  爆发；Body、动态头和随时重接逻辑不受影响。
+- 判定点为 `head + k * 1/8 chart bar`，从 `k=0` 的 Mixer 头开始，只保留不晚于路径尾的
+  点。非网格尾不补判；持续 1 bar 时共有 9 次判定。
+- 每个八分点都是独立主判定，只依据该时刻是否连接结算，不追溯此前断开时长，也不再
+  汇总命中率生成额外尾判。
 
 ## 7. 判定单元与统计口径
 
 `JudgePlan` 将谱面展开为按时间排序的最小判定单元：
 
 - Tap、Drag、EX-Tap、Mine 各一个主判定。
-- Hold/Mixer 包含头、Holding tick 和尾。
+- Hold 包含头和每个实际路径节点，最后一个节点是尾。
+- Mixer 从头开始每 `1/8 chart bar` 产生一个主判定，非网格尾不补判。
 - BarLine 不生成判定单元。
-- Holding tick 计 Score/Health/Boost，但 `AffectsCombo=false`、
-  `AffectsJudgeCounts=false`。
 
-`HeadlineUnitCount` 是所有影响主统计的单元数，应与 `Baked_TotalMainNote` 一致。
-`TheoreticalMax` 是所有单元 Prefect 时的原始得分总和，包含 Holding tick。
+Hold 节点和 Mixer 八分点都进入 Combo、P/Great/Good/Miss、Score、Health、Boost 和
+CLEAR。`HeadlineUnitCount` 与 `TheoreticalMax` 均由展开后的判定单元重算，不采用旧格式
+`Baked_TotalMainNote` 的口径。
 
 `JudgeResolution` 保留 Pending、AutoMiss、InputMiss、Good、Great、Prefect；UI 将其映射为
-Prefect/Great/Good/Miss 四档，并另外保留 Early/Exact/Late 时序信息。
+Prefect/Great/Good/Miss 四档。Prefect 统一显示 `PREFECT`，不显示 E/L；Great 和 Good
+保留 E/L，供玩家校准时序。
 
 ## 8. 计分、CLEAR、Health 与 Boost
 
@@ -236,9 +254,8 @@ Prefect/Great/Good/Miss 四档，并另外保留 Early/Exact/Late 时序信息�
 
 | 类别 | Prefect | Great | Good | Miss |
 | --- | --- | --- | --- | --- |
-| Tap/Drag/Mine/HoldStart/HoldEnd/MixerStart/MixerEnd | 100 | 70 | 50 | 0 |
+| Tap/Drag/Mine、Hold 头与节点、Mixer 八分点 | 100 | 70 | 50 | 0 |
 | Chain（保留类别） | 50 | 35 | 25 | 0 |
-| HoldHolding/MixerHolding | 10 | 0 | 0 | 0 |
 
 显示和存档分数统一为：
 
@@ -257,8 +274,8 @@ round(RawScore / TheoreticalMax * 1,000,000)
 
 ### 8.3 Health 与 Boost
 
-Health 使用资产基础值后按 `floor(value*600/TotalMainNote)` 缩放，默认上限 10,000；
-Boost 按 `floor(value*100/TotalMainNote)` 缩放并钳制到 0..3000。
+Health 使用资产基础值后按 `floor(value*600/HeadlineUnitCount)` 缩放，默认上限 10,000；
+Boost 按 `floor(value*100/HeadlineUnitCount)` 缩放并钳制到 0..3000。
 
 当前只计算和钳制这两个值，不显示 UI，也不触发 GameOver 或 EX Boost。
 `OriginalJudgeMath` 中的原版 Combo 倍率、raw score 和 CLEAR 公式仅作策略参考，不接入
@@ -304,7 +321,7 @@ HUD、背景和命中辉光均为程序化 UI。结算前必须隐藏舞台、�
 | 类型 | 到线及越线 | 判定反馈 |
 | --- | --- | --- |
 | Tap / EX-Tap / Drag | 未判定时立即连续越线；0–24px 满亮，随后 40px 淡出，累计 64px 回收；完整 Late 窗仍有效 | 命中立即回收本体，只在线上生成爆发；最终 Miss 不回线、不重启动画 |
-| Hold | 未判定头部沿用普通下穿；Body 线外部分持续裁剪，Late 窗仍可接起 | Early/Exact/Late 命中后，头、Body 近端和全部效果锚定判定线；提前结算的尾节点等实际到线后再处理 |
+| Hold | 未判定头部沿用普通下穿；Body 线外部分持续裁剪，Late 窗仍可接起 | Early/Exact/Late 命中后头部保留在线上；暂时断触时头部可恢复地下穿并淡出，宽限内接回则立即恢复在线渲染，宽限耗尽才提交 Miss；提前结算的尾节点等实际到线后再处理 |
 | Mixer | Body 正常渲染，不使用普通下穿 | 命中可保留线头；Miss 静默回收静态头，不生成爆发，不影响 Body 和随时重接 |
 | Mine | 不使用普通下穿 | 危险窗内触发时生成红色爆发并回收；安全到线直接回收，无爆发和残留 |
 | BarLine | 到线立即回收，不下穿、不停留 | 无判定 |
@@ -333,8 +350,10 @@ headless 模式改用系统计时器。暂停会记录当前位置并停止流�
 以下项目不阻塞当前主体玩法，但不得写成原版定论：
 
 - 设备 `NSTouchWidth` 的真实值及缩放规则。
-- 同帧重叠 note 与多个触点的精确消费顺序。
-- BPM 切段瞬间 Holding tick 的原版重调度方式。
+- 同帧多个触点各自扫描候选 Note；同一触点可独立命中多颗同刻空间重叠 Note，不存在全局消费顺序。
+- 真机三指以上同时输入时，Godot/OS 触点 id 的稳定性与事件完整性。
+- OS 焦点丢失或设备取消触摸时的专门清理通知；暂停入口已经清理，但这两类事件尚未覆盖。
+- BPM 切段瞬间 Hold 断触宽限的更新边界。
 - 模式/角色提供的真实 MaxHealth。
 - 当前版本序列化 Type 到内部 judge dispatch 的最终映射。
 - Buff/EX Boost 来源、持续时间、等级和叠加规则。
@@ -352,5 +371,6 @@ dotnet run --project tools/core-tests/CoreTests.csproj
 ```
 
 核心测试覆盖谱面加载、BarTime 换算、Auto 全 Prefect、主判定计数、窗口边界、EX-Tap、
-Mine、百万分、时间组锁、触摸范围与 phase、动态 Holding 调度、sustain 插值、Miss 分源、
+Mine、百万分、Early 时间组锁与 Late 放行、触摸范围与 phase、Hold 节点、Mixer 八分点、
+Hold 批量 Miss、按 release 时刻结算尾判、尾后 release 钳制、sustain 插值、Miss 分源、
 Health/Boost 缩放和原版数学策略。

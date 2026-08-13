@@ -30,7 +30,7 @@ public enum JudgeResolution
     Prefect = 5,
 }
 
-/// <summary>计分类别（规格书 §7.1 Score 表 10 类）。</summary>
+/// <summary>社区版计分类别。</summary>
 public enum ScoreCategory
 {
     Tap,
@@ -41,7 +41,6 @@ public enum ScoreCategory
     HoldEnd,
     HoldHolding,
     MixerStart,
-    MixerEnd,
     MixerHolding,
 }
 
@@ -53,7 +52,6 @@ public enum UnitKind
     Auto,
     HoldPoint,
     HoldEnd,
-    MixerEnd,
     Contact,
     Mine,
 }
@@ -70,11 +68,83 @@ public sealed class JudgeUnit
     public int? SustainHeadId { get; init; }
     /// <summary>判定窗口倍率（EX-Tap &gt; 1，其余 1）。</summary>
     public double WindowScale { get; init; } = 1.0;
-    /// <summary>是否改变 Combo；Holding tick 只结算持续得分，不改变主连击。</summary>
+    /// <summary>是否改变 Combo。</summary>
     public bool AffectsCombo { get; init; } = true;
-    /// <summary>是否计入 P/Great/Good/Miss；Holding tick 不进入主判定统计。</summary>
+    /// <summary>是否计入 P/Great/Good/Miss。</summary>
     public bool AffectsJudgeCounts { get; init; } = true;
     public bool Judged { get; set; }
+}
+
+/// <summary>持续 Note 的共享结算规则。</summary>
+public static class SustainJudgementRules
+{
+    public readonly record struct Settlement(
+        JudgeUnit Unit, JudgeGrade Grade, HitTiming Timing);
+
+    /// <summary>
+    /// Hold 头 Miss 后，立即将该 Hold 的所有剩余节点判为 Miss。
+    /// 返回本次新结算的单元，供客户端延迟处理尚未到线的视觉。
+    /// </summary>
+    public static IReadOnlyList<JudgeUnit> FailRemainingHold(
+        IEnumerable<JudgeUnit> units, int headId, JudgeEngine engine)
+    {
+        var failed = new List<JudgeUnit>();
+        foreach (var unit in units)
+        {
+            if (unit.Judged || unit.SustainHeadId != headId ||
+                unit.Category is not (ScoreCategory.HoldHolding or ScoreCategory.HoldEnd))
+                continue;
+            engine.Apply(unit.Category, JudgeGrade.Miss,
+                unit.AffectsCombo, unit.AffectsJudgeCounts,
+                JudgeResolution.AutoMiss);
+            unit.Judged = true;
+            failed.Add(unit);
+        }
+        return failed;
+    }
+
+    /// <summary>
+    /// Hold 确认提前断开时，中间节点全部 Miss，尾节点以首次失去接触的
+    /// 实际时刻按普通时间窗评级。
+    /// </summary>
+    public static IReadOnlyList<Settlement> SettleReleasedHold(
+        IEnumerable<JudgeUnit> units, int headId, double releaseTime,
+        JudgeEngine engine)
+    {
+        var settled = new List<Settlement>();
+        foreach (var unit in units)
+        {
+            if (unit.Judged || unit.SustainHeadId != headId ||
+                unit.Category is not (ScoreCategory.HoldHolding or ScoreCategory.HoldEnd))
+                continue;
+
+            JudgeGrade grade;
+            JudgeResolution resolution;
+            HitTiming timing;
+            if (unit.Category == ScoreCategory.HoldEnd)
+            {
+                // A release reported after the tail is still a successful hold-through;
+                // judge it at the tail rather than turning the late event into a miss.
+                var judgedReleaseTime = Math.Min(releaseTime, unit.Time);
+                var result = engine.Judge(unit.Time, judgedReleaseTime, unit.WindowScale);
+                grade = result.Grade;
+                resolution = result.Resolution;
+                timing = result.Timing;
+            }
+            else
+            {
+                grade = JudgeGrade.Miss;
+                resolution = JudgeResolution.AutoMiss;
+                timing = HitTiming.Exact;
+            }
+
+            engine.Apply(unit.Category, grade, unit.AffectsCombo,
+                unit.AffectsJudgeCounts, resolution);
+            unit.Judged = true;
+            settled.Add(new Settlement(unit, grade, timing));
+        }
+        return settled;
+    }
 }
 
 /// <summary>一次判定的结果。</summary>
@@ -155,8 +225,8 @@ public sealed class JudgeEngine
         Math.Abs(inputTime - noteTime) <= Settings.MissSec * windowScale;
 
     /// <summary>
-    /// 应用一次判定。所有单元都结算分数/血量/Boost；持续 tick 可通过标志排除在
-    /// 主 Combo 与 P/GR/GD/M 统计之外。
+    /// 应用一次判定。所有单元都结算分数/血量/Boost；标志允许特殊规则排除 Combo
+    /// 或 P/GR/GD/M 统计，当前社区谱面的 Note 判定均使用默认主判定口径。
     /// </summary>
     public void Apply(ScoreCategory category, JudgeGrade grade,
         bool affectsCombo = true, bool affectsJudgeCounts = true,
@@ -232,9 +302,7 @@ public sealed class JudgeEngine
             JudgeGrade.Good => 25,
             _ => 0,
         },
-        ScoreCategory.HoldHolding or ScoreCategory.MixerHolding =>
-            g == JudgeGrade.Prefect ? 10 : 0,
-        _ => g switch // Tap/Burst/Mine/HoldStart/HoldEnd/MixerStart/MixerEnd
+        _ => g switch // 所有社区版主判定使用完整 100 分权重
         {
             JudgeGrade.Prefect => 100,
             JudgeGrade.Great => 70,
@@ -265,13 +333,6 @@ public sealed class JudgeEngine
             {
                 JudgeGrade.Prefect => 10,
                 JudgeGrade.Miss => tutorial ? -20 : -100,
-                _ => 0,
-            },
-            ScoreCategory.MixerEnd => g switch
-            {
-                JudgeGrade.Prefect => 20,
-                JudgeGrade.Great => 10,
-                JudgeGrade.Miss => tutorial ? -100 : -500,
                 _ => 0,
             },
             _ => g switch // Tap/Burst/Chain/HoldStart/HoldEnd/MixerStart
@@ -317,9 +378,9 @@ public sealed class JudgeEngine
 /// <summary>
 /// 由谱面结构展开判定单元序列并计算理论满分。
 /// 规则（用户权威映射，规格书 §4）：Tap/EX-Tap 各计一次输入（EX-Tap 窗口放宽）；
-/// Drag（T2 绿条）接触判定（按住经过即中）；Hold/Mixer 头计一次输入 +
-/// Holding 判定点按 0.125 bar 生成（当前 BPM clamp 120–200）+ 自动尾判；
-/// Mine 不碰给分；BarLine（T9）纯视觉，不产生判定单元。
+/// Drag（T2 绿条）接触判定（按住经过即中）；Hold 头和每个路径节点都是主判定；
+/// Mixer 从头开始每 1/8 chart bar 派生一个主判定，非网格尾不补判；Mine 不碰给分；
+/// BarLine（T9）纯视觉，不产生判定单元。
 /// </summary>
 public static class JudgePlan
 {
@@ -334,7 +395,18 @@ public static class JudgePlan
         public required int TheoreticalMax { get; init; }
         /// <summary>主判定总数；与谱面 Note 数、满 Combo、P/GR/GD/M 总和同口径。</summary>
         public required int HeadlineUnitCount { get; init; }
-        public double EndTime => Units.Count == 0 ? 0 : Units[^1].Time;
+        public double EndTime
+        {
+            get
+            {
+                var unitEnd = Units.Count == 0 ? 0.0 : Units[^1].Time;
+                var sustainEnd = Sustains.Values
+                    .Select(path => path.EndTime)
+                    .DefaultIfEmpty(0.0)
+                    .Max();
+                return Math.Max(unitEnd, sustainEnd);
+            }
+        }
     }
 
     public static Plan Build(DuxShared.Chart.Chart chart, JudgeSettings settings)
@@ -380,8 +452,7 @@ public static class JudgePlan
                         if (path != null)
                         {
                             sustains[n.Id] = path;
-                            AddHoldingPoints(units, chart, path, ScoreCategory.HoldHolding,
-                                settings.HoldHoldingJudgeBarTime, settings.HoldHoldingSec);
+                            AddHoldNodes(units, path);
                             units.Add(new JudgeUnit
                             {
                                 Time = path.EndTime,
@@ -407,17 +478,8 @@ public static class JudgePlan
                         if (path != null)
                         {
                             sustains[n.Id] = path;
-                            AddHoldingPoints(units, chart, path, ScoreCategory.MixerHolding,
-                                settings.MixerHoldingJudgeBarTime, settings.MixerHoldingSec);
-                            units.Add(new JudgeUnit
-                            {
-                                Time = path.EndTime,
-                                Category = ScoreCategory.MixerEnd,
-                                Track = track,
-                                NoteId = path.End.Id,
-                                Kind = UnitKind.MixerEnd,
-                                SustainHeadId = n.Id,
-                            });
+                            AddMixerPoints(units, chart, path,
+                                settings.MixerHoldingJudgeBarTime);
                         }
                         break;
                     }
@@ -481,35 +543,67 @@ public static class JudgePlan
         };
     }
 
-    /// <summary>在开区间内按 0.125 bar 生成 tick；空时间线才回退固定秒间隔。</summary>
-    private static void AddHoldingPoints(List<JudgeUnit> units, DuxShared.Chart.Chart chart,
-        SustainPath path, ScoreCategory category, double intervalBar, double fallbackIntervalSec)
+    private static void AddHoldNodes(List<JudgeUnit> units, SustainPath path)
     {
-        if (chart.Sections.Count > 0 && path.End.BarTime > path.Head.BarTime)
+        // 头和尾分别由 HoldStart/HoldEnd 表示；这里只展开中间实际路径节点。
+        for (var i = 1; i < path.Nodes.Count - 1; i++)
         {
-            for (var bar = path.Head.BarTime + intervalBar;
-                 bar < path.End.BarTime - 1e-9; bar += intervalBar)
+            var node = path.Nodes[i];
+            units.Add(new JudgeUnit
             {
-                units.Add(HoldingUnit(chart.BarTimeToSeconds(bar), path, category));
-            }
-            return;
+                Time = node.Second,
+                Category = ScoreCategory.HoldHolding,
+                Track = path.Track,
+                NoteId = node.Id,
+                Kind = UnitKind.HoldPoint,
+                SustainHeadId = path.HeadId,
+            });
         }
-
-        for (var t = path.StartTime + fallbackIntervalSec;
-             t < path.EndTime - 1e-9; t += fallbackIntervalSec)
-            units.Add(HoldingUnit(t, path, category));
     }
 
-    private static JudgeUnit HoldingUnit(double time, SustainPath path,
-        ScoreCategory category) => new()
+    private static void AddMixerPoints(List<JudgeUnit> units,
+        DuxShared.Chart.Chart chart, SustainPath path, double intervalBar)
     {
-        Time = time,
-        Category = category,
-        Track = path.Track,
-        NoteId = path.HeadId,
-        Kind = UnitKind.HoldPoint,
-        SustainHeadId = path.HeadId,
-        AffectsCombo = false,
-        AffectsJudgeCounts = false,
-    };
+        var durationBar = path.End.BarTime - path.Head.BarTime;
+        if (durationBar <= 0.0 || intervalBar <= 0.0)
+            return;
+
+        // k=0 已由 MixerStart 表示。尾仅在恰好落入头部相位网格时自然入列。
+        var lastK = (int)Math.Floor(durationBar / intervalBar + 1e-9);
+        for (var k = 1; k <= lastK; k++)
+        {
+            var bar = path.Head.BarTime + k * intervalBar;
+            if (bar > path.End.BarTime + 1e-9)
+                break;
+            units.Add(new JudgeUnit
+            {
+                Time = SecondAtBar(chart, path, bar),
+                Category = ScoreCategory.MixerHolding,
+                Track = path.Track,
+                NoteId = path.HeadId,
+                Kind = UnitKind.HoldPoint,
+                SustainHeadId = path.HeadId,
+            });
+        }
+    }
+
+    private static double SecondAtBar(DuxShared.Chart.Chart chart,
+        SustainPath path, double bar)
+    {
+        if (chart.Sections.Count > 0)
+            return chart.BarTimeToSeconds(bar);
+
+        // 旧格式极少数谱面没有 BPM 时间线；以相邻路径节点的烘焙秒做局部回退。
+        for (var i = 1; i < path.Nodes.Count; i++)
+        {
+            var left = path.Nodes[i - 1];
+            var right = path.Nodes[i];
+            if (bar > right.BarTime + 1e-9)
+                continue;
+            var duration = right.BarTime - left.BarTime;
+            var ratio = duration <= 1e-9 ? 1.0 : (bar - left.BarTime) / duration;
+            return left.Second + (right.Second - left.Second) * ratio;
+        }
+        return path.EndTime;
+    }
 }
