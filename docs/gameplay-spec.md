@@ -1,12 +1,14 @@
-# DUX-Community 玩法规格
+# DUX-Community 当前客户端玩法与 Legacy 格式
 
-> 本文描述社区版当前采用的谱面、判定、计分和布局规则。原版方法体证据见
+> 本文描述 Godot 客户端**当前已经实现**的 legacy 谱面、判定、计分和布局规则，不是 v2
+> 序列化合同。正式目标格式及其未来规则集见 `chart-format-v2.md`；当前 v2 loader 和运行时
+> 迁移尚未实现。原版方法体证据见
 > `original-judgement-analysis.md`，几何测量见 `video-geometry-analysis.md`。
 > 文中不包含任何原版素材或可发布原版谱面。
 
-## 1. 谱面数据
+## 1. 当前 Legacy 谱面数据
 
-社区谱面 JSON 沿用逆向得到的三轨结构，由 `DynamixChartLoader` 解析。
+客户端当前读取的社区谱面 JSON 沿用逆向得到的三轨结构，由 `DynamixChartLoader` 解析。
 
 ### 1.1 顶层字段
 
@@ -46,8 +48,19 @@ chart_<diff>.json
 <optional cover file>
 ```
 
-`meta.json` 提供 `id/title/artist/charter/audio/cover/charts[]`。客户端先扫描
-`res://testdata/packs`，再扫描 `user://charts`，后者可用相同 id 覆盖开发包。
+`meta.json` 提供 `id/title/artist/charter/audio/cover/charts[]`。这是当前 legacy 包入口；编辑器和 Internal
+Testdata 构建先扫描 `res://testdata/packs`，再扫描 `user://charts`，后者可用相同 id 覆盖
+开发包；Public 和未分类导出只扫描 `user://charts`。
+
+### 1.4 与正式 v2 的边界
+
+正式 Dynamite UV Chart Format v2 见 `chart-format-v2.md`。它使用 `dynamite-uv-pack` /
+`dynamite-uv-chart`、精确有理 BarTime、`center+width`、内嵌 Hold/Mixer nodes、Hold `judge`、
+严格正向 Scroll 和 Gameplay Digest。当前 loader 仍使用本节的 float BarTime、左缘 Position、
+`SubNoteId` 与烘焙兼容字段；不得把下面的当前实现描述为已经支持 v2。
+
+v2 同时冻结了 D4-C Hold grace 与 D5-A Mixer 语义。当前运行时的逐帧 Hold grace、所有 legacy
+Hold 节点均判定、Mixer 后续点四档计分和成绩键 `packId:diff` 都属于待迁移实现。
 
 ## 2. 时间、BPM 与变速
 
@@ -112,7 +125,7 @@ T3/T4 和 T6/T7 通过 `SubNoteId` 组成同轨路径。构建路径时按 id �
 | --- | --- |
 | `casual` | Casual |
 | `normal` | Normal |
-| `tutorial` | Tutorial |
+| `tutorial` | Tutorial（仅当前内置/legacy；v2 社区包禁止） |
 | 其他键（含 hard/mega/giga） | Hard |
 
 ### 4.2 窗口

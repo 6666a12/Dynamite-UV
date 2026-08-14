@@ -69,11 +69,22 @@ public partial class Main : Node2D
 		{
 			Position = new Vector2(1420, 1020),
 			Size = new Vector2(440, 30),
-			Text = "v0.1.0-mock · clean-room build · no original assets",
+			Text = BuildDescription(),
 			HorizontalAlignment = HorizontalAlignment.Right,
 		};
 		ver.AddThemeFontSizeOverride("font_size", 18);
 		ver.AddThemeColorOverride("font_color", UiFonts.Dim);
 		AddChild(ver);
+	}
+
+	private static string BuildDescription()
+	{
+		if (OS.HasFeature("internal_testdata"))
+			return "v0.1.2 · INTERNAL TESTDATA · DO NOT DISTRIBUTE";
+		if (OS.HasFeature("public_release"))
+			return "v0.1.2 · clean-room public build · no bundled charts";
+		if (OS.HasFeature("editor") || OS.HasFeature("editor_runtime"))
+			return "v0.1.2-dev · editor/development build";
+		return "v0.1.2 · UNCLASSIFIED EXPORT · DO NOT DISTRIBUTE";
 	}
 }

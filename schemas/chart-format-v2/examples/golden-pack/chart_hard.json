@@ -1,0 +1,176 @@
+{
+  "format": "dynamite-uv-chart",
+  "formatVersion": 2,
+  "chartId": "hard",
+  "audioOffsetSec": 0.25,
+  "timing": {
+    "bpms": [
+      {
+        "time": {
+          "bar": 0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "bpm": 150
+      },
+      {
+        "time": {
+          "bar": 2,
+          "numerator": 1,
+          "denominator": 5
+        },
+        "bpm": 180
+      }
+    ]
+  },
+  "scrollSpeeds": [
+    {
+      "time": {
+        "bar": 0,
+        "numerator": 0,
+        "denominator": 1
+      },
+      "value": 1,
+      "curveToNext": "easeInOutCubic"
+    },
+    {
+      "time": {
+        "bar": 1,
+        "numerator": 1,
+        "denominator": 3
+      },
+      "value": 0.75,
+      "curveToNext": "hold"
+    },
+    {
+      "time": {
+        "bar": 2,
+        "numerator": 1,
+        "denominator": 5
+      },
+      "value": 1.25
+    }
+  ],
+  "notesLeft": [
+    {
+      "id": "mixer-001",
+      "type": "mixer",
+      "time": {
+        "bar": 1,
+        "numerator": 1,
+        "denominator": 7
+      },
+      "center": 1.3,
+      "width": 0.8,
+      "curveToNext": "smooth",
+      "nodes": [
+        {
+          "id": "mixer-001-node-1",
+          "time": {
+            "bar": 1,
+            "numerator": 3,
+            "denominator": 7
+          },
+          "center": 3,
+          "width": 0.6,
+          "curveToNext": "smooth"
+        },
+        {
+          "id": "mixer-001-tail",
+          "time": {
+            "bar": 2,
+            "numerator": 1,
+            "denominator": 10
+          },
+          "center": 2.4,
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "notesCenter": [
+    {
+      "id": "tap-001",
+      "type": "tap",
+      "time": {
+        "bar": 0,
+        "numerator": 1,
+        "denominator": 5
+      },
+      "center": 2.5,
+      "width": 1
+    },
+    {
+      "id": "hold-001",
+      "type": "hold",
+      "time": {
+        "bar": 0,
+        "numerator": 3,
+        "denominator": 5
+      },
+      "center": 2.5,
+      "width": 1.2,
+      "curveToNext": "smooth",
+      "nodes": [
+        {
+          "id": "hold-001-shape",
+          "time": {
+            "bar": 1,
+            "numerator": 1,
+            "denominator": 10
+          },
+          "center": 3.2,
+          "width": 0.8,
+          "curveToNext": "smooth",
+          "judge": false
+        },
+        {
+          "id": "hold-001-tail",
+          "time": {
+            "bar": 1,
+            "numerator": 4,
+            "denominator": 5
+          },
+          "center": 2.8,
+          "width": 1.4,
+          "judge": true
+        }
+      ]
+    },
+    {
+      "id": "ex-tap-001",
+      "type": "exTap",
+      "time": {
+        "bar": 2,
+        "numerator": 1,
+        "denominator": 5
+      },
+      "center": 1.25,
+      "width": 0.5
+    }
+  ],
+  "notesRight": [
+    {
+      "id": "drag-001",
+      "type": "drag",
+      "time": {
+        "bar": 0,
+        "numerator": 2,
+        "denominator": 5
+      },
+      "center": 3.75,
+      "width": 0.5
+    },
+    {
+      "id": "mine-001",
+      "type": "mine",
+      "time": {
+        "bar": 2,
+        "numerator": 4,
+        "denominator": 11
+      },
+      "center": 2.5,
+      "width": 0.6
+    }
+  ]
+}

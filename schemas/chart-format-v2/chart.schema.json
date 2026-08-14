@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chart.schema.json",
+  "title": "Dynamite UV Chart v2",
+  "description": "Structural schema for a Dynamite UV v2 single-difficulty chart. Semantic validation is additionally required by docs/chart-format-v2.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "formatVersion",
+    "chartId",
+    "audioOffsetSec",
+    "timing",
+    "notesLeft",
+    "notesCenter",
+    "notesRight"
+  ],
+  "properties": {
+    "format": {
+      "const": "dynamite-uv-chart"
+    },
+    "formatVersion": {
+      "const": 2
+    },
+    "chartId": {
+      "$ref": "#/$defs/id"
+    },
+    "audioOffsetSec": {
+      "type": "number"
+    },
+    "timing": {
+      "$ref": "#/$defs/timing"
+    },
+    "scrollSpeeds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scrollEvent"
+      }
+    },
+    "notesLeft": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sideNote"
+      }
+    },
+    "notesCenter": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/centerNote"
+      }
+    },
+    "notesRight": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sideNote"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "barTime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bar",
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "bar": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "numerator": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bpms"
+      ],
+      "properties": {
+        "bpms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/bpmEvent"
+          }
+        }
+      }
+    },
+    "bpmEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time",
+        "bpm"
+      ],
+      "properties": {
+        "time": {
+          "$ref": "#/$defs/barTime"
+        },
+        "bpm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "scrollCurve": {
+      "enum": [
+        "linear",
+        "hold",
+        "easeInQuad",
+        "easeOutQuad",
+        "easeInOutCubic"
+      ]
+    },
+    "pathCurve": {
+      "enum": [
+        "linear",
+        "hold",
+        "easeInQuad",
+        "easeOutQuad",
+        "easeInOutCubic",
+        "smooth"
+      ]
+    },
+    "scrollEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time",
+        "value"
+      ],
+      "properties": {
+        "time": {
+          "$ref": "#/$defs/barTime"
+        },
+        "value": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 64
+        },
+        "curveToNext": {
+          "$ref": "#/$defs/scrollCurve"
+        }
+      }
+    },
+    "center": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 5
+    },
+    "width": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 5
+    },
+    "normalNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "time",
+        "center",
+        "width"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "tap",
+            "drag",
+            "exTap",
+            "mine",
+            "barLine"
+          ]
+        },
+        "time": {
+          "$ref": "#/$defs/barTime"
+        },
+        "center": {
+          "$ref": "#/$defs/center"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
+        }
+      }
+    },
+    "holdNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "time",
+        "center",
+        "width",
+        "nodes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "const": "hold"
+        },
+        "time": {
+          "$ref": "#/$defs/barTime"
+        },
+        "center": {
+          "$ref": "#/$defs/center"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
+        },
+        "curveToNext": {
+          "$ref": "#/$defs/pathCurve"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/holdNode"
+          }
+        }
+      }
+    },
+    "mixerNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "time",
+        "center",
+        "width",
+        "nodes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "const": "mixer"
+        },
+        "time": {
+          "$ref": "#/$defs/barTime"
+        },
+        "center": {
+          "$ref": "#/$defs/center"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
+        },
+        "curveToNext": {
+          "$ref": "#/$defs/pathCurve"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/mixerNode"
+          }
+        }
+      }
+    },
+    "holdNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "time",
+        "center",
+        "width"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "time": {
+          "$ref": "#/$defs/barTime"
+        },
+        "center": {
+          "$ref": "#/$defs/center"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
+        },
+        "curveToNext": {
+          "$ref": "#/$defs/pathCurve"
+        },
+        "judge": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mixerNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "time",
+        "center",
+        "width"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "time": {
+          "$ref": "#/$defs/barTime"
+        },
+        "center": {
+          "$ref": "#/$defs/center"
+        },
+        "width": {
+          "$ref": "#/$defs/width"
+        },
+        "curveToNext": {
+          "$ref": "#/$defs/pathCurve"
+        }
+      }
+    },
+    "sideNote": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/normalNote"
+        },
+        {
+          "$ref": "#/$defs/holdNote"
+        },
+        {
+          "$ref": "#/$defs/mixerNote"
+        }
+      ]
+    },
+    "centerNote": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/normalNote"
+        },
+        {
+          "$ref": "#/$defs/holdNote"
+        }
+      ]
+    }
+  }
+}

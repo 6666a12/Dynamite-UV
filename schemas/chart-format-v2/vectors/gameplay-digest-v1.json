@@ -1,0 +1,185 @@
+{
+  "algorithm": "gameplay-v1",
+  "rulesetId": "dynamite-uv-ruleset-2.0",
+  "source": {
+    "meta": "../examples/golden-pack/meta.json",
+    "chart": "../examples/golden-pack/chart_hard.json",
+    "audio": "../examples/golden-pack/audio.wav",
+    "packId": "example.synthetic-pulse",
+    "chartId": "hard"
+  },
+  "audioSha256": "717eaaeb65ff45b3c22f91520190f724246e0772bfcd566d875b380048bd592e",
+  "projection": {
+    "rulesetId": "dynamite-uv-ruleset-2.0",
+    "judgePreset": "hard",
+    "audio": {
+      "sha256": "717eaaeb65ff45b3c22f91520190f724246e0772bfcd566d875b380048bd592e"
+    },
+    "timing": {
+      "audioOffsetSec": 0.25,
+      "bpms": [
+        {
+          "time": {
+            "bar": 0,
+            "numerator": 0,
+            "denominator": 1
+          },
+          "bpm": 150
+        },
+        {
+          "time": {
+            "bar": 2,
+            "numerator": 1,
+            "denominator": 5
+          },
+          "bpm": 180
+        }
+      ]
+    },
+    "scrollSpeeds": [
+      {
+        "time": {
+          "bar": 0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "value": 1,
+        "curveToNext": "easeInOutCubic"
+      },
+      {
+        "time": {
+          "bar": 1,
+          "numerator": 1,
+          "denominator": 3
+        },
+        "value": 0.75,
+        "curveToNext": "hold"
+      },
+      {
+        "time": {
+          "bar": 2,
+          "numerator": 1,
+          "denominator": 5
+        },
+        "value": 1.25
+      }
+    ],
+    "notes": {
+      "left": [
+        {
+          "type": "mixer",
+          "time": {
+            "bar": 1,
+            "numerator": 1,
+            "denominator": 7
+          },
+          "center": 1.3,
+          "width": 0.8,
+          "curveToNext": "smooth",
+          "nodes": [
+            {
+              "time": {
+                "bar": 1,
+                "numerator": 3,
+                "denominator": 7
+              },
+              "center": 3,
+              "width": 0.6,
+              "curveToNext": "smooth"
+            },
+            {
+              "time": {
+                "bar": 2,
+                "numerator": 1,
+                "denominator": 10
+              },
+              "center": 2.4,
+              "width": 1
+            }
+          ]
+        }
+      ],
+      "center": [
+        {
+          "type": "tap",
+          "time": {
+            "bar": 0,
+            "numerator": 1,
+            "denominator": 5
+          },
+          "center": 2.5,
+          "width": 1
+        },
+        {
+          "type": "hold",
+          "time": {
+            "bar": 0,
+            "numerator": 3,
+            "denominator": 5
+          },
+          "center": 2.5,
+          "width": 1.2,
+          "curveToNext": "smooth",
+          "nodes": [
+            {
+              "time": {
+                "bar": 1,
+                "numerator": 1,
+                "denominator": 10
+              },
+              "center": 3.2,
+              "width": 0.8,
+              "curveToNext": "smooth",
+              "judge": false
+            },
+            {
+              "time": {
+                "bar": 1,
+                "numerator": 4,
+                "denominator": 5
+              },
+              "center": 2.8,
+              "width": 1.4,
+              "judge": true
+            }
+          ]
+        },
+        {
+          "type": "exTap",
+          "time": {
+            "bar": 2,
+            "numerator": 1,
+            "denominator": 5
+          },
+          "center": 1.25,
+          "width": 0.5
+        }
+      ],
+      "right": [
+        {
+          "type": "drag",
+          "time": {
+            "bar": 0,
+            "numerator": 2,
+            "denominator": 5
+          },
+          "center": 3.75,
+          "width": 0.5
+        },
+        {
+          "type": "mine",
+          "time": {
+            "bar": 2,
+            "numerator": 4,
+            "denominator": 11
+          },
+          "center": 2.5,
+          "width": 0.6
+        }
+      ]
+    }
+  },
+  "canonicalJson": "{\"audio\":{\"sha256\":\"717eaaeb65ff45b3c22f91520190f724246e0772bfcd566d875b380048bd592e\"},\"judgePreset\":\"hard\",\"notes\":{\"center\":[{\"center\":2.5,\"time\":{\"bar\":0,\"denominator\":5,\"numerator\":1},\"type\":\"tap\",\"width\":1},{\"center\":2.5,\"curveToNext\":\"smooth\",\"nodes\":[{\"center\":3.2,\"curveToNext\":\"smooth\",\"judge\":false,\"time\":{\"bar\":1,\"denominator\":10,\"numerator\":1},\"width\":0.8},{\"center\":2.8,\"judge\":true,\"time\":{\"bar\":1,\"denominator\":5,\"numerator\":4},\"width\":1.4}],\"time\":{\"bar\":0,\"denominator\":5,\"numerator\":3},\"type\":\"hold\",\"width\":1.2},{\"center\":1.25,\"time\":{\"bar\":2,\"denominator\":5,\"numerator\":1},\"type\":\"exTap\",\"width\":0.5}],\"left\":[{\"center\":1.3,\"curveToNext\":\"smooth\",\"nodes\":[{\"center\":3,\"curveToNext\":\"smooth\",\"time\":{\"bar\":1,\"denominator\":7,\"numerator\":3},\"width\":0.6},{\"center\":2.4,\"time\":{\"bar\":2,\"denominator\":10,\"numerator\":1},\"width\":1}],\"time\":{\"bar\":1,\"denominator\":7,\"numerator\":1},\"type\":\"mixer\",\"width\":0.8}],\"right\":[{\"center\":3.75,\"time\":{\"bar\":0,\"denominator\":5,\"numerator\":2},\"type\":\"drag\",\"width\":0.5},{\"center\":2.5,\"time\":{\"bar\":2,\"denominator\":11,\"numerator\":4},\"type\":\"mine\",\"width\":0.6}]},\"rulesetId\":\"dynamite-uv-ruleset-2.0\",\"scrollSpeeds\":[{\"curveToNext\":\"easeInOutCubic\",\"time\":{\"bar\":0,\"denominator\":1,\"numerator\":0},\"value\":1},{\"curveToNext\":\"hold\",\"time\":{\"bar\":1,\"denominator\":3,\"numerator\":1},\"value\":0.75},{\"time\":{\"bar\":2,\"denominator\":5,\"numerator\":1},\"value\":1.25}],\"timing\":{\"audioOffsetSec\":0.25,\"bpms\":[{\"bpm\":150,\"time\":{\"bar\":0,\"denominator\":1,\"numerator\":0}},{\"bpm\":180,\"time\":{\"bar\":2,\"denominator\":5,\"numerator\":1}}]}}",
+  "expectedSha256": "5f3cafcfa02097b555c860e0da9ca8e8a55ce428df8d69fcb263e080a7249a1f",
+  "canonicalizationNote": "The vector uses ASCII keys and strings plus finite integers and simple binary64 numbers. canonicalJson is the RFC 8785 JCS representation of projection."
+}

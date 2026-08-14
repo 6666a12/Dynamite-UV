@@ -16,7 +16,7 @@ jobs.json 是一个任务数组：
     "steps": 25, "cfg": 7.0,
     "seed": 12345,
     "count": 4,
-    "out_dir": "../../client/assets/covers"
+    "out_dir": "../../local-generated/covers"
   },
   {
     "name": "img2img_example",
@@ -30,8 +30,8 @@ jobs.json 是一个任务数组：
 
 img2img 说明：ref_image 需先放入 ComfyUI 的 input 目录。denoise 越接近 1
 与原图差异越大。**注意版权**：以原版素材为参考图的产出属于演绎作品，
-只能内部测试用，不能发布；发布用素材请走风格参考（analyze_asset_style.py
-→ prompt 片段 → 文生图）路线。
+只能内部测试用，不能发布；生成结果应留在仓库外的本地目录，不得写入
+client/assets。公开曲绘由社区谱师随谱面包提供，不使用本工具生成。
 
 每个任务生成 count 张（seed 递增），完成后从 ComfyUI output 目录
 复制到 out_dir（默认留在 ComfyUI output 里，仅打印路径）。

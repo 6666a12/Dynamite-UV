@@ -10,10 +10,9 @@
         <cover>             封面图（保持原扩展名，可选）
 
 用法示例：
-    python pack_chart.py --id tablear --title "Tablear" --artist "-" --charter "dev" \
-        --diff giga --level 15 --chart chart_tablear.json --audio song_tablear.wav \
-        --cover ../client/assets/covers/cover_style_navy_01.png \
-        --out ../client/testdata/packs
+    python pack_chart.py --id example_song --title "Example Song" --artist "Example Artist" \
+        --charter "Community Charter" --diff hard --level 10 --chart ./chart_hard.json \
+        --audio ./song.ogg --cover ./cover.png --out ./packs
 
 同一个 pack_id 重复执行（不同 --diff）会把难度合并进同一个 meta.json。
 """

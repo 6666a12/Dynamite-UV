@@ -1,0 +1,44 @@
+{
+  "format": "dynamite-uv-chart",
+  "formatVersion": 2,
+  "chartId": "triple-star",
+  "audioOffsetSec": 0.25,
+  "timing": {
+    "bpms": [
+      {
+        "time": {
+          "bar": 0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "bpm": 150
+      }
+    ]
+  },
+  "notesLeft": [],
+  "notesCenter": [
+    {
+      "id": "custom-tap-001",
+      "type": "tap",
+      "time": {
+        "bar": 0,
+        "numerator": 1,
+        "denominator": 3
+      },
+      "center": 2.5,
+      "width": 1
+    },
+    {
+      "id": "custom-bar-line-001",
+      "type": "barLine",
+      "time": {
+        "bar": 1,
+        "numerator": 0,
+        "denominator": 1
+      },
+      "center": 2.5,
+      "width": 5
+    }
+  ],
+  "notesRight": []
+}

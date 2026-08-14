@@ -156,7 +156,10 @@ public partial class SongSelect : Node2D
             {
                 Position = new Vector2(590, 200),
                 Size = new Vector2(1260, 40),
-                Text = "曲库为空：把谱面包放进 user://charts/ 或 res://testdata/packs/",
+                Text = OS.HasFeature("internal_testdata") || OS.HasFeature("editor") ||
+                    OS.HasFeature("editor_runtime")
+                    ? "曲库为空：把谱面包放进 user://charts/ 或 res://testdata/packs/"
+                    : "曲库为空：把社区谱面包放进 user://charts/",
             };
             empty.AddThemeFontSizeOverride("font_size", 24);
             empty.AddThemeColorOverride("font_color", UiFonts.Dim);

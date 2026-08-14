@@ -5,32 +5,58 @@ namespace CoreTests;
 
 /// <summary>
 /// 断言式核心逻辑测试（无测试框架，失败时非零退出）。
-/// 跑法：dotnet run --project community/tools/core-tests
+/// 跑法：dotnet run --project tools/core-tests/CoreTests.csproj --configuration Release
+/// 可选本地开发谱：追加 -- --dev-testdata &lt;packs-dir&gt;
 /// </summary>
 public static class Program
 {
     private static int _failures;
 
-    public static int Main()
+    public static int Main(string[] args)
     {
-        var chartPath = FindChartPath();
-        Console.WriteLine($"chart: {chartPath}");
+        _failures = 0;
 
-        TestLoad(chartPath, out var chart);
-        TestBarTimeConversion(chart!);
-		TestDropSpeedVisualModel();
-        TestAutoFullCombo(chart!);
-        TestHeadlineCountsAcrossDevPacks(chartPath);
-        TestWindowOffsets();
-        TestMine();
-        TestNormalizedScore();
-		TestInputTimeGroupGate();
-		TestInputJudgeRules();
-		TestDerivedSustainJudgements();
-		TestHoldFailureSettlement();
-		TestReleasedHoldSettlement();
-		TestSustainInterpolation();
-		TestResolutionAndScaledVitals();
+        string? devTestdataDirectory;
+        try
+        {
+            devTestdataDirectory = ParseArguments(args);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine($"Argument error: {ex.Message}");
+            Console.Error.WriteLine(
+                "Usage: dotnet run --project tools/core-tests/CoreTests.csproj -- " +
+                "[--dev-testdata <packs-dir>]");
+            return 2;
+        }
+
+        try
+        {
+            var chartPath = FindFixturePath();
+            Console.WriteLine($"fixture: {chartPath}");
+
+            TestLoad(chartPath, out var chart);
+            TestBarTimeConversion(chart!);
+            TestDropSpeedVisualModel(chart!);
+            TestAutoFullCombo(chart!);
+            if (devTestdataDirectory is not null)
+                TestHeadlineCountsAcrossDevPacks(devTestdataDirectory);
+            TestWindowOffsets();
+            TestMine();
+            TestNormalizedScore();
+            TestInputTimeGroupGate();
+            TestInputJudgeRules();
+            TestDerivedSustainJudgements();
+            TestHoldFailureSettlement();
+            TestReleasedHoldSettlement();
+            TestSustainInterpolation();
+            TestResolutionAndScaledVitals();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Core test error: {ex.Message}");
+            return 1;
+        }
 
         Console.WriteLine();
         if (_failures > 0)
@@ -42,76 +68,173 @@ public static class Program
         return 0;
     }
 
-    // 1. 加载 chart_test.json 成功，音符总数合理
+    // 1. 加载人工 clean-room fixture，精确验证元数据、三轨、类型与链结构。
     private static void TestLoad(string path, out Chart? chart)
     {
-        Console.WriteLine("[1] Load chart_test.json");
+        Console.WriteLine("[1] Load clean-room synthetic fixture");
         chart = DynamixChartLoader.LoadFile(path);
-        var total = chart.AllNotes.Count();
+        var notes = chart.AllNotes.ToArray();
+        var total = notes.Length;
         Console.WriteLine($"    name={chart.Name} difficulty={chart.Difficulty} title={chart.Title}");
         Console.WriteLine($"    sections={chart.Sections.Count} notes: L={chart.NotesLeft.Count} " +
                           $"C={chart.NotesCenter.Count} R={chart.NotesRight.Count} total={total}");
-        Check(chart.Sections.Count >= 1, "时间线非空（该谱有 BakedBarSections）");
-        Check(total > 2000 && total < 2500, $"音符总数合理（{total}）");
-        Check(chart.Difficulty == 3, $"难度号=3 Hard（{chart.Difficulty}）");
-        Check(chart.AllNotes.All(n => n.Second > 0), "全部音符命中秒为正");
+        Check(chart.Name == "CleanRoom_0001.3 - Synthetic Core Fixture",
+            "fixture name 精确匹配");
+        Check(chart.Title == "Synthetic Core Fixture", "title 解析精确匹配");
+        Check(chart.Difficulty == 3, "难度号精确为 3");
+        Check(chart.Sections.Count == 2, "恰有两个 BPM 段");
+        Check(chart.Sections[0].Bpm == 120.0 && chart.Sections[0].BarTime == 0.0 &&
+              chart.Sections[0].Seconds == 0.0, "第一 BPM 段 = 120@bar 0/sec 0");
+        Check(chart.Sections[1].Bpm == 240.0 && chart.Sections[1].BarTime == 2.0 &&
+              chart.Sections[1].Seconds == 4.0, "第二 BPM 段 = 240@bar 2/sec 4");
+        Check(chart.DropSpeeds.SequenceEqual(new[]
+        {
+            (0.0, 0.5),
+            (1.0, 1.5),
+            (2.0, 1.0),
+        }), "DropSpeed 三事件精确加载");
+        Check(chart.NotesLeft.Count == 5 && chart.NotesCenter.Count == 6 &&
+              chart.NotesRight.Count == 3 && total == 14,
+            "三轨 note 数精确为 L=5/C=6/R=3/总计14");
+        Check(Enum.GetValues<NoteType>().All(type => notes.Any(note => note.Type == type)),
+            "fixture 覆盖 Type 1–9");
+        Check(chart.TotalMainNote == 15, "Baked_TotalMainNote fixture 值精确为 15");
+
+        var hold = chart.NotesCenter.Where(note => note.Id is >= 201 and <= 203).ToArray();
+        Check(hold.Select(note => note.Id).SequenceEqual(new[] { 201, 202, 203 }) &&
+              hold.Select(note => note.SubNoteId).SequenceEqual(new[] { 202, 203, -1 }) &&
+              hold.Select(note => note.Type).SequenceEqual(new[]
+              {
+                  NoteType.HoldHead, NoteType.HoldNode, NoteType.HoldNode,
+              }), "Hold 链精确为 201->202->203->-1");
+        var mixer = chart.NotesLeft.Where(note => note.Id is >= 103 and <= 105).ToArray();
+        Check(mixer.Select(note => note.Id).SequenceEqual(new[] { 103, 104, 105 }) &&
+              mixer.Select(note => note.SubNoteId).SequenceEqual(new[] { 104, 105, -1 }) &&
+              mixer.Select(note => note.Type).SequenceEqual(new[]
+              {
+                  NoteType.MixerHead, NoteType.MixerNode, NoteType.MixerNode,
+              }), "Mixer 链精确为 103->104->105->-1");
     }
 
-    // 2. 全部音符：§3.2 换算秒 vs JSON Baked_Second 误差 ≤1ms
+    // 2. 对人工 fixture 做精确的分段时间换算、反向换算与 BPM 查询。
     private static void TestBarTimeConversion(Chart chart)
     {
-        Console.WriteLine("[2] BarTime->Second vs Baked_Second (<=1ms)");
-        var maxErr = 0.0;
-		var maxRoundTripErr = 0.0;
-        Note? worst = null;
-        foreach (var n in chart.AllNotes)
+        Console.WriteLine("[2] Exact BarTime/Second conversion");
+        var expected = new Dictionary<int, double>
         {
-            var sec = chart.BarTimeToSeconds(n.BarTime);
-            var err = Math.Abs(sec - n.BakedSecond);
-            if (err > maxErr) { maxErr = err; worst = n; }
-			maxRoundTripErr = Math.Max(maxRoundTripErr,
-				Math.Abs(chart.SecondsToBarTime(sec) - n.BarTime));
+            [101] = 0.5,
+            [102] = 1.5,
+            [103] = 3.5,
+            [104] = 4.0,
+            [105] = 4.25,
+            [201] = 1.0,
+            [202] = 2.0,
+            [203] = 3.0,
+            [204] = 4.5,
+            [205] = 4.75,
+            [206] = 5.0,
+            [301] = 2.5,
+            [302] = 4.125,
+            [303] = 5.25,
+        };
+        foreach (var note in chart.AllNotes)
+        {
+            var expectedSecond = expected[note.Id];
+            Check(Math.Abs(note.Second - expectedSecond) < 1e-12,
+                $"note {note.Id} loader Second = {expectedSecond:F3}s");
+            Check(Math.Abs(note.BakedSecond - expectedSecond) < 1e-12,
+                $"note {note.Id} synthetic Baked_Second = {expectedSecond:F3}s");
+            Check(Math.Abs(chart.BarTimeToSeconds(note.BarTime) - expectedSecond) < 1e-12,
+                $"note {note.Id} BarTimeToSeconds = {expectedSecond:F3}s");
+            Check(Math.Abs(chart.SecondsToBarTime(expectedSecond) - note.BarTime) < 1e-12,
+                $"note {note.Id} Second/BarTime round trip");
         }
-        Console.WriteLine($"    max error = {maxErr * 1000.0:F4} ms (note Id={worst?.Id})");
-        Check(maxErr <= 0.001, "全部音符换算误差 ≤1ms");
-		Check(maxRoundTripErr <= 1e-9, nameof(Chart.SecondsToBarTime));
+        Check(Math.Abs(chart.BarTimeToSeconds(1.5) - 3.0) < 1e-12,
+            "120 BPM 段 bar 1.5 = 3.0s");
+        Check(Math.Abs(chart.BarTimeToSeconds(2.5) - 4.5) < 1e-12,
+            "240 BPM 段 bar 2.5 = 4.5s");
+        Check(Math.Abs(chart.SecondsToBarTime(4.75) - 2.75) < 1e-12,
+            "240 BPM 段 4.75s = bar 2.75");
+        Check(chart.BpmAtBarTime(1.999) == 120.0 && chart.BpmAtBarTime(2.0) == 240.0,
+            "BpmAtBarTime 在 bar 2 精确切段");
+        Check(chart.BpmAtSeconds(3.999) == 120.0 && chart.BpmAtSeconds(4.0) == 240.0,
+            "BpmAtSeconds 在 4.0s 精确切段");
     }
 
-	// 2b. 当前流速乘剩余 Bar 距离：升速段允许 note 先远离判定线再折返。
-	private static void TestDropSpeedVisualModel()
-	{
-		Console.WriteLine(nameof(TestDropSpeedVisualModel));
-		var speed = new DropSpeedMap(new[]
-		{
-			(0.0, 0.2),
-			(1.0, 1.1),
-		});
+    // 2b. fixture DropSpeed 线性插值；另保留回溯换向与重复事件逻辑测试。
+    private static void TestDropSpeedVisualModel(Chart chart)
+    {
+        Console.WriteLine(nameof(TestDropSpeedVisualModel));
+        var fixtureSpeed = new DropSpeedMap(chart.DropSpeeds);
+        Check(Math.Abs(fixtureSpeed.SpeedAt(-1.0) - 0.5) < 1e-12,
+            "fixture DropSpeed 首事件前 = 0.5");
+        Check(Math.Abs(fixtureSpeed.SpeedAt(0.5) - 1.0) < 1e-12,
+            "fixture DropSpeed bar 0.5 插值 = 1.0");
+        Check(Math.Abs(fixtureSpeed.SpeedAt(1.5) - 1.25) < 1e-12,
+            "fixture DropSpeed bar 1.5 插值 = 1.25");
+        Check(Math.Abs(fixtureSpeed.SpeedAt(3.0) - 1.0) < 1e-12,
+            "fixture DropSpeed 末事件后 = 1.0");
+        Check(Math.Abs(fixtureSpeed.RemainingDistance(2.5, 1.5) - 1.25) < 1e-12,
+            "fixture RemainingDistance = (2.5-1.5)*1.25 = 1.25");
 
-		Check(Math.Abs(speed.SpeedAt(0.5) - 0.65) < 1e-12,
-			nameof(DropSpeedMap.SpeedAt));
-		var peakBar = 7.0 / 18.0;
-		var peak = speed.RemainingDistance(1.0, peakBar);
-		Check(peak > speed.RemainingDistance(1.0, 0.0),
-			nameof(DropSpeedMap.RemainingDistance));
-		Check(peak > speed.RemainingDistance(1.0, peakBar - 0.001) &&
-			peak > speed.RemainingDistance(1.0, peakBar + 0.001),
-			nameof(TestDropSpeedVisualModel));
-		Check(Math.Abs(speed.RemainingDistance(1.0, 1.0)) < 1e-12,
-			nameof(TestDropSpeedVisualModel));
+        var speed = new DropSpeedMap(new[]
+        {
+            (0.0, 0.2),
+            (1.0, 1.1),
+        });
 
-		var duplicate = new DropSpeedMap(new[] { (2.0, 0.5), (2.0, 0.8) });
-		Check(Math.Abs(duplicate.SpeedAt(2.0) - 0.8) < 1e-12,
-			nameof(TestDropSpeedVisualModel));
-	}
+        Check(Math.Abs(speed.SpeedAt(0.5) - 0.65) < 1e-12,
+            nameof(DropSpeedMap.SpeedAt));
+        var peakBar = 7.0 / 18.0;
+        var peak = speed.RemainingDistance(1.0, peakBar);
+        Check(peak > speed.RemainingDistance(1.0, 0.0),
+            nameof(DropSpeedMap.RemainingDistance));
+        Check(peak > speed.RemainingDistance(1.0, peakBar - 0.001) &&
+            peak > speed.RemainingDistance(1.0, peakBar + 0.001),
+            nameof(TestDropSpeedVisualModel));
+        Check(Math.Abs(speed.RemainingDistance(1.0, 1.0)) < 1e-12,
+            nameof(TestDropSpeedVisualModel));
 
-    // 3. Auto-FC：全部判定单元精确命中 → 全 Prefect、combo 最大、得分=理论满分、满血、100%
+        var duplicate = new DropSpeedMap(new[] { (2.0, 0.5), (2.0, 0.8) });
+        Check(Math.Abs(duplicate.SpeedAt(2.0) - 0.8) < 1e-12,
+            nameof(TestDropSpeedVisualModel));
+    }
+
+    // 3. Auto-FC：fixture 的 15 个主判定精确命中。
     private static void TestAutoFullCombo(Chart chart)
     {
         Console.WriteLine("[3] Auto-FC simulation");
         var engine = new JudgeEngine(JudgePreset.Hard);
         var plan = JudgePlan.Build(chart, engine.Settings);
         Console.WriteLine($"    units={plan.Units.Count} headline={plan.HeadlineUnitCount} " +
-                          $"theoreticalMax={plan.TheoreticalMax} end={plan.EndTime:F2}s");
+                          $"theoreticalMax={plan.TheoreticalMax} end={plan.EndTime:F3}s");
+
+        Check(plan.Units.Count == 15, "fixture JudgePlan 恰有 15 个单元");
+        Check(plan.HeadlineUnitCount == 15, "fixture 主判定数 = 15");
+        Check(plan.TheoreticalMax == 1500, "fixture 理论满分 = 1,500 raw");
+        Check(Math.Abs(plan.EndTime - 5.25) < 1e-12, "fixture 结束时间 = 5.25s");
+        Check(plan.Sustains.Count == 2 && plan.Sustains.ContainsKey(201) &&
+              plan.Sustains.ContainsKey(103), "fixture 展开一条 Hold 和一条 Mixer");
+        Check(plan.Units.Count(unit => unit.Kind == UnitKind.Input) == 6,
+            "fixture Input 单元 = 6");
+        Check(plan.Units.Count(unit => unit.Kind == UnitKind.Contact) == 2,
+            "fixture Contact 单元 = 2");
+        Check(plan.Units.Count(unit => unit.Kind == UnitKind.HoldPoint) == 5,
+            "fixture HoldPoint 单元 = 5（Hold 1 + Mixer 4）");
+        Check(plan.Units.Count(unit => unit.Kind == UnitKind.HoldEnd) == 1,
+            "fixture HoldEnd 单元 = 1");
+        Check(plan.Units.Count(unit => unit.Kind == UnitKind.Mine) == 1,
+            "fixture Mine 单元 = 1，BarLine 不产生单元");
+        var holdUnits = plan.Units.Where(unit => unit.SustainHeadId == 201).ToArray();
+        Check(holdUnits.Length == 3 &&
+              holdUnits.Select(unit => unit.NoteId).SequenceEqual(new[] { 201, 202, 203 }) &&
+              holdUnits.Select(unit => unit.Time).SequenceEqual(new[] { 1.0, 2.0, 3.0 }),
+            "fixture Hold 判定精确为 201@1s、202@2s、203@3s");
+        var mixerUnits = plan.Units.Where(unit => unit.SustainHeadId == 103).ToArray();
+        Check(mixerUnits.Length == 5 &&
+              mixerUnits.Select(unit => unit.Time).SequenceEqual(
+                  new[] { 3.5, 3.75, 4.0, 4.125, 4.25 }),
+            "fixture Mixer 判定精确跨 BPM 为 3.5/3.75/4/4.125/4.25s");
 
         foreach (var u in plan.Units)
         {
@@ -125,8 +248,8 @@ public static class Program
                     break;
                 case UnitKind.Auto:
                 case UnitKind.HoldPoint:
-				case UnitKind.Contact: // Drag 接触判定：模拟按住 → Prefect
-				case UnitKind.HoldEnd:
+                case UnitKind.Contact: // Drag 接触判定：模拟按住 → Prefect
+                case UnitKind.HoldEnd:
                     engine.Apply(u.Category, JudgeGrade.Prefect,
                         u.AffectsCombo, u.AffectsJudgeCounts);
                     break;
@@ -140,27 +263,39 @@ public static class Program
         Console.WriteLine($"    score={engine.Score} maxCombo={engine.MaxCombo} " +
                           $"health={engine.Health}/{engine.MaxHealth} " +
                           $"percent={engine.Percent(plan.TheoreticalMax):F2}%");
-        Check(engine.CountPrefect == plan.HeadlineUnitCount, "主判定全部 Prefect");
-        Check(engine.CountMiss == 0 && engine.CountGreat == 0 && engine.CountGood == 0, "无其他等级");
-        Check(engine.MaxCombo == plan.HeadlineUnitCount, "combo = 主判定总数");
-		Check(engine.Score == plan.TheoreticalMax, "得分 = 理论满分");
+        Check(engine.CountPrefect == 15, "Auto 精确得到 15 Prefect");
+        Check(engine.CountMiss == 0 && engine.CountGreat == 0 && engine.CountGood == 0,
+            "Auto 无其他等级");
+        Check(engine.MaxCombo == 15, "Auto MaxCombo = 15");
+        Check(engine.Score == 1500, "Auto raw score = 1,500");
         Check(engine.NormalizedScore(plan.TheoreticalMax) == JudgeEngine.NormalizedScoreMax,
-            "全 Prefect 归一化分数 = 1,000,000");
-        Check(engine.Health == engine.MaxHealth, "Health 满");
-        Check(Math.Abs(engine.Percent(plan.TheoreticalMax) - 100.0) < 1e-9, "结算 100%");
+            "Auto 归一化分数 = 1,000,000");
+        Check(engine.Health == engine.MaxHealth, "Auto Health 满");
+        Check(Math.Abs(engine.Percent(plan.TheoreticalMax) - 100.0) < 1e-12,
+            "Auto 结算 = 100%");
     }
 
-	// 3b. 所有开发谱包：派生判定均进入主统计，且全 Prefect 严格归一化满分。
-    private static void TestHeadlineCountsAcrossDevPacks(string chartPath)
+    // 3b. 仅在 --dev-testdata 显式启用时递归验证本地开发谱。
+    private static void TestHeadlineCountsAcrossDevPacks(string packsDirectory)
     {
-        Console.WriteLine("[3b] Headline count across dev packs");
-        var testdata = Path.GetDirectoryName(chartPath)!;
-        var packs = Path.Combine(testdata, "packs");
-        var files = Directory.Exists(packs)
-            ? Directory.GetFiles(packs, "chart_*.json", SearchOption.AllDirectories)
-            : Array.Empty<string>();
-        Check(files.Length > 0, "找到开发谱包");
-        foreach (var file in files.OrderBy(f => f))
+        Console.WriteLine($"[3b] Optional dev testdata: {packsDirectory}");
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(
+                packsDirectory, "chart_*.json", SearchOption.AllDirectories);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException(
+                $"Cannot scan --dev-testdata directory '{packsDirectory}': {ex.Message}", ex);
+        }
+        if (files.Length == 0)
+            throw new InvalidOperationException(
+                $"No chart_*.json files found recursively under --dev-testdata directory: " +
+                packsDirectory);
+
+        foreach (var file in files.OrderBy(path => path, StringComparer.Ordinal))
         {
             var chart = DynamixChartLoader.LoadFile(file);
             var engine = new JudgeEngine(JudgePreset.Hard);
@@ -168,12 +303,12 @@ public static class Program
             foreach (var unit in plan.Units)
                 engine.Apply(unit.Category, JudgeGrade.Prefect,
                     unit.AffectsCombo, unit.AffectsJudgeCounts);
-            Console.WriteLine($"    {Path.GetFileName(file)}: " +
-							  $"units={plan.Units.Count} headline={plan.HeadlineUnitCount} " +
-							  $"baked={chart.TotalMainNote} " +
+            Console.WriteLine($"    {Path.GetRelativePath(packsDirectory, file)}: " +
+                              $"units={plan.Units.Count} headline={plan.HeadlineUnitCount} " +
+                              $"baked={chart.TotalMainNote} " +
                               $"score={engine.NormalizedScore(plan.TheoreticalMax):N0}");
-			Check(plan.Units.All(unit => unit.AffectsCombo && unit.AffectsJudgeCounts),
-				$"{Path.GetFileName(file)} 全部派生单元都是主判定");
+            Check(plan.Units.All(unit => unit.AffectsCombo && unit.AffectsJudgeCounts),
+                $"{Path.GetFileName(file)} 全部派生单元都是主判定");
             Check(engine.NormalizedScore(plan.TheoreticalMax) == 1_000_000,
                 $"{Path.GetFileName(file)} 全 Prefect 满分为 1,000,000");
         }
@@ -616,25 +751,40 @@ public static class Program
         }
     }
 
-    private static string FindChartPath()
+    private static string? ParseArguments(string[] args)
     {
-        // 从程序输出目录向上找 community/client/testdata/chart_test.json
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
+        if (args.Length == 0)
+            return null;
+        if (args.Length != 2 || !string.Equals(
+                args[0], "--dev-testdata", StringComparison.Ordinal))
+            throw new ArgumentException(
+                "Expected no arguments or exactly --dev-testdata <packs-dir>.");
+        if (string.IsNullOrWhiteSpace(args[1]))
+            throw new ArgumentException("--dev-testdata requires a non-empty <packs-dir>.");
+
+        string directory;
+        try
         {
-            var candidate = Path.Combine(dir.FullName,
-                "community", "client", "testdata", "chart_test.json");
-            if (File.Exists(candidate))
-                return candidate;
-            // 也兼容直接在 community/ 之内运行的情况
-            if (dir.Name == "community")
-            {
-                candidate = Path.Combine(dir.FullName, "client", "testdata", "chart_test.json");
-                if (File.Exists(candidate))
-                    return candidate;
-            }
-            dir = dir.Parent;
+            directory = Path.GetFullPath(args[1]);
         }
-        throw new FileNotFoundException("找不到 community/client/testdata/chart_test.json");
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            throw new ArgumentException(
+                $"Invalid --dev-testdata directory '{args[1]}': {ex.Message}");
+        }
+        if (!Directory.Exists(directory))
+            throw new ArgumentException(
+                $"--dev-testdata directory does not exist: {directory}");
+        return directory;
+    }
+
+    private static string FindFixturePath()
+    {
+        var candidate = Path.Combine(AppContext.BaseDirectory,
+            "Fixtures", "synthetic_chart.json");
+        if (File.Exists(candidate))
+            return candidate;
+        throw new FileNotFoundException(
+            "Missing copied clean-room fixture. Expected: " + candidate, candidate);
     }
 }

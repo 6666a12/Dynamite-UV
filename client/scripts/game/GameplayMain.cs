@@ -10,7 +10,7 @@ namespace DuxCommunity.Game;
 /// MVP 玩法主场景：加载谱面+音频，按 SongClock 生成/移动音符，三判定区
 /// （Left 左侧 / Center 底部 / Right 右侧），鼠标点击/触摸判定，F1 切 Auto，
 /// Esc/顶部按钮暂停。HUD 与结算按 docs/ui-mock 样式稿实现。
-/// 谱面/音频来自 GameSession 选中的谱面包；无选择时回退 testdata 演示谱。
+/// 谱面/音频来自 GameSession 选中的谱面包；编辑器和 Internal Testdata 构建可回退开发谱。
 /// 音符使用 clean-room 程序化材质，不依赖任何原版素材。
 /// </summary>
 public partial class GameplayMain : Node2D
@@ -205,7 +205,7 @@ public partial class GameplayMain : Node2D
 	{
 		GameSession.EnsureInit();
 
-		// 谱面来源：GameSession 选中包；无选择（直接启动演示）时回退 testdata
+		// 谱面来源：GameSession 选中包；编辑器/Internal 构建才允许回退 testdata。
 		string chartPath, songPath;
 		if (GameSession.SelectedPack is { } pack && GameSession.SelectedDiff is { } diff)
 		{
@@ -218,11 +218,18 @@ public partial class GameplayMain : Node2D
 			_coverPath = pack.CoverPath;
 			_auto = false;
 		}
-		else
+		else if (OS.HasFeature("internal_testdata") || OS.HasFeature("editor") ||
+			OS.HasFeature("editor_runtime"))
 		{
 			chartPath = FallbackChartPath;
 			songPath = FallbackSongPath;
-			_auto = true; // 演示默认 AUTO（F1 可切回手动）
+			_auto = true; // 编辑器/Internal 演示默认 AUTO（F1 可切回手动）
+		}
+		else
+		{
+			GD.PushError("Public build entered gameplay without a selected chart pack.");
+			GetTree().ChangeSceneToFile("res://scenes/song_select.tscn");
+			return;
 		}
 
 		BuildStage();

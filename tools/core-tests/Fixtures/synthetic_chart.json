@@ -1,0 +1,179 @@
+{
+  "name": "CleanRoom_0001.3 - Synthetic Core Fixture",
+  "FixtureNotice": "Hand-authored synthetic data for DUX-Community core tests; not copied or derived from any game chart.",
+  "Baked_TotalMainNote": 15,
+  "TimeLine": {
+    "BakedBarSections": [
+      {
+        "BPM": 120.0,
+        "BarTime": 0.0,
+        "Seconds": 0.0
+      },
+      {
+        "BPM": 240.0,
+        "BarTime": 2.0,
+        "Seconds": 4.0
+      }
+    ]
+  },
+  "NoteSystem__DropSpeeds": [
+    {
+      "BarTime": 0.0,
+      "Value": 0.5
+    },
+    {
+      "BarTime": 1.0,
+      "Value": 1.5
+    },
+    {
+      "BarTime": 2.0,
+      "Value": 1.0
+    }
+  ],
+  "NotesLeft": [
+    {
+      "Id": 101,
+      "SubNoteId": -1,
+      "Type": 1,
+      "BarTime": 0.25,
+      "Position": 0.1,
+      "Width": 0.6,
+      "Baked_Second": 0.5,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 102,
+      "SubNoteId": -1,
+      "Type": 2,
+      "BarTime": 0.75,
+      "Position": 0.9,
+      "Width": 0.5,
+      "Baked_Second": 1.5,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 103,
+      "SubNoteId": 104,
+      "Type": 6,
+      "BarTime": 1.75,
+      "Position": 1.4,
+      "Width": 0.5,
+      "Baked_Second": 3.5,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 104,
+      "SubNoteId": 105,
+      "Type": 7,
+      "BarTime": 2.0,
+      "Position": 1.8,
+      "Width": 0.4,
+      "Baked_Second": 4.0,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 105,
+      "SubNoteId": -1,
+      "Type": 7,
+      "BarTime": 2.25,
+      "Position": 1.2,
+      "Width": 0.7,
+      "Baked_Second": 4.25,
+      "Baked_SyncNote": 0
+    }
+  ],
+  "NotesCenter": [
+    {
+      "Id": 201,
+      "SubNoteId": 202,
+      "Type": 3,
+      "BarTime": 0.5,
+      "Position": 0.2,
+      "Width": 0.8,
+      "Baked_Second": 1.0,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 202,
+      "SubNoteId": 203,
+      "Type": 4,
+      "BarTime": 1.0,
+      "Position": 0.5,
+      "Width": 1.0,
+      "Baked_Second": 2.0,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 203,
+      "SubNoteId": -1,
+      "Type": 4,
+      "BarTime": 1.5,
+      "Position": 0.3,
+      "Width": 0.6,
+      "Baked_Second": 3.0,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 204,
+      "SubNoteId": -1,
+      "Type": 5,
+      "BarTime": 2.5,
+      "Position": 1.1,
+      "Width": 0.7,
+      "Baked_Second": 4.5,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 205,
+      "SubNoteId": -1,
+      "Type": 8,
+      "BarTime": 2.75,
+      "Position": 2.0,
+      "Width": 0.4,
+      "Baked_Second": 4.75,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 206,
+      "SubNoteId": -1,
+      "Type": 9,
+      "BarTime": 3.0,
+      "Position": 0.0,
+      "Width": 3.0,
+      "Baked_Second": 5.0,
+      "Baked_SyncNote": 0
+    }
+  ],
+  "NotesRight": [
+    {
+      "Id": 301,
+      "SubNoteId": -1,
+      "Type": 1,
+      "BarTime": 1.25,
+      "Position": 0.4,
+      "Width": 0.5,
+      "Baked_Second": 2.5,
+      "Baked_SyncNote": 1
+    },
+    {
+      "Id": 302,
+      "SubNoteId": -1,
+      "Type": 2,
+      "BarTime": 2.125,
+      "Position": 1.6,
+      "Width": 0.6,
+      "Baked_Second": 4.125,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 303,
+      "SubNoteId": -1,
+      "Type": 5,
+      "BarTime": 3.25,
+      "Position": 0.7,
+      "Width": 0.9,
+      "Baked_Second": 5.25,
+      "Baked_SyncNote": 0
+    }
+  ]
+}

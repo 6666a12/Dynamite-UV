@@ -11,11 +11,22 @@ obj/
 # Godot/Android export tooling and generated packages
 client/build/
 *.apk
+*.aab
+*.apks
 *.idsig
-
-# Export presets may contain keystore credentials — keep local
-export_presets.cfg
 builds/
+
+# Export credentials and signing keys are always local
+.godot/export_credentials.cfg
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+
+# External research binaries are installed locally
+*.jar
 
 # 版权内容：测试用官方谱面/音频（仅本地，绝不分发）
 client/testdata/
@@ -23,6 +34,10 @@ client/testdata/
 # 生成的素材缓存
 tools/.venv/
 tools/style_refs.json
+local-generated/
 __pycache__/
+
+# Local ZCode session metadata
+.zcode/
 
 AGENTS.md

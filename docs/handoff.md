@@ -1,14 +1,15 @@
 # DUX-Community 交接文档
 
-> 最后更新：2026-08-13。本文只记录当前有效实现、固定决策、待办和验证流程。
-> 玩法数据与行为规格见 `gameplay-spec.md`，原版判定证据见
+> 最后更新：2026-08-14。本文只记录当前有效实现、固定决策、待办和验证流程。
+> 当前 legacy 运行时与行为规格见 `gameplay-spec.md`；正式目标格式见 `chart-format-v2.md`；原版判定证据见
 > `original-judgement-analysis.md`，布局数值来源见 `video-geometry-analysis.md` 和
 > `pixel-calibration.md`，UI 样式稿见 `ui-mock/index.html`。
 
 ## 1. 项目约束
 
-- 项目是 Dynamix 风格的 clean-room 社区版；发布内容不得包含任何原版素材或原版谱面。
-- `client/testdata/` 下的 `tablear`、`the_villager` 两个谱面包只用于开发验证。
+- 项目是 Dynamix 风格的 clean-room 社区版；Public APK 不得包含任何原版素材或原版谱面。
+- 整个 `client/testdata/` 都是内部开发区，可在制谱器完成前供 Internal Testdata APK 使用，
+  但始终被 Git 忽略，且绝不可进入 Public APK。双模式导出和强制检查见 `releasing.md`。
 - 客户端使用固定 1920×1080 设计坐标，Godot stretch 为 `canvas_items` keep；比例不符时
   留黑边。不要引入自适应游玩布局。
 - 谱面编辑器不集成进游戏：计划先做网页版，再考虑本地 app。
@@ -27,13 +28,13 @@
 - 设置：判定偏移、落速和 Music/Hit/UI 音量持久化到 `user://settings.json`。
 - 成绩：按 `packId:diff` 保存到 `user://scores.json`；Auto 演示不写成绩。
 
-跨场景状态由 `GameSession` 保存。直接启动 `gameplay.tscn` 且未选择曲目时，使用开发谱
-并默认开启 Auto。
+跨场景状态由 `GameSession` 保存。直接启动 `gameplay.tscn` 且未选择曲目时，仅编辑器和
+Internal Testdata 构建使用开发谱并默认开启 Auto；Public 和未分类导出返回选曲页。
 
 ### 2.2 谱面与判定
 
-- `ChartPack` 先扫描 `res://testdata/packs`，再扫描 `user://charts`；同 id 的玩家包覆盖
-  开发包。
+- `ChartPack` 在编辑器/Internal Testdata 构建先扫描 `res://testdata/packs`，再扫描
+  `user://charts`；同 id 的玩家包覆盖开发包。Public 和未分类导出只扫描 `user://charts`。
 - 时间线存在时，loader 用 `BarTimeToSeconds` 重算命中秒；空时间线使用
   `Baked_Second`。
 - Position 是条的左缘，命中范围为 `[P,P+W]`，渲染中心使用 `P+W/2`。
@@ -113,7 +114,11 @@ Mixer 的持续效果在 0.28 秒内爬到满亮，之后只循环纹理，松�
 - 发布级按钮和音效素材尚未生产；当前 Note 材质、瞬时爆发和持续效果均为程序化运行时
   实现，预览 GIF 只作设计参考。
 - 曲绘由社区谱师随谱面包提供，不使用 AI 生成；缺失曲绘时使用 clean-room 占位符。
+  早期 8 张 AI 原型曲绘已从客户端资源树移除，生成工具不得输出到 `client/assets/`。
 - 网页谱面编辑器、本地编辑器 app、ASP.NET Core 社区服务器尚未开工。
+- Dynamite UV Chart Format v2 已在 `chart-format-v2.md` 正式冻结，机器 Schema、clean-room
+  golden pack 和 Gameplay Digest known-answer vector 位于 `../schemas/chart-format-v2/`。当前客户端
+  仍只支持 legacy 格式，v2 loader/validator、ScoreStore Digest 成绩身份和运行时迁移均未实现。
 - 原版已经确认不消费触点，同一触点可命中多颗重叠 Note；社区版 `OnPress` 已按 Note 独立扫描并允许触点复用。仍需补充端到端输入序列回归和真机多指验证。仍未知：设备 `NSTouchWidth` 真值、BPM 切段同帧
   系统顺序、OnJudged 精确视觉动作和回收帧、模式 MaxHealth、Type dispatch、Buff/EX Boost。
 - 真机三指以上事件序列仍需用户实测；OS 焦点丢失/触摸取消还没有独立的触点清理入口。
@@ -132,7 +137,10 @@ Mixer 的持续效果在 0.28 秒内爬到满亮，之后只循环纹理，松�
 - `shared/` — 纯 C# 谱面模型、loader、判定计划和规则
 - `tools/core-tests/` — shared 核心断言式测试
 - `tools/` — 谱面、逆向、标定和素材辅助脚本
-- `docs/` — 当前规格、判定报告、几何标定和 UI 样式稿
+- `release/` — Public/Internal APK 身份和内容政策、资产来源清单
+- `schemas/chart-format-v2/` — 正式 v2 JSON Schema、clean-room golden pack 和 Digest 向量
+- `third_party/`、`THIRD_PARTY_NOTICES.md` — 第三方许可正文与归属说明
+- `docs/` — 当前/目标规格、判定报告、几何标定、发布流程和 UI 样式稿
 
 ## 6. 构建与验证
 
@@ -143,15 +151,27 @@ cd client
 dotnet build
 ```
 
-构建必须 0 错误。shared 核心测试从仓库根目录运行：
+构建必须 0 错误。shared 核心测试从仓库根目录运行；默认只读取版本化的 clean-room
+合成谱，不依赖 `client/testdata/`：
 
 ```powershell
 dotnet run --project tools/core-tests/CoreTests.csproj
 ```
 
-2026-08-13 最近一次记录：客户端 0 error，core-tests 全部通过（含 DropSpeed 插值、
-回溯换向、BarTime 双向换算、Hold 节点、Mixer 八分点、Early/Late 时间锁和按 release
-时刻结算 Hold 尾）。离线沙箱若无法读取 NuGet 漏洞索引，可能出现 `NU1900` warning。
+本地官方开发语料是额外的内部回归，需要显式传入目录：
+
+```powershell
+dotnet run --project tools/core-tests/CoreTests.csproj -- --dev-testdata client/testdata/packs
+```
+
+Public 与 Internal APK 的 preset、clean worktree 导出和最终产物强制检查统一见
+`docs/releasing.md`。未经 `check_apk.py --mode public` 验证的 APK 不得公开分发。
+
+2026-08-14 最近一次记录：客户端 Release 构建 0 warning / 0 error；默认 clean-room
+core-tests 与显式 `--dev-testdata` 内部语料回归均通过；release hygiene 29 项单测通过。v2 的
+Draft 2020-12 Schema、golden pack、语义边界和 Gameplay Digest known-answer vector 已完成
+结构与交叉验证。此次没有
+启动 Godot 或导出新 APK。离线沙箱若无法读取 NuGet 漏洞索引，可能出现 `NU1900` warning。
 开发谱按社区新口径重算后：Tablear Tech 1105、Tablear Giga 1776、The Villager Hard
 2100 个主判定；旧 `Baked_TotalMainNote` 不再作为一致性依据。
 
@@ -195,6 +215,13 @@ ffmpeg -y -f gdigrab -offset_x 0 -offset_y 0 -video_size 1600x900 -framerate 30 
 
 ## 7. 环境注意事项
 
+- Public APK 使用 `org.duxcommunity.game`；Internal Testdata APK 使用独立的
+  `org.duxcommunity.game.internaltest`。`export_presets.cfg` 可提交，签名凭据只能进入被忽略的
+  `client/.godot/export_credentials.cfg` 或环境变量。
+- 历史中的 `tools/apktool/dynamix_debug.keystore` 已公开暴露并从当前树移除，绝不能用于产品
+  签名；Apktool JAR 改为按 `tools/apktool/README.md` 外部安装。
+- 项目当前没有项目级 LICENSE，原创代码和资产保留所有权利；Orbitron 许可见
+  `THIRD_PARTY_NOTICES.md`。
 - .NET SDK 已安装；项目目标为 net9.0，可由本机更高版本 SDK 构建。
 - ComfyUI 便携版位于 `../comfyui/ComfyUI_windows_portable/`，默认端口 8188。
 - AVD 名为 `Dynamite_test`。adb root 不跨重启；Frida server 需要 root 和

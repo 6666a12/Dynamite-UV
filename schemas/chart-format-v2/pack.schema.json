@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pack.schema.json",
+  "title": "Dynamite UV Chart Pack v2",
+  "description": "Structural schema for a Dynamite UV v2 meta.json. Semantic and cross-file validation is additionally required by docs/chart-format-v2.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "formatVersion",
+    "id",
+    "revision",
+    "title",
+    "artist",
+    "charts"
+  ],
+  "properties": {
+    "format": {
+      "const": "dynamite-uv-pack"
+    },
+    "formatVersion": {
+      "const": 2
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "title": {
+      "$ref": "#/$defs/displayText"
+    },
+    "artist": {
+      "$ref": "#/$defs/displayText"
+    },
+    "audio": {
+      "$ref": "#/$defs/packagePath"
+    },
+    "cover": {
+      "$ref": "#/$defs/packagePath"
+    },
+    "preview": {
+      "$ref": "#/$defs/preview"
+    },
+    "charts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/chartEntry"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "not": {
+          "required": [
+            "audio"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "charts": {
+            "items": {
+              "required": [
+                "audio"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "displayText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001F\\u007F]+$"
+    },
+    "packagePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?:(?!\\.{1,2}(?:/|$))[^/\\\\:\\u0000]+)(?:/(?!\\.{1,2}(?:/|$))[^/\\\\:\\u0000]+)*$"
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "startSec",
+        "durationSec"
+      ],
+      "properties": {
+        "startSec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSec": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "difficultyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24,
+      "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001F\\u007F]+$"
+    },
+    "chartEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "difficulty",
+        "charters",
+        "file"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "difficulty": {
+          "enum": [
+            "casual",
+            "normal",
+            "hard",
+            "mega",
+            "giga",
+            "tech",
+            "custom"
+          ]
+        },
+        "difficultyKey": {
+          "$ref": "#/$defs/difficultyKey"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "unrated": {
+          "const": true
+        },
+        "charters": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/displayText"
+          }
+        },
+        "file": {
+          "$ref": "#/$defs/packagePath"
+        },
+        "audio": {
+          "$ref": "#/$defs/packagePath"
+        },
+        "preview": {
+          "$ref": "#/$defs/preview"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "difficulty": {
+                "const": "custom"
+              }
+            },
+            "required": [
+              "difficulty"
+            ]
+          },
+          "then": {
+            "required": [
+              "difficultyKey"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "difficultyKey"
+              ]
+            }
+          }
+        },
+        {
+          "oneOf": [
+            {
+              "required": [
+                "level"
+              ],
+              "not": {
+                "required": [
+                  "unrated"
+                ]
+              }
+            },
+            {
+              "required": [
+                "unrated"
+              ],
+              "not": {
+                "required": [
+                  "level"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

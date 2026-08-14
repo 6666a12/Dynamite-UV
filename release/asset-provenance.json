@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "policy": "DUX-Community release asset provenance",
+  "assets": [
+    {
+      "path": "client/assets/fonts/Orbitron.woff2",
+      "sha256": "c25a9f9da5d9f3db1bf2a01474722dc9b377675b7bbab6d0dfda6902794fd1ed",
+      "kind": "third-party-font",
+      "source": "https://github.com/google/fonts/tree/main/ofl/orbitron",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/orbitron/OFL-1.1.txt"
+    },
+    {
+      "path": "docs/ui-mock/fonts/Orbitron.woff2",
+      "sha256": "c25a9f9da5d9f3db1bf2a01474722dc9b377675b7bbab6d0dfda6902794fd1ed",
+      "kind": "third-party-font",
+      "source": "https://github.com/google/fonts/tree/main/ofl/orbitron",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/orbitron/OFL-1.1.txt"
+    },
+    {
+      "path": "client/assets/licenses/Orbitron-OFL-1.1.txt",
+      "sha256": "ab609b0e110d622435ff337cdf233288556e011bbf9bd0550be98846c0630819",
+      "kind": "third-party-license",
+      "source": "https://github.com/google/fonts/tree/main/ofl/orbitron",
+      "license": "SIL Open Font License 1.1"
+    },
+    {
+      "path": "client/assets/licenses/Godot-LICENSE.txt",
+      "sha256": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80",
+      "kind": "third-party-license",
+      "source": "https://github.com/godotengine/godot/tree/4.7",
+      "license": "MIT"
+    },
+    {
+      "path": "client/assets/licenses/DotNet-LICENSE.txt",
+      "sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+      "kind": "third-party-license",
+      "source": "https://github.com/dotnet/runtime/tree/v9.0.18",
+      "license": "MIT"
+    },
+    {
+      "path": "client/assets/licenses/DotNet-THIRD-PARTY-NOTICES.txt",
+      "sha256": "fa3e9d0a2c52476f04fe798d7dc4f6e7edb7b68a3d2f4d5f59a39bce957eedc8",
+      "kind": "third-party-notices",
+      "source": "https://github.com/dotnet/runtime/tree/v9.0.18"
+    },
+    {
+      "path": "client/assets/audio/hitsounds/HitSound_0001_GlassShard.wav",
+      "sha256": "13d3ef9b2940214bc6c9c14f614bb0de0232960af451f04b250bdccd46657130",
+      "kind": "project-generated-audio",
+      "generator": "tools/synth_hitsounds.py",
+      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "method": "Programmatic synthesis; no sampled source audio"
+    },
+    {
+      "path": "client/assets/audio/hitsounds/HitSound_0002_Keyboard.wav",
+      "sha256": "69d7323a542220b203ac58af8a7e0ade793e3ab7397ac60c45aaf884f9d2c93b",
+      "kind": "project-generated-audio",
+      "generator": "tools/synth_hitsounds.py",
+      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "method": "Programmatic synthesis; no sampled source audio"
+    },
+    {
+      "path": "client/assets/audio/hitsounds/HitSound_0003_Mechanic.wav",
+      "sha256": "ea77b3f134ca5ee16694c51f207e9284b4a9529140b8e669b9d2b74bf5959a14",
+      "kind": "project-generated-audio",
+      "generator": "tools/synth_hitsounds.py",
+      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "method": "Programmatic synthesis; no sampled source audio"
+    },
+    {
+      "path": "client/assets/audio/hitsounds/HitSound_0004_Metal.wav",
+      "sha256": "00294ee69383b5eb8fca1d7b688331d0a79096428ecca92b693b88cad5f0f3f6",
+      "kind": "project-generated-audio",
+      "generator": "tools/synth_hitsounds.py",
+      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "method": "Programmatic synthesis; no sampled source audio"
+    },
+    {
+      "path": "client/assets/audio/hitsounds/HitSound_0005_PistolTrigger.wav",
+      "sha256": "64d267ecc2b5bda04a2fb5f5ed84fe01a75716d5b88eb18aa296cc5814383ef2",
+      "kind": "project-generated-audio",
+      "generator": "tools/synth_hitsounds.py",
+      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "method": "Programmatic synthesis; no sampled source audio"
+    },
+    {
+      "path": "client/assets/audio/hitsounds/HitSound_0006_Polymer.wav",
+      "sha256": "a0679b06dcfded18677d4fe74358543ed0cca93b74cce84fd356af6c01ffb970",
+      "kind": "project-generated-audio",
+      "generator": "tools/synth_hitsounds.py",
+      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "method": "Programmatic synthesis; no sampled source audio"
+    },
+    {
+      "path": "client/assets/audio/hitsounds/HitSound_0007_Polymer2.wav",
+      "sha256": "58dc918b78d802e06ec2808afc504e36c8c5e7890f9349474cbe9ae6e815bf73",
+      "kind": "project-generated-audio",
+      "generator": "tools/synth_hitsounds.py",
+      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "method": "Programmatic synthesis; no sampled source audio"
+    },
+    {
+      "path": "docs/ui-mock/cover_placeholder_v1.png",
+      "sha256": "b4f80e77290c6c713d0cc9968e396efa7c4521cf251a6fdd96e979a68a2a3d62",
+      "kind": "project-placeholder",
+      "method": "Clean-room UI placeholder; documentation only"
+    }
+  ],
+  "excluded": [
+    {
+      "glob": "client/testdata/**",
+      "reason": "Internal-only development charts, audio and covers; never public"
+    },
+    {
+      "glob": "client/assets/covers/cover_style_*.png",
+      "reason": "Removed AI-generated prototype covers; community covers ship with chart packs"
+    },
+    {
+      "glob": "tools/**/*.jar",
+      "reason": "External tools are installed locally, never shipped"
+    },
+    {
+      "glob": "tools/**/*.keystore",
+      "reason": "Signing material is local and never shipped"
+    },
+    {
+      "glob": "tools/**/*.jks",
+      "reason": "Signing material is local and never shipped"
+    },
+    {
+      "glob": "tools/**/*.p12",
+      "reason": "Signing material is local and never shipped"
+    },
+    {
+      "glob": "tools/**/*.pfx",
+      "reason": "Signing material is local and never shipped"
+    },
+    {
+      "glob": "tools/**/*.pem",
+      "reason": "Signing material is local and never shipped"
+    },
+    {
+      "glob": "tools/**/*.key",
+      "reason": "Signing material is local and never shipped"
+    }
+  ]
+}

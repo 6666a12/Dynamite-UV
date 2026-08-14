@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "policy_id": "dux-community-apk-final-gate",
+  "policy_revision": "2026-08-14.1",
+  "identity": {
+    "label_resource": {
+      "config": "default",
+      "type": "string",
+      "name": "godot_project_name_string"
+    }
+  },
+  "modes": {
+    "public": {
+      "application_id": "org.duxcommunity.game",
+      "application_label": "DUX-Community",
+      "version_name": "0.1.2-dev",
+      "version_code": "4",
+      "debuggable": "false",
+      "required_custom_feature": "public_release",
+      "filename": "dux-community-public.apk",
+      "testdata_requirement": "forbid",
+      "required_entry_suffixes": [
+        "assets/licenses/Orbitron-OFL-1.1.txt",
+        "assets/licenses/Godot-LICENSE.txt",
+        "assets/licenses/DotNet-LICENSE.txt",
+        "assets/licenses/DotNet-THIRD-PARTY-NOTICES.txt"
+      ],
+      "required_entry_sha256": {
+        "assets/licenses/Orbitron-OFL-1.1.txt": "ab609b0e110d622435ff337cdf233288556e011bbf9bd0550be98846c0630819",
+        "assets/licenses/Godot-LICENSE.txt": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80",
+        "assets/licenses/DotNet-LICENSE.txt": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "assets/licenses/DotNet-THIRD-PARTY-NOTICES.txt": "fa3e9d0a2c52476f04fe798d7dc4f6e7edb7b68a3d2f4d5f59a39bce957eedc8"
+      },
+      "allowed_imported_payloads": {
+        "Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata": "eee9f0c2f86372270bb675f14054e5ef239eb3d9c08dfea21214c6f8078c40ba"
+      },
+      "required_nonempty_entry_suffixes": [
+        "project.binary",
+        "assets.sparsepck",
+        "scenes/main.tscn.remap",
+        "scenes/song_select.tscn.remap",
+        "scenes/gameplay.tscn.remap",
+        "scenes/settings.tscn.remap",
+        "shaders/note_surface.gdshader",
+        "assets/fonts/Orbitron.woff2.import",
+        ".godot/imported/Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata",
+        ".godot/mono/publish/arm64/DuxCommunity.deps.json",
+        ".godot/mono/publish/arm64/DuxCommunity.dll",
+        ".godot/mono/publish/arm64/DuxCommunity.runtimeconfig.json",
+        ".godot/mono/publish/arm64/DuxShared.dll",
+        ".godot/mono/publish/arm64/GodotSharp.dll",
+        ".godot/mono/publish/arm64/.dotnet-publish-manifest",
+        "lib/arm64-v8a/libgodot_android.so"
+      ],
+      "forbidden_entry_suffixes": [
+        ".pdb"
+      ],
+      "allowed_abis": [
+        "arm64-v8a"
+      ],
+      "signing": {
+        "require_valid": true,
+        "required_schemes": ["v2", "v3"],
+        "certificate_sha256_env": "DUX_PUBLIC_SIGNER_SHA256"
+      }
+    },
+    "internal": {
+      "application_id": "org.duxcommunity.game.internaltest",
+      "application_label": "DUX-Community Internal Test",
+      "version_name": "0.1.2-internal-testdata",
+      "version_code": "4",
+      "debuggable": "true",
+      "required_custom_feature": "internal_testdata",
+      "filename": "dux-community-internal-testdata.apk",
+      "testdata_requirement": "require",
+      "warning": "DO NOT DISTRIBUTE",
+      "signing": {
+        "require_valid": false,
+        "required_schemes": []
+      }
+    }
+  },
+  "content_rules": {
+    "testdata": {
+      "path_component": "testdata",
+      "quarantined_imported_payloads": [
+        "Audio_0129 - Dead Soul.wav-89a9275f237bc3fe5815e23f0a7f3a75.sample",
+        "hold_recovery_test.wav-87088a944133cf6d2e6f7b03222ae9b1.sample",
+        "Audio_0048 - MVURBD.wav-80ef34089747b124b0560e8da1204814.sample",
+        "Audio_0075 - Pillars of Ash.wav-c1300e7f7d3e9d5cdc2d4384600ca6fa.sample",
+        "Audio_0093 - Rain.wav-92a7e844bafea264a007ad7e1fa91bfc.sample",
+        "cover_placeholder_v1.png-054979ce948dae32179b4f080fa4f987.ctex",
+        "cover_style_navy_01.png-b8359c5e41425ad8a18a1043774003df.ctex",
+        "song_tablear.wav-51f928fa8ffdc4b0c30e755caf063f6e.sample",
+        "cover_style_purple_01.png-f77ce3de78614b12052a1c32302cff3c.ctex",
+        "song_test.wav-2df02f0eadb1e2f36bbf9ec3b666c4aa.sample",
+        "song_tablear.wav-9d01dbf3a3e9983a0e40f00a9ed164fb.sample",
+        "song_test.wav-341963a8c78c70c2bb1e5c2c93148be8.sample"
+      ]
+    },
+    "legacy_ai_cover": {
+      "resource_path_prefixes": [
+        "assets/covers/cover_style_navy_",
+        "assets/covers/cover_style_purple_"
+      ],
+      "quarantined_imported_payloads": [
+        "cover_style_navy_01.png-f22096edb0ad4919320ea93547e3ba52.ctex",
+        "cover_style_navy_02.png-adbe7e7cf03178e80b3547b92caee653.ctex",
+        "cover_style_navy_03.png-bf8f1a2b20a25432e6124895b7ba417a.ctex",
+        "cover_style_navy_04.png-d0a67aaa7afd7a1f7f29828d5fe0e5fc.ctex",
+        "cover_style_purple_01.png-7a1e791fff1975f3c76c1231c7665dc5.ctex",
+        "cover_style_purple_02.png-789e182ca9d5ce34af77926593c52e7f.ctex",
+        "cover_style_purple_03.png-d5a7fe58212840fda4c2b888655847e0.ctex",
+        "cover_style_purple_04.png-b60940d460a227d4a93ff77d54ac6cac.ctex"
+      ]
+    }
+  }
+}

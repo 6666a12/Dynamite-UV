@@ -13,7 +13,7 @@ public sealed class ChartDiff
 
 /// <summary>
 /// 谱面包：一个目录，含 meta.json + chart_<diff>.json + 音频 + 封面。
-/// 运行时扫描 user://charts/（玩家导入，优先）与 res://testdata/packs/（开发用）。
+/// 运行时扫描 user://charts/；编辑器和 Internal Testdata 构建也扫描 res://testdata/packs/。
 /// </summary>
 public sealed class ChartPack
 {
@@ -50,8 +50,13 @@ public sealed class ChartPack
     public static List<ChartPack> ScanAll()
     {
         var byId = new Dictionary<string, ChartPack>();
-        // 先 res://（开发用），后 user://（玩家导入可覆盖同 id）
-        foreach (var root in new[] { "res://testdata/packs", "user://charts" })
+        // 开发包先加载，玩家包可覆盖同 id；Public 构建完全不访问 res://testdata。
+        var allowBundledTestdata = OS.HasFeature("internal_testdata") ||
+            OS.HasFeature("editor") || OS.HasFeature("editor_runtime");
+        var roots = allowBundledTestdata
+            ? new[] { "res://testdata/packs", "user://charts" }
+            : new[] { "user://charts" };
+        foreach (var root in roots)
         {
             using var dir = DirAccess.Open(root);
             if (dir == null)

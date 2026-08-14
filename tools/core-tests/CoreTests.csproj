@@ -10,5 +10,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../shared/DuxShared.csproj" />
+    <None Include="Fixtures/synthetic_chart.json"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
