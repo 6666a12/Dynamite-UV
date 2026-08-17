@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DuxCommunity.Ui;
 using Godot;
 
 namespace DuxCommunity.Game;
@@ -14,6 +15,7 @@ public sealed class GameSettings
     public int MusicVolume { get; set; } = 80;
     public int HitVolume { get; set; } = 80;
     public int UiVolume { get; set; } = 80;
+    public UiMotionMode MotionMode { get; set; } = UiMotionMode.Full;
 
     public double FallSpeedMultiplier => FallSpeedLevel / 10.0;
 
@@ -24,6 +26,7 @@ public sealed class GameSettings
         MusicVolume = 80;
         HitVolume = 80;
         UiVolume = 80;
+        MotionMode = UiMotionMode.Full;
     }
 
     public void Load()
@@ -46,6 +49,7 @@ public sealed class GameSettings
                 MusicVolume = data.MusicVolume;
                 HitVolume = data.HitVolume;
                 UiVolume = data.UiVolume;
+                MotionMode = ParseMotionMode(data.MotionMode);
             }
         }
         catch (Exception e)
@@ -70,6 +74,7 @@ public sealed class GameSettings
                 MusicVolume = MusicVolume,
                 HitVolume = HitVolume,
                 UiVolume = UiVolume,
+                MotionMode = JsonSerializer.SerializeToElement(SerializeMotionMode(MotionMode)),
             }, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception e)
@@ -104,7 +109,29 @@ public sealed class GameSettings
         MusicVolume = Math.Clamp(MusicVolume, 0, 100);
         HitVolume = Math.Clamp(HitVolume, 0, 100);
         UiVolume = Math.Clamp(UiVolume, 0, 100);
+        if (!Enum.IsDefined(MotionMode))
+            MotionMode = UiMotionMode.Full;
     }
+
+    private static UiMotionMode ParseMotionMode(JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.String)
+            return UiMotionMode.Full;
+
+        return value.GetString() switch
+        {
+            "reduced" => UiMotionMode.Reduced,
+            "off" => UiMotionMode.Off,
+            _ => UiMotionMode.Full,
+        };
+    }
+
+    private static string SerializeMotionMode(UiMotionMode mode) => mode switch
+    {
+        UiMotionMode.Reduced => "reduced",
+        UiMotionMode.Off => "off",
+        _ => "full",
+    };
 
     private static float PercentToDb(int percent) =>
         percent <= 0 ? -80f : 20f * (float)Math.Log10(percent / 100.0);
@@ -116,5 +143,6 @@ public sealed class GameSettings
         [JsonPropertyName("musicVolume")] public int MusicVolume { get; set; } = 80;
         [JsonPropertyName("hitVolume")] public int HitVolume { get; set; } = 80;
         [JsonPropertyName("uiVolume")] public int UiVolume { get; set; } = 80;
+        [JsonPropertyName("motionMode")] public JsonElement MotionMode { get; set; }
     }
 }

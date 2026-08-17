@@ -81,6 +81,31 @@ public static class SustainJudgementRules
     public readonly record struct Settlement(
         JudgeUnit Unit, JudgeGrade Grade, HitTiming Timing);
 
+    /// <summary>A frozen D4-C Hold contact-loss interval.</summary>
+    public readonly record struct HoldContactLoss(
+        double LostAt, double GraceDuration, double Deadline);
+
+    /// <summary>
+    /// Freezes Hold grace at first contact loss. Later BPM changes must not move the deadline.
+    /// </summary>
+    public static HoldContactLoss BeginHoldContactLoss(
+        double lostAt, double bpmAtLoss, JudgeSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        if (!double.IsFinite(lostAt))
+            throw new ArgumentOutOfRangeException(nameof(lostAt));
+        var duration = settings.HoldContactGraceSeconds(bpmAtLoss);
+        return new HoldContactLoss(lostAt, duration, lostAt + duration);
+    }
+
+    /// <summary>D4-C settles at the tail or frozen deadline, whichever occurs first.</summary>
+    public static double HoldSettlementTime(double tailTime, HoldContactLoss loss) =>
+        Math.Min(tailTime, loss.Deadline);
+
+    /// <summary>Whether the frozen deadline permanently breaks the Hold before its tail.</summary>
+    public static bool ShouldBreakHold(double currentTime, double tailTime,
+        HoldContactLoss loss) => loss.Deadline < tailTime && currentTime >= loss.Deadline;
+
     /// <summary>
     /// Hold 头 Miss 后，立即将该 Hold 的所有剩余节点判为 Miss。
     /// 返回本次新结算的单元，供客户端延迟处理尚未到线的视觉。
@@ -446,7 +471,7 @@ public static class JudgePlan
 
                     case NoteType.HoldHead:
                     {
-                        var path = BuildSustainPath(n, byId, SustainKind.Hold);
+                        var path = BuildSustainPath(chart, n, byId, SustainKind.Hold);
                         units.Add(Unit(n, ScoreCategory.HoldStart, UnitKind.Input,
                             sustainHeadId: n.Id));
                         if (path != null)
@@ -472,7 +497,7 @@ public static class JudgePlan
 
                     case NoteType.MixerHead:
                     {
-                        var path = BuildSustainPath(n, byId, SustainKind.Mixer);
+                        var path = BuildSustainPath(chart, n, byId, SustainKind.Mixer);
                         units.Add(Unit(n, ScoreCategory.MixerStart, UnitKind.Input,
                             sustainHeadId: n.Id));
                         if (path != null)
@@ -518,8 +543,8 @@ public static class JudgePlan
     };
 
     /// <summary>沿 SubNoteId 构建时间有序的 sustain 路径（悬空/环容错）。</summary>
-    private static SustainPath? BuildSustainPath(Note head, Dictionary<int, Note> byId,
-        SustainKind kind)
+    private static SustainPath? BuildSustainPath(DuxShared.Chart.Chart chart, Note head,
+        Dictionary<int, Note> byId, SustainKind kind)
     {
         var nodes = new List<Note> { head };
         var next = head.SubNoteId;
@@ -540,15 +565,19 @@ public static class JudgePlan
             HeadId = head.Id,
             Track = head.Track,
             Nodes = nodes,
+            V2Evaluator = chart.V2Metadata?.PathsByRuntimeHeadId.GetValueOrDefault(head.Id),
+            V2BpmTimeline = chart.V2Metadata?.BpmTimeline,
         };
     }
 
     private static void AddHoldNodes(List<JudgeUnit> units, SustainPath path)
     {
-        // 头和尾分别由 HoldStart/HoldEnd 表示；这里只展开中间实际路径节点。
+        // v2 shape-only nodes remain in the path but produce no judgement unit.
         for (var i = 1; i < path.Nodes.Count - 1; i++)
         {
             var node = path.Nodes[i];
+            if (node.V2Metadata?.HoldJudge == false)
+                continue;
             units.Add(new JudgeUnit
             {
                 Time = node.Second,
@@ -564,6 +593,28 @@ public static class JudgePlan
     private static void AddMixerPoints(List<JudgeUnit> units,
         DuxShared.Chart.Chart chart, SustainPath path, double intervalBar)
     {
+        if (chart.V2Metadata is not null && path.Head.V2Metadata is not null)
+        {
+            var source = chart.V2Metadata.SourceChart.AllNotes
+                .Select(item => item.Note)
+                .OfType<DuxShared.Chart.V2.V2PathNote>()
+                .Single(note => string.Equals(note.Id,
+                    path.Head.V2Metadata.SourceId, StringComparison.Ordinal));
+            foreach (var exactTick in DuxShared.Chart.V2.V2MixerTicks.Enumerate(source))
+            {
+                units.Add(new JudgeUnit
+                {
+                    Time = chart.V2Metadata.BpmTimeline.ToSeconds(exactTick),
+                    Category = ScoreCategory.MixerHolding,
+                    Track = path.Track,
+                    NoteId = path.HeadId,
+                    Kind = UnitKind.HoldPoint,
+                    SustainHeadId = path.HeadId,
+                });
+            }
+            return;
+        }
+
         var durationBar = path.End.BarTime - path.Head.BarTime;
         if (durationBar <= 0.0 || intervalBar <= 0.0)
             return;

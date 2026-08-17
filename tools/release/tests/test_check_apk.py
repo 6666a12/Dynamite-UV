@@ -267,6 +267,18 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         self.assertIn(PUBLIC_IDENTITY["application_label"], completed.stdout)
         self.assertIn(PUBLIC_IDENTITY["version_name"], completed.stdout)
 
+    def test_clean_public_accepts_non_utf8_binary_entries(self) -> None:
+        apk = self.make_apk(
+            "dux-community-public.apk",
+            {
+                "classes.dex": b"\xff\xfe\x00\x80synthetic-dex",
+                "lib/arm64-v8a/libgodot_android.so": b"\x7fELF\xff\x00\x80",
+            },
+        )
+        completed = self.run_gate("public", apk)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertNotIn("cannot parse import metadata", completed.stderr)
+
     def test_public_rejects_nested_testdata_component(self) -> None:
         apk = self.make_apk(
             "dux-community-public.apk",

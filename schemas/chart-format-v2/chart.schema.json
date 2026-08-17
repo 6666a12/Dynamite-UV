@@ -161,14 +161,11 @@
       }
     },
     "center": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 5
+      "type": "number"
     },
     "width": {
       "type": "number",
-      "exclusiveMinimum": 0,
-      "maximum": 5
+      "exclusiveMinimum": 0
     },
     "normalNote": {
       "type": "object",
@@ -359,6 +356,9 @@
         },
         {
           "$ref": "#/$defs/holdNote"
+        },
+        {
+          "$ref": "#/$defs/mixerNote"
         }
       ]
     }

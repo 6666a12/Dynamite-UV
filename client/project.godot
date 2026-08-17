@@ -15,6 +15,10 @@ config/description="Dynamix-style community rhythm game (clean-room reimplementa
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Mobile")
 
+[autoload]
+
+TransitionDirector="*res://scripts/ui/TransitionDirector.cs"
+
 [display]
 
 window/size/viewport_width=1920

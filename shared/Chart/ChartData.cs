@@ -45,6 +45,12 @@ public sealed class Note
     /// <summary>Baked_SyncNote：非零 ⟺ 同 BarTime 他轨有按下型 note（T1/T3/T6），
     /// 原版渲染为金色描边（金框青芯，视频实证，规格书 §4）。</summary>
     public int SyncNote { get; init; }
+
+    /// <summary>
+    /// Optional v2 source metadata. Legacy loaders leave this null; the v2 adapter uses it to retain
+    /// exact time, stable string identity, path curve, and Hold shape-only judgement state.
+    /// </summary>
+    public V2.V2RuntimeNoteMetadata? V2Metadata { get; init; }
 }
 
 /// <summary>BPM 时间线段（规格书 §3.1）。</summary>
@@ -72,6 +78,12 @@ public sealed class Chart
     /// <b>相邻事件间线性插值</b>（视频逐帧验证，非阶跃）。
     /// 仅影响视觉下落速度，命中秒不变。</summary>
     public IReadOnlyList<(double BarTime, double Mult)> DropSpeeds { get; init; } = [];
+
+    /// <summary>
+    /// Optional v2 chart metadata and exact evaluators. Legacy charts leave this null, preserving
+    /// the established loader and judge-plan API.
+    /// </summary>
+    public V2.V2RuntimeChartMetadata? V2Metadata { get; init; }
 
     public IEnumerable<Note> AllNotes =>
         NotesLeft.Concat(NotesCenter).Concat(NotesRight);

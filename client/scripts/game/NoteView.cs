@@ -93,10 +93,11 @@ public partial class NoteView : Node2D
 				AddSurface(view, sizePx + glowExpansion, glow, vertical, 0f, 0);
 			}
 
-			if (goldFrame)
-			{
-				// Baked_SyncNote≠0：多押金框只用于 Tap。
-				AddSurface(view, sizePx + new Vector2(8f, 8f), GoldPalette,
+				if (goldFrame)
+				{
+					// Runtime-derived cross-track press chord accent; never trust Baked_SyncNote.
+					AddSurface(view, sizePx + new Vector2(8f, 8f), GoldPalette,
+
 					vertical, 0.35f, 0);
 			}
 			AddSurface(view, sizePx, palette, vertical,

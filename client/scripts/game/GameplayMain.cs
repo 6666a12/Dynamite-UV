@@ -2,7 +2,9 @@ using Godot;
 using DuxCommunity.Audio;
 using DuxCommunity.Ui;
 using DuxShared.Chart;
+using DuxShared.Chart.V2;
 using DuxShared.Judge;
+using DuxShared.Score;
 
 namespace DuxCommunity.Game;
 
@@ -51,11 +53,9 @@ public partial class GameplayMain : Node2D
 	// 侧轨条的**视觉长度**单位（≠ 位置单位）：谱面确认视频实测 W=2.0 → 长 ≈204px
 	// @1440 ≈ 102px/W（video-geometry-analysis §4/§8，单侧样本但与用户观感一致）。
 	private const float SideNoteLenUnitPx = 102f;
-	// 下落使用固定二维映射，不做透视投影。Lv10 在 150 BPM、DropSpeed=1 时仍等价于
-	// 1026px/s；内部换算为每 BarTime 的像素距离，以适配 BarTime 变速模型。
-	private const float StandardBpm = 150f;
+	// 下落使用固定二维映射，不做透视投影。Lv10、DropSpeed=1 时恒为
+	// 150 BPM 基准的 1026px/s，不再随谱面 BPM 改变。
 	private const float BaseFallSpeedPx = 1026f;
-	private const float BaseFallDistancePxPerBar = BaseFallSpeedPx * 240f / StandardBpm;
 	private const float TravelPx = 790f;
 	private const double PostHitViewLifetimeSec = 0.77;
 	// 音符视觉宽 = Width × 1 Position 单位 × NoteVisualScale（用户拍板条宽压到 95%；
@@ -72,33 +72,18 @@ public partial class GameplayMain : Node2D
 	private const double CommunityTouchWidth = 0.40;
 	private const int MousePointerId = -1;
 	private static readonly Rect2 PauseButtonRect = new(900f, 60f, 120f, 64f);
-
-	private static readonly Color ColBackground = new(0.08f, 0.08f, 0.12f);
-	private static readonly Color ColJudgeLine = new(0.9f, 0.9f, 0.9f);
-	// 用户拍板色板（§4 权威映射）：1 蓝 Tap、2 绿 Drag、3/4 琥珀 Hold（视频实证）、
-	// 5 蓝 EX-Tap、6/7 粉 Mixer、8 地雷、9 小节线（暗灰细线）；Baked_SyncNote≠0 金色描边（仅 T1）。
-	private static readonly Color ColTap = new(0.30f, 0.75f, 1.00f);
-	private static readonly Color ColExTap = new(0.60f, 0.88f, 1.00f);
-	private static readonly Color ColDrag = new(0.35f, 1.00f, 0.55f);
-	private static readonly Color ColHold = new(1.00f, 0.72f, 0.30f); // 琥珀（两段视频实证；曾按用户类型表用红，视频对照后用户批准改琥珀）
-	private static readonly Color ColMine = new(0.50f, 0.16f, 0.20f);
-	private static readonly Color ColMixer = new(1.00f, 0.45f, 0.72f);
-	private static readonly Color ColBarLine = new(0.55f, 0.55f, 0.62f, 0.45f);
-	private static readonly Color ColSyncGold = new(1.00f, 0.82f, 0.30f);
-	private static readonly Color ColMixerBar = new(0.9f, 0.3f, 0.55f);
+	private static readonly Color JudgeLineColor = new(0.9f, 0.9f, 0.9f);
 
 	private DuxShared.Chart.Chart _chart = null!;
+	private LoadedChart _loaded = null!;
 	private JudgePlan.Plan _plan = null!;
 	private JudgeEngine _engine = null!;
-	private SongClock _clock = null!;
-	private AudioStreamPlayer _player = null!;
+	private SongPlayback _playback = null!;
+	private V2IntegrationVerification? _verification;
+	private V2IntegrationTrace? _trace;
 
-	// 当前谱面包信息（成绩写回 / 结算展示用）
-	private string _packId = "tablear";
-	private string _diffKey = "giga";
-	private int _diffLevel = 15;
-	private string _songTitle = "Tablear";
-	private string? _coverPath;
+	// Current pack/chart presentation and score identity stay immutable after startup.
+	private GameplayRunContext _run = GameplayRunContext.InternalFallback;
 
 	private List<Note> _notesByTime = new();
 	private int _nextSpawn;
@@ -107,11 +92,12 @@ public partial class GameplayMain : Node2D
 	private readonly HashSet<int> _holdTailIds = new();
 	private readonly Dictionary<int, (JudgeUnit Unit, JudgeGrade Grade)> _deferredNoteViews = new();
 
-	// 同一帧所有 note 都使用当前 BarTime 的流速：
-	// visualDistance = (noteBar - currentBar) * speed(currentBar) * playerScale。
+	// 同一帧所有 note 都使用当前 BarTime 采样的流速，但移动距离以音频秒计算：
+	// visualDistancePx = (noteSecond - currentSecond) * speed(currentBar)
+	//     * playerScale * BaseFallSpeedPx。
 	// 该距离可随流速变化而增加，因此已生成 note 必须允许回退出屏并继续保留。
 	private DropSpeedMap _dropSpeedMap = DropSpeedMap.Empty;
-	private float _fallDistancePxPerBar = BaseFallDistancePxPerBar;
+	private float _fallSpeedMultiplier = 1f;
 
 	// 链/长条连接体（SubNoteId 链接的可视化）：梯形面板段。Hold/Chain 为刚性
 	// 形状整体下落，过线部分被判定线裁剪（连续吞噬），见 UpdateViews/ClipToLine
@@ -151,6 +137,7 @@ public partial class GameplayMain : Node2D
 		public double LastContactUpdateTime;
 		public double LostContactSecond;
 		public double? ContactLostAt;
+		public double? GraceDeadline;
 		public bool SliderInitialized;
 		public double SliderPosition;
 		public NoteView? MixerHeadView;
@@ -160,12 +147,16 @@ public partial class GameplayMain : Node2D
 	private readonly Dictionary<int, ActivePointer> _activePointers = new();
 	private readonly HashSet<int> _ignoredTouchIds = new();
 	private readonly List<TouchSample> _frameTouchSamples = new();
+	private readonly List<TouchSample> _frameStartTouchSamples = new();
+	private readonly List<PendingPointerInput> _framePointerInputs = new();
 	private readonly InputTimeGroupGate _inputTimeGroupGate = new();
 	private readonly Dictionary<int, SustainRuntime> _sustainStates = new();
-	private bool _auto;
-	private bool _finished;
-	private bool _paused;
-	private double _nextLogSec = 10.0;
+		private bool _auto;
+		private bool _finished;
+		private bool _paused;
+		private bool _playbackStarted;
+		private double _startSecond;
+		private double _nextLogSec = 10.0;
 
 	// ---- HUD / 菜单节点 ----
 	private Node2D _stageRoot = null!;
@@ -183,10 +174,31 @@ public partial class GameplayMain : Node2D
 	private Label _comboSub = null!;
 	private Label _judgeFlash = null!;
 	private CutButton _pauseBtn = null!;
-	// 暂停菜单
+	// 暂停菜单展示节点（命名保持 presentation 前缀，避免与场景导航状态混用）
 	private Control _pauseLayer = null!;
-	// 结算
+	private ColorRect _presentationPauseBlocker = null!;
+	private Control _presentationPauseContent = null!;
+	private CutButton _presentationPauseResume = null!;
+	private CutButton _presentationPauseRetry = null!;
+	private CutButton _presentationPauseQuit = null!;
+	private Tween? _presentationPauseTween;
+	private bool _presentationPauseMotionInFlight;
+	// 结算展示节点
 	private Control _resultLayer = null!;
+	private Control _presentationResultContent = null!;
+	private Control _presentationResultGradeGroup = null!;
+	private Control _presentationResultScoreGroup = null!;
+	private Control _presentationResultStatsGroup = null!;
+	private Control _presentationResultButtonsGroup = null!;
+	private Label _presentationResultGradeEcho = null!;
+	private Label _presentationResultGradeEchoPink = null!;
+	private ColorRect _presentationResultPrelock = null!;
+	private ColorRect _presentationResultSignalScan = null!;
+	private CutButton _presentationResultBack = null!;
+	private CutButton _presentationResultNext = null!;
+	private CutButton _presentationResultRetry = null!;
+	private Tween? _presentationResultTween;
+	private bool _presentationResultMotionInFlight;
 	private TextureRect _resultCover = null!;
 	private Label _gradeLabel = null!;
 	private Control _newRecChip = null!;
@@ -205,37 +217,59 @@ public partial class GameplayMain : Node2D
 	{
 		GameSession.EnsureInit();
 
-		// 谱面来源：GameSession 选中包；编辑器/Internal 构建才允许回退 testdata。
-		string chartPath, songPath;
-		if (GameSession.SelectedPack is { } pack && GameSession.SelectedDiff is { } diff)
+		// Chart source: editor/internal verification override, selected package, or internal fallback.
+		string songPath;
+		_verification = V2IntegrationVerification.FromEnvironment();
+		if (_verification is { } verification)
 		{
-			chartPath = pack.ChartPathFor(diff);
-			songPath = pack.AudioPath;
-			_packId = pack.Id;
-			_diffKey = diff.Diff;
-			_diffLevel = diff.Level;
-			_songTitle = pack.Title;
-			_coverPath = pack.CoverPath;
+			var selection = verification.Load();
+			ApplyLoadedSelection(selection.Pack, selection.Diff, selection.Loaded);
+			_loaded = selection.Loaded;
+			songPath = _loaded.ResolvedAudioPath;
+			_auto = verification.Auto;
+		}
+		else if (GameSession.CurrentSelection is { } selection)
+		{
+			var pack = selection.Pack;
+			var diff = selection.Diff;
+			_loaded = selection.LoadedChart ?? pack.LoadChart(diff);
+			GameSession.CommitSelection(pack, diff, _loaded);
+			ApplyLoadedSelection(pack, diff, _loaded);
+			songPath = _loaded.ResolvedAudioPath;
 			_auto = false;
 		}
-		else if (OS.HasFeature("internal_testdata") || OS.HasFeature("editor") ||
-			OS.HasFeature("editor_runtime"))
+		else if (ChartPack.IsEditorOrInternal)
 		{
-			chartPath = FallbackChartPath;
-			songPath = FallbackSongPath;
+			var chart = DynamixChartLoader.Load(
+				Godot.FileAccess.GetFileAsString(FallbackChartPath));
+			var fallbackPreset = V2Integration.PresetFor(_run.LegacyScoreKey);
+			var fallbackPlan = JudgePlan.Build(chart, JudgeSettings.ForPreset(fallbackPreset));
+			_loaded = new LoadedChart
+			{
+				RuntimeChart = chart,
+				PackId = _run.PackId,
+				ChartId = _run.ChartId,
+				ResolvedAudioPath = FallbackSongPath,
+				NoteCount = fallbackPlan.HeadlineUnitCount,
+				DurationSec = fallbackPlan.EndTime + 2.0,
+				Preset = fallbackPreset,
+				SyncAccentRuntimeIds = V2Integration.DeriveLegacySyncAccents(chart),
+			};
+			songPath = _loaded.ResolvedAudioPath;
 			_auto = true; // 编辑器/Internal 演示默认 AUTO（F1 可切回手动）
 		}
 		else
 		{
 			GD.PushError("Public build entered gameplay without a selected chart pack.");
-			GetTree().ChangeSceneToFile("res://scenes/song_select.tscn");
+			TransitionDirector.ReportSceneReady(() =>
+				TransitionDirector.Navigate(UiRoutes.SongSelect, TransitionKind.Back));
 			return;
 		}
 
 		BuildStage();
 
-		_chart = DynamixChartLoader.Load(Godot.FileAccess.GetFileAsString(chartPath));
-		var preset = PresetForDifficulty(_diffKey);
+		_chart = _loaded.RuntimeChart;
+		var preset = _loaded.Preset;
 		_plan = JudgePlan.Build(_chart, JudgeSettings.ForPreset(preset));
 		_engine = new JudgeEngine(preset, _plan.HeadlineUnitCount);
 		foreach (var path in _plan.Sustains.Values)
@@ -248,8 +282,7 @@ public partial class GameplayMain : Node2D
 			if (path.Kind == SustainKind.Hold)
 				_holdTailIds.Add(path.End.Id);
 		}
-		_fallDistancePxPerBar = BaseFallDistancePxPerBar *
-			(float)GameSession.Settings.FallSpeedMultiplier;
+		_fallSpeedMultiplier = (float)GameSession.Settings.FallSpeedMultiplier;
 		_notesByTime = _chart.AllNotes.OrderBy(n => n.Second).ToList();
 		_noteById = _notesByTime.ToDictionary(n => n.Id);
 		_dropSpeedMap = new DropSpeedMap(_chart.DropSpeeds);
@@ -257,43 +290,81 @@ public partial class GameplayMain : Node2D
 				 $"units={_plan.Units.Count} headline={_plan.HeadlineUnitCount} " +
 				 $"theoreticalMax={_plan.TheoreticalMax} speed={GameSession.Settings.FallSpeedLevel}");
 
-		_player = new AudioStreamPlayer
-		{
-			Stream = Res.LoadAudio(songPath),
-			Bus = "Music",
-		};
-		AddChild(_player);
-		_clock = new SongClock();
-		_clock.Attach(_player);
-		_clock.UserOffsetMs = GameSession.Settings.TimingOffsetMs;
-		AddChild(_clock);
+		_playback = new SongPlayback(this, songPath, GameSession.Settings.TimingOffsetMs,
+			_verification);
 		// 调试：DUX_START_SEC=起始秒（用于与录屏做同刻对比截图）
-		var startSec = 0.0;
+		_startSecond = 0.0;
 		if (double.TryParse(System.Environment.GetEnvironmentVariable("DUX_START_SEC"),
 				out var envStart) && envStart > 0)
-			startSec = envStart;
-		_clock.Play(startSec);
+			_startSecond = envStart;
+		_trace = _verification?.CreateTrace(_loaded);
+		if (_verification is not null)
+		{
+			StartPlayback();
+			_verification.SignalReady();
+		}
+			else
+			{
+				PrepareGameplayEntryPresentation();
+				TransitionDirector.ReportSceneReady(
+					ApplyGameplayEntryPresentation,
+					StartPlayback);
+			}
 
+			GD.Print($"identity pack={_run.PackId} chart={_run.ChartId} " +
+			$"ruleset={_run.RulesetId ?? "legacy-direct"} digest={_run.GameplayDigest ?? "none"}");
 		RefreshTitleTag();
+	}
+
+	private void ApplyLoadedSelection(ChartPack pack, ChartDiff diff, LoadedChart loaded) =>
+		_run = GameplayRunContext.FromSelection(pack, diff, loaded);
+
+	private void StartPlayback()
+	{
+		if (_playbackStarted || _finished || !IsInsideTree())
+			return;
+		_playbackStarted = true;
+		_playback.Play(_startSecond);
+	}
+
+	public override void _ExitTree()
+	{
+		_trace?.Dispose();
+		_trace = null;
 	}
 
 	public override void _Process(double delta)
 	{
-		if (_finished || _paused)
+		if (!_playbackStarted || _finished || _paused)
 		{
 			_pendingPointerInputs.Clear();
 			return;
 		}
-		var t = _clock.GetSongTime();
+		if (_verification is { FixedClockEnabled: true } verification &&
+			!verification.CanAdvance)
+		{
+			_pendingPointerInputs.Clear();
+			return;
+		}
+		_playback.AdvanceFixedFrame();
+		var t = _playback.GetSongTime();
 		var currentBar = CurrentBarAt(t);
 
-		SpawnNotes(currentBar);
+		// Frame order is a behavior contract. Input snapshots, sustain updates, sweeping, mixer
+		// finalization and the trace write must remain in this exact order during refactoring.
+		SpawnNotes(t, currentBar);
 		UpdateViews(t, currentBar, delta);
 		FlushPendingInputs(t);
 		UpdateSustainStates(t);
 		SweepJudges(t);
 		FinalizeEndedMixers(t);
 		UpdateHud(t);
+		_trace?.Write(t, currentBar, _active, _plan, _engine);
+		if (_verification?.CompleteFrame() == true)
+		{
+			GetTree().Quit();
+			return;
+		}
 
 		if (t >= _nextLogSec) // 周期性日志，便于 headless 验证判定在跑
 		{
@@ -306,14 +377,14 @@ public partial class GameplayMain : Node2D
 		// 结束检测：时间超过谱面末尾 +2s，或音频流自然播完。
 		// 注意：流播完后 GetPlaybackPosition 归零，t 塌缩，不能用 t 做前提——
 		// 用时钟自身的 IsPlaying（Play 后恒 true 直到 Pause/Seek）判断"确实在播"。
-		var audioEnded = !_clock.ManualFallback && _clock.IsPlaying && !_player.Playing;
+		var audioEnded = _playback.HasNaturallyEnded;
 		if (t > _plan.EndTime + 2.0 || audioEnded)
 			ShowResults();
 	}
 
 	public override void _Input(InputEvent e)
 	{
-		if (_finished || _paused)
+		if (!_playbackStarted || _finished || _paused || TransitionDirector.IsBusy)
 			return;
 		if (e is InputEventScreenTouch touch)
 		{
@@ -339,7 +410,8 @@ public partial class GameplayMain : Node2D
 
 	public override void _UnhandledInput(InputEvent e)
 	{
-		if (_finished) return;
+		if (!_playbackStarted || _finished || TransitionDirector.IsBusy)
+			return;
 
 		if (e is InputEventKey key && key.Pressed && !key.Echo)
 		{
@@ -357,7 +429,7 @@ public partial class GameplayMain : Node2D
 			}
 			if (key.Keycode == Key.F12) // 调试：跳到谱尾前 3s，快速验证结算
 			{
-				_clock.Seek(Math.Max(0.0, _plan.EndTime - 3.0));
+				_playback.Seek(Math.Max(0.0, _plan.EndTime - 3.0));
 				return;
 			}
 		}
@@ -400,7 +472,7 @@ public partial class GameplayMain : Node2D
 		}
 
 		var track = RegionOf(pos);
-		var t = _clock.GetSongTime();
+		var t = _playback.GetSongTime();
 		_pendingPointerInputs.Add(new PendingPointerInput(
 			pointerId, track, TrackPositionOf(track, pos), t, action));
 	}
@@ -422,14 +494,19 @@ public partial class GameplayMain : Node2D
 	private void FlushPendingInputs(double frameTime)
 	{
 		_frameTouchSamples.Clear();
+		_frameStartTouchSamples.Clear();
+		_framePointerInputs.Clear();
 		var framePresses = new List<(TouchSample Touch, double Time)>();
 		var frameReleases = new List<(ActivePointer Pointer, double Time)>();
 		foreach (var pointer in _activePointers.Values)
 		{
 			pointer.Phase = ContactPhase.Stationary;
-			_frameTouchSamples.Add(new TouchSample(
-				pointer.Id, pointer.Track, pointer.Position, pointer.Phase));
+			var sample = new TouchSample(
+				pointer.Id, pointer.Track, pointer.Position, pointer.Phase);
+			_frameTouchSamples.Add(sample);
+			_frameStartTouchSamples.Add(sample);
 		}
+		_framePointerInputs.AddRange(_pendingPointerInputs);
 
 		// 先按到达顺序更新触点；press 判定推迟到完整帧快照形成以后，确保
 		// Tap/Drag/Mine 共用同一个目标时间仲裁，而不是依赖 Godot 事件顺序。
@@ -653,6 +730,7 @@ public partial class GameplayMain : Node2D
 		state.LastContactUpdateTime = Math.Max(state.Path.StartTime, resolvedTime);
 		state.LostContactSecond = 0.0;
 		state.ContactLostAt = null;
+		state.GraceDeadline = null;
 		if (state.Path.Kind == SustainKind.Hold)
 		{
 			state.Holding = grade != JudgeGrade.Miss;
@@ -708,20 +786,39 @@ public partial class GameplayMain : Node2D
 		{
 			state.LostContactSecond = 0.0;
 			state.ContactLostAt = null;
+			state.GraceDeadline = null;
 		}
 		else
 		{
-			state.ContactLostAt ??= from;
+			if (state.ContactLostAt is null)
+			{
+				var lostAt = from;
+				var loss = SustainJudgementRules.BeginHoldContactLoss(
+					lostAt, _chart.BpmAtSeconds(lostAt), _engine.Settings);
+				state.ContactLostAt = loss.LostAt;
+				state.GraceDeadline = loss.Deadline;
+			}
 			state.LostContactSecond = Math.Max(0.0,
 				activeUntil - state.ContactLostAt.Value);
 		}
 
 		state.LastContactUpdateTime = activeUntil;
-		var grace = _engine.Settings.HoldContactGraceSeconds(
-			_chart.BpmAtSeconds(activeUntil));
-		if (state.LostContactSecond > grace)
+		if (state.ContactLostAt is { } lost && state.GraceDeadline is { } deadline)
 		{
-			BreakHold(state, state.ContactLostAt ?? activeUntil);
+			var loss = new SustainJudgementRules.HoldContactLoss(
+				lost, deadline - lost, deadline);
+			var settlementTime = SustainJudgementRules.HoldSettlementTime(
+				state.Path.EndTime, loss);
+			if (SustainJudgementRules.ShouldBreakHold(
+				activeUntil, state.Path.EndTime, loss))
+			{
+				BreakHold(state, lost);
+			}
+			else if (settlementTime == state.Path.EndTime &&
+				activeUntil >= settlementTime)
+			{
+				SettleReleasedHold(state, lost);
+			}
 		}
 	}
 
@@ -793,7 +890,7 @@ public partial class GameplayMain : Node2D
 		if (state.MixerHeadView == null)
 		{
 			state.MixerHeadView = NoteView.Create(state.Path.Head,
-				SizeFor(state.Path.Head), ColMixer);
+				SizeFor(state.Path.Head), NoteVisualSpec.Mixer);
 			state.MixerHeadView.Name = $"MixerSlider_{state.Path.HeadId}";
 			state.MixerHeadView.ZIndex = 2;
 			_noteRoot.AddChild(state.MixerHeadView);
@@ -826,9 +923,7 @@ public partial class GameplayMain : Node2D
 	private void UpdateSustainEffect(SustainRuntime state, bool connected,
 		NoteBounds bounds, double position)
 	{
-		// 当前素材方案只管理侧轨 Mixer；Hold 三轨共用同一份旋转后的效果。
-		if (state.Path.Kind == SustainKind.Mixer && state.Path.Track == Track.Center)
-			connected = false;
+		// Hold and Mixer contact effects are available on all three tracks.
 		if (!connected)
 		{
 			ReleaseSustainEffect(state);
@@ -842,7 +937,7 @@ public partial class GameplayMain : Node2D
 				Name = $"{state.Path.Kind}Contact_{state.Path.HeadId}",
 				Kind = state.Path.Kind == SustainKind.Hold
 					? SustainEffectKind.Hold : SustainEffectKind.Mixer,
-				Accent = state.Path.Kind == SustainKind.Hold ? ColHold : ColMixer,
+				Accent = state.Path.Kind == SustainKind.Hold ? NoteVisualSpec.Hold : NoteVisualSpec.Mixer,
 				Rotation = state.Path.Track == Track.Center ? 0f : Mathf.Pi * 0.5f,
 				ZIndex = 4,
 			};
@@ -867,11 +962,17 @@ public partial class GameplayMain : Node2D
 	}
 
 	private TouchSample? FindNearestTouch(Track track, double anchor,
-		NoteBounds? requiredBounds = null, bool expandByTouchWidth = true)
+		NoteBounds? requiredBounds = null, bool expandByTouchWidth = true) =>
+		FindNearestTouchIn(_frameTouchSamples, track, anchor,
+			requiredBounds, expandByTouchWidth);
+
+	private static TouchSample? FindNearestTouchIn(IEnumerable<TouchSample> samples,
+		Track track, double anchor, NoteBounds? requiredBounds = null,
+		bool expandByTouchWidth = true)
 	{
 		TouchSample? best = null;
 		var bestDistance = double.MaxValue;
-		foreach (var touch in _frameTouchSamples)
+		foreach (var touch in samples)
 		{
 			if (touch.Track != track)
 				continue;
@@ -887,6 +988,37 @@ public partial class GameplayMain : Node2D
 			}
 		}
 		return best;
+	}
+
+	private bool MixerConnectedAt(SustainRuntime state, double tickTime, NoteBounds bounds)
+	{
+		var samples = _frameStartTouchSamples.ToDictionary(sample => sample.Id);
+		foreach (var input in _framePointerInputs)
+		{
+			if (input.Time > tickTime)
+				continue;
+			switch (input.Action)
+			{
+				case PointerAction.Press:
+					samples[input.Id] = new TouchSample(input.Id, input.Track,
+						input.Position, ContactPhase.Began);
+					break;
+				case PointerAction.Move:
+				{
+					var phase = samples.TryGetValue(input.Id, out var current) &&
+						current.Phase == ContactPhase.Began
+						? ContactPhase.Began : ContactPhase.Moved;
+					samples[input.Id] = new TouchSample(input.Id, input.Track,
+						input.Position, phase);
+					break;
+				}
+				case PointerAction.Release:
+					samples.Remove(input.Id);
+					break;
+			}
+		}
+		return FindNearestTouchIn(samples.Values, state.Path.Track,
+			bounds.Center, bounds, expandByTouchWidth: true).HasValue;
 	}
 
 	private void BreakHold(SustainRuntime state, double releaseTime)
@@ -1088,7 +1220,8 @@ public partial class GameplayMain : Node2D
 			if (!state.StartResolved)
 				return;
 			unit.Judged = true;
-			if (_auto || (state.StartResolved && state.Holding && !state.Broken))
+			if (_auto || (state.StartResolved && !state.Broken &&
+				(state.Holding || state.ContactLostAt is not null)))
 				ApplyUnit(unit, JudgeGrade.Prefect, JudgeResolution.Prefect);
 			else
 				ApplyUnit(unit, JudgeGrade.Miss, JudgeResolution.AutoMiss);
@@ -1096,9 +1229,10 @@ public partial class GameplayMain : Node2D
 		}
 
 		unit.Judged = true;
-		var ok = _auto || state.Holding;
-		ApplyUnit(unit, ok ? JudgeGrade.Prefect : JudgeGrade.Miss,
-			ok ? JudgeResolution.Prefect : JudgeResolution.AutoMiss);
+		var tickBounds = state.Path.BoundsAt(unit.Time);
+		var connectedAtTick = _auto || MixerConnectedAt(state, unit.Time, tickBounds);
+		ApplyUnit(unit, connectedAtTick ? JudgeGrade.Prefect : JudgeGrade.Miss,
+			connectedAtTick ? JudgeResolution.Prefect : JudgeResolution.AutoMiss);
 	}
 
 	private void ResolveHoldEnd(JudgeUnit unit, double t)
@@ -1135,7 +1269,7 @@ public partial class GameplayMain : Node2D
 				if (grade != JudgeGrade.Miss)
 				{
 					headView.RestoreHoldContact();
-					headView.MarkJudged(ColHold);
+					headView.MarkJudged(NoteVisualSpec.Hold);
 				}
 				else
 					headView.CommitHoldMissFallthrough();
@@ -1155,21 +1289,22 @@ public partial class GameplayMain : Node2D
 
 	// ---- 音符生成与移动 ----
 
-	private void SpawnNotes(double currentBar)
+	private void SpawnNotes(double t, double currentBar)
 	{
 		while (_nextSpawn < _notesByTime.Count)
 		{
 			var peek = _notesByTime[_nextSpawn];
 			// 侧轨流速 75% 但行程不变 → 生成提前量更短（SideLeadPx），晚些生成
 			var threshold = peek.Track == Track.Center ? TravelPx : SideLeadPx;
-			if (VisualDistanceFor(peek, currentBar) > threshold)
+			if (VisualDistanceFor(peek, t, currentBar) > threshold)
 				break;
 			var n = _notesByTime[_nextSpawn++];
 			if (ShouldRenderStaticNote(n))
 			{
-				var view = NoteView.Create(n, SizeFor(n), ColorFor(n),
-					n.SyncNote != 0 && n.Type == NoteType.Tap); // 金框只在 Tap（用户拍板）
-				view.Position = PositionFor(n, currentBar);
+					var view = NoteView.Create(n, SizeFor(n), ColorFor(n),
+						_loaded.SyncAccentRuntimeIds.Contains(n.Id));
+
+				view.Position = PositionFor(n, t, currentBar);
 				view.SetDepthAlpha(n.Track == Track.Center ? TopFadeAlpha(view.Position.Y) : 1f);
 				_noteRoot.AddChild(view);
 				_viewByNoteId[n.Id] = view;
@@ -1233,7 +1368,7 @@ public partial class GameplayMain : Node2D
 			if (!v.IsResolved && !v.IsMissFalling &&
 				UsesOrdinaryMissFallthrough(v.Model.Type))
 			{
-				var remaining = VisualDistanceFor(v.Model, currentBar);
+				var remaining = VisualDistanceFor(v.Model, t, currentBar);
 				if (remaining < 0f)
 				{
 					v.BeginMissFallthrough(
@@ -1265,7 +1400,7 @@ public partial class GameplayMain : Node2D
 				? PositionPastLine(v.Model, v.MissDistancePx)
 				: v.IsLineAnchored
 					? PositionAt(v.Model, 0f)
-					: PositionForActiveView(v.Model, currentBar);
+					: PositionForActiveView(v.Model, t, currentBar);
 			v.SetDepthAlpha(v.IsMissFalling || v.IsRecoverableHoldFalling ||
 				v.Model.Track != Track.Center
 				? 1f : TopFadeAlpha(v.Position.Y));
@@ -1280,8 +1415,8 @@ public partial class GameplayMain : Node2D
 			var l = _links[i];
 			var from = _noteById[l.FromId];
 			var to = _noteById[l.ToId];
-			var rA = VisualDistanceFor(from, currentBar);
-			var rB = VisualDistanceFor(to, currentBar);
+			var rA = VisualDistanceFor(from, t, currentBar);
+			var rB = VisualDistanceFor(to, t, currentBar);
 			var a = PositionAt(from, rA);
 			var b = PositionAt(to, rB);
 			var wa = l.Wa;
@@ -1403,26 +1538,41 @@ public partial class GameplayMain : Node2D
 	}
 
 	private double CurrentBarAt(double second) =>
-		_chart.Sections.Count > 0 ? _chart.SecondsToBarTime(second) : second;
+		_loaded.V2Timeline != null
+			? _loaded.V2Timeline.ToBarTime(ChartAudioSecond(second)).ToDouble()
+			: _chart.Sections.Count > 0 ? _chart.SecondsToBarTime(second) : second;
 
-	private float VisualDistanceFor(Note n, double currentBar)
+	private double ChartAudioSecond(double songClockSecond) =>
+		songClockSecond - GameSession.Settings.TimingOffsetMs / 1000.0;
+
+	private float VisualDistanceFor(Note n, double t, double currentBar)
 	{
-		// 空时间线只能使用 Baked_Second，因此把秒作为后备的单调视觉坐标。
-		var noteBar = _chart.Sections.Count > 0 ? n.BarTime : n.Second;
-		return (float)(_dropSpeedMap.RemainingDistance(noteBar, currentBar) *
-			_fallDistancePxPerBar);
+		if (_loaded.V2Scroll != null && _loaded.V2Timeline != null)
+		{
+			var currentSecond = ChartAudioSecond(t);
+			var currentExact = _loaded.V2Timeline.ToBarTime(currentSecond);
+			var noteSecond = _loaded.ExactTimesByRuntimeId.TryGetValue(n.Id, out var exact)
+				? _loaded.V2Timeline.ToSeconds(exact)
+				: n.Second;
+			return (float)VisualScrollMath.DistancePixels(
+				noteSecond, currentSecond, BaseFallSpeedPx,
+				_loaded.V2Scroll.SpeedAt(currentExact), _fallSpeedMultiplier);
+		}
+		return (float)VisualScrollMath.DistancePixels(
+			n.Second, t, BaseFallSpeedPx, _dropSpeedMap.SpeedAt(currentBar),
+			_fallSpeedMultiplier);
 	}
 
-	private Vector2 PositionFor(Note n, double currentBar)
+	private Vector2 PositionFor(Note n, double t, double currentBar)
 	{
 		// 生成时尚未到线；保留钳制只防止跳转启动时把新视图放到线外。
-		var rem = Mathf.Max(0f, VisualDistanceFor(n, currentBar));
+		var rem = Mathf.Max(0f, VisualDistanceFor(n, t, currentBar));
 		return PositionAt(n, rem);
 	}
 
-	private Vector2 PositionForActiveView(Note n, double currentBar)
+	private Vector2 PositionForActiveView(Note n, double t, double currentBar)
 	{
-		var rem = VisualDistanceFor(n, currentBar);
+		var rem = VisualDistanceFor(n, t, currentBar);
 		if (!MovesPastJudgeLineContinuously(n.Type))
 			rem = Mathf.Max(0f, rem);
 		return PositionAt(n, rem);
@@ -1431,11 +1581,20 @@ public partial class GameplayMain : Node2D
 	private static bool MovesPastJudgeLineContinuously(NoteType type) =>
 		UsesOrdinaryMissFallthrough(type);
 
+	private double VisualScrollAt(double t, double currentBar)
+	{
+		if (_loaded.V2Scroll != null && _loaded.V2Timeline != null)
+		{
+			var currentExact = _loaded.V2Timeline.ToBarTime(ChartAudioSecond(t));
+			return _loaded.V2Scroll.SpeedAt(currentExact);
+		}
+		return _dropSpeedMap.SpeedAt(currentBar);
+	}
+
 	private float MissFallSpeedPx(Note note, double t, double currentBar)
 	{
-		var bpm = (float)_chart.BpmAtSeconds(t);
-		var dropSpeed = (float)Math.Abs(_dropSpeedMap.SpeedAt(currentBar));
-		var speed = _fallDistancePxPerBar * bpm / 240f * dropSpeed;
+		var speed = (float)VisualScrollMath.FallthroughSpeedPixelsPerSecond(
+			BaseFallSpeedPx, VisualScrollAt(t, currentBar), _fallSpeedMultiplier);
 		if (note.Track != Track.Center)
 			speed *= SideDistScale;
 		return Mathf.Max(60f, speed);
@@ -1515,16 +1674,7 @@ public partial class GameplayMain : Node2D
 		};
 	}
 
-	private static Color ColorFor(Note n) => n.Type switch
-	{
-		NoteType.Tap => ColTap,
-		NoteType.ExTap => ColExTap,
-		NoteType.Drag => ColDrag,
-		NoteType.HoldHead or NoteType.HoldNode => ColHold,
-		NoteType.Mine => ColMine,
-		NoteType.BarLine => ColBarLine,
-		_ => ColMixer, // Mixer 6/7 粉缎带
-	};
+	private static Color ColorFor(Note n) => NoteVisualSpec.BaseColor(n.Type);
 
 	private void ResolveNoteView(JudgeUnit unit, JudgeGrade grade,
 		bool emitEffect = true)
@@ -1549,8 +1699,9 @@ public partial class GameplayMain : Node2D
 			!isMiss && unit.Category == ScoreCategory.HoldStart)
 		{
 			// 极晚接头时本体可能已经完成普通下穿；重新建立在线 Hold 头。
-			view = NoteView.Create(note, SizeFor(note), ColorFor(note),
-				note.SyncNote != 0 && note.Type == NoteType.Tap);
+				view = NoteView.Create(note, SizeFor(note), ColorFor(note),
+					_loaded.SyncAccentRuntimeIds.Contains(note.Id));
+
 			view.Position = PositionAt(note, 0f);
 			view.SetDepthAlpha(1f);
 			_noteRoot.AddChild(view);
@@ -1607,26 +1758,9 @@ public partial class GameplayMain : Node2D
 		NoteType.Tap or NoteType.ExTap or NoteType.Drag or
 		NoteType.HoldHead or NoteType.HoldNode;
 
-	private static Color HitAccentFor(NoteType type) => type switch
-	{
-		NoteType.Tap => ColTap,
-		NoteType.ExTap => ColExTap,
-		NoteType.Drag => ColDrag,
-		NoteType.HoldHead or NoteType.HoldNode => ColHold,
-		NoteType.MixerHead or NoteType.MixerNode => ColMixer,
-		NoteType.Mine => new Color(0.93f, 0.24f, 0.33f),
-		_ => ColBarLine,
-	};
+	private static Color HitAccentFor(NoteType type) => NoteVisualSpec.HitAccent(type);
 
-	private static HitEffectKind HitEffectKindFor(NoteType type) => type switch
-	{
-		NoteType.ExTap => HitEffectKind.ExTap,
-		NoteType.Drag => HitEffectKind.Drag,
-		NoteType.HoldHead or NoteType.HoldNode => HitEffectKind.Hold,
-		NoteType.MixerHead or NoteType.MixerNode => HitEffectKind.Mixer,
-		NoteType.Mine => HitEffectKind.Mine,
-		_ => HitEffectKind.Tap,
-	};
+	private static HitEffectKind HitEffectKindFor(NoteType type) => NoteVisualSpec.HitEffect(type);
 
 	// 连接体半宽：Hold 是带亮边的宽面板；Mixer 只有节点间细连线，
 	// 不生成完整宽面板；其他链沿用窄缎带。
@@ -1646,665 +1780,7 @@ public partial class GameplayMain : Node2D
 			: 4f;
 	}
 
-	private static Color LinkColorFor(Note n) => n.Type switch
-	{
-		NoteType.HoldHead or NoteType.HoldNode => new Color(1.0f, 0.70f, 0.45f, 0.28f), // 亮琥珀半透明（实机可透出背景）
-		NoteType.Drag => new Color(ColDrag, 0.35f),
-		NoteType.MixerHead or NoteType.MixerNode => new Color(ColMixer, 0.35f),
-		_ => new Color(ColTap, 0.35f),
-	};
-
-	// ---- UI ----
-
-	private void BuildStage()
-	{
-		_stageRoot = new Node2D { Name = "StageVisuals" };
-		_noteRoot = new Node2D { Name = "NoteVisuals" };
-		_hudRoot = new Node2D { Name = "GameplayHud", ZIndex = 20 };
-		AddChild(_stageRoot);
-		AddChild(_noteRoot);
-		AddChild(_hudRoot);
-		_stageRoot.AddChild(new GameplayBackdrop { ZIndex = -2 });
-
-		// 判定线（实机为隐形线，此处用暗色细线示意）：三线构成 ∪ 形——
-		// 底部横线贯通左右，与两侧竖线在两端相接；Mixer 粉条 + 中央光标。
-		var lineCol = new Color(0.35f, 0.35f, 0.4f);
-		AddLine(new Vector2(60, CenterLineY - 2), new Vector2(1800, 4), lineCol); // 底线延长超出侧线、接近屏边（原版如此）
-		AddLine(new Vector2(LeftLineX - 2, 70), new Vector2(4, CenterLineY - 70), lineCol); // 顶栏下到线底（用户拍板延长）
-		AddLine(new Vector2(RightLineX - 2, 70), new Vector2(4, CenterLineY - 70), lineCol);
-		AddLine(new Vector2(CenterTrackX - 4, MixerBarY - 14), new Vector2(8, 28),
-			new Color(0.5f, 0.5f, 1.0f));
-
-		// Mixer 装饰 UI：粉色固定横条 + 中央光标（实机装饰元素，T6/T7 粉缎带
-		// 现在是下落音符，由常规视图/连接体渲染）
-		_mixerBar = new CutPanel
-		{
-			Position = new Vector2(MixerBarLeft, MixerBarY - 12),
-			Size = new Vector2(MixerBarLen, 24),
-			Cut = 4,
-			Fill = new Color(ColMixerBar, 0.15f),
-			Border = new Color(ColMixerBar, 0.68f),
-			BorderWidth = 2f,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		_stageRoot.AddChild(_mixerBar);
-
-		BuildHud();
-		BuildPauseMenu();
-		BuildResultLayer();
-	}
-
-	private void BuildHud()
-	{
-		// 原版风 HUD（2340 直出截图换算到 1440）：顶栏细青线框（中央缺口放暂停钮）、
-		// 底线上的发光进度段、左下曲名+难度、右下分数、顶部 CLEAR、
-		// 中央偏下 COMBO + 判定字。
-		var frameCol = new Color(UiFonts.Cyan, 0.45f);
-		AddHudLine(new Vector2(53, 64), new Vector2(773, 2), frameCol);
-		AddHudLine(new Vector2(1093, 64), new Vector2(773, 2), frameCol);
-
-		// 顶部中央：六个紧凑 pill；CLEAR 是得分/理论满分，不是 timing accuracy。
-		_pillP = MakePill(461, UiFonts.Cyan);
-		_pillGr = MakePill(629, UiFonts.Hard);
-		_pillGo = MakePill(797, UiFonts.Casual);
-		_pillM = MakePill(965, new Color(0.53f, 0.53f, 0.53f));
-		_pillAcc = MakePill(1133, new Color(0.64f, 0.90f, 0.21f));
-		_pillMc = MakePill(1301, UiFonts.Text);
-
-		// 顶部 pill 行下方正中间：暂停按钮（用户拍板：放大，嵌在顶栏缺口）
-		_pauseBtn = new CutButton
-		{
-			Position = new Vector2(900, 60),
-			Size = new Vector2(120, 64),
-			Text = "II",
-			FontSize = 30,
-			TechFont = true,
-			ZIndex = 2,
-		};
-		_pauseBtn.Pressed += TogglePause;
-		_hudRoot.AddChild(_pauseBtn);
-
-		// 底线上的发光进度段（从中央向两侧生长）
-		_hudRoot.AddChild(new ColorRect
-		{
-			Color = new Color(1, 1, 1, 0.045f),
-			Position = new Vector2(493, CenterLineY - 2),
-			Size = new Vector2(933, 3),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		});
-		_progressFill = new ColorRect
-		{
-			Color = new Color(UiFonts.Cyan, 0.68f),
-			Position = new Vector2(960, CenterLineY - 2),
-			Size = new Vector2(0, 3),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		};
-		_hudRoot.AddChild(_progressFill);
-
-		// 左下：曲名 + 难度（Dynamit 样例布局；实时评级已按用户要求删除）
-		_titleTag = new RichTextLabel
-		{
-			Position = new Vector2(67, 920),
-			Size = new Vector2(620, 44),
-			BbcodeEnabled = true,
-			ScrollActive = false,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		};
-		_titleTag.AddThemeFontOverride("normal_font", UiFonts.Cjk);
-		_titleTag.AddThemeFontSizeOverride("normal_font_size", 24);
-		_hudRoot.AddChild(_titleTag);
-
-		// 右下：分数（CLEAR 收进顶部 pill 行）
-		_scoreLabel = new Label
-		{
-			Position = new Vector2(1290, 879),
-			Size = new Vector2(550, 74),
-			HorizontalAlignment = HorizontalAlignment.Right,
-			Text = "0",
-			ZIndex = 2,
-		};
-		_scoreLabel.AddThemeFontOverride("font", UiFonts.TechBold);
-		_scoreLabel.AddThemeFontSizeOverride("font_size", 58);
-		_scoreLabel.AddThemeColorOverride("font_color", UiFonts.Text);
-		_hudRoot.AddChild(_scoreLabel);
-
-		// 判定反馈在线上方；Combo 放到判定线下方安全区（用户 2026-08-10 拍板）。
-		_comboLabel = new Label
-		{
-			Position = new Vector2(693, 872),
-			Size = new Vector2(533, 72),
-			HorizontalAlignment = HorizontalAlignment.Center,
-			Text = "",
-			ZIndex = 2,
-		};
-		_comboLabel.AddThemeFontOverride("font", UiFonts.TechBold);
-		_comboLabel.AddThemeFontSizeOverride("font_size", 62);
-		_comboLabel.AddThemeColorOverride("font_color", UiFonts.Text);
-		_hudRoot.AddChild(_comboLabel);
-		_comboSub = new Label
-		{
-			Position = new Vector2(826.5f, 944),
-			Size = new Vector2(267, 28),
-			HorizontalAlignment = HorizontalAlignment.Center,
-			Text = "",
-			ZIndex = 2,
-		};
-		_comboSub.AddThemeFontOverride("font", UiFonts.Tech);
-		_comboSub.AddThemeFontSizeOverride("font_size", 18);
-		_comboSub.AddThemeColorOverride("font_color", UiFonts.Dim);
-		_hudRoot.AddChild(_comboSub);
-
-		_judgeFlash = new Label
-		{
-			Position = new Vector2(CenterTrackX - 150, 696),
-			Size = new Vector2(300, 44),
-			HorizontalAlignment = HorizontalAlignment.Center,
-			Modulate = new Color(1, 1, 1, 0),
-			ZIndex = 2,
-		};
-		_judgeFlash.AddThemeFontOverride("font", UiFonts.TechBold);
-		_judgeFlash.AddThemeFontSizeOverride("font_size", 34);
-		_judgeFlash.AddThemeColorOverride("font_color", UiFonts.Cyan);
-		_hudRoot.AddChild(_judgeFlash);
-	}
-
-	private void AddHudLine(Vector2 pos, Vector2 size, Color color)
-	{
-		_hudRoot.AddChild(new ColorRect
-		{
-			Color = color,
-			Position = pos,
-			Size = size,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		});
-	}
-
-	// 顶部 pill：切角暗底 + 居中彩色文字，返回值标签由 UpdateHud 刷新
-	private Label MakePill(float x, Color color)
-	{
-		_hudRoot.AddChild(new CutPanel
-		{
-			Position = new Vector2(x, 12),
-			Size = new Vector2(158, 40),
-			Cut = 12,
-			Fill = new Color(0.03f, 0.05f, 0.10f, 0.72f),
-			ZIndex = 2,
-		});
-		var label = new Label
-		{
-			Position = new Vector2(x, 17),
-			Size = new Vector2(158, 32),
-			HorizontalAlignment = HorizontalAlignment.Center,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		};
-		label.AddThemeFontOverride("font", UiFonts.Tech);
-		label.AddThemeFontSizeOverride("font_size", 16);
-		label.AddThemeColorOverride("font_color", color);
-		_hudRoot.AddChild(label);
-		return label;
-	}
-
-	private RichTextLabel _titleTag = null!;
-
-	private void RefreshTitleTag()
-	{
-		var hex = UiFonts.DiffColor(_diffKey).ToHtml(false);
-		var auto = _auto ? "   [color=#7c88b0]AUTO (F1)[/color]" : "";
-		var diff = _diffLevel > 0
-			? $"{UiFonts.DiffName(_diffKey)} · Lv {_diffLevel}"
-			: UiFonts.DiffName(_diffKey);
-		_titleTag.Text =
-			$"{_songTitle}   [color=#{hex}]{diff}[/color]{auto}";
-	}
-
-	private void BuildPauseMenu()
-	{
-		_pauseLayer = new Control { Visible = false, ZIndex = 60 };
-		AddChild(_pauseLayer);
-
-		var dim = new ColorRect
-		{
-			Color = new Color(0.02f, 0.03f, 0.07f, 0.72f),
-			Size = new Vector2(1920, 1080),
-		};
-		_pauseLayer.AddChild(dim);
-
-		_pauseLayer.AddChild(new CutPanel
-		{
-			Position = new Vector2(610, 300),
-			Size = new Vector2(700, 480),
-		});
-
-		var title = new Label
-		{
-			Position = new Vector2(610, 340),
-			Size = new Vector2(700, 70),
-			Text = "PAUSED",
-			HorizontalAlignment = HorizontalAlignment.Center,
-		};
-		title.AddThemeFontOverride("font", UiFonts.Tech);
-		title.AddThemeFontSizeOverride("font_size", 52);
-		title.AddThemeColorOverride("font_color", UiFonts.Text);
-		_pauseLayer.AddChild(title);
-
-		var resume = new CutButton
-		{
-			Position = new Vector2(770, 450),
-			Size = new Vector2(380, 76),
-			Text = "继续",
-			StyleKind = CutButton.ButtonStyle.Solid,
-			FontSize = 28,
-		};
-		resume.Pressed += TogglePause;
-		_pauseLayer.AddChild(resume);
-
-		var retry = new CutButton
-		{
-			Position = new Vector2(770, 546),
-			Size = new Vector2(380, 76),
-			Text = "重开",
-			FontSize = 28,
-		};
-		retry.Pressed += Restart;
-		_pauseLayer.AddChild(retry);
-
-		var quit = new CutButton
-		{
-			Position = new Vector2(770, 642),
-			Size = new Vector2(380, 76),
-			Text = "返回选曲",
-			FontSize = 28,
-		};
-		quit.Pressed += ExitToSelect;
-		_pauseLayer.AddChild(quit);
-	}
-
-	private void BuildResultLayer()
-	{
-		_resultLayer = new Control { Visible = false, ZIndex = 100 };
-		AddChild(_resultLayer);
-
-		// 先铺不透明 clean-room fallback；无封面时也绝不会透出游玩层。
-		_resultLayer.AddChild(new ColorRect
-		{
-			Color = new Color(0.018f, 0.026f, 0.060f),
-			Size = new Vector2(1920, 1080),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		});
-
-		// 封面拉伸铺满 + 压暗（样式稿为模糊，Godot 侧先用压暗近似）。
-		_resultCover = new TextureRect
-		{
-			Position = Vector2.Zero,
-			Size = new Vector2(1920, 1080),
-			ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-			StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
-			Modulate = new Color(0.34f, 0.34f, 0.38f),
-			Visible = false,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		_resultLayer.AddChild(_resultCover);
-		var dim = new ColorRect
-		{
-			Color = new Color(0.04f, 0.05f, 0.10f, 0.58f),
-			Size = new Vector2(1920, 1080),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		_resultLayer.AddChild(dim);
-
-		_resultLayer.AddChild(new CutPanel
-		{
-			Position = new Vector2(380, 240),
-			Size = new Vector2(1160, 600),
-			Fill = new Color(0.078f, 0.106f, 0.20f, 0.78f),
-		});
-
-		_songLine = new Label { Position = new Vector2(450, 276), Size = new Vector2(1020, 34) };
-		_songLine.AddThemeFontSizeOverride("font_size", 24);
-		_songLine.AddThemeColorOverride("font_color", UiFonts.Dim);
-		_resultLayer.AddChild(_songLine);
-
-		_gradeLabel = new Label { Position = new Vector2(480, 330), Size = new Vector2(220, 180) };
-		_gradeLabel.AddThemeFontOverride("font", UiFonts.TechBold);
-		_gradeLabel.AddThemeFontSizeOverride("font_size", 140);
-		_gradeLabel.AddThemeColorOverride("font_color", UiFonts.Cyan);
-		_resultLayer.AddChild(_gradeLabel);
-
-		_newRecChip = new Control { Position = new Vector2(490, 530), Size = new Vector2(200, 40) };
-		var chipBg = new CutPanel
-		{
-			Size = new Vector2(200, 40),
-			Cut = 8,
-			Fill = UiFonts.Pink,
-			Border = UiFonts.Pink,
-		};
-		_newRecChip.AddChild(chipBg);
-		var chipText = new Label
-		{
-			Size = new Vector2(200, 40),
-			Text = "NEW RECORD",
-			HorizontalAlignment = HorizontalAlignment.Center,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		chipText.AddThemeFontOverride("font", UiFonts.Tech);
-		chipText.AddThemeFontSizeOverride("font_size", 18);
-		chipText.AddThemeColorOverride("font_color", new Color("1a0510"));
-		_newRecChip.AddChild(chipText);
-		_resultLayer.AddChild(_newRecChip);
-
-		_resultScore = new Label { Position = new Vector2(750, 320), Size = new Vector2(720, 90) };
-		_resultScore.AddThemeFontOverride("font", UiFonts.TechBold);
-		_resultScore.AddThemeFontSizeOverride("font_size", 76);
-		_resultScore.AddThemeColorOverride("font_color", UiFonts.Text);
-		_resultLayer.AddChild(_resultScore);
-
-		_resultAcc = new Label { Position = new Vector2(750, 424), Size = new Vector2(720, 36) };
-		_resultAcc.AddThemeFontOverride("font", UiFonts.Tech);
-		_resultAcc.AddThemeFontSizeOverride("font_size", 26);
-		_resultAcc.AddThemeColorOverride("font_color", UiFonts.Dim);
-		_resultLayer.AddChild(_resultAcc);
-
-		// 判定分布条（4 段彩色，宽度按占比）
-		const float barX = 750, barY = 486, barH = 14;
-		_distP = DistBar(barX, barY, UiFonts.Cyan);
-		_distGr = DistBar(barX, barY, UiFonts.Hard);
-		_distGo = DistBar(barX, barY, UiFonts.Casual);
-		_distM = DistBar(barX, barY, new Color(0.33f, 0.33f, 0.33f));
-
-		_resultCountP = MakeResultStatCell(750, "P", UiFonts.Cyan);
-		_resultCountGr = MakeResultStatCell(930, "GR", UiFonts.Hard);
-		_resultCountGo = MakeResultStatCell(1110, "GD", UiFonts.Casual);
-		_resultCountM = MakeResultStatCell(1290, "M", new Color(0.52f, 0.52f, 0.56f));
-
-		var back = new CutButton
-		{
-			Position = new Vector2(450, 720),
-			Size = new Vector2(280, 72),
-			Text = "返回选曲",
-			FontSize = 26,
-		};
-		back.Pressed += ExitToSelect;
-		_resultLayer.AddChild(back);
-
-		var next = new CutButton
-		{
-			Position = new Vector2(750, 720),
-			Size = new Vector2(280, 72),
-			Text = "下一首",
-			FontSize = 26,
-		};
-		next.Pressed += NextSong;
-		_resultLayer.AddChild(next);
-
-		var retry = new CutButton
-		{
-			Position = new Vector2(1050, 720),
-			Size = new Vector2(280, 72),
-			Text = "再来一次",
-			StyleKind = CutButton.ButtonStyle.Solid,
-			FontSize = 26,
-		};
-		retry.Pressed += Restart;
-		_resultLayer.AddChild(retry);
-
-		ColorRect DistBar(float x, float y, Color c)
-		{
-			var r = new ColorRect
-			{
-				Color = c,
-				Position = new Vector2(x, y),
-				Size = new Vector2(0, barH),
-				MouseFilter = Control.MouseFilterEnum.Ignore,
-			};
-			_resultLayer.AddChild(r);
-			return r;
-		}
-	}
-
-	private Label MakeResultStatCell(float x, string title, Color color)
-	{
-		_resultLayer.AddChild(new CutPanel
-		{
-			Position = new Vector2(x, 520),
-			Size = new Vector2(160, 72),
-			Cut = 10,
-			Fill = new Color(0.025f, 0.04f, 0.09f, 0.84f),
-			Border = new Color(color, 0.48f),
-			BorderWidth = 1.5f,
-		});
-		var tag = new Label
-		{
-			Position = new Vector2(x + 14, 530),
-			Size = new Vector2(42, 48),
-			Text = title,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		tag.AddThemeFontOverride("font", UiFonts.TechBold);
-		tag.AddThemeFontSizeOverride("font_size", 19);
-		tag.AddThemeColorOverride("font_color", color);
-		_resultLayer.AddChild(tag);
-
-		var value = new Label
-		{
-			Position = new Vector2(x + 50, 530),
-			Size = new Vector2(94, 48),
-			HorizontalAlignment = HorizontalAlignment.Right,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		value.AddThemeFontOverride("font", UiFonts.TechBold);
-		value.AddThemeFontSizeOverride("font_size", 24);
-		value.AddThemeColorOverride("font_color", UiFonts.Text);
-		_resultLayer.AddChild(value);
-		return value;
-	}
-
-	private Label _songLine = null!;
-
-	private void TogglePause()
-	{
-		if (_finished) return;
-		_paused = !_paused;
-		if (_paused)
-		{
-			ClearPointerState();
-			_clock.Pause();
-			_pauseLayer.Visible = true;
-		}
-		else
-		{
-			_pauseLayer.Visible = false;
-			_clock.Resume();
-		}
-	}
-
-	private void ClearPointerState()
-	{
-		_pendingPointerInputs.Clear();
-		_activePointers.Clear();
-		_frameTouchSamples.Clear();
-		_ignoredTouchIds.Clear();
-		_inputTimeGroupGate.Reset();
-	}
-
-	private void Restart()
-	{
-		_clock.Pause();
-		_paused = false;
-		GetTree().ChangeSceneToFile("res://scenes/gameplay.tscn");
-	}
-
-	private void ExitToSelect()
-	{
-		_clock.Pause();
-		_paused = false;
-		GetTree().ChangeSceneToFile("res://scenes/song_select.tscn");
-	}
-
-	private void NextSong()
-	{
-		if (!GameSession.SelectNextSong())
-			return;
-		_clock.Pause();
-		GetTree().ChangeSceneToFile("res://scenes/gameplay.tscn");
-	}
-
-	private double _flashTimer;
-	private const double JudgeFlashDuration = 0.45;
-
-	private void FlashJudge(string text)
-	{
-		_judgeFlash.Text = text;
-		_judgeFlash.Modulate = Colors.White;
-		_judgeFlash.Position = new Vector2(CenterTrackX - 150, 696);
-		_flashTimer = JudgeFlashDuration;
-	}
-
-	private void UpdateHud(double t)
-	{
-		if (_flashTimer > 0)
-		{
-			_flashTimer -= GetProcessDeltaTime();
-			if (_flashTimer <= 0)
-				_judgeFlash.Modulate = new Color(1, 1, 1, 0);
-			else
-			{
-				var progress = 1f - (float)(_flashTimer / JudgeFlashDuration);
-				var alpha = Mathf.Clamp((float)(_flashTimer / 0.14), 0f, 1f);
-				_judgeFlash.Position = new Vector2(CenterTrackX - 150, 696 - progress * 24f);
-				_judgeFlash.Modulate = new Color(1, 1, 1, alpha);
-			}
-		}
-
-		_scoreLabel.Text = $"{_engine.NormalizedScore(_plan.TheoreticalMax):N0}";
-		// 实时 CLEAR = 当前得分 / 已判定单元的理论满分（未判定不计入）。
-		var maxSoFar = 0;
-		foreach (var u in _plan.Units)
-			if (u.Judged)
-				maxSoFar += JudgeEngine.ScoreDelta(u.Category, JudgeGrade.Prefect);
-		var liveClear = maxSoFar > 0 ? 100.0 * _engine.Score / maxSoFar : 100.0;
-		_pillP.Text = $"PERFECT {_engine.CountPrefect}";
-		_pillGr.Text = $"GREAT {_engine.CountGreat}";
-		_pillGo.Text = $"GOOD {_engine.CountGood}";
-		_pillM.Text = $"MISS {_engine.CountMiss}";
-		_pillAcc.Text = $"CLEAR {liveClear:F2}%";
-		_pillMc.Text = $"M.COMBO {_engine.MaxCombo}";
-		_comboLabel.Text = _engine.Combo > 1 ? $"{_engine.Combo}" : "";
-		_comboSub.Text = _engine.Combo > 1 ? "COMBO" : "";
-		// 底线上的进度段：从中央向两侧生长
-		var pw = 933f * Mathf.Clamp((float)(t / Math.Max(0.01, _plan.EndTime)), 0f, 1f);
-		_progressFill.Position = new Vector2(960 - pw / 2f, CenterLineY - 2);
-		_progressFill.Size = new Vector2(pw, 3);
-	}
-
-	private void ShowResults()
-	{
-		_finished = true;
-		_clock.Pause();
-		var pct = _engine.Percent(_plan.TheoreticalMax);
-		var normalizedScore = _engine.NormalizedScore(_plan.TheoreticalMax);
-
-		// 成绩写回（AUTO 演示不计入成绩库）
-		var isNewRecord = false;
-		var grade = ScoreStore.GradeOf(pct);
-		if (!_auto)
-		{
-			isNewRecord = GameSession.Scores.TryUpdate(_packId, _diffKey, new ScoreRecord
-			{
-				Score = normalizedScore,
-				Acc = pct,
-				MaxCombo = _engine.MaxCombo,
-				Grade = grade,
-				Perfect = _engine.CountPrefect,
-				Great = _engine.CountGreat,
-				Good = _engine.CountGood,
-				Miss = _engine.CountMiss,
-			});
-		}
-
-		// 结算面板（样式稿 #result）
-		if (_coverPath is { } cp && Res.LoadTexture(cp) is { } tex)
-		{
-			_resultCover.Texture = tex;
-			_resultCover.Visible = true;
-		}
-		var resultDiff = _diffLevel > 0
-			? $"{UiFonts.DiffName(_diffKey)} {_diffLevel}"
-			: UiFonts.DiffName(_diffKey);
-		_songLine.Text = $"RESULT · {_songTitle} · {resultDiff}" +
-						 (_auto ? " · AUTO（不计成绩）" : "");
-		_gradeLabel.Text = grade;
-		_gradeLabel.AddThemeColorOverride("font_color", grade switch
-		{
-			"Ω" => UiFonts.Pink,
-			"S" => UiFonts.Cyan,
-			"A" => UiFonts.Hard,
-			"B" => UiFonts.Normal,
-			_ => UiFonts.Dim,
-		});
-		_newRecChip.Visible = isNewRecord;
-		_resultScore.Text = $"{normalizedScore:N0}";
-		_resultAcc.Text = $"CLEAR {pct:F2}% · MAX COMBO {_engine.MaxCombo:N0} / {_plan.HeadlineUnitCount:N0}";
-
-		// 判定分布条
-		var total = Math.Max(1, _engine.CountPrefect + _engine.CountGreat +
-			_engine.CountGood + _engine.CountMiss);
-		const float barX = 750, barW = 720;
-		var wP = barW * _engine.CountPrefect / total;
-		var wGr = barW * _engine.CountGreat / total;
-		var wGo = barW * _engine.CountGood / total;
-		var wM = barW - wP - wGr - wGo;
-		_distP.Position = new Vector2(barX, _distP.Position.Y);
-		_distP.Size = new Vector2(wP, _distP.Size.Y);
-		_distGr.Position = new Vector2(barX + wP, _distGr.Position.Y);
-		_distGr.Size = new Vector2(wGr, _distGr.Size.Y);
-		_distGo.Position = new Vector2(barX + wP + wGr, _distGo.Position.Y);
-		_distGo.Size = new Vector2(wGo, _distGo.Size.Y);
-		_distM.Position = new Vector2(barX + wP + wGr + wGo, _distM.Position.Y);
-		_distM.Size = new Vector2(wM, _distM.Size.Y);
-
-		_resultCountP.Text = $"{_engine.CountPrefect:N0}";
-		_resultCountGr.Text = $"{_engine.CountGreat:N0}";
-		_resultCountGo.Text = $"{_engine.CountGood:N0}";
-		_resultCountM.Text = $"{_engine.CountMiss:N0}";
-
-		_stageRoot.Visible = false;
-		_noteRoot.Visible = false;
-		_hudRoot.Visible = false;
-		_pauseLayer.Visible = false;
-		_resultLayer.Visible = true;
-
-		GD.Print($"=== RESULT === {_songTitle} [{_diffKey} Lv{_diffLevel}] " +
-				 $"score={normalizedScore} rawScore={_engine.Score} clear={pct:F2}% grade={grade} " +
-				 $"P={_engine.CountPrefect} Gr={_engine.CountGreat} " +
-				 $"Gd={_engine.CountGood} M={_engine.CountMiss} " +
-				 $"maxCombo={_engine.MaxCombo} newRecord={isNewRecord}");
-	}
-
-	private void AddLine(Vector2 pos, Vector2 size, Color? color = null)
-	{
-		var line = new ColorRect
-		{
-			Color = color ?? ColJudgeLine,
-			Position = pos,
-			Size = size,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = -1, // 背景之上、连接体/音符之下
-		};
-		_stageRoot.AddChild(line);
-	}
-
-	private static JudgePreset PresetForDifficulty(string diff) => diff.ToLowerInvariant() switch
-	{
-		"tutorial" => JudgePreset.Tutorial,
-		"casual" => JudgePreset.Casual,
-		"normal" => JudgePreset.Normal,
-		_ => JudgePreset.Hard, // Hard / Mega / Giga 共用 Hard 档
-	};
+	private static Color LinkColorFor(Note n) => NoteVisualSpec.LinkColor(n.Type);
 
 	private static string GradeText(JudgeResult r) => GradeText(r.Grade, r.Timing);
 

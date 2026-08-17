@@ -1,0 +1,175 @@
+{
+  "name": "CleanRoom_0100.3 - Synthetic Legacy Migration",
+  "FixtureNotice": "Hand-authored synthetic clean-room chart; not copied or derived from any game chart.",
+  "Baked_TotalMainNote": 16,
+  "TimeLine": {
+    "BakedBarSections": [
+      {
+        "BPM": 120,
+        "BarTime": 0.5,
+        "Seconds": 1
+      },
+      {
+        "BPM": 240,
+        "BarTime": 2,
+        "Seconds": 4
+      }
+    ]
+  },
+  "NoteSystem__DropSpeeds": [
+    {
+      "BarTime": 0.25,
+      "Value": 0.75
+    },
+    {
+      "BarTime": 1,
+      "Value": 1.5
+    },
+    {
+      "BarTime": 1,
+      "Value": 1.25
+    },
+    {
+      "BarTime": 2.5,
+      "Value": 1
+    }
+  ],
+  "NotesLeft": [
+    {
+      "Id": 101,
+      "SubNoteId": -1,
+      "Type": 1,
+      "BarTime": 0.25,
+      "Position": -0.5,
+      "Width": 1,
+      "Baked_Second": 0.5,
+      "Baked_SyncNote": 1,
+      "TimeEnd": 0.25,
+      "get_type": "clean-room legacy extra"
+    },
+    {
+      "Id": 102,
+      "SubNoteId": -1,
+      "Type": 2,
+      "BarTime": 0.75,
+      "Position": 0.5,
+      "Width": 0.5,
+      "Baked_Second": 1.5,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 103,
+      "SubNoteId": 104,
+      "Type": 3,
+      "BarTime": 1.5,
+      "Position": 1,
+      "Width": 1,
+      "Baked_Second": 3,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 104,
+      "SubNoteId": 105,
+      "Type": 4,
+      "BarTime": 2,
+      "Position": 1.5,
+      "Width": 0.75,
+      "Baked_Second": 4,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 105,
+      "SubNoteId": -1,
+      "Type": 4,
+      "BarTime": 2.5,
+      "Position": 2,
+      "Width": 1,
+      "Baked_Second": 4.5,
+      "Baked_SyncNote": 0
+    }
+  ],
+  "NotesCenter": [
+    {
+      "Id": 201,
+      "SubNoteId": 202,
+      "Type": 6,
+      "BarTime": 0.25,
+      "Position": 2,
+      "Width": 1,
+      "Baked_Second": 0.5,
+      "Baked_SyncNote": 1
+    },
+    {
+      "Id": 202,
+      "SubNoteId": 203,
+      "Type": 7,
+      "BarTime": 0.75,
+      "Position": 2.5,
+      "Width": 0.5,
+      "Baked_Second": 1.5,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 203,
+      "SubNoteId": -1,
+      "Type": 7,
+      "BarTime": 1.25,
+      "Position": 1.5,
+      "Width": 2,
+      "Baked_Second": 2.5,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 204,
+      "SubNoteId": -1,
+      "Type": 5,
+      "BarTime": 1,
+      "Position": 5,
+      "Width": 0.5,
+      "Baked_Second": 2,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 205,
+      "SubNoteId": -1,
+      "Type": 8,
+      "BarTime": 2.25,
+      "Position": 1,
+      "Width": 0.75,
+      "Baked_Second": 4.25,
+      "Baked_SyncNote": 0
+    },
+    {
+      "Id": 206,
+      "SubNoteId": -1,
+      "Type": 9,
+      "BarTime": 3.5,
+      "Position": -1,
+      "Width": 7,
+      "Baked_Second": 5.5,
+      "Baked_SyncNote": 0
+    }
+  ],
+  "NotesRight": [
+    {
+      "Id": 301,
+      "SubNoteId": -1,
+      "Type": 1,
+      "BarTime": 0.25,
+      "Position": 4.5,
+      "Width": 1,
+      "Baked_Second": 0.5,
+      "Baked_SyncNote": 1
+    },
+    {
+      "Id": 302,
+      "SubNoteId": -1,
+      "Type": 2,
+      "BarTime": 1.75,
+      "Position": 3,
+      "Width": 0.5,
+      "Baked_Second": 3.5,
+      "Baked_SyncNote": 0
+    }
+  ]
+}

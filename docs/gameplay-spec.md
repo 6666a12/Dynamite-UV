@@ -1,8 +1,9 @@
 # DUX-Community 当前客户端玩法与 Legacy 格式
 
-> 本文描述 Godot 客户端**当前已经实现**的 legacy 谱面、判定、计分和布局规则，不是 v2
-> 序列化合同。正式目标格式及其未来规则集见 `chart-format-v2.md`；当前 v2 loader 和运行时
-> 迁移尚未实现。原版方法体证据见
+> 本文描述 Godot 客户端的 legacy 兼容路径、判定、计分和布局规则，不是 v2
+> 序列化合同。正式 v2 合同见 `chart-format-v2.md`；客户端已通过 strict loader、shared runtime
+> adapter 和 legacy→v2 默认转换接入 v2，同时保留 legacy-direct 兼容与 Internal 等价性验证。
+> 原版方法体证据见
 > `original-judgement-analysis.md`，几何测量见 `video-geometry-analysis.md`。
 > 文中不包含任何原版素材或可发布原版谱面。
 
@@ -56,7 +57,9 @@ Testdata 构建先扫描 `res://testdata/packs`，再扫描 `user://charts`，�
 
 正式 Dynamite UV Chart Format v2 见 `chart-format-v2.md`。它使用 `dynamite-uv-pack` /
 `dynamite-uv-chart`、精确有理 BarTime、`center+width`、内嵌 Hold/Mixer nodes、Hold `judge`、
-严格正向 Scroll 和 Gameplay Digest。当前 loader 仍使用本节的 float BarTime、左缘 Position、
+严格正向 Scroll 和 Gameplay Digest。v2 为无损迁移既有谱面允许三轨 Mixer 和超出推荐 `[0,5]`
+安全区的有限 center/正 width；消费者不得擅自 clamp。同步 Tap 金框由精确时间与异轨按下型
+父 Note 派生，不保存 `Baked_SyncNote`。当前 loader 仍使用本节的 float BarTime、左缘 Position、
 `SubNoteId` 与烘焙兼容字段；不得把下面的当前实现描述为已经支持 v2。
 
 v2 同时冻结了 D4-C Hold grace 与 D5-A Mixer 语义。当前运行时的逐帧 Hold grace、所有 legacy
@@ -84,18 +87,24 @@ bar = sections[i].BarTime + (sec - sections[i].Seconds) * sections[i].BPM / 240
 - 同一 BarTime 的后一个事件覆盖前一个。
 - 首事件之前和末事件之后使用端点值。
 - 相邻事件之间按 BarTime 线性插值，不使用阶跃。
-- 每帧先把歌曲秒换算为 `currentBar`，再计算：
+- 每帧先把歌曲秒换算为 `currentBar`，以便在 BarTime 轴上采样当前谱面流速；移动距离则按音频秒计算：
 
   ```text
-  visualDistance = (note.BarTime - currentBar) * speed(currentBar) * playerScale
+  visualDistancePx =
+      (note.Second - currentSecond)
+      * speed(currentBar)
+      * playerScale
+      * 1026px/s
   ```
 
-- 使用当前流速乘完整剩余 BarTime，因此升速时 note 可以暂时远离判定线，再随剩余时间
-  缩短而折返；已生成 note 回退出屏时不销毁。
+- 使用当前流速乘完整剩余音频秒，不对历史流速积分；升速时 note 仍可暂时远离判定线，
+  再随剩余时间缩短而折返，已生成 note 回退出屏时不销毁。
 - 玩家落速倍率为 `FallSpeedLevel/10`，与谱面速度相乘。
-- Lv10 的二维标尺为 1641.6px/bar，在 150 BPM、DropSpeed=1 时等价于 1026px/s。
-- Center/Side 的可见行程保持 790px/691px；位置直接映射到现有二维轨道，不做透视投影。
-- 空 BPM 时间线无法做秒/BarTime 互转，视觉坐标回退为 `note.Second-currentSecond`。
+- Lv10、DropSpeed=1 的二维标尺恒为 150 BPM 基准的 `1026px/s`，不随谱面 BPM 改变。
+  BPM 只负责 BarTime/秒换算和命中时刻。
+- Center/Side 的可见行程保持 790px/691px；Side 的屏幕移动距离额外乘 0.75；位置直接
+  映射到现有二维轨道，不做透视投影。
+- 空 BPM 时间线直接使用 `Baked_Second` 作为 note 命中秒，仍使用同一套固定秒速模型。
 
 ## 3. Type 1–9 权威语义
 

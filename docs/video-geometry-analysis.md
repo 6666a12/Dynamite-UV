@@ -41,7 +41,7 @@ visual_width = W * 273.2 * 0.95
 | --- | --- |
 | 判定线 | `y=861` @1920×1080 |
 | 可见行程 | 790px |
-| 基础下落标尺 | 1641.6px/bar（150 BPM、DropSpeed=1 时等价于 1026px/s） |
+| 基础下落标尺 | 1026px/s（Lv10、DropSpeed=1，固定为 150 BPM 水平） |
 | 顶部淡入 | `y<=128` 透明，`128..200` 线性淡入 |
 
 ## 3. Side 映射
@@ -85,20 +85,22 @@ y = 840 - 115 * cP
 
 ## 5. DropSpeeds
 
-谱面确认视频约 2:10 的变速段显示，DropSpeed 在事件之间连续变化。当前采用：
+谱面确认视频约 2:10 的变速段显示，DropSpeed 在事件之间连续变化。该证据确认了事件间
+按 BarTime 线性插值，以及采样当前流速而不是历史积分。社区版现按固定 150 BPM 水平计算：
 
 ```text
 speed(bar) = 相邻 DropSpeed 事件值的线性插值
-visualDistance = (noteBar - currentBar) * speed(currentBar) * playerScale
+visualDistancePx =
+    (noteSecond - currentSecond) * speed(currentBar) * playerScale * 1026px/s
 ```
 
-Bar 104.375999 的速度为 0.2，Bar 105 为 1.1。对 Bar 105 的 note，上式预测它在
-Bar 104.618666 附近由远离判定线转为靠近判定线；换算到视频约 130.286s，与逐帧观察到的
-130.267--130.300s 换向一致，误差不超过一帧。近线 note 会先换向，中远距离 note 仍可
-继续回退，也与逐帧轨迹一致。
+旧版按剩余 BarTime 计算时，Bar 104.375999 的速度为 0.2、Bar 105 为 1.1，对 Bar 105
+的 note 可预测约 130.286s 的换向，与逐帧观察的 130.267--130.300s 相符。该测量仍作为
+DropSpeed 插值和“当前流速非积分”模型的证据；当前社区版将剩余量改为音频秒，以消除谱面
+BPM 对实际像素速度的额外缩放。
 
 运行时直接把该距离映射为 Center 的 y 或 Side 的 x，不增加透视投影。玩家落速倍率只
-缩放视觉距离，不改变命中秒。
+缩放视觉距离，不改变命中秒；谱面 BPM 只负责 BarTime/音频秒换算和判定时刻。
 
 ## 6. 当前 1920×1080 参数汇总
 

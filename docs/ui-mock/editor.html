@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUX Editor — Standalone Prototype</title>
+<style>
+:root{
+  --bg:#070b17;
+  --bg2:#101936;
+  --panel:rgba(12,18,39,.94);
+  --panel2:rgba(18,27,56,.9);
+  --line:#2c3c70;
+  --line-soft:rgba(70,91,151,.42);
+  --cyan:#35e0ff;
+  --cyan2:#6df0ff;
+  --pink:#ff4d91;
+  --green:#53e38d;
+  --amber:#ffbd59;
+  --red:#ff7185;
+  --text:#e8edff;
+  --dim:#8490b7;
+  --ink:#04131c;
+  --cut:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  --cut-sm:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  --cut-xs:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+@font-face{
+  font-family:"Orbitron";
+  src:url("fonts/Orbitron.woff2") format("woff2");
+  font-weight:100 900;
+  font-display:swap;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif}
+button,input{font:inherit}
+button{user-select:none}
+.viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
+.stage{position:relative;width:1920px;height:1080px;flex:0 0 auto;overflow:hidden;transform-origin:center center;background:var(--bg)}
+.tech{font-family:"Orbitron","Arial Narrow","Segoe UI",sans-serif;letter-spacing:.04em}
+.cut{clip-path:var(--cut)}
+.cut-sm{clip-path:var(--cut-sm)}
+.cut-xs{clip-path:var(--cut-xs)}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+
+/* shared chrome */
+.topbar{position:absolute;left:0;right:0;top:0;height:76px;z-index:40;display:flex;align-items:center;gap:14px;padding:0 28px;background:linear-gradient(180deg,rgba(5,9,22,.98),rgba(8,13,29,.9));border-bottom:2px solid rgba(53,224,255,.22);box-shadow:0 12px 35px rgba(0,0,0,.25);pointer-events:auto}
+.logo{font-size:28px;font-weight:850;white-space:nowrap}
+.logo span{color:var(--cyan)}
+.crumb{font-size:16px;color:var(--dim);white-space:nowrap}
+.crumb b{color:var(--text)}
+.spacer{flex:1}
+.proto-flag{height:38px;display:flex;align-items:center;padding:0 15px;border:2px solid var(--pink);color:#ffd8e7;background:rgba(255,77,145,.12);font-size:13px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
+.btn{height:44px;padding:0 18px;border:2px solid var(--line);background:rgba(16,24,50,.94);color:var(--text);cursor:pointer;transition:.12s ease;font-size:15px}
+.btn:hover{border-color:var(--cyan);color:var(--cyan);background:#172348}
+.btn.primary{border-color:var(--cyan);background:var(--cyan);color:var(--ink);font-weight:850}
+.btn.primary:hover{background:var(--cyan2);box-shadow:0 0 20px rgba(53,224,255,.34)}
+.btn.warn{border-color:var(--pink);color:#ffd8e7;background:rgba(255,77,145,.1)}
+.btn[disabled]{cursor:not-allowed;opacity:.45;border-color:var(--line);color:var(--dim);background:#11172d}
+
+/* package */
+#pack{background:
+  linear-gradient(115deg,transparent 0 67%,rgba(255,77,145,.045) 67% 67.2%,transparent 67.2%),
+  repeating-linear-gradient(105deg,transparent 0 118px,rgba(53,224,255,.04) 118px 120px),
+  radial-gradient(90% 105% at 78% 86%,#1b2755 0%,#0a1025 47%,#070b17 100%)}
+.pack-main{position:absolute;left:42px;right:42px;top:106px;bottom:124px;display:grid;grid-template-columns:500px 1fr;gap:28px}
+.panel{background:var(--panel);border:2px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.22)}
+.pack-detail{position:relative;padding:28px}
+.cover{height:330px;border:2px solid rgba(53,224,255,.72);position:relative;overflow:hidden;background:
+  linear-gradient(135deg,transparent 48%,rgba(255,77,145,.18) 48% 51%,transparent 51%),
+  repeating-linear-gradient(0deg,transparent 0 39px,rgba(53,224,255,.09) 39px 41px),
+  repeating-linear-gradient(90deg,transparent 0 39px,rgba(53,224,255,.09) 39px 41px),
+  radial-gradient(circle at 50% 50%,#1b3267 0,#0a122a 62%)}
+.cover::before,.cover::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);border:2px solid rgba(53,224,255,.35)}
+.cover::before{width:150px;height:150px}
+.cover::after{width:92px;height:92px;border-color:rgba(255,77,145,.5)}
+.cover-mark{position:absolute;left:0;right:0;top:125px;text-align:center;z-index:2}
+.cover-mark strong{display:block;font-size:28px;color:var(--cyan)}
+.cover-mark span{display:block;margin-top:58px;font-size:12px;color:var(--dim);letter-spacing:.18em}
+.pack-detail h1{margin:26px 8px 3px;font-size:44px;font-weight:400}
+.pack-detail .artist{margin:0 8px;color:var(--dim);font-size:19px}
+.pack-detail .meta{margin:20px 8px 0;color:var(--cyan);font-size:14px}
+.clean-note{position:absolute;left:28px;right:28px;bottom:26px;padding:14px 16px;border-left:4px solid var(--green);background:rgba(83,227,141,.07);color:#bcefd0;font-size:15px;line-height:1.45}
+.pack-list{padding:24px 26px}
+.section-kicker{color:var(--dim);font-size:14px;letter-spacing:.16em;margin:2px 8px 18px}
+.chart-row{height:112px;margin-bottom:18px;padding:0 24px;display:flex;align-items:center;gap:20px;border:2px solid transparent;background:rgba(19,28,58,.68);cursor:pointer;transition:.12s ease}
+.chart-row:hover,.chart-row.selected{border-color:var(--cyan);background:#182750}
+.chart-row .chart-text{flex:1}
+.chart-row h2{font-weight:500;font-size:29px}
+.chart-row p{margin-top:7px;color:var(--dim);font-size:15px}
+.level{width:68px;height:48px;display:flex;align-items:center;justify-content:center;background:var(--amber);color:var(--ink);font-weight:900;font-size:20px}
+.row-status{font-size:13px;color:var(--green)}
+.prototype-card{margin-top:32px;padding:30px;border:2px solid rgba(255,77,145,.52);background:linear-gradient(115deg,rgba(255,77,145,.12),rgba(53,224,255,.04))}
+.prototype-card h3{font-size:28px;color:#ffd8e7}
+.prototype-card p{max-width:850px;margin-top:12px;color:#aeb9dc;font-size:18px;line-height:1.6}
+.prototype-card .rules{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+.prototype-card .rules span{padding:9px 13px;border:1px solid var(--line);color:var(--cyan);background:rgba(6,12,28,.5);font-size:13px}
+.pack-bottom{position:absolute;left:42px;right:42px;bottom:26px;height:76px;display:flex;align-items:center;gap:18px}
+.pack-summary{flex:1;height:76px;display:flex;align-items:center;padding:0 25px;border:2px solid var(--line);background:var(--panel);color:var(--dim);font-size:15px}
+.pack-summary b{color:var(--cyan);margin-left:12px;font-size:18px}
+.pack-bottom .btn{height:76px;font-size:20px;padding:0 30px}
+
+/* editor stage */
+#edit{background:#070b17}
+.field{position:absolute;inset:0;overflow:hidden;touch-action:none;background:
+  radial-gradient(105% 92% at 50% 108%,#172552 0%,#0b122b 49%,#070b17 78%),
+  #070b17;cursor:crosshair}
+.field::before{content:"";position:absolute;inset:76px 0 116px;pointer-events:none;background:
+  repeating-conic-gradient(from 72deg at 50% 12%,rgba(53,224,255,.035) 0 .1deg,transparent .1deg 9deg),
+  radial-gradient(80% 65% at 50% 80%,rgba(53,224,255,.06),transparent 68%)}
+.depth{position:absolute;inset:76px 0 116px;pointer-events:none;opacity:.72;background:
+  linear-gradient(74deg,transparent 0 21.8%,rgba(53,224,255,.08) 22%,transparent 22.2%),
+  linear-gradient(106deg,transparent 0 77.8%,rgba(53,224,255,.08) 78%,transparent 78.2%),
+  linear-gradient(90deg,transparent 49.9%,rgba(53,224,255,.05) 50%,transparent 50.1%)}
+.active-guide{position:absolute;z-index:1;pointer-events:none;transition:.12s ease}
+.active-guide.center{left:280px;top:95px;width:1366px;height:768px;border-left:2px solid rgba(53,224,255,.22);border-right:2px solid rgba(53,224,255,.22);background:linear-gradient(180deg,rgba(53,224,255,.02),rgba(53,224,255,.07))}
+.active-guide.left{left:184px;top:170px;width:610px;height:660px;border-top:2px solid rgba(53,224,255,.18);border-bottom:2px solid rgba(53,224,255,.18);background:linear-gradient(90deg,rgba(53,224,255,.08),transparent)}
+.active-guide.right{right:184px;top:170px;width:610px;height:660px;border-top:2px solid rgba(53,224,255,.18);border-bottom:2px solid rgba(53,224,255,.18);background:linear-gradient(270deg,rgba(53,224,255,.08),transparent)}
+.active-guide.event{left:280px;top:95px;width:1366px;height:768px;border-left:2px solid rgba(255,77,145,.28);background:linear-gradient(90deg,rgba(255,77,145,.04),transparent 28%)}
+.grid-layer{position:absolute;z-index:1;pointer-events:none;opacity:.9;overflow:hidden}
+#gridCenter{left:280px;top:95px;width:1366px;height:768px}
+#gridLeft{left:184px;top:170px;width:610px;height:660px}
+#gridRight{right:184px;top:170px;width:610px;height:660px}
+.grid-line{position:absolute;background:rgba(53,224,255,.16)}
+.grid-line.horizontal{left:0;right:0;height:1px}
+.grid-line.vertical{top:0;bottom:0;width:1px}
+.grid-line.major{background:rgba(109,240,255,.32)}
+.grid-line.horizontal.major{height:2px}
+.grid-line.vertical.major{width:2px}
+.judge{position:absolute;z-index:5;pointer-events:none;box-shadow:0 0 15px rgba(53,224,255,.42)}
+.judge.center{left:280px;top:861px;width:1366px;height:4px;background:linear-gradient(90deg,transparent,var(--cyan) 5%,var(--cyan) 95%,transparent)}
+.judge.left{left:182px;top:170px;width:4px;height:660px;background:linear-gradient(180deg,transparent,var(--cyan) 7%,var(--cyan) 93%,transparent)}
+.judge.right{left:1734px;top:170px;width:4px;height:660px;background:linear-gradient(180deg,transparent,var(--cyan) 7%,var(--cyan) 93%,transparent)}
+.dir-label{position:absolute;z-index:5;pointer-events:none;color:rgba(53,224,255,.48);font-size:12px;letter-spacing:.15em}
+.dir-label.c{left:938px;top:878px}
+.dir-label.l{left:104px;top:493px;transform:rotate(-90deg)}
+.dir-label.r{right:91px;top:493px;transform:rotate(90deg)}
+.note-layer,.event-layer,.ghost-layer{position:absolute;inset:0;z-index:8;pointer-events:none}
+.note-visual,.event-marker{position:absolute;pointer-events:auto;cursor:pointer}
+.note-visual{clip-path:var(--cut-xs);border:1px solid rgba(255,255,255,.4)}
+.note-visual.tap{background:linear-gradient(180deg,#d7f5ff,#55c9ff 48%,#2387d5);box-shadow:0 0 14px rgba(85,201,255,.58)}
+.note-visual.drag{background:linear-gradient(180deg,#ddffe8,#54e694 48%,#1c9c58);box-shadow:0 0 14px rgba(84,230,148,.5)}
+.note-visual.hold{background:linear-gradient(180deg,#fff0c9,#ffbd59 48%,#c87818);box-shadow:0 0 14px rgba(255,189,89,.58)}
+.note-visual.side.tap{background:linear-gradient(90deg,#d7f5ff,#55c9ff 48%,#2387d5)}
+.note-visual.side.drag{background:linear-gradient(90deg,#ddffe8,#54e694 48%,#1c9c58)}
+.note-visual.side.hold{background:linear-gradient(90deg,#fff0c9,#ffbd59 48%,#c87818)}
+.note-visual.selected{outline:3px solid #fff;outline-offset:3px;filter:brightness(1.16);z-index:14}
+.note-visual.active-head{filter:brightness(1.25);box-shadow:0 0 24px rgba(255,189,89,.9)}
+.hold-body{position:absolute;pointer-events:auto;cursor:pointer;z-index:7;background:linear-gradient(180deg,rgba(255,189,89,.08),rgba(255,189,89,.25));border:2px solid rgba(255,210,126,.65)}
+.hold-body.side{background:linear-gradient(90deg,rgba(255,189,89,.22),rgba(255,189,89,.07))}
+.hold-body.selected{border-color:#fff;box-shadow:0 0 15px rgba(255,255,255,.22)}
+.event-guide-line{position:absolute;height:1px;left:280px;width:1366px;background:linear-gradient(90deg,rgba(255,77,145,.65),transparent 55%);pointer-events:none}
+.event-marker{height:28px;min-width:112px;padding:0 12px;display:flex;align-items:center;border:2px solid var(--pink);color:#ffd6e5;background:rgba(42,16,44,.94);font-size:12px;z-index:15;clip-path:var(--cut-xs)}
+.event-marker.selected{outline:3px solid #fff;outline-offset:3px}
+.ghost-note{position:absolute;z-index:22;pointer-events:none;clip-path:var(--cut-xs);border:2px dashed var(--cyan);background:rgba(53,224,255,.16);box-shadow:0 0 18px rgba(53,224,255,.22)}
+.ghost-note.hold{border-color:var(--amber);background:rgba(255,189,89,.15)}
+.ghost-band{position:absolute;z-index:21;pointer-events:none;border:2px dashed rgba(255,189,89,.85);background:rgba(255,189,89,.1)}
+.ghost-label{position:absolute;z-index:23;pointer-events:none;padding:5px 8px;background:rgba(4,10,25,.94);border:1px solid var(--cyan);color:var(--cyan);font-size:11px;white-space:nowrap}
+
+/* editor UI overlays */
+.rail{position:absolute;left:24px;top:98px;width:198px;z-index:35;display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+.track-tabs{height:48px;display:grid;grid-template-columns:repeat(4,1fr);border:2px solid var(--line);background:var(--panel)}
+.track-tabs button{border:0;border-right:1px solid var(--line);background:transparent;color:var(--dim);font-size:19px;cursor:pointer}
+.track-tabs button:last-child{border-right:0}
+.track-tabs button:hover{color:var(--cyan);background:#152143}
+.track-tabs button.on{color:var(--cyan);background:#1b2b55;box-shadow:inset 0 -3px var(--cyan)}
+.tool{height:58px;padding:0 12px;display:flex;align-items:center;gap:10px;border:2px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;text-align:left}
+.tool:hover{border-color:var(--cyan);color:var(--cyan)}
+.tool.on{border-color:var(--cyan);background:#1a2a53;color:var(--cyan)}
+.tool kbd{width:25px;color:var(--dim);font-family:"Orbitron",sans-serif;font-size:13px}
+.tool span{font-size:16px}
+.tool small{display:block;color:var(--dim);font-size:10px;letter-spacing:.12em;margin-top:3px}
+.future-box,.shortcut-box{padding:12px 13px;border:2px solid var(--line);background:rgba(9,14,31,.92)}
+.future-box h4,.shortcut-box h4{color:var(--dim);font-size:10px;letter-spacing:.15em;margin-bottom:7px}
+.future-tags{display:flex;flex-wrap:wrap;gap:5px}
+.future-tags span{padding:4px 6px;border:1px solid #303a5e;color:#566080;background:#0b1022;font-size:9px;text-decoration:line-through}
+.shortcut-box p{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;line-height:1.65}
+.shortcut-box b{color:var(--text);font-weight:600}
+
+.event-strip{position:absolute;left:244px;right:410px;top:94px;height:74px;z-index:32;display:none;padding:10px 14px;border:2px solid rgba(255,77,145,.55);background:rgba(14,14,35,.94);pointer-events:auto}
+.event-strip.on{display:block}
+.event-strip .label{font-size:10px;color:#d996b2;letter-spacing:.13em}
+.event-trackline{position:relative;height:28px;margin-top:7px;background:rgba(255,77,145,.07);border-left:2px solid var(--pink);border-right:2px solid var(--pink)}
+.event-chip{position:absolute;top:3px;transform:translateX(-50%);height:22px;padding:0 7px;border:1px solid var(--pink);color:#ffd6e5;background:#211329;font-size:10px;cursor:pointer;white-space:nowrap}
+
+.inspector{position:absolute;right:24px;top:98px;width:360px;min-height:390px;z-index:36;padding:18px;border:2px solid var(--line);background:var(--panel);pointer-events:auto}
+.inspector .head{display:flex;align-items:center;justify-content:space-between;color:var(--dim);font-size:11px;letter-spacing:.15em;margin-bottom:12px}
+.inspector h2{font-size:24px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inspector .sub{margin:4px 0 14px;color:var(--cyan);font-size:12px}
+.inspector .empty{padding:28px 12px;color:var(--dim);text-align:center;line-height:1.7;border:1px dashed var(--line)}
+.kv{height:39px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line-soft);font-size:14px}
+.kv span{color:var(--dim)}
+.kv b{color:var(--text);font-family:"Orbitron",sans-serif;font-size:12px;font-weight:650}
+.inspector-actions{display:flex;gap:8px;margin-top:16px}
+.inspector-actions .btn{flex:1;height:40px;font-size:12px}
+.inspector-note{margin-top:12px;padding:10px 11px;border-left:3px solid var(--cyan);background:rgba(53,224,255,.06);color:#a8b5db;font-size:11px;line-height:1.5}
+
+.transport{position:absolute;left:244px;right:410px;bottom:24px;height:82px;z-index:34;padding:12px 18px;border:2px solid var(--line);background:rgba(8,13,29,.94);pointer-events:auto}
+.transport-top{display:flex;align-items:center;gap:14px}
+.play-button{width:92px;height:34px;border:2px solid var(--cyan);background:rgba(53,224,255,.08);color:var(--cyan);cursor:pointer;font-size:11px}
+.play-button.playing{border-color:var(--green);color:var(--green);background:rgba(83,227,141,.08)}
+.timecode{width:126px;color:var(--text);font-size:12px}
+.progress{position:relative;flex:1;height:16px;cursor:pointer;touch-action:none;background:#111a35;border:1px solid var(--line)}
+.progress-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--cyan),var(--pink))}
+.progress-head{position:absolute;top:50%;left:0;width:15px;height:24px;transform:translate(-50%,-50%);background:#fff;clip-path:var(--cut-xs);box-shadow:0 0 12px rgba(255,255,255,.5)}
+.duration{width:64px;text-align:right;color:var(--dim);font-size:11px}
+.transport-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:10px;color:var(--dim);font-size:10px;letter-spacing:.08em}
+.transport-bottom .status-text{color:var(--cyan)}
+
+.hud-right{position:absolute;right:28px;bottom:28px;z-index:30;width:350px;text-align:right;pointer-events:none}
+.hud-right .line{margin-top:5px;color:var(--dim);font-size:13px}
+.hud-right b{color:var(--text);font-weight:700}
+.hud-right .dirty{color:var(--amber)}
+.hud-right .clean{color:var(--green)}
+.hud-right .play-state{color:var(--green)}
+.song-tag{position:absolute;left:246px;bottom:119px;z-index:30;pointer-events:none;color:var(--text);font-size:15px}
+.song-tag span{margin-left:10px;padding:4px 9px;border:1px solid var(--amber);color:var(--amber);font-size:9px}
+
+.bpm-popover{position:absolute;width:310px;z-index:60;display:none;padding:16px;border:2px solid var(--pink);background:rgba(18,12,32,.98);pointer-events:auto}
+.bpm-popover.on{display:block}
+.bpm-popover h3{font-size:15px;color:#ffd7e6;margin-bottom:4px}
+.bpm-popover p{color:var(--dim);font-size:11px;margin-bottom:12px}
+.bpm-popover input{width:100%;height:42px;padding:0 12px;border:2px solid var(--line);outline:none;background:#090f22;color:var(--text);font-family:"Orbitron",sans-serif;font-size:18px;user-select:text}
+.bpm-popover input:focus{border-color:var(--pink)}
+.pop-actions{display:flex;gap:8px;margin-top:10px}
+.pop-actions .btn{flex:1;height:38px;font-size:11px}
+
+.toast{position:absolute;left:50%;top:92px;z-index:80;min-width:420px;max-width:760px;padding:13px 20px;transform:translate(-50%,-18px);opacity:0;pointer-events:none;text-align:center;border:2px solid var(--cyan);background:rgba(5,12,27,.97);color:var(--text);font-size:13px;transition:.18s ease}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast.warn{border-color:var(--amber)}
+.toast.error{border-color:var(--red)}
+</style>
+</head>
+<body>
+<div class="viewport">
+  <main class="stage" id="stageRoot">
+    <section class="screen on" id="pack">
+      <header class="topbar">
+        <div class="logo tech">DUX·<span>EDITOR</span></div>
+        <div class="crumb tech">PACKAGE / <b>SYNTHETIC PULSE</b></div>
+        <div class="spacer"></div>
+        <div class="proto-flag cut-xs tech">PROTOTYPE · NOT V2 EXPORT</div>
+        <button class="btn warn cut-sm tech" data-action="export">EXPORT DISCONNECTED</button>
+      </header>
+
+      <div class="pack-main">
+        <article class="panel cut pack-detail">
+          <div class="cover cut-sm" aria-label="Synthetic geometric placeholder cover">
+            <div class="cover-mark tech"><strong>SYNTHETIC</strong><span>CLEAN-ROOM PRESET</span></div>
+          </div>
+          <h1>Synthetic Pulse</h1>
+          <div class="artist">Community Prototype · Chart author: UI Sandbox</div>
+          <div class="meta tech">3 TRACKS + EVENT · 00:32 · MEMORY ONLY</div>
+          <div class="clean-note">纯合成示例：仅包含 Tap、Drag、Hold 与 BPM 事件。没有导入原版素材、开发谱面或外部谱面内容。</div>
+        </article>
+
+        <section class="panel cut pack-list">
+          <div class="section-kicker tech">CHARTS · LOCAL VISUAL SANDBOX</div>
+          <div class="chart-row selected cut-sm" data-go="edit">
+            <div class="chart-text">
+              <h2>hard · visual prototype</h2>
+              <p>Standalone interaction study · in-memory edits · no schema output</p>
+            </div>
+            <div class="row-status tech">READY</div>
+            <div class="level cut-xs tech">12</div>
+          </div>
+          <div class="chart-row cut-sm" data-go="edit">
+            <div class="chart-text">
+              <h2>blank interaction lane</h2>
+              <p>Opens the same synthetic preset for this approved prototype</p>
+            </div>
+            <div class="row-status tech">DEMO</div>
+            <div class="level cut-xs tech" style="background:var(--pink);color:white">P</div>
+          </div>
+          <div class="prototype-card cut-sm">
+            <h3 class="tech">WEB INTERACTIVE PROTOTYPE</h3>
+            <p>本页面是独立网页交互原型，不连接 Godot，也不读写正式 Dynamite UV Chart Format v2。编辑、播放与检查仅存在于当前页面内存中。</p>
+            <div class="rules tech">
+              <span>1 TAP</span><span>2 DRAG</span><span>3 HOLD</span><span>E SELECT</span><span>SPACE PLAY</span><span># BPM EVENTS</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="pack-bottom">
+        <div class="pack-summary cut-sm tech">PACKAGE STATUS <b>PROTOTYPE / NO V2 SAVE OR EXPORT</b></div>
+        <button class="btn cut-sm tech" data-action="save">SAVE DISCONNECTED</button>
+        <button class="btn primary cut-sm tech" data-go="edit">OPEN PROTOTYPE ▶</button>
+      </div>
+    </section>
+
+    <section class="screen" id="edit">
+      <div class="field" id="field" aria-label="Interactive chart canvas">
+        <div class="depth"></div>
+        <div class="active-guide center" id="activeGuide"></div>
+        <div class="grid-layer" id="gridCenter"></div>
+        <div class="grid-layer" id="gridLeft"></div>
+        <div class="grid-layer" id="gridRight"></div>
+        <div class="judge center"></div>
+        <div class="judge left"></div>
+        <div class="judge right"></div>
+        <div class="dir-label c tech">TIME ↓ · JUDGE Y 861</div>
+        <div class="dir-label l tech">TIME ← · X 184</div>
+        <div class="dir-label r tech">TIME → · X 1736</div>
+        <div class="note-layer" id="noteLayer"></div>
+        <div class="event-layer" id="eventLayer"></div>
+        <div class="ghost-layer" id="ghostLayer"></div>
+      </div>
+
+      <header class="topbar">
+        <div class="logo tech">DUX·<span>EDITOR</span></div>
+        <div class="crumb tech">SYNTHETIC PULSE / <b>HARD · VISUAL</b></div>
+        <div class="spacer"></div>
+        <button class="btn cut-sm tech" data-go="pack">PACKAGE</button>
+        <button class="btn cut-sm tech" id="gridButton" data-action="grid">GRID 1/16</button>
+        <button class="btn cut-sm tech" id="snapButton" data-action="snap">SNAP ON</button>
+        <div class="proto-flag cut-xs tech">PROTOTYPE · NOT V2 EXPORT</div>
+        <button class="btn cut-sm tech" data-action="save">SAVE · NO V2</button>
+        <button class="btn warn cut-sm tech" data-action="export">EXPORT · NO V2</button>
+      </header>
+
+      <aside class="rail">
+        <div class="track-tabs cut-sm" id="trackTabs" title="Arrow keys switch tracks; Arrow Up selects events">
+          <button data-track="left" aria-label="Left track">←</button>
+          <button class="on" data-track="center" aria-label="Center track">↓</button>
+          <button data-track="right" aria-label="Right track">→</button>
+          <button data-track="event" aria-label="Event track">#</button>
+        </div>
+        <button class="tool tap on cut-sm" data-tool="tap"><kbd>1</kbd><span>点按<small class="tech">TAP · DRAG WIDTH</small></span></button>
+        <button class="tool drag cut-sm" data-tool="drag"><kbd>2</kbd><span>滑动<small class="tech">DRAG · DRAG WIDTH</small></span></button>
+        <button class="tool hold cut-sm" data-tool="hold"><kbd>3</kbd><span>长按<small class="tech">HOLD · TWO STAGE</small></span></button>
+        <button class="tool select cut-sm" data-tool="select"><kbd>E</kbd><span>选择 / 编辑<small class="tech">MOVE · DELETE</small></span></button>
+        <div class="future-box cut-sm">
+          <h4 class="tech">FUTURE / DISABLED</h4>
+          <div class="future-tags tech"><span>MIXER</span><span>MINE</span><span>EX-TAP</span><span>BARLINE</span><span>SCROLL</span></div>
+        </div>
+        <div class="shortcut-box cut-sm">
+          <h4 class="tech">SHORTCUTS</h4>
+          <p><b>1 / 2 / 3 / E</b><span>TOOLS</span></p>
+          <p><b>← / ↓ / → / ↑</b><span>TRACKS / EVENT</span></p>
+          <p><b>G / S</b><span>GRID / SNAP</span></p>
+          <p><b>SPACE</b><span>PLAY / PAUSE</span></p>
+          <p><b>DEL / BACKSPACE</b><span>REMOVE</span></p>
+          <p><b>ESC / RIGHT CLICK</b><span>CANCEL</span></p>
+        </div>
+      </aside>
+
+      <div class="event-strip cut-sm" id="eventStrip">
+        <div class="label tech">BPM EVENT TRACK · CLICK CANVAS TO ADD · CLICK EVENT TO EDIT</div>
+        <div class="event-trackline" id="eventTrackline"></div>
+      </div>
+
+      <aside class="inspector cut-sm" id="inspector">
+        <div class="head tech"><span>INSPECTOR</span><span id="selectionKind">NO SELECTION</span></div>
+        <div id="inspectorContent">
+          <div class="empty">点击任意可视对象进行检查。<br>按 E 后可拖动选中音符，Delete / Backspace 删除。</div>
+        </div>
+        <div class="inspector-actions">
+          <button class="btn cut-sm" id="deleteButton" disabled>删除选中</button>
+          <button class="btn cut-sm" data-action="save">保存 · NO V2</button>
+        </div>
+        <div class="inspector-note">* 保存与导出按钮只提示状态；此原型不会伪造 v2 文件、Digest 或持久化成功。</div>
+      </aside>
+
+      <div class="song-tag tech">SYNTHETIC PULSE <span class="cut-xs">HARD 12</span></div>
+
+      <div class="transport cut-sm">
+        <div class="transport-top">
+          <button class="play-button cut-xs tech" id="playButton">▶ PLAY</button>
+          <div class="timecode tech" id="timecode">00:00.000</div>
+          <div class="progress" id="progress" aria-label="Playback seek strip">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-head" id="progressHead"></div>
+          </div>
+          <div class="duration tech">00:32.000</div>
+        </div>
+        <div class="transport-bottom tech">
+          <span class="status-text" id="statusText">READY · MOVE POINTER INTO A TRACK</span>
+          <span>CLICK / DRAG STRIP TO SEEK · SPACE TO PLAY</span>
+        </div>
+      </div>
+
+      <div class="hud-right tech">
+        <div class="line" id="hudPlay">STATE <b>PAUSED</b></div>
+        <div class="line">MUSIC <b id="hudMusic">00:00.000</b></div>
+        <div class="line">BAR <b id="hudBar">1 + 0/16</b></div>
+        <div class="line">GRID <b id="hudGrid">1/16</b> · SNAP <b id="hudSnap">ON</b></div>
+        <div class="line">DIR <b id="hudDir">CENTER ↓ TO Y=861</b></div>
+        <div class="line">OBJECTS <b id="hudObjects">0</b> · <b id="hudDirty" class="clean">CLEAN</b></div>
+      </div>
+
+      <div class="bpm-popover cut-sm" id="bpmPopover">
+        <h3 class="tech" id="bpmTitle">BPM EVENT</h3>
+        <p class="tech" id="bpmTimeLabel">BAR 1 + 0/16</p>
+        <input id="bpmInput" type="number" min="30" max="400" step="0.01" inputmode="decimal" aria-label="BPM value">
+        <div class="pop-actions">
+          <button class="btn primary cut-xs tech" id="bpmConfirm">CONFIRM</button>
+          <button class="btn cut-xs tech" id="bpmCancel">CANCEL</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="toast cut-sm" id="toast"></div>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const DESIGN_W = 1920;
+  const DESIGN_H = 1080;
+  const DURATION = 32;
+  const PX_PER_SECOND = 100;
+  const ABSOLUTE_MIN_HOLD_DURATION = .04;
+  const CENTER = { x: 280, width: 1366, line: 861, top: 95 };
+  const SIDE = { y: 170, height: 660, leftLine: 184, rightLine: 1736 };
+  const GRID_VALUES = [8, 16, 32];
+
+  const stageRoot = document.getElementById("stageRoot");
+  const editScreen = document.getElementById("edit");
+  const field = document.getElementById("field");
+  const noteLayer = document.getElementById("noteLayer");
+  const eventLayer = document.getElementById("eventLayer");
+  const ghostLayer = document.getElementById("ghostLayer");
+  const activeGuide = document.getElementById("activeGuide");
+  const eventStrip = document.getElementById("eventStrip");
+  const eventTrackline = document.getElementById("eventTrackline");
+  const inspectorContent = document.getElementById("inspectorContent");
+  const selectionKind = document.getElementById("selectionKind");
+  const deleteButton = document.getElementById("deleteButton");
+  const progress = document.getElementById("progress");
+  const progressFill = document.getElementById("progressFill");
+  const progressHead = document.getElementById("progressHead");
+  const playButton = document.getElementById("playButton");
+  const timecode = document.getElementById("timecode");
+  const statusText = document.getElementById("statusText");
+  const gridButton = document.getElementById("gridButton");
+  const snapButton = document.getElementById("snapButton");
+  const bpmPopover = document.getElementById("bpmPopover");
+  const bpmTitle = document.getElementById("bpmTitle");
+  const bpmTimeLabel = document.getElementById("bpmTimeLabel");
+  const bpmInput = document.getElementById("bpmInput");
+  const bpmConfirm = document.getElementById("bpmConfirm");
+  const bpmCancel = document.getElementById("bpmCancel");
+  const toastElement = document.getElementById("toast");
+  const gridCenter = document.getElementById("gridCenter");
+  const gridLeft = document.getElementById("gridLeft");
+  const gridRight = document.getElementById("gridRight");
+
+  const hudPlay = document.getElementById("hudPlay");
+  const hudMusic = document.getElementById("hudMusic");
+  const hudBar = document.getElementById("hudBar");
+  const hudGrid = document.getElementById("hudGrid");
+  const hudSnap = document.getElementById("hudSnap");
+  const hudDir = document.getElementById("hudDir");
+  const hudObjects = document.getElementById("hudObjects");
+  const hudDirty = document.getElementById("hudDirty");
+
+  const notes = [
+    { id:"tap-c-01", type:"tap", track:"center", time:2.2, pos:.19, width:.15 },
+    { id:"drag-c-01", type:"drag", track:"center", time:4.35, pos:.51, width:.18 },
+    { id:"tap-l-01", type:"tap", track:"left", time:6.1, pos:.19, width:.14 },
+    { id:"hold-c-01", type:"hold", track:"center", time:7.6, end:11.2, pos:.34, width:.22 },
+    { id:"drag-r-01", type:"drag", track:"right", time:9.25, pos:.58, width:.16 },
+    { id:"hold-l-01", type:"hold", track:"left", time:13.1, end:16.05, pos:.54, width:.19 },
+    { id:"tap-r-01", type:"tap", track:"right", time:18.2, pos:.31, width:.14 },
+    { id:"drag-c-02", type:"drag", track:"center", time:22.4, pos:.69, width:.13 },
+    { id:"hold-r-01", type:"hold", track:"right", time:25.0, end:28.4, pos:.16, width:.2 }
+  ];
+
+  const bpmEvents = [
+    { id:"bpm-0", time:0, bpm:150, lockedTime:true },
+    { id:"bpm-1", time:12, bpm:176 },
+    { id:"bpm-2", time:24, bpm:132 }
+  ];
+
+  const state = {
+    screen:"pack",
+    tool:"tap",
+    track:"center",
+    lastNoteTrack:"center",
+    grid:16,
+    snap:true,
+    playing:false,
+    time:0,
+    dirty:false,
+    selected:null,
+    pointer:null,
+    editorPointerId:null,
+    seekPointerId:null,
+    seekCandidate:null,
+    draft:null,
+    drag:null,
+    bpmEdit:null,
+    noteSerial:10,
+    bpmSerial:3,
+    playbackOriginTime:0,
+    playbackOriginNow:performance.now(),
+    toastTimer:0
+  };
+
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const round = (value, places = 3) => Number(value.toFixed(places));
+
+  function fitStage(){
+    const scale = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+    stageRoot.style.transform = `scale(${scale})`;
+  }
+
+  function stagePoint(event){
+    const rect = stageRoot.getBoundingClientRect();
+    return {
+      x:(event.clientX - rect.left) * DESIGN_W / rect.width,
+      y:(event.clientY - rect.top) * DESIGN_H / rect.height
+    };
+  }
+
+  function screenPointFromElement(element){
+    const stageRect = stageRoot.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    return {
+      x:(rect.left + rect.width / 2 - stageRect.left) * DESIGN_W / stageRect.width,
+      y:(rect.top + rect.height - stageRect.top) * DESIGN_H / stageRect.height
+    };
+  }
+
+  function sortedBpm(){
+    return [...bpmEvents].sort((a,b) => a.time - b.time);
+  }
+
+  function bpmAt(time){
+    let bpm = 150;
+    for(const event of sortedBpm()){
+      if(event.time <= time + 1e-7) bpm = event.bpm;
+      else break;
+    }
+    return bpm;
+  }
+
+  function barAtTime(time){
+    const target = clamp(time, 0, DURATION);
+    const events = sortedBpm();
+    let cursor = 0;
+    let bar = 0;
+    let bpm = 150;
+    for(const event of events){
+      if(event.time <= 0){ bpm = event.bpm; continue; }
+      if(event.time >= target) break;
+      bar += (event.time - cursor) * bpm / 240;
+      cursor = event.time;
+      bpm = event.bpm;
+    }
+    bar += (target - cursor) * bpm / 240;
+    return bar;
+  }
+
+  function timeAtBar(targetBar){
+    const target = Math.max(0, targetBar);
+    const events = sortedBpm();
+    let cursor = 0;
+    let bar = 0;
+    let bpm = 150;
+    for(const event of events){
+      if(event.time <= 0){ bpm = event.bpm; continue; }
+      const segmentBars = (event.time - cursor) * bpm / 240;
+      if(target <= bar + segmentBars + 1e-9){
+        return clamp(cursor + (target - bar) * 240 / bpm, 0, DURATION);
+      }
+      bar += segmentBars;
+      cursor = event.time;
+      bpm = event.bpm;
+    }
+    return clamp(cursor + (target - bar) * 240 / bpm, 0, DURATION);
+  }
+
+  function snapTime(time){
+    const safe = clamp(time, 0, DURATION);
+    if(!state.snap) return safe;
+    const snappedBar = Math.round(barAtTime(safe) * state.grid) / state.grid;
+    return timeAtBar(snappedBar);
+  }
+
+  function snapSpatial(value){
+    const safe = clamp(value, 0, 1);
+    return state.snap ? Math.round(safe * 40) / 40 : safe;
+  }
+
+  function formatTime(seconds){
+    const safe = clamp(seconds, 0, DURATION);
+    const minutes = Math.floor(safe / 60);
+    const secs = Math.floor(safe % 60);
+    const millis = Math.floor((safe - Math.floor(safe)) * 1000 + 1e-6);
+    return `${String(minutes).padStart(2,"0")}:${String(secs).padStart(2,"0")}.${String(millis).padStart(3,"0")}`;
+  }
+
+  function barParts(time){
+    const raw = Math.max(0, barAtTime(time));
+    let whole = Math.floor(raw + 1e-8);
+    let fraction = Math.round((raw - whole) * state.grid);
+    if(fraction >= state.grid){ whole += 1; fraction = 0; }
+    return { whole, fraction };
+  }
+
+  function formatBar(time){
+    const part = barParts(time);
+    return `${part.whole + 1} + ${part.fraction}/${state.grid}`;
+  }
+
+  function minHoldDuration(headTime){
+    const safeHead = clamp(headTime, 0, DURATION);
+    const headBar = barAtTime(safeHead);
+    return Math.max(ABSOLUTE_MIN_HOLD_DURATION, timeAtBar(headBar + 1 / state.grid) - safeHead);
+  }
+
+  function maximumHoldHeadTime(){
+    const totalBar = barAtTime(DURATION);
+    const oneSubdivisionBeforeEnd = timeAtBar(Math.max(0, totalBar - 1 / state.grid));
+    let latest = Math.min(DURATION - ABSOLUTE_MIN_HOLD_DURATION, oneSubdivisionBeforeEnd);
+    if(state.snap){
+      const latestBar = Math.floor((barAtTime(latest) + 1e-9) * state.grid) / state.grid;
+      latest = timeAtBar(latestBar);
+    }
+    return Math.max(0, latest);
+  }
+
+  function boundedHoldEnd(headTime,candidateTime){
+    const minimum = headTime + minHoldDuration(headTime);
+    if(minimum > DURATION + 1e-7) return null;
+    return Math.min(DURATION, Math.max(minimum, candidateTime));
+  }
+
+  function rawPointForTrack(point,track){
+    if(track === "center" || track === "event"){
+      return {
+        time:state.time + (CENTER.line - point.y) / PX_PER_SECOND,
+        pos:(point.x - CENTER.x) / CENTER.width
+      };
+    }
+    if(track === "left"){
+      return {
+        time:state.time + (point.x - SIDE.leftLine) / PX_PER_SECOND,
+        pos:(point.y - SIDE.y) / SIDE.height
+      };
+    }
+    return {
+      time:state.time + (SIDE.rightLine - point.x) / PX_PER_SECOND,
+      pos:(point.y - SIDE.y) / SIDE.height
+    };
+  }
+
+  function pointForTrack(point, track, placement = true){
+    const raw = rawPointForTrack(point,track);
+    let time = snapTime(raw.time);
+    if(placement) time = Math.max(state.time, time);
+    return {
+      time:clamp(time, 0, DURATION),
+      rawTime:raw.time,
+      pos:snapSpatial(raw.pos),
+      rawPos:raw.pos
+    };
+  }
+
+  function pointInsideTrack(point, track){
+    if(point.y < 80 || point.y > 910) return false;
+    if(track === "center" || track === "event") return point.x >= CENTER.x && point.x <= CENTER.x + CENTER.width;
+    if(track === "left") return point.x >= SIDE.leftLine && point.x <= 850 && point.y >= SIDE.y && point.y <= SIDE.y + SIDE.height;
+    return point.x >= 1070 && point.x <= SIDE.rightLine && point.y >= SIDE.y && point.y <= SIDE.y + SIDE.height;
+  }
+
+  function axisAt(track, time){
+    const delta = time - state.time;
+    if(track === "center" || track === "event") return CENTER.line - delta * PX_PER_SECOND;
+    if(track === "left") return SIDE.leftLine + delta * PX_PER_SECOND;
+    return SIDE.rightLine - delta * PX_PER_SECOND;
+  }
+
+  function noteRect(note, atTime = note.time){
+    const axis = axisAt(note.track, atTime);
+    if(note.track === "center"){
+      const width = Math.max(42, note.width * CENTER.width);
+      const left = CENTER.x + note.pos * CENTER.width;
+      return { left, top:axis - 13, width, height:26, axis };
+    }
+    const height = Math.max(42, note.width * SIDE.height);
+    const top = SIDE.y + note.pos * SIDE.height;
+    return { left:axis - 13, top, width:26, height, axis };
+  }
+
+  function styleRect(rect){
+    return `left:${round(rect.left)}px;top:${round(rect.top)}px;width:${round(rect.width)}px;height:${round(rect.height)}px`;
+  }
+
+  function selectedClass(kind, id){
+    return state.selected?.kind === kind && state.selected.id === id ? " selected" : "";
+  }
+
+  function renderNotes(){
+    const html = [];
+    for(const note of notes){
+      const endTime = note.type === "hold" ? note.end : note.time;
+      if(endTime < state.time - .35) continue;
+      if(note.type !== "hold"){
+        const rect = noteRect(note);
+        const side = note.track === "center" ? "" : " side";
+        html.push(`<div class="note-visual ${note.type}${side}${selectedClass("note",note.id)}" data-note-id="${note.id}" style="${styleRect(rect)}" title="${note.type.toUpperCase()} · ${note.track.toUpperCase()}"></div>`);
+        continue;
+      }
+
+      let headAxis = axisAt(note.track, note.time);
+      const tailAxis = axisAt(note.track, note.end);
+      const active = state.time > note.time && state.time < note.end;
+      if(active){
+        headAxis = note.track === "center" ? CENTER.line : (note.track === "left" ? SIDE.leftLine : SIDE.rightLine);
+      }
+      const headRect = noteRect(note);
+      const tailRect = noteRect(note, note.end);
+      if(note.track === "center"){
+        headRect.top = headAxis - 13;
+        const bodyTop = Math.min(headAxis, tailAxis);
+        const bodyHeight = Math.max(6, Math.abs(tailAxis - headAxis));
+        const body = { left:headRect.left, top:bodyTop, width:headRect.width, height:bodyHeight };
+        html.push(`<div class="hold-body${selectedClass("note",note.id)}" data-note-id="${note.id}" style="${styleRect(body)}"></div>`);
+      }else{
+        headRect.left = headAxis - 13;
+        const bodyLeft = Math.min(headAxis, tailAxis);
+        const bodyWidth = Math.max(6, Math.abs(tailAxis - headAxis));
+        const body = { left:bodyLeft, top:headRect.top, width:bodyWidth, height:headRect.height };
+        html.push(`<div class="hold-body side${selectedClass("note",note.id)}" data-note-id="${note.id}" style="${styleRect(body)}"></div>`);
+      }
+      const side = note.track === "center" ? "" : " side";
+      html.push(`<div class="note-visual hold${side}${selectedClass("note",note.id)}${active ? " active-head" : ""}" data-note-id="${note.id}" style="${styleRect(headRect)}" title="HOLD HEAD · ${note.track.toUpperCase()}"></div>`);
+      html.push(`<div class="note-visual hold${side}${selectedClass("note",note.id)}" data-note-id="${note.id}" style="${styleRect(tailRect)};opacity:.78" title="HOLD TAIL · ${note.track.toUpperCase()}"></div>`);
+    }
+    noteLayer.innerHTML = html.join("");
+  }
+
+  function renderEvents(){
+    const html = [];
+    for(const event of sortedBpm()){
+      if(event.time < state.time - .35) continue;
+      const y = axisAt("center", event.time);
+      html.push(`<div class="event-guide-line" style="top:${round(y)}px"></div>`);
+      html.push(`<button class="event-marker tech${selectedClass("event",event.id)}" data-event-id="${event.id}" style="left:300px;top:${round(y - 14)}px">BPM ${round(event.bpm,2)}</button>`);
+    }
+    eventLayer.innerHTML = html.join("");
+
+    eventTrackline.innerHTML = sortedBpm().map(event => {
+      const left = clamp(event.time / DURATION * 100, 1.5, 98.5);
+      return `<button class="event-chip tech" data-event-id="${event.id}" style="left:${left}%">${round(event.time,2)}s · ${round(event.bpm,2)}</button>`;
+    }).join("");
+  }
+
+  function ghostNoteHtml(type, track, time, pos, width, extraClass = ""){
+    const note = { type, track, time, pos, width };
+    const rect = noteRect(note);
+    return `<div class="ghost-note ${type}${extraClass}" style="${styleRect(rect)}"></div>`;
+  }
+
+  function ghostBandHtml(track, start, end, pos, width){
+    const note = { type:"hold", track, time:start, pos, width };
+    const head = noteRect(note, start);
+    const tail = noteRect(note, end);
+    if(track === "center"){
+      const rect = { left:head.left, top:Math.min(head.axis,tail.axis), width:head.width, height:Math.max(6,Math.abs(tail.axis-head.axis)) };
+      return `<div class="ghost-band" style="${styleRect(rect)}"></div>${ghostNoteHtml("hold",track,start,pos,width)}${ghostNoteHtml("hold",track,end,pos,width)}`;
+    }
+    const rect = { left:Math.min(head.axis,tail.axis), top:head.top, width:Math.max(6,Math.abs(tail.axis-head.axis)), height:head.height };
+    return `<div class="ghost-band" style="${styleRect(rect)}"></div>${ghostNoteHtml("hold",track,start,pos,width)}${ghostNoteHtml("hold",track,end,pos,width)}`;
+  }
+
+  function renderGhost(){
+    if(state.screen !== "edit" || state.playing || !state.pointer){
+      ghostLayer.innerHTML = "";
+      return;
+    }
+    const pointer = state.pointer;
+    if(state.draft?.phase === "width"){
+      const d = state.draft;
+      ghostLayer.innerHTML = ghostNoteHtml(d.type,d.track,d.time,d.pos,d.width) + ghostLabel(d.track,d.time,d.pos,`${d.type.toUpperCase()} · WIDTH ${d.width.toFixed(3)}`);
+      return;
+    }
+    if(state.draft?.phase === "holdTail"){
+      const d = state.draft;
+      ghostLayer.innerHTML = ghostBandHtml(d.track,d.time,d.end,d.pos,d.width) + ghostLabel(d.track,d.end,d.pos,`HOLD TAIL · ${formatBar(d.end)}`);
+      return;
+    }
+    if(state.tool === "select" || state.track === "event" || !pointInsideTrack(pointer,state.track)){
+      if(state.track === "event" && pointInsideTrack(pointer,"event")){
+        const p = pointForTrack(pointer,"event");
+        const y = axisAt("center",p.time);
+        ghostLayer.innerHTML = `<div class="event-guide-line" style="top:${round(y)}px;opacity:.7"></div><div class="ghost-label tech" style="left:300px;top:${round(y-34)}px">+ BPM · ${formatBar(p.time)}</div>`;
+      }else{
+        ghostLayer.innerHTML = "";
+      }
+      return;
+    }
+    const p = pointForTrack(pointer,state.track);
+    const defaultWidth = .125;
+    ghostLayer.innerHTML = ghostNoteHtml(state.tool,state.track,p.time,clamp(p.pos,0,1-defaultWidth),defaultWidth) + ghostLabel(state.track,p.time,p.pos,`${state.tool.toUpperCase()} · ${formatBar(p.time)}`);
+  }
+
+  function ghostLabel(track,time,pos,text){
+    const rect = noteRect({track,time,pos:clamp(pos,0,.9),width:.1});
+    const left = clamp(rect.left + rect.width + 9, 240, 1500);
+    const top = clamp(rect.top - 2, 84, 920);
+    return `<div class="ghost-label tech" style="left:${round(left)}px;top:${round(top)}px">${text}</div>`;
+  }
+
+  function renderGrid(){
+    const startBar = barAtTime(state.time - 8);
+    const endBar = barAtTime(state.time + 16);
+    const centerLines = [];
+    const leftLines = [];
+    const rightLines = [];
+    const firstTick = Math.ceil(startBar * state.grid - 1e-8);
+    const lastTick = Math.floor(endBar * state.grid + 1e-8);
+    for(let tick = firstTick; tick <= lastTick; tick += 1){
+      const bar = tick / state.grid;
+      const time = timeAtBar(bar);
+      const major = tick % state.grid === 0 ? " major" : "";
+      const centerPosition = axisAt("center",time) - CENTER.top;
+      const leftPosition = axisAt("left",time) - SIDE.leftLine;
+      const rightPosition = axisAt("right",time) - (SIDE.rightLine - 610);
+      if(centerPosition >= -2 && centerPosition <= 770){
+        centerLines.push(`<div class="grid-line horizontal${major}" style="top:${round(centerPosition)}px"></div>`);
+      }
+      if(leftPosition >= -2 && leftPosition <= 612){
+        leftLines.push(`<div class="grid-line vertical${major}" style="left:${round(leftPosition)}px"></div>`);
+      }
+      if(rightPosition >= -2 && rightPosition <= 612){
+        rightLines.push(`<div class="grid-line vertical${major}" style="left:${round(rightPosition)}px"></div>`);
+      }
+    }
+    gridCenter.innerHTML = centerLines.join("");
+    gridLeft.innerHTML = leftLines.join("");
+    gridRight.innerHTML = rightLines.join("");
+  }
+
+  function renderEventStrip(){
+    eventStrip.classList.toggle("on", state.track === "event");
+  }
+
+  function renderInspector(){
+    const selected = state.selected;
+    deleteButton.disabled = !selected || hasActiveEditTransaction();
+    if(!selected){
+      selectionKind.textContent = "NO SELECTION";
+      inspectorContent.innerHTML = `<div class="empty">点击任意可视对象进行检查。<br>按 E 后可拖动选中音符，Delete / Backspace 删除。</div>`;
+      return;
+    }
+    if(selected.kind === "event"){
+      const event = bpmEvents.find(item => item.id === selected.id);
+      if(!event){ clearSelection(); return; }
+      selectionKind.textContent = "BPM EVENT";
+      inspectorContent.innerHTML = `
+        <h2>${event.id}</h2>
+        <div class="sub tech">EVENT TRACK · IN-MEMORY</div>
+        <div class="kv"><span>时间</span><b>${formatTime(event.time)}</b></div>
+        <div class="kv"><span>小节</span><b>${formatBar(event.time)}</b></div>
+        <div class="kv"><span>BPM</span><b>${round(event.bpm,2)}</b></div>
+        <div class="kv"><span>时间锁定</span><b>${event.lockedTime ? "BASE EVENT" : "NO"}</b></div>
+        <div class="kv"><span>输出</span><b style="color:var(--pink)">NOT CONNECTED</b></div>`;
+      return;
+    }
+    const note = notes.find(item => item.id === selected.id);
+    if(!note){ clearSelection(); return; }
+    selectionKind.textContent = `${note.type.toUpperCase()} NOTE`;
+    inspectorContent.innerHTML = `
+      <h2>${note.id}</h2>
+      <div class="sub tech">${note.type.toUpperCase()} · ${note.track.toUpperCase()} · VISUAL OBJECT</div>
+      <div class="kv"><span>时间</span><b>${formatTime(note.time)}</b></div>
+      <div class="kv"><span>小节</span><b>${formatBar(note.time)}</b></div>
+      <div class="kv"><span>位置</span><b>${note.pos.toFixed(3)}</b></div>
+      <div class="kv"><span>宽度</span><b>${note.width.toFixed(3)}</b></div>
+      <div class="kv"><span>尾时间</span><b>${note.type === "hold" ? formatTime(note.end) : "—"}</b></div>
+      <div class="kv"><span>时长</span><b>${note.type === "hold" ? (note.end-note.time).toFixed(3)+" s" : "INSTANT"}</b></div>
+      <div class="kv"><span>输出</span><b style="color:var(--pink)">NOT CONNECTED</b></div>`;
+  }
+
+  function renderChrome(){
+    gridButton.textContent = `GRID 1/${state.grid}`;
+    snapButton.textContent = `SNAP ${state.snap ? "ON" : "OFF"}`;
+    snapButton.classList.toggle("warn", !state.snap);
+    playButton.textContent = state.playing ? "❚❚ PAUSE" : "▶ PLAY";
+    playButton.classList.toggle("playing",state.playing);
+    const displayTime = state.seekPointerId !== null && state.seekCandidate !== null ? state.seekCandidate : state.time;
+    timecode.textContent = formatTime(displayTime);
+    const progressValue = displayTime / DURATION * 100;
+    progressFill.style.width = `${progressValue}%`;
+    progressHead.style.left = `${progressValue}%`;
+    hudPlay.innerHTML = `STATE <b class="${state.playing ? "play-state" : ""}">${state.seekPointerId !== null ? "SEEKING" : state.playing ? "PLAYING" : "PAUSED"}</b>`;
+    hudMusic.textContent = formatTime(displayTime);
+    hudBar.textContent = formatBar(displayTime);
+    hudGrid.textContent = `1/${state.grid}`;
+    hudSnap.textContent = state.snap ? "ON" : "OFF";
+    const directions = {
+      left:"LEFT ← TO X=184",
+      center:"CENTER ↓ TO Y=861",
+      right:"RIGHT → TO X=1736",
+      event:"EVENT # · BPM"
+    };
+    hudDir.textContent = directions[state.track];
+    hudObjects.textContent = String(notes.length + bpmEvents.length);
+    hudDirty.textContent = state.dirty ? "DIRTY" : "CLEAN";
+    hudDirty.className = state.dirty ? "dirty" : "clean";
+  }
+
+  function render(){
+    renderNotes();
+    renderEvents();
+    renderGhost();
+    renderGrid();
+    renderEventStrip();
+    renderChrome();
+  }
+
+  function hasActiveEditTransaction(){
+    return Boolean(state.draft || state.drag || state.bpmEdit);
+  }
+
+  function releaseEditorPointer(pointerId = state.editorPointerId){
+    if(pointerId === null || pointerId === undefined) return;
+    if(field.hasPointerCapture(pointerId)) field.releasePointerCapture(pointerId);
+    if(state.editorPointerId === pointerId) state.editorPointerId = null;
+  }
+
+  function claimEditorPointer(event){
+    if(state.seekPointerId !== null) return false;
+    if(state.editorPointerId !== null && state.editorPointerId !== event.pointerId) return false;
+    state.editorPointerId = event.pointerId;
+    field.setPointerCapture(event.pointerId);
+    return true;
+  }
+
+  function resetPlaybackOrigin(now = performance.now()){
+    state.playbackOriginTime = state.time;
+    state.playbackOriginNow = now;
+  }
+
+  function syncPlaybackPosition(now = performance.now()){
+    if(!state.playing || state.seekPointerId !== null) return;
+    const elapsed = Math.max(0,(now - state.playbackOriginNow) / 1000);
+    state.time = Math.min(DURATION,state.playbackOriginTime + elapsed);
+  }
+
+  function sameNoteModel(note,original){
+    if(!note || !original) return false;
+    return note.id === original.id && note.type === original.type && note.track === original.track &&
+      Math.abs(note.time - original.time) < 1e-7 && Math.abs(note.pos - original.pos) < 1e-7 &&
+      Math.abs(note.width - original.width) < 1e-7 &&
+      (note.type !== "hold" || Math.abs(note.end - original.end) < 1e-7);
+  }
+
+  function showScreen(id){
+    state.screen = id;
+    document.querySelectorAll(".screen").forEach(screen => screen.classList.toggle("on",screen.id === id));
+    if(id === "edit"){
+      resetPlaybackOrigin();
+      setStatus("READY · POINTER GHOST SNAPS TO THE ACTIVE TRACK");
+      render();
+    }else{
+      setPlaying(false);
+      cancelInteraction(false);
+    }
+  }
+
+  function toast(message, tone = ""){
+    window.clearTimeout(state.toastTimer);
+    toastElement.textContent = message;
+    toastElement.className = `toast cut-sm on${tone ? " "+tone : ""}`;
+    state.toastTimer = window.setTimeout(() => toastElement.classList.remove("on"),2600);
+  }
+
+  function setStatus(message){
+    statusText.textContent = message;
+  }
+
+  function markDirty(message){
+    state.dirty = true;
+    if(message) toast(message);
+  }
+
+  function setTool(tool, announce = true){
+    const noteTool = tool === "tap" || tool === "drag" || tool === "hold";
+    const targetTrack = noteTool && state.track === "event" ? state.lastNoteTrack : state.track;
+    if(state.tool === tool && targetTrack === state.track) return;
+    cancelInteraction(false);
+    state.tool = tool;
+    document.querySelectorAll("[data-tool]").forEach(button => button.classList.toggle("on",button.dataset.tool === tool));
+    if(targetTrack !== state.track) applyTrack(targetTrack);
+    if(announce){
+      const labels = {tap:"TAP · PRESS, DRAG WIDTH, RELEASE",drag:"DRAG · PRESS, DRAG WIDTH, RELEASE",hold:"HOLD · WIDTH FIRST, THEN TAIL CLICK",select:"SELECT · CLICK OR DRAG OBJECT"};
+      setStatus(labels[tool]);
+      toast(labels[tool]);
+    }
+    renderGhost();
+  }
+
+  function applyTrack(track){
+    state.track = track;
+    if(track !== "event") state.lastNoteTrack = track;
+    document.querySelectorAll("[data-track]").forEach(button => button.classList.toggle("on",button.dataset.track === track));
+    activeGuide.className = `active-guide ${track}`;
+  }
+
+  function setTrack(track, announce = true){
+    if(state.track === track) return;
+    cancelInteraction(false);
+    applyTrack(track);
+    if(track === "event"){
+      setStatus("EVENT # · CLICK CANVAS TO ADD BPM, OR CLICK A MARKER TO EDIT");
+    }else{
+      setStatus(`${track.toUpperCase()} TRACK · ${track === "center" ? "TIME MOVES DOWN" : track === "left" ? "TIME MOVES OUTWARD LEFT" : "TIME MOVES OUTWARD RIGHT"}`);
+    }
+    if(announce) toast(track === "event" ? "BPM event track selected" : `${track} track selected`);
+    render();
+  }
+
+  function clearSelection(){
+    state.selected = null;
+    renderInspector();
+  }
+
+  function selectItem(kind,id){
+    state.selected = {kind,id};
+    renderInspector();
+    renderNotes();
+    renderEvents();
+  }
+
+  function deleteSelected(){
+    if(!state.selected) return;
+    if(hasActiveEditTransaction()){
+      toast("Finish or cancel the active edit before deleting", "warn");
+      setStatus("DELETE REJECTED · ACTIVE EDIT TRANSACTION");
+      renderInspector();
+      return;
+    }
+    if(state.selected.kind === "note"){
+      const index = notes.findIndex(note => note.id === state.selected.id);
+      if(index >= 0){
+        const [removed] = notes.splice(index,1);
+        clearSelection();
+        markDirty(`${removed.type.toUpperCase()} removed · memory only`);
+      }
+    }else{
+      const index = bpmEvents.findIndex(event => event.id === state.selected.id);
+      if(index >= 0){
+        if(bpmEvents[index].lockedTime){
+          toast("The base BPM event can be edited but not removed", "warn");
+          return;
+        }
+        bpmEvents.splice(index,1);
+        clearSelection();
+        markDirty("BPM event removed · memory only");
+      }
+    }
+    render();
+  }
+
+  function cancelInteraction(feedback = true){
+    let restoredMove = false;
+    if(state.drag?.kind === "move" && state.drag.original){
+      const note = notes.find(item => item.id === state.drag.id);
+      if(note){
+        Object.assign(note,state.drag.original);
+        restoredMove = true;
+      }
+    }
+    const hadAction = hasActiveEditTransaction();
+    releaseEditorPointer();
+    state.draft = null;
+    state.drag = null;
+    closeBpmPopover();
+    if(restoredMove) renderInspector();
+    if(feedback){
+      toast(hadAction ? "Action cancelled" : "Nothing active to cancel", hadAction ? "warn" : "");
+      setStatus("CANCELLED · READY");
+    }
+    render();
+    renderInspector();
+  }
+
+  function setPlaying(next){
+    if(next && hasActiveEditTransaction()){
+      toast("Finish or cancel the current edit before playback", "warn");
+      return;
+    }
+    if(next && state.time >= DURATION) state.time = 0;
+    if(!next && state.playing) syncPlaybackPosition();
+    state.playing = next;
+    resetPlaybackOrigin();
+    setStatus(next ? "PLAYING · SPACE TO PAUSE" : "PAUSED · EDITING ENABLED");
+    renderChrome();
+    renderGhost();
+  }
+
+  function cycleGrid(){
+    const index = GRID_VALUES.indexOf(state.grid);
+    state.grid = GRID_VALUES[(index + 1) % GRID_VALUES.length];
+    if(state.draft?.phase === "holdTail"){
+      const latestHead = maximumHoldHeadTime();
+      if(state.draft.time > latestHead) state.draft.time = latestHead;
+      const end = boundedHoldEnd(state.draft.time,snapTime(state.draft.end));
+      if(end !== null) state.draft.end = end;
+    }
+    setStatus(`GRID 1/${state.grid} · BAR-RELATIVE TIME SNAP`);
+    toast(`Grid changed to 1/${state.grid}`);
+    render();
+    renderInspector();
+  }
+
+  function toggleSnap(){
+    state.snap = !state.snap;
+    setStatus(`SNAP ${state.snap ? "ON" : "OFF"} · GHOST UPDATED`);
+    toast(`Snap ${state.snap ? "enabled" : "disabled"}`);
+    render();
+  }
+
+  function addInstantNote(draft){
+    const id = `${draft.type}-${draft.track[0]}-${String(state.noteSerial++).padStart(2,"0")}`;
+    notes.push({id,type:draft.type,track:draft.track,time:round(draft.time,5),pos:round(draft.pos,5),width:round(draft.width,5)});
+    state.draft = null;
+    selectItem("note",id);
+    setTool("select",false);
+    markDirty(`${draft.type.toUpperCase()} committed · ${formatBar(draft.time)} · memory only`);
+    setStatus("NOTE COMMITTED · E TO MOVE · DELETE TO REMOVE");
+    render();
+  }
+
+  function addHold(draft){
+    const end = boundedHoldEnd(draft.time,draft.end);
+    if(end === null || end <= draft.time){
+      state.draft = null;
+      releaseEditorPointer();
+      toast("Hold needs room for a strictly later tail", "error");
+      setStatus("HOLD REJECTED · HEAD TOO CLOSE TO SONG END");
+      render();
+      renderInspector();
+      return;
+    }
+    const id = `hold-${draft.track[0]}-${String(state.noteSerial++).padStart(2,"0")}`;
+    notes.push({id,type:"hold",track:draft.track,time:round(draft.time,5),end:round(end,5),pos:round(draft.pos,5),width:round(draft.width,5)});
+    state.draft = null;
+    selectItem("note",id);
+    setTool("select",false);
+    markDirty(`HOLD committed · ${formatBar(draft.time)} → ${formatBar(end)} · memory only`);
+    setStatus("HOLD COMMITTED · HEAD, WIDTH AND TAIL ARE VISUAL ONLY");
+    render();
+  }
+
+  function beginWidthDraft(event,point){
+    if(state.playing) setPlaying(false);
+    const mapped = pointForTrack(point,state.track);
+    let draftTime = mapped.time;
+    if(state.tool === "hold"){
+      const latestHead = maximumHoldHeadTime();
+      if(draftTime > latestHead){
+        draftTime = latestHead;
+        toast("Hold head adjusted earlier to leave room for its tail", "warn");
+      }
+      if(draftTime + minHoldDuration(draftTime) > DURATION + 1e-7){
+        toast("No valid hold duration remains at this position", "error");
+        setStatus("HOLD REJECTED · MOVE THE HEAD EARLIER");
+        releaseEditorPointer(event.pointerId);
+        return;
+      }
+    }
+    const defaultWidth = .125;
+    state.draft = {
+      phase:"width",
+      pointerId:event.pointerId,
+      type:state.tool,
+      track:state.track,
+      time:draftTime,
+      anchorPos:mapped.pos,
+      pos:clamp(mapped.pos,0,1-defaultWidth),
+      width:defaultWidth,
+      startPoint:point,
+      dragged:false
+    };
+    renderInspector();
+    setStatus(state.tool === "hold" ? "HOLD STAGE 1/2 · DRAG WIDTH, RELEASE" : `${state.tool.toUpperCase()} · DRAG WIDTH, RELEASE TO COMMIT`);
+    renderGhost();
+  }
+
+  function updateWidthDraft(point){
+    const draft = state.draft;
+    const mapped = pointForTrack(point,draft.track);
+    const distance = Math.hypot(point.x-draft.startPoint.x,point.y-draft.startPoint.y);
+    draft.dragged = draft.dragged || distance > 5;
+    if(!draft.dragged) return;
+    const low = Math.min(draft.anchorPos,mapped.pos);
+    const high = Math.max(draft.anchorPos,mapped.pos);
+    draft.pos = clamp(snapSpatial(low),0,.95);
+    draft.width = Math.max(.05,snapSpatial(high)-draft.pos);
+    draft.width = Math.min(1-draft.pos,draft.width);
+  }
+
+  function finishWidthDraft(){
+    const draft = state.draft;
+    if(!draft || draft.phase !== "width") return;
+    releaseEditorPointer(draft.pointerId);
+    if(draft.type === "hold"){
+      const proposedEnd = snapTime(draft.time + Math.max(.8,minHoldDuration(draft.time)));
+      const end = boundedHoldEnd(draft.time,proposedEnd);
+      if(end === null){
+        state.draft = null;
+        toast("Hold head is too close to the song end", "error");
+        setStatus("HOLD REJECTED · MOVE THE HEAD EARLIER");
+        render();
+        renderInspector();
+        return;
+      }
+      draft.phase = "holdTail";
+      draft.end = end;
+      delete draft.pointerId;
+      setStatus("HOLD STAGE 2/2 · MOVE TO TAIL TIME, CLICK TO COMMIT · ESC/RIGHT CANCEL");
+      toast("Hold head/width set. Move along time and click the tail.");
+      renderGhost();
+      renderInspector();
+    }else{
+      addInstantNote(draft);
+    }
+  }
+
+  function updateHoldTail(point){
+    const draft = state.draft;
+    if(!draft || draft.phase !== "holdTail") return;
+    const mapped = pointForTrack(point,draft.track);
+    const end = boundedHoldEnd(draft.time,mapped.time);
+    if(end !== null) draft.end = end;
+  }
+
+  function beginMove(event,point,noteId){
+    if(state.playing) setPlaying(false);
+    const note = notes.find(item => item.id === noteId);
+    if(!note) return;
+    setTool("select",false);
+    selectItem("note",noteId);
+    const raw = rawPointForTrack(point,note.track);
+    state.drag = {
+      kind:"move",
+      pointerId:event.pointerId,
+      id:noteId,
+      track:note.track,
+      grabTime:raw.time-note.time,
+      grabPos:raw.pos-note.pos,
+      duration:note.type === "hold" ? note.end-note.time : 0,
+      original:{...note},
+      startPoint:point,
+      moved:false
+    };
+    renderInspector();
+    setStatus("SELECTED · DRAG TO MOVE WITH CURRENT SNAP");
+  }
+
+  function updateMove(point){
+    const drag = state.drag;
+    if(!drag || drag.kind !== "move") return;
+    const note = notes.find(item => item.id === drag.id);
+    if(!note) return;
+    const distance = Math.hypot(point.x-drag.startPoint.x,point.y-drag.startPoint.y);
+    if(distance > 4) drag.moved = true;
+    if(!drag.moved) return;
+    const raw = rawPointForTrack(point,note.track);
+    const rawTimeCandidate = clamp(raw.time-drag.grabTime,0,DURATION-drag.duration);
+    const newTime = state.snap ? snapTime(rawTimeCandidate) : rawTimeCandidate;
+    const rawPosCandidate = clamp(raw.pos-drag.grabPos,0,1-note.width);
+    const newPos = state.snap ? snapSpatial(rawPosCandidate) : rawPosCandidate;
+    note.time = round(clamp(newTime,0,DURATION-drag.duration),5);
+    note.pos = round(clamp(newPos,0,1-note.width),5);
+    if(note.type === "hold") note.end = round(note.time+drag.duration,5);
+    renderInspector();
+  }
+
+  function finishMove(){
+    const drag = state.drag;
+    if(!drag) return;
+    const note = notes.find(item => item.id === drag.id);
+    const changed = drag.moved && !sameNoteModel(note,drag.original);
+    state.drag = null;
+    releaseEditorPointer(drag.pointerId);
+    if(changed){
+      markDirty("Selected note moved with snapping · memory only");
+      setStatus("MOVE COMMITTED · SELECTED OBJECT UPDATED");
+    }else{
+      setStatus(drag.moved ? "MOVE ENDED · MODEL UNCHANGED" : "OBJECT SELECTED · DRAG TO MOVE");
+    }
+    render();
+    renderInspector();
+  }
+
+  function openBpmPopover(eventId,time,position){
+    if(state.playing) setPlaying(false);
+    if(state.draft || state.drag) cancelInteraction(false);
+    const existing = eventId ? bpmEvents.find(event => event.id === eventId) : bpmEvents.find(event => Math.abs(event.time-time) < .005);
+    const targetTime = existing ? existing.time : snapTime(time);
+    state.bpmEdit = { id:existing?.id || null, time:targetTime };
+    if(existing) selectItem("event",existing.id);
+    bpmTitle.textContent = existing ? "EDIT BPM EVENT" : "NEW BPM EVENT";
+    bpmTimeLabel.textContent = `MUSIC ${formatTime(targetTime)} · BAR ${formatBar(targetTime)}`;
+    bpmInput.value = String(existing?.bpm ?? bpmAt(targetTime));
+    const left = clamp(position.x + 18,245,1500);
+    const top = clamp(position.y + 14,90,820);
+    bpmPopover.style.left = `${left}px`;
+    bpmPopover.style.top = `${top}px`;
+    bpmPopover.classList.add("on");
+    renderInspector();
+    requestAnimationFrame(() => { bpmInput.focus(); bpmInput.select(); });
+    setStatus(existing ? "EDIT BPM · CONFIRM OR CANCEL" : "NEW BPM · CONFIRM OR CANCEL");
+  }
+
+  function closeBpmPopover(){
+    bpmPopover.classList.remove("on");
+    state.bpmEdit = null;
+  }
+
+  function confirmBpm(){
+    if(!state.bpmEdit) return;
+    const edit = {...state.bpmEdit};
+    const bpm = Number(bpmInput.value);
+    if(!Number.isFinite(bpm) || bpm < 30 || bpm > 400){
+      toast("BPM must be between 30 and 400", "error");
+      bpmInput.focus();
+      return;
+    }
+    if(edit.id){
+      const event = bpmEvents.find(item => item.id === edit.id);
+      if(!event){
+        closeBpmPopover();
+        if(state.selected?.kind === "event" && state.selected.id === edit.id) clearSelection();
+        toast("BPM edit target no longer exists; no change was applied", "error");
+        setStatus("BPM EDIT ABORTED · TARGET MISSING");
+        render();
+        renderInspector();
+        return;
+      }
+      event.bpm = round(bpm,2);
+      selectItem("event",event.id);
+      markDirty(`BPM updated to ${round(bpm,2)} · memory only`);
+    }else{
+      const id = `bpm-${state.bpmSerial++}`;
+      bpmEvents.push({id,time:round(edit.time,5),bpm:round(bpm,2)});
+      selectItem("event",id);
+      markDirty(`BPM ${round(bpm,2)} added · memory only`);
+    }
+    closeBpmPopover();
+    setStatus("BPM EVENT CONFIRMED · GRID CLOCK UPDATED");
+    render();
+    renderInspector();
+  }
+
+  function seekTimeFromPointer(event){
+    const rect = progress.getBoundingClientRect();
+    const ratio = clamp((event.clientX-rect.left)/rect.width,0,1);
+    return ratio * DURATION;
+  }
+
+  function previewSeek(event){
+    state.seekCandidate = seekTimeFromPointer(event);
+    setStatus(`SEEK · ${formatTime(state.seekCandidate)} · ${formatBar(state.seekCandidate)}`);
+    renderChrome();
+  }
+
+  function finishSeek(event,commit){
+    if(state.seekPointerId !== event.pointerId) return;
+    if(commit){
+      state.seekCandidate = seekTimeFromPointer(event);
+      state.time = state.seekCandidate;
+    }
+    if(progress.hasPointerCapture(event.pointerId)) progress.releasePointerCapture(event.pointerId);
+    state.seekPointerId = null;
+    state.seekCandidate = null;
+    resetPlaybackOrigin();
+    setStatus(commit ? `SEEKED · ${formatTime(state.time)} · ${formatBar(state.time)}` : "SEEK CANCELLED · PLAYBACK TIMING RESET");
+    render();
+  }
+
+  field.addEventListener("pointerdown", event => {
+    if(event.button !== 0) return;
+    if(state.bpmEdit) cancelInteraction(false);
+    if(!claimEditorPointer(event)) return;
+    const point = stagePoint(event);
+    state.pointer = point;
+
+    if(state.draft?.phase === "holdTail"){
+      if(!pointInsideTrack(point,state.draft.track)){
+        releaseEditorPointer(event.pointerId);
+        return;
+      }
+      updateHoldTail(point);
+      addHold({...state.draft});
+      releaseEditorPointer(event.pointerId);
+      return;
+    }
+
+    const eventElement = event.target.closest("[data-event-id]");
+    if(eventElement){
+      const bpmEvent = bpmEvents.find(item => item.id === eventElement.dataset.eventId);
+      if(bpmEvent) openBpmPopover(bpmEvent.id,bpmEvent.time,point);
+      releaseEditorPointer(event.pointerId);
+      return;
+    }
+
+    const noteElement = event.target.closest("[data-note-id]");
+    if(noteElement){
+      const noteId = noteElement.dataset.noteId;
+      const wasSelectTool = state.tool === "select";
+      setTool("select",false);
+      selectItem("note",noteId);
+      if(wasSelectTool) beginMove(event,point,noteId);
+      else releaseEditorPointer(event.pointerId);
+      return;
+    }
+
+    if(!pointInsideTrack(point,state.track)){
+      releaseEditorPointer(event.pointerId);
+      return;
+    }
+
+    if(state.track === "event"){
+      const mapped = pointForTrack(point,"event");
+      openBpmPopover(null,mapped.time,point);
+      releaseEditorPointer(event.pointerId);
+      return;
+    }
+
+    if(state.tool === "select"){
+      clearSelection();
+      setStatus("SELECTION CLEARED");
+      render();
+      releaseEditorPointer(event.pointerId);
+      return;
+    }
+
+    beginWidthDraft(event,point);
+  });
+
+  field.addEventListener("pointermove", event => {
+    if(state.editorPointerId !== null && state.editorPointerId !== event.pointerId) return;
+    if(state.seekPointerId !== null) return;
+    const point = stagePoint(event);
+    state.pointer = point;
+    if(state.draft?.phase === "width" && state.draft.pointerId === event.pointerId){
+      updateWidthDraft(point);
+    }else if(state.draft?.phase === "holdTail" && state.editorPointerId === null){
+      updateHoldTail(point);
+    }else if(state.drag?.pointerId === event.pointerId){
+      updateMove(point);
+    }
+    renderNotes();
+    renderGhost();
+  });
+
+  field.addEventListener("pointerup", event => {
+    if(state.editorPointerId !== event.pointerId) return;
+    if(state.draft?.phase === "width" && state.draft.pointerId === event.pointerId){
+      finishWidthDraft();
+    }else if(state.drag?.pointerId === event.pointerId){
+      finishMove();
+    }else{
+      releaseEditorPointer(event.pointerId);
+    }
+  });
+
+  field.addEventListener("pointercancel", event => {
+    if(state.editorPointerId !== event.pointerId) return;
+    releaseEditorPointer(event.pointerId);
+    cancelInteraction(true);
+  });
+
+  field.addEventListener("pointerleave", event => {
+    if(state.editorPointerId !== null && state.editorPointerId !== event.pointerId) return;
+    if(!state.draft && !state.drag){ state.pointer = null; renderGhost(); }
+  });
+
+  editScreen.addEventListener("contextmenu", event => {
+    if(!hasActiveEditTransaction()) return;
+    event.preventDefault();
+    cancelInteraction(true);
+  });
+
+  progress.addEventListener("pointerdown", event => {
+    if(event.button !== 0) return;
+    if(state.seekPointerId !== null || state.editorPointerId !== null) return;
+    if(hasActiveEditTransaction()){
+      toast("Finish or cancel the active edit before seeking", "warn");
+      return;
+    }
+    syncPlaybackPosition();
+    state.seekPointerId = event.pointerId;
+    progress.setPointerCapture(event.pointerId);
+    previewSeek(event);
+  });
+  progress.addEventListener("pointermove", event => {
+    if(state.seekPointerId === event.pointerId) previewSeek(event);
+  });
+  progress.addEventListener("pointerup", event => finishSeek(event,true));
+  progress.addEventListener("pointercancel", event => finishSeek(event,false));
+
+  eventTrackline.addEventListener("click", event => {
+    const chip = event.target.closest("[data-event-id]");
+    if(!chip) return;
+    const bpmEvent = bpmEvents.find(item => item.id === chip.dataset.eventId);
+    if(bpmEvent) openBpmPopover(bpmEvent.id,bpmEvent.time,screenPointFromElement(chip));
+  });
+
+  playButton.addEventListener("click", () => setPlaying(!state.playing));
+  deleteButton.addEventListener("click",deleteSelected);
+  bpmConfirm.addEventListener("click",confirmBpm);
+  bpmCancel.addEventListener("click",() => { closeBpmPopover(); renderInspector(); setStatus("BPM EDIT CANCELLED"); toast("BPM edit cancelled","warn"); });
+  bpmInput.addEventListener("keydown", event => {
+    if(event.key === "Enter"){ event.preventDefault(); confirmBpm(); }
+    if(event.key === "Escape"){ event.preventDefault(); closeBpmPopover(); renderInspector(); setStatus("BPM EDIT CANCELLED"); }
+  });
+
+  document.addEventListener("click", event => {
+    const go = event.target.closest("[data-go]");
+    if(go){ showScreen(go.dataset.go); return; }
+
+    const tool = event.target.closest("[data-tool]");
+    if(tool){ setTool(tool.dataset.tool); return; }
+
+    const track = event.target.closest("[data-track]");
+    if(track){ setTrack(track.dataset.track); return; }
+
+    const action = event.target.closest("[data-action]");
+    if(!action) return;
+    if(action.dataset.action === "grid") cycleGrid();
+    if(action.dataset.action === "snap") toggleSnap();
+    if(action.dataset.action === "save") toast("Prototype only — save is not connected to v2; nothing was written", "warn");
+    if(action.dataset.action === "export") toast("Prototype only — export is not connected to v2; no file was produced", "warn");
+  });
+
+  document.addEventListener("keydown", event => {
+    const editingInput = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target.isContentEditable;
+    if(editingInput) return;
+    if(state.screen !== "edit") return;
+    if(event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+
+    if(event.code === "Space"){
+      event.preventDefault();
+      setPlaying(!state.playing);
+      return;
+    }
+    if(event.key === "Escape"){
+      event.preventDefault();
+      cancelInteraction(true);
+      return;
+    }
+    if(event.key === "Delete" || event.key === "Backspace"){
+      if(state.selected){ event.preventDefault(); deleteSelected(); }
+      return;
+    }
+    if(event.key === "1"){ setTool("tap"); return; }
+    if(event.key === "2"){ setTool("drag"); return; }
+    if(event.key === "3"){ setTool("hold"); return; }
+    if(event.key.toLowerCase() === "e"){ setTool("select"); return; }
+    if(event.key.toLowerCase() === "g"){ cycleGrid(); return; }
+    if(event.key.toLowerCase() === "s"){ toggleSnap(); return; }
+    if(event.key === "ArrowLeft"){ event.preventDefault(); setTrack("left"); return; }
+    if(event.key === "ArrowDown"){ event.preventDefault(); setTrack("center"); return; }
+    if(event.key === "ArrowRight"){ event.preventDefault(); setTrack("right"); return; }
+    if(event.key === "ArrowUp"){ event.preventDefault(); setTrack("event"); }
+  });
+
+  function animationFrame(now){
+    if(state.playing && state.seekPointerId === null){
+      syncPlaybackPosition(now);
+      if(state.time >= DURATION){
+        state.time = DURATION;
+        state.playing = false;
+        resetPlaybackOrigin(now);
+        setStatus("END OF SYNTHETIC PRESET · SPACE TO RESTART");
+        toast("Playback reached the end of the synthetic preset");
+      }
+      render();
+    }
+    requestAnimationFrame(animationFrame);
+  }
+
+  document.addEventListener("visibilitychange",() => {
+    if(document.hidden && state.playing){
+      setPlaying(false);
+      setStatus("PAUSED · DOCUMENT HIDDEN");
+    }
+  });
+
+  window.addEventListener("resize",fitStage);
+  fitStage();
+  renderInspector();
+  render();
+  requestAnimationFrame(animationFrame);
+})();
+</script>
+</body>
+</html>

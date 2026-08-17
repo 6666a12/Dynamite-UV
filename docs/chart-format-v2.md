@@ -4,8 +4,9 @@
 >
 > 发布日期：2026-08-14。
 >
-> 当前 Godot 客户端仍读取 legacy 谱面；v2 loader、validator、成绩键迁移和制谱器尚未实现。
-> “正式”表示本文的数据合同与玩法语义已经冻结，不表示当前客户端已经支持导入 v2。
+> 当前 Godot 客户端已支持 strict v2 目录包加载、validator、legacy→v2 运行时适配、
+> Gameplay Digest 成绩 identity 与独立 Avalonia 制谱器；legacy 仍是兼容输入。
+> “正式”表示本文的数据合同与玩法语义已经冻结，客户端和工具必须按此 fail closed。
 
 本文是 Dynamite UV 社区谱面包 v2 的权威规范。机器可读约束见
 `../schemas/chart-format-v2/`，clean-room 完整示例见
@@ -368,17 +369,20 @@ Scroll 事件为：
   `easeInOutCubic`；明确禁止 `smooth`。
 
 事件间以 §9.2 的进度函数插值 `value`。在后一个事件的精确时刻使用后一个事件值。
-Scroll 只改变视觉，不改变命中秒。规则集固定使用非积分模型：
+Scroll 只改变视觉，不改变命中秒。播放器先按当前精确 BarTime 采样 Scroll，再将该倍率作用
+于剩余音频秒；当前社区客户端的固定二维渲染公式为：
 
 ```text
-visualDistance =
-    (noteBarTime - currentBarTime)
+visualDistancePx =
+    (noteAudioSecond - currentAudioSecond)
     * scrollSpeed(currentBarTime)
     * playerSpeed
+    * 1026px/s
 ```
 
-这里不是对历史流速积分。由于流速始终为正，v2 不产生负流速回卷；速度变化仍可能使 Note
-暂时远离判定线。
+这里不是对历史流速积分。`1026px/s` 是当前客户端 Lv10 的 150 BPM 视觉基准，不属于谱面
+序列化数据；谱面 BPM 只参与 BarTime/音频秒换算，不再改变实际像素流速。由于 Scroll 始终
+为正，v2 不产生负流速回卷；速度变化仍可能使 Note 暂时远离判定线。
 
 ## 7. Note 公共模型与空间
 
@@ -393,8 +397,7 @@ tap  drag  exTap  hold  mixer  mine  barLine
 - `notesLeft`：左侧轨；轨内坐标 0→5 对应屏幕下→上。
 - `notesCenter`：中央轨；轨内坐标 0→5 对应屏幕左→右。
 - `notesRight`：右侧轨；轨内坐标 0→5 对应屏幕下→上。
-- Mixer 只能位于 `notesLeft` 或 `notesRight`。
-- 其他类型可位于三轨。
+- Mixer、Hold 和其他类型均可位于三轨。
 - 路径节点继承父 Note 的轨道，不得单独指定或跨轨。
 
 ### 7.2 `center + width`
@@ -409,12 +412,16 @@ right = center + width/2
 必须满足：
 
 ```text
-0 < width <= 5
-width/2 <= center <= 5-width/2
+center 是任意有限数
+width 是有限数且 width > 0
 ```
 
-因此实际范围 `[left,right]` 始终位于 `[0,5]`。`center`、`width` 必须是有限数。
-旧格式左缘 `Position` 不属于 v2；迁移工具可使用
+`[left,right]` 可以部分或完全位于推荐轨内创作范围 `[0,5]` 之外；这用于表达 overscan、
+全宽装饰和可无损迁移的既有谱面。播放器、validator 和转换器不得擅自 clamp、裁剪或移动
+这些坐标。制谱器应默认把 `[0,5]` 作为可见安全区，并在对象越界时给出 warning，但不能仅
+因越界拒绝正式 v2 文件。
+
+旧格式左缘 `Position` 不属于 v2；迁移工具必须使用
 `center = oldPosition + oldWidth/2`，但不得把 `position` 写入正式 v2。
 
 ### 7.3 ID、顺序与同时对象
@@ -557,9 +564,10 @@ y(u) = H00*y_k + H10*h_k*m_k + H01*y_(k+1) + H11*h_k*m_(k+1)
 Center 和 Width 各自把 `y` 替换为对应值。实现至少使用 IEEE 754 binary64 计算曲线；
 控制点时间的分数比较仍须精确。
 
-整个连续路径（不只是控制点）都必须满足 §7.2。对 PCHIP，validator 应检查每段 cubic 的
-`width`、`center-width/2`、`5-center-width/2` 在端点和所有区间内导数为零的点均非负；
-仅做固定步长采样不足以证明路径合法。
+整个连续路径（不只是控制点）的 Center 和 Width 都必须有限，且 Width 必须始终 `>0`。
+对 PCHIP，validator 应检查每段 width cubic 在端点和所有区间内导数为零的点均为正；
+`center±width/2` 允许超出 `[0,5]`，不得据此拒绝或 clamp。仅做固定步长采样不足以证明路径
+合法。
 
 渲染器应按屏幕空间误差自适应细分；误差超过约 `0.5px` 时继续细分。视觉细分精度不得
 改变判定 evaluator 的结果。
@@ -643,7 +651,7 @@ settlementTime = min(T, D)
 
 ## 11. Mixer
 
-Mixer 与 Hold 共用路径结构，但 Mixer node 不允许 `judge`：
+Mixer 与 Hold 共用路径结构，可以位于三轨；Mixer node 不允许 `judge`：
 
 ```json
 {
@@ -736,7 +744,17 @@ normalizedScore = floor((RawScore * 1000000 + TheoreticalMax/2) / TheoreticalMax
 结果钳制到 `0..1000000`。CLEAR 为 `RawScore/TheoreticalMax*100%`；评级：Ω≥98、S≥95、
 A≥90、B≥80，否则 C。
 
-### 12.3 不落盘的派生字段
+### 12.3 同步多押描边
+
+Tap 的异轨同步金色描边是运行时派生视觉，不保存 baked 标记。加载器按**精确 BarTime**把
+按下型父 Note 分组；若同一组覆盖至少两个不同轨道，则组内 Tap 显示同步描边。当前按下型
+集合为 `tap`、`exTap`、`hold` 和 `mixer`；Drag、Mine、BarLine 与路径 node 不参与组判定。
+
+同轨重复 Note 不会单独构成异轨多押；近似但不完全相等的 BarTime 也不合并。该描边由已
+进入 Gameplay Digest 的轨道、类型与时间唯一推导，因此不单独进入 projection。legacy
+`Baked_SyncNote` 转换时必须丢弃，并可在审计报告中列出它与重新计算结果的差异。
+
+### 12.4 不落盘的派生字段
 
 正式 v2 不保存：
 
@@ -883,7 +901,7 @@ BPM 和 Scroll 已由语义校验保证按时间严格递增，路径 node 保�
 - ID、相对路径、preview、难度与 `level/unrated` 条件；
 - 包音频 fallback 的结构条件；
 - BarTime 基础整数范围、BPM、严格正 Scroll 值与曲线 enum；
-- 普通/Hold/Mixer union、node 字段和中央轨禁止 Mixer。
+- 普通/Hold/Mixer union、node 字段和三轨 Mixer。
 
 ### 15.2 必须额外执行的语义校验
 
@@ -895,11 +913,11 @@ JSON Schema 之外，validator 至少必须拒绝：
 - BarTime 未约分、`numerator >= denominator` 或整数超出实现安全范围；
 - BPM/Scroll 不从 BarTime 0 开始、时间不严格递增或尾事件仍带曲线；
 - Note 数组时间降序，父 Note/node ID 重复；
-- `center/width` 端点或曲线内部越界；
+- `center/width` 端点或曲线内部出现非有限值，或 `width <= 0`；
 - Hold/Mixer node 不严格晚于前一点；
 - 路径尾仍带 `curveToNext`；
 - Hold 尾未显式 `judge:true`；
-- Mixer node 出现 `judge`；Mixer 出现在中央轨；
+- Mixer node 出现 `judge`；
 - 主判定总数为零；
 - 任一主判定音频秒早于 0 或末判超过音频时长加 50ms；
 - preview 超出 resolved audio；
@@ -988,7 +1006,9 @@ y(1.5) = 0.9125
 - [ ] BarTime 规范化并使用精确比较
 - [ ] BPM/Scroll/Note/node 严格有序
 - [ ] Scroll 始终 `>0` 且不接受 `smooth`
-- [ ] `center+width` 全路径合法
+- [ ] `center+width` 全路径有限且 width 始终为正；overscan 不 clamp
+- [ ] 三轨 Mixer 使用同一套路径与判定语义
+- [ ] 同步 Tap 金框按精确 BarTime 和异轨按下型父 Note 派生
 - [ ] 路径统一 evaluator 与 `pchip-v1`
 - [ ] Hold `judge` 只影响判定，不影响形状
 - [ ] Hold D4-C 使用首次 `lostAt` 和固定 grace deadline

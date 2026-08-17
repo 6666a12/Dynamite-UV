@@ -1,4 +1,5 @@
 using Godot;
+using DuxCommunity.Game;
 
 namespace DuxCommunity.Ui;
 
@@ -18,6 +19,12 @@ public partial class CutButton : Control
 	private bool _disabled;
 	private bool _alignLeft;
 	private int _fontSize = 28;
+	private bool _hover;
+	private float _hoverAmount;
+	private float _pressAmount;
+	private float _commitAmount;
+	private double _commitElapsed;
+	private double _commitDuration;
 
 	[Signal]
 	public delegate void PressedEventHandler();
@@ -27,17 +34,67 @@ public partial class CutButton : Control
 	public ButtonStyle StyleKind { get => _styleKind; set { _styleKind = value; Refresh(); } }
 	public Color Accent { get => _accent; set { _accent = value; Refresh(); } }
 	public bool TechFont { get => _techFont; set { _techFont = value; Refresh(); } }
-	public bool Disabled { get => _disabled; set { _disabled = value; Refresh(); } }
+	public bool Disabled
+	{
+		get => _disabled;
+		set
+		{
+			_disabled = value;
+			SnapInteractionIfMotionIsOff();
+			Refresh();
+		}
+	}
 	public bool AlignLeft { get => _alignLeft; set { _alignLeft = value; Refresh(); } }
 	public int FontSize { get => _fontSize; set { _fontSize = value; Refresh(); } }
 
-	private bool _hover;
-
 	public override void _Ready()
 	{
+		_hoverAmount = HoverTarget;
 		MouseDefaultCursorShape = CursorShape.PointingHand;
-		MouseEntered += () => { _hover = true; Refresh(); };
-		MouseExited += () => { _hover = false; Refresh(); };
+		MouseEntered += OnMouseEntered;
+		MouseExited += OnMouseExited;
+	}
+
+	public override void _Process(double delta)
+	{
+		var profile = MotionProfile;
+		var nextHover = Advance(_hoverAmount, HoverTarget, delta, profile.HoverDuration);
+		var nextPress = Advance(_pressAmount, 0f, delta, profile.PressDuration);
+		var nextCommit = _commitAmount;
+		if (_commitDuration > 0.0)
+		{
+			_commitElapsed += delta;
+			var progress = Mathf.Clamp((float)(_commitElapsed / _commitDuration), 0f, 1f);
+			nextCommit = Mathf.Sin(progress * Mathf.Pi);
+			if (progress >= 1f)
+			{
+				_commitDuration = 0.0;
+				nextCommit = 0f;
+			}
+		}
+		if (nextHover == _hoverAmount && nextPress == _pressAmount &&
+			nextCommit == _commitAmount)
+			return;
+
+		_hoverAmount = nextHover;
+		_pressAmount = nextPress;
+		_commitAmount = nextCommit;
+		QueueRedraw();
+	}
+
+	/// <summary>Plays a focus confirmation without changing the button hit box or click timing.</summary>
+	public void CommitPulse(double? duration = null)
+	{
+		var profile = MotionProfile;
+		if (!profile.IsAnimated)
+		{
+			_commitAmount = 0f;
+			return;
+		}
+		_commitElapsed = 0.0;
+		_commitDuration = Math.Max(0.01, duration ?? profile.FocusDuration);
+		_commitAmount = 0f;
+		QueueRedraw();
 	}
 
 	public void Refresh()
@@ -57,6 +114,7 @@ public partial class CutButton : Control
 			} or InputEventScreenTouch { Pressed: true };
 		if (pressed)
 		{
+			TriggerPress();
 			AcceptEvent();
 			EmitSignal(SignalName.Pressed);
 		}
@@ -64,12 +122,12 @@ public partial class CutButton : Control
 
 	public override void _Draw()
 	{
+		var profile = MotionProfile;
+		var hover = UiEase.Standard(profile.IsAnimated ? _hoverAmount : HoverTarget);
+		var press = !_disabled && profile.IsAnimated ? UiEase.Standard(_pressAmount) : 0f;
+		var commit = profile.IsAnimated ? UiEase.Echo(_commitAmount) : 0f;
 		var cut = Mathf.Min(14f, Mathf.Min(Size.X, Size.Y) * 0.4f);
-		Vector2[] pts =
-		{
-			new(cut, 0), new(Size.X, 0), new(Size.X, Size.Y - cut),
-			new(Size.X - cut, Size.Y), new(0, Size.Y), new(0, cut),
-		};
+		Vector2[] pts = UiGeometry.CutCorners(Size, cut);
 
 		Color fill, border, fg;
 		if (_disabled)
@@ -80,26 +138,48 @@ public partial class CutButton : Control
 		}
 		else if (_styleKind == ButtonStyle.Solid)
 		{
-			fill = _hover ? _accent.Lerp(Colors.White, 0.18f) : _accent;
+			fill = _accent.Lerp(_accent.Lerp(Colors.White, 0.18f), hover);
 			border = fill;
 			fg = UiFonts.InkText;
 		}
 		else
 		{
-			fill = _hover ? UiFonts.PanelHover : new Color(0.06f, 0.08f, 0.16f, 0.85f);
-			border = _hover ? _accent : UiFonts.Line;
-			fg = _hover ? _accent : UiFonts.Text;
+			fill = new Color(0.06f, 0.08f, 0.16f, 0.85f)
+				.Lerp(UiFonts.PanelHover, hover);
+			border = UiFonts.Line.Lerp(_accent, hover);
+			fg = UiFonts.Text.Lerp(_accent, hover);
+		}
+
+		if (press > 0f || commit > 0f)
+		{
+			var confirmation = Mathf.Max(press, commit);
+			fill = fill.Lerp(Colors.White, 0.10f * confirmation);
+			border = border.Lerp(Colors.White, 0.42f * confirmation);
+			fg = fg.Lerp(Colors.White, 0.16f * confirmation);
 		}
 
 		DrawColoredPolygon(pts, fill);
-		var closed = new Vector2[pts.Length + 1];
-		pts.CopyTo(closed, 0);
-		closed[^1] = pts[0];
+		if (profile.AllowDirectionalMotion && hover > 0f && !_disabled)
+		{
+			var locatorHeight = Mathf.Min(28f, Size.Y - cut * 2f) * hover;
+			var locatorColor = _styleKind == ButtonStyle.Solid ? UiFonts.InkText : _accent;
+			locatorColor.A *= 0.72f * hover;
+			DrawRect(new Rect2(2f, (Size.Y - locatorHeight) * 0.5f, 3f, locatorHeight),
+				locatorColor);
+		}
+
+		var closed = UiGeometry.Close(pts);
 		DrawPolyline(closed, border, 2f, true);
+		if (profile.AllowDirectionalMotion && (press > 0f || commit > 0f))
+		{
+			var trace = Mathf.Max(press, commit);
+			DrawPolyline(closed, new Color(1f, 1f, 1f, 0.55f * trace), 1f + trace, true);
+		}
 
 		var font = _techFont ? UiFonts.TechBold : UiFonts.Cjk;
 		var hAlign = _alignLeft ? HorizontalAlignment.Left : HorizontalAlignment.Center;
-		var textX = _alignLeft ? 28f : 0f;
+		var textShift = profile.AllowDirectionalMotion ? 3f * hover : 0f;
+		var textX = (_alignLeft ? 28f : 0f) + textShift;
 		var textW = _alignLeft ? Size.X - 56f : Size.X;
 		if (_subText.Length > 0)
 		{
@@ -119,4 +199,36 @@ public partial class CutButton : Control
 				hAlign, textW, _fontSize, fg);
 		}
 	}
+
+	private UiMotionProfile MotionProfile => UiMotionProfile.For(GameSession.Settings.MotionMode);
+	private float HoverTarget => !_disabled && _hover ? 1f : 0f;
+
+	private void OnMouseEntered() => SetHover(true);
+	private void OnMouseExited() => SetHover(false);
+
+	private void SetHover(bool hover)
+	{
+		if (_hover == hover)
+			return;
+		_hover = hover;
+		SnapInteractionIfMotionIsOff();
+		Refresh();
+	}
+
+	private void TriggerPress()
+	{
+		_pressAmount = MotionProfile.IsAnimated ? 1f : 0f;
+		Refresh();
+	}
+
+	private void SnapInteractionIfMotionIsOff()
+	{
+		if (MotionProfile.IsAnimated)
+			return;
+		_hoverAmount = HoverTarget;
+		_pressAmount = 0f;
+	}
+
+	private static float Advance(float current, float target, double delta, double duration) =>
+		duration <= 0.0 ? target : Mathf.MoveToward(current, target, (float)(delta / duration));
 }

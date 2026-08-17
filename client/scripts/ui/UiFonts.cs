@@ -51,5 +51,14 @@ public static class UiFonts
         _ => Dim,
     };
 
+    public static Color GradeColor(string grade) => grade switch
+    {
+        "Ω" => Pink,
+        "S" => Cyan,
+        "A" => Hard,
+        "B" => Normal,
+        _ => Dim,
+    };
+
     public static string DiffName(string diff) => diff.ToUpperInvariant();
 }

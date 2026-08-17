@@ -344,28 +344,15 @@ def inspect_apk(apk_path: Path, mode: str, policy: dict[str, Any], result: GateR
             for info in infos:
                 if id(info) in invalid_entries or info.is_dir():
                     continue
-                raw_name = info.filename.replace("\\", "/")
-                if not raw_name.casefold().endswith(".import"):
-                    continue
                 try:
                     normalized = normalize_zip_name(info.filename)
                     data = archive.read(info)
                     entry_sha256[normalized.casefold()] = hashlib.sha256(data).hexdigest()
+                    if normalized.casefold().endswith(".import"):
+                        imports.append(parse_import_metadata(normalized, data))
                 except (OSError, RuntimeError, zipfile.BadZipFile, ValueError) as exc:
-                    result.errors.append(f"cannot read APK entry {info.filename!r}: {exc}")
-
-            for info in infos:
-                try:
-                    normalized = normalize_zip_name(info.filename)
-                except ValueError:
-                    # The unsafe entry was already reported during the first pass.
-                    continue
-                try:
-                    data = archive.read(info)
-                    imports.append(parse_import_metadata(normalized, data))
-                    entry_sha256[normalized.casefold()] = hashlib.sha256(data).hexdigest()
-                except (OSError, RuntimeError, zipfile.BadZipFile, ValueError) as exc:
-                    result.errors.append(f"cannot parse import metadata {normalized!r}: {exc}")
+                    action = "parse import metadata" if info.filename.replace("\\", "/").casefold().endswith(".import") else "read APK entry"
+                    result.errors.append(f"cannot {action} {info.filename!r}: {exc}")
     except (OSError, zipfile.BadZipFile) as exc:
         result.errors.append(f"not a valid APK ZIP: {exc}")
         return

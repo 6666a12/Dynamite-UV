@@ -10,21 +10,80 @@ public partial class SongRow : Control
 {
     private ChartPack? _pack;
     private bool _selected;
+    private bool _hover;
+    private float _hoverAmount;
+    private float _selectedAmount;
+    private float _commitAmount;
+    private double _commitElapsed;
+    private double _commitDuration;
 
     [Signal]
     public delegate void PressedEventHandler();
 
     public ChartPack? Pack { get => _pack; set { _pack = value; Refresh(); } }
 
-    public bool Selected { get => _selected; set { _selected = value; Refresh(); } }
-
-    private bool _hover;
+    public bool Selected
+    {
+        get => _selected;
+        set
+        {
+            if (_selected == value)
+                return;
+            _selected = value;
+            SnapInteractionIfMotionIsOff();
+            Refresh();
+        }
+    }
 
     public override void _Ready()
     {
+        _hoverAmount = _hover ? 1f : 0f;
+        _selectedAmount = _selected ? 1f : 0f;
         MouseDefaultCursorShape = CursorShape.PointingHand;
-        MouseEntered += () => { _hover = true; Refresh(); };
-        MouseExited += () => { _hover = false; Refresh(); };
+        MouseEntered += OnMouseEntered;
+        MouseExited += OnMouseExited;
+    }
+
+    public override void _Process(double delta)
+    {
+        var profile = MotionProfile;
+        var nextHover = Advance(_hoverAmount, _hover ? 1f : 0f, delta, profile.HoverDuration);
+        var nextSelected = Advance(_selectedAmount, _selected ? 1f : 0f,
+            delta, profile.ValueDuration);
+        var nextCommit = _commitAmount;
+        if (_commitDuration > 0.0)
+        {
+            _commitElapsed += delta;
+            var progress = Mathf.Clamp((float)(_commitElapsed / _commitDuration), 0f, 1f);
+            nextCommit = Mathf.Sin(progress * Mathf.Pi);
+            if (progress >= 1f)
+            {
+                _commitDuration = 0.0;
+                nextCommit = 0f;
+            }
+        }
+        if (nextHover == _hoverAmount && nextSelected == _selectedAmount &&
+            nextCommit == _commitAmount)
+            return;
+
+        _hoverAmount = nextHover;
+        _selectedAmount = nextSelected;
+        _commitAmount = nextCommit;
+        QueueRedraw();
+    }
+
+    public void CommitPulse(double? duration = null)
+    {
+        var profile = MotionProfile;
+        if (!profile.IsAnimated)
+        {
+            _commitAmount = 0f;
+            return;
+        }
+        _commitElapsed = 0.0;
+        _commitDuration = Math.Max(0.01, duration ?? profile.FocusDuration);
+        _commitAmount = 0f;
+        QueueRedraw();
     }
 
     public void Refresh()
@@ -36,10 +95,10 @@ public partial class SongRow : Control
     public override void _GuiInput(InputEvent e)
     {
         var pressed = e is InputEventMouseButton
-            {
-                ButtonIndex: MouseButton.Left,
-                Pressed: true,
-            } or InputEventScreenTouch { Pressed: true };
+        {
+            ButtonIndex: MouseButton.Left,
+            Pressed: true,
+        };
         if (pressed)
         {
             AcceptEvent();
@@ -49,30 +108,46 @@ public partial class SongRow : Control
 
     public override void _Draw()
     {
+        var profile = MotionProfile;
+        var hover = UiEase.Standard(profile.IsAnimated ? _hoverAmount : (_hover ? 1f : 0f));
+        var selected = UiEase.Standard(profile.IsAnimated ? _selectedAmount : (_selected ? 1f : 0f));
+        var commit = profile.IsAnimated ? UiEase.Echo(_commitAmount) : 0f;
+        var active = Mathf.Max(Mathf.Max(hover, selected), commit);
         const float cut = 10f;
-        Vector2[] pts =
-        {
-            new(cut, 0), new(Size.X, 0), new(Size.X, Size.Y - cut),
-            new(Size.X - cut, Size.Y), new(0, Size.Y), new(0, cut),
-        };
-        var fill = _selected ? new Color("18244a")
-            : _hover ? new Color(UiFonts.PanelHover, 0.6f)
-            : new Color(0.06f, 0.08f, 0.16f, 0.35f);
+        Vector2[] pts = UiGeometry.CutCorners(Size, cut);
+        var idleFill = new Color(0.06f, 0.08f, 0.16f, 0.35f);
+        var hoverFill = new Color(UiFonts.PanelHover, 0.6f);
+        var fill = idleFill.Lerp(hoverFill, hover)
+            .Lerp(new Color("18244a"), selected)
+            .Lerp(new Color("27496d"), commit * 0.44f);
         DrawColoredPolygon(pts, fill);
-        if (_selected || _hover)
+
+        if (active > 0f)
         {
-            var closed = new Vector2[pts.Length + 1];
-            pts.CopyTo(closed, 0);
-            closed[^1] = pts[0];
-            DrawPolyline(closed, _selected ? UiFonts.Cyan : UiFonts.Line, 2f, true);
+            var closed = UiGeometry.Close(pts);
+            var border = UiFonts.Line.Lerp(UiFonts.Cyan, Mathf.Max(selected, commit));
+            border.A *= active;
+            DrawPolyline(closed, border, 2f, true);
         }
+
+        if (profile.AllowDirectionalMotion && selected > 0f)
+        {
+            var locatorHeight = Mathf.Min(62f, Size.Y - cut * 2f) * selected;
+            var locatorColor = new Color(UiFonts.Cyan, 0.92f * selected);
+            DrawRect(new Rect2(2f, (Size.Y - locatorHeight) * 0.5f,
+                4f + 2f * selected, locatorHeight), locatorColor);
+        }
+
         if (_pack == null)
             return;
 
+        var textShift = profile.AllowDirectionalMotion ? 8f * selected : 0f;
+        var textX = 24f + textShift;
+
         // 左：曲名 + 曲师·谱师
-        DrawString(UiFonts.Cjk, new Vector2(24, Size.Y * 0.44f), _pack.Title,
+        DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.44f), _pack.Title,
             HorizontalAlignment.Left, Size.X * 0.55f, 30, UiFonts.Text);
-        DrawString(UiFonts.Cjk, new Vector2(24, Size.Y * 0.78f),
+        DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.78f),
             $"{_pack.Artist} · 谱师 {_pack.Charter}",
             HorizontalAlignment.Left, Size.X * 0.55f, 18, UiFonts.Dim);
 
@@ -83,11 +158,11 @@ public partial class SongRow : Control
         for (var i = _pack.Charts.Count - 1; i >= 0; i--)
         {
             var chart = _pack.Charts[i];
-            var badge = chart.Level > 0
-                ? chart.Level.ToString()
-                : string.IsNullOrEmpty(chart.Diff) ? "?" : UiFonts.DiffName(chart.Diff)[..1];
+            var badge = chart.Level is { } level
+                ? level.ToString()
+                : chart.Unrated ? "—" : "?";
             x -= chipW;
-            var col = UiFonts.DiffColor(chart.Diff);
+            var col = UiFonts.DiffColor(chart.Difficulty);
             const float cc = 6f;
             Vector2[] chip =
             {
@@ -100,4 +175,29 @@ public partial class SongRow : Control
             x -= gap;
         }
     }
+
+    private UiMotionProfile MotionProfile => UiMotionProfile.For(GameSession.Settings.MotionMode);
+
+    private void OnMouseEntered() => SetHover(true);
+    private void OnMouseExited() => SetHover(false);
+
+    private void SetHover(bool hover)
+    {
+        if (_hover == hover)
+            return;
+        _hover = hover;
+        SnapInteractionIfMotionIsOff();
+        Refresh();
+    }
+
+    private void SnapInteractionIfMotionIsOff()
+    {
+        if (MotionProfile.IsAnimated)
+            return;
+        _hoverAmount = _hover ? 1f : 0f;
+        _selectedAmount = _selected ? 1f : 0f;
+    }
+
+    private static float Advance(float current, float target, double delta, double duration) =>
+        duration <= 0.0 ? target : Mathf.MoveToward(current, target, (float)(delta / duration));
 }

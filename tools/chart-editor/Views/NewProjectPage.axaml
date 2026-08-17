@@ -1,0 +1,193 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:DuxCommunity.ChartEditor.Controls"
+             x:Class="DuxCommunity.ChartEditor.Views.NewProjectPage">
+  <Grid>
+    <controls:SignalBackdrop Opacity="0.58" />
+    <Grid RowDefinitions="Auto,*,Auto">
+      <Border Grid.Row="0" Classes="topBar" Padding="36,22">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Button Classes="quiet" Click="BackClicked">←  BACK</Button>
+          <StackPanel Grid.Column="1" Margin="22,0" Spacing="2">
+            <TextBlock Classes="eyebrow" Text="NEW PROJECT / STEP 01" />
+            <TextBlock FontSize="24" FontWeight="SemiBold" Text="Prepare the authoring draft" />
+          </StackPanel>
+          <Border Grid.Column="2" Classes="signalPill">
+            <TextBlock Classes="eyebrow cyan" Text="NO FILES WRITTEN" />
+          </Border>
+        </Grid>
+      </Border>
+
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+        <Grid Margin="44,34,44,34" MaxWidth="1280" HorizontalAlignment="Center"
+              ColumnDefinitions="*,24,*">
+          <StackPanel Grid.Column="0" Spacing="18">
+            <Border Classes="formSection">
+              <StackPanel Spacing="13">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="eyebrow cyan" Text="01 / PROJECT IDENTITY" />
+                  <TextBlock Classes="dim" Text="Human-facing metadata and stable package identity." />
+                </StackPanel>
+                <Grid ColumnDefinitions="*,12,*">
+                  <StackPanel Grid.Column="0" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="TITLE" />
+                    <TextBox x:Name="TitleBox" AutomationProperties.Name="Project title" Watermark="Song or project title" TextChanged="IdentityChanged" />
+                    <TextBlock x:Name="TitleError" Classes="fieldError" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="ARTIST" />
+                    <TextBox x:Name="ArtistBox" AutomationProperties.Name="Artist" Watermark="Artist display name" TextChanged="FormChanged" />
+                    <TextBlock x:Name="ArtistError" Classes="fieldError" />
+                  </StackPanel>
+                </Grid>
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="fieldLabel" Text="PACK ID" />
+                  <TextBox x:Name="PackIdBox" AutomationProperties.Name="Pack ID" Watermark="community.song-id" TextChanged="PackIdChanged" />
+                  <TextBlock Classes="fieldHint" Text="Stable ASCII identity · letters, numbers, dot, underscore and hyphen." />
+                  <TextBlock x:Name="PackIdError" Classes="fieldError" />
+                </StackPanel>
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="fieldLabel" Text="OPTIONAL COVER" />
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBox x:Name="CoverPathBox" AutomationProperties.Name="Cover source" IsReadOnly="False" Watermark="No cover selected" TextChanged="CoverPathChanged" />
+                    <Button Grid.Column="1" Margin="8,0,0,0" Classes="secondary" Click="BrowseCoverClicked">CHOOSE</Button>
+                  </Grid>
+                  <TextBlock Classes="fieldHint" Text="The source image will be copied into the package on first save." />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="formSection">
+              <StackPanel Spacing="13">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="eyebrow" Foreground="{StaticResource CommunityPink}" Text="02 / FIRST CHART" />
+                  <TextBlock Classes="dim" Text="The draft starts empty; no gameplay objects are synthesized." />
+                </StackPanel>
+                <Grid ColumnDefinitions="*,12,*">
+                  <StackPanel Grid.Column="0" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="CHART ID" />
+                    <TextBox x:Name="ChartIdBox" AutomationProperties.Name="Chart ID" Text="hard" TextChanged="FormChanged" />
+                    <TextBlock x:Name="ChartIdError" Classes="fieldError" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="CHARTER" />
+                    <TextBox x:Name="CharterBox" AutomationProperties.Name="Charter" Watermark="Your display name" TextChanged="FormChanged" />
+                    <TextBlock x:Name="CharterError" Classes="fieldError" />
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="*,12,*">
+                  <StackPanel Grid.Column="0" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="DIFFICULTY" />
+                    <ComboBox x:Name="DifficultyCombo" SelectedIndex="2" SelectionChanged="DifficultyChanged">
+                      <ComboBoxItem Content="CASUAL" Tag="Casual" />
+                      <ComboBoxItem Content="NORMAL" Tag="Normal" />
+                      <ComboBoxItem Content="HARD" Tag="Hard" />
+                      <ComboBoxItem Content="MEGA" Tag="Mega" />
+                      <ComboBoxItem Content="GIGA" Tag="Giga" />
+                      <ComboBoxItem Content="TECH" Tag="Tech" />
+                      <ComboBoxItem Content="CUSTOM" Tag="Custom" />
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="RATING" />
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBox x:Name="LevelBox" AutomationProperties.Name="Level" Text="10" Watermark="1–99" TextChanged="FormChanged" />
+                      <CheckBox x:Name="UnratedCheck" Grid.Column="1" Margin="10,0,0,0"
+                                VerticalAlignment="Center" Content="UNRATED"
+                                IsCheckedChanged="UnratedChanged" />
+                    </Grid>
+                    <TextBlock x:Name="LevelError" Classes="fieldError" />
+                  </StackPanel>
+                </Grid>
+                <StackPanel x:Name="CustomDifficultyPanel" IsVisible="False" Spacing="5">
+                  <TextBlock Classes="fieldLabel" Text="CUSTOM DIFFICULTY KEY" />
+                  <TextBox x:Name="DifficultyKeyBox" Watermark="Display label, e.g. INFINITE" TextChanged="FormChanged" />
+                  <TextBlock x:Name="DifficultyKeyError" Classes="fieldError" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Spacing="18">
+            <Border Classes="formSection accentSection">
+              <StackPanel Spacing="13">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="eyebrow cyan" Text="03 / TIMING &amp; MEDIA" />
+                  <TextBlock Classes="dim" Text="RIFF/WAVE is required by the current verified writer." />
+                </StackPanel>
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="fieldLabel" Text="AUDIO SOURCE" />
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBox x:Name="AudioPathBox" AutomationProperties.Name="Audio source" IsReadOnly="False" Watermark="Choose or enter a .wav file" TextChanged="AudioPathChanged" />
+                    <Button Grid.Column="1" Margin="8,0,0,0" Classes="primary" Click="BrowseAudioClicked">CHOOSE WAV</Button>
+                  </Grid>
+                  <TextBlock x:Name="AudioError" Classes="fieldError" />
+                </StackPanel>
+                <Grid ColumnDefinitions="*,12,*">
+                  <StackPanel Grid.Column="0" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="INITIAL BPM" />
+                    <TextBox x:Name="BpmBox" AutomationProperties.Name="Initial BPM" Text="150" TextChanged="FormChanged" />
+                    <TextBlock x:Name="BpmError" Classes="fieldError" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="5">
+                    <TextBlock Classes="fieldLabel" Text="AUDIO OFFSET / MS" />
+                    <TextBox x:Name="OffsetBox" AutomationProperties.Name="Audio offset milliseconds" Text="0" TextChanged="FormChanged" />
+                    <TextBlock x:Name="OffsetError" Classes="fieldError" />
+                  </StackPanel>
+                </Grid>
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="fieldLabel" Text="INITIAL GRID" />
+                  <ComboBox x:Name="GridCombo" SelectedIndex="3" SelectionChanged="FormSelectionChanged">
+                    <ComboBoxItem Content="1 / 4" Tag="4" />
+                    <ComboBoxItem Content="1 / 8" Tag="8" />
+                    <ComboBoxItem Content="1 / 12" Tag="12" />
+                    <ComboBoxItem Content="1 / 16" Tag="16" />
+                    <ComboBoxItem Content="1 / 24" Tag="24" />
+                    <ComboBoxItem Content="1 / 32" Tag="32" />
+                  </ComboBox>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="projectSummary">
+              <Grid ColumnDefinitions="5,*">
+                <Border Background="{StaticResource CommunityCyan}" />
+                <StackPanel Grid.Column="1" Margin="20,18" Spacing="12">
+                  <TextBlock Classes="eyebrow" Text="DRAFT SIGNAL" />
+                  <TextBlock x:Name="SummaryTitle" FontSize="25" FontWeight="SemiBold" Text="UNTITLED PROJECT" TextWrapping="Wrap" />
+                  <TextBlock x:Name="SummaryArtist" Classes="dim" Text="ARTIST NOT SET" />
+                  <Border Height="1" Background="{StaticResource CommunityLine}" Margin="0,2" />
+                  <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                    <StackPanel Spacing="3">
+                      <TextBlock Classes="micro" Text="PACK" />
+                      <TextBlock x:Name="SummaryPackId" Text="—" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="3">
+                      <TextBlock Classes="micro" Text="CHART" />
+                      <TextBlock x:Name="SummaryChart" Text="HARD · Lv 10" />
+                    </StackPanel>
+                  </Grid>
+                  <Border Classes="draftNotice">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="Creates an in-memory draft. Add at least one scoring Note before generating a strict v2 package." />
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+
+      <Border Grid.Row="2" Classes="bottomBar" Padding="34,16">
+        <Grid ColumnDefinitions="*,Auto,Auto">
+          <StackPanel VerticalAlignment="Center" Spacing="2">
+            <TextBlock x:Name="FormStatusText" Classes="dim" Text="Complete the required fields to create the draft." />
+            <TextBlock Classes="micro" Text="NO FILES ARE WRITTEN UNTIL FIRST VERIFIED SAVE" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="secondary" Margin="0,0,10,0" Click="BackClicked">CANCEL</Button>
+          <Button x:Name="CreateButton" Grid.Column="2" Classes="primary create" Click="CreateClicked">CREATE DRAFT  →</Button>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -1,0 +1,15 @@
+{
+  "id": "fixture.legacy-v1-all-types",
+  "title": "Synthetic Legacy Migration",
+  "artist": "Dynamite UV Contributors",
+  "charter": "Clean Room Charter",
+  "audio": "audio.wav",
+  "cover": "",
+  "charts": [
+    {
+      "diff": "hard",
+      "level": 0,
+      "file": "chart_hard.json"
+    }
+  ]
+}

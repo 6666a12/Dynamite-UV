@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:DuxCommunity.ChartEditor.Controls"
+             x:Class="DuxCommunity.ChartEditor.Views.StartPage">
+  <Grid x:Name="RootGrid">
+    <controls:SignalBackdrop />
+    <Grid Margin="56,42,56,38" RowDefinitions="Auto,*,Auto">
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+        <Border Classes="brandMark" Width="42" Height="42">
+          <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                     FontSize="20" FontWeight="Bold" Text="D" />
+        </Border>
+        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center" Spacing="2">
+          <TextBlock Classes="eyebrow" Text="DUX COMMUNITY" />
+          <TextBlock Classes="dim" FontSize="12" Text="CHART AUTHORING / FORMAT V2" />
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Row="1" Margin="20,0" Width="980" HorizontalAlignment="Center" VerticalAlignment="Center"
+            ColumnDefinitions="560,24,396">
+        <StackPanel Grid.Column="0" Spacing="18" Margin="0,0,28,0">
+          <Border Classes="signalPill" HorizontalAlignment="Left">
+            <TextBlock Classes="eyebrow cyan" Text="AUTHORING LINK READY" />
+          </Border>
+          <TextBlock FontSize="46" FontWeight="SemiBold" LetterSpacing="-0.8"
+                     LineHeight="50" TextWrapping="Wrap"
+                     Text="Build the chart, not the dashboard." />
+          <TextBlock MaxWidth="610" FontSize="17" LineHeight="27" Classes="dim" TextWrapping="Wrap"
+                     Text="Create a clean-room project from a RIFF/WAVE track, or strictly open an existing Dynamite UV v2 package." />
+          <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,10,0,0">
+            <StackPanel Spacing="3">
+              <TextBlock Classes="metric" Text="1920 × 1080" />
+              <TextBlock Classes="micro" Text="FIXED AUTHORING STAGE" />
+            </StackPanel>
+            <Border Width="1" Background="{StaticResource CommunityLine}" />
+            <StackPanel Spacing="3">
+              <TextBlock Classes="metric" Text="STRICT V2" />
+              <TextBlock Classes="micro" Text="DETERMINISTIC PACKAGE" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Width="396" Spacing="12" VerticalAlignment="Center">
+          <Button Classes="launch primary" Click="NewProjectClicked">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="5">
+                <TextBlock FontSize="22" FontWeight="SemiBold" Text="New project" />
+                <TextBlock FontSize="13" Opacity="0.70" Text="Start an empty in-memory chart draft" />
+              </StackPanel>
+              <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="22" Text="＋" />
+            </Grid>
+          </Button>
+          <Button Classes="launch secondary" Click="OpenProjectClicked">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="5">
+                <TextBlock FontSize="20" FontWeight="SemiBold" Text="Open v2 package" />
+                <TextBlock Classes="dim" FontSize="13" Text="Validate a local package before editing" />
+              </StackPanel>
+              <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="20" Text="↗" />
+            </Grid>
+          </Button>
+          <Border Classes="infoPanel" Margin="0,8,0,0">
+            <Grid ColumnDefinitions="4,*">
+              <Border Background="{StaticResource CommunityPink}" />
+              <StackPanel Grid.Column="1" Margin="16,13" Spacing="4">
+                <TextBlock Classes="eyebrow" Text="CLEAN-ROOM BOUNDARY" />
+                <TextBlock Classes="dim" TextWrapping="Wrap"
+                           Text="Use community-owned audio, artwork and chart data only. Development testdata cannot be opened here." />
+              </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto">
+        <TextBlock Classes="micro" Text="DUX CHART EDITOR · AVALONIA DESKTOP" />
+        <TextBlock Grid.Column="1" Classes="statusGood" Text="● CLEAN-ROOM" />
+        <TextBlock Grid.Column="2" Margin="24,0,0,0" Classes="statusGood" Text="● STRICT OPEN" />
+        <TextBlock Grid.Column="3" Margin="24,0,0,0" Classes="statusWarn" Text="● WAV WRITER" />
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

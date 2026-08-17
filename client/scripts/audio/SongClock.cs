@@ -18,6 +18,10 @@ public partial class SongClock : Node
     private double _fallbackBaseSec;
     private ulong _fallbackStartMsec;
 
+    private bool _fixedFrameEnabled;
+    private double _fixedFrameStepSec;
+    private double _fixedFramePosition;
+
     /// <summary>用户校准值（毫秒，对应规格书 §8.4 touchOffset），正数 = 判定时间后移。</summary>
     public double UserOffsetMs { get; set; }
 
@@ -26,16 +30,40 @@ public partial class SongClock : Node
     /// <summary>是否处于 headless 回退时钟模式（此时 _player.Playing 不可信）。</summary>
     public bool ManualFallback => _manualFallback;
 
+    /// <summary>Deterministic verification clock, advanced explicitly once per gameplay frame.</summary>
+    public bool FixedFrameEnabled => _fixedFrameEnabled;
+
+    public void EnableFixedFrameClock(int framesPerSecond)
+    {
+        if (framesPerSecond <= 0)
+            throw new ArgumentOutOfRangeException(nameof(framesPerSecond));
+        _fixedFrameEnabled = true;
+        _fixedFrameStepSec = 1.0 / framesPerSecond;
+        _manualFallback = true;
+    }
+
+    public void AdvanceFixedFrame()
+    {
+        if (_fixedFrameEnabled && _playing)
+            _fixedFramePosition += _fixedFrameStepSec;
+    }
+
     public void Attach(AudioStreamPlayer player)
     {
         _player = player;
         // headless 下音频驱动是 Dummy，GetPlaybackPosition 不前进，用回退时钟
-        _manualFallback = DisplayServer.GetName() == "headless";
+        if (!_fixedFrameEnabled)
+            _manualFallback = DisplayServer.GetName() == "headless";
     }
 
     public void Play(double fromSec = 0.0)
     {
         _playing = true;
+        if (_fixedFrameEnabled)
+        {
+            _fixedFramePosition = fromSec;
+            return;
+        }
         if (_manualFallback)
         {
             _fallbackBaseSec = fromSec;
@@ -50,7 +78,7 @@ public partial class SongClock : Node
         if (!_playing) return;
         _pausedPosition = GetSongTime();
         _playing = false;
-        if (!_manualFallback)
+        if (!_manualFallback && !_fixedFrameEnabled)
             _player?.Stop(); // MVP：暂停即停流，恢复时从记录位置重新 Play
     }
 
@@ -71,7 +99,11 @@ public partial class SongClock : Node
             return _pausedPosition;
 
         double pos;
-        if (_manualFallback || _player == null)
+        if (_fixedFrameEnabled)
+        {
+            pos = _fixedFramePosition;
+        }
+        else if (_manualFallback || _player == null)
         {
             pos = _fallbackBaseSec +
                   (Time.GetTicksMsec() - _fallbackStartMsec) / 1000.0;

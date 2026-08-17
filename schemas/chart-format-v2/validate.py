@@ -168,8 +168,12 @@ def validate_schema_and_examples() -> None:
     case["scrollSpeeds"][0]["curveToNext"] = "smooth"
     expect_rejected("smooth scroll", chart_validator, case)
     case = deepcopy(hard)
-    case["notesCenter"].append(deepcopy(case["notesLeft"][0]))
-    expect_rejected("center mixer", chart_validator, case)
+    center_mixer = deepcopy(case["notesLeft"][0])
+    center_mixer["id"] = "center-mixer"
+    center_mixer["center"] = -2
+    center_mixer["width"] = 7
+    case["notesCenter"].append(center_mixer)
+    chart_validator.validate(case)
     case = deepcopy(hard)
     case["notesCenter"][1]["nodes"] = []
     expect_rejected("empty Hold", chart_validator, case)
@@ -230,7 +234,8 @@ def validate_semantics() -> None:
             assert all(left <= right for left, right in zip(lane_times, lane_times[1:]))
             for note in lane:
                 ids.append(note["id"])
-                assert note["width"] / 2 <= note["center"] <= 5 - note["width"] / 2
+                assert math.isfinite(note["center"])
+                assert math.isfinite(note["width"]) and note["width"] > 0
                 if note["type"] != "barLine":
                     main_times.append(bar_value(note["time"]))
                 if note["type"] not in ("hold", "mixer"):
@@ -243,7 +248,8 @@ def validate_semantics() -> None:
                 assert "curveToNext" not in note["nodes"][-1]
                 for node in note["nodes"]:
                     ids.append(node["id"])
-                    assert node["width"] / 2 <= node["center"] <= 5 - node["width"] / 2
+                    assert math.isfinite(node["center"])
+                    assert math.isfinite(node["width"]) and node["width"] > 0
                 if note["type"] == "hold":
                     assert note["nodes"][-1].get("judge") is True
                     main_times.extend(
@@ -252,7 +258,6 @@ def validate_semantics() -> None:
                         if node.get("judge", True)
                     )
                 else:
-                    assert lane_name != "notesCenter"
                     head = bar_value(note["time"])
                     end = bar_value(note["nodes"][-1]["time"])
                     main_times.extend(

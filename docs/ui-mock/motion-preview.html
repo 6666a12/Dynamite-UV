@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-motion="full" data-motion-explicit="false">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUX·Community UI 动效预览</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#060a14;
+  --bg-deep:#03050b;
+  --panel:#101831;
+  --panel-strong:#152044;
+  --line:#2c3b6c;
+  --line-soft:rgba(80,104,171,.34);
+  --cyan:#35e0ff;
+  --cyan-soft:#8bf2ff;
+  --pink:#ff4d91;
+  --amber:#ffbd59;
+  --green:#53e38d;
+  --red:#ff7185;
+  --text:#e8edff;
+  --dim:#8793ba;
+  --ink:#04131c;
+  --cut:polygon(22px 0,100% 0,100% calc(100% - 22px),calc(100% - 22px) 100%,0 100%,0 22px);
+  --cut-sm:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
+  --cut-xs:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  --t-micro:90ms;
+  --t-control:160ms;
+  --t-focus:260ms;
+  --t-enter:420ms;
+  --t-route:620ms;
+  --t-relay:760ms;
+  --t-result:960ms;
+  --t-wait:1200ms;
+  --t-handoff-min:650ms;
+  --stagger:60ms;
+  --move-xs:8px;
+  --move-sm:20px;
+  --move-md:28px;
+  --e-standard:cubic-bezier(.2,.8,.2,1);
+  --e-enter:cubic-bezier(.16,1,.3,1);
+  --e-exit:cubic-bezier(.4,0,1,1);
+  --e-signal:cubic-bezier(.65,0,.15,1);
+  --e-echo:cubic-bezier(.22,1,.36,1);
+}
+html[data-motion="reduced"]{
+  --t-micro:70ms;
+  --t-control:100ms;
+  --t-focus:140ms;
+  --t-enter:180ms;
+  --t-route:220ms;
+  --t-relay:220ms;
+  --t-result:260ms;
+  --t-wait:0ms;
+  --t-handoff-min:180ms;
+  --stagger:0ms;
+  --move-xs:0px;
+  --move-sm:0px;
+  --move-md:0px;
+}
+html[data-motion="off"]{
+  --t-micro:0ms;
+  --t-control:0ms;
+  --t-focus:0ms;
+  --t-enter:0ms;
+  --t-route:0ms;
+  --t-relay:0ms;
+  --t-result:0ms;
+  --t-wait:0ms;
+  --t-handoff-min:0ms;
+  --stagger:0ms;
+  --move-xs:0px;
+  --move-sm:0px;
+  --move-md:0px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+@font-face{
+  font-family:"Orbitron";
+  src:url("fonts/Orbitron.woff2") format("woff2");
+  font-weight:100 900;
+  font-display:swap;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif}
+button{font:inherit}
+button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}
+.stage{position:relative;width:1920px;height:1080px;flex:0 0 auto;overflow:hidden;transform-origin:center center;background:var(--bg);isolation:isolate}
+.tech{font-family:"Orbitron","Arial Narrow","Segoe UI",sans-serif;letter-spacing:.06em}
+.cut{clip-path:var(--cut)}
+.cut-sm{clip-path:var(--cut-sm)}
+.cut-xs{clip-path:var(--cut-xs)}
+
+/* 固定 1920×1080 场景；所有画面均为程序化 clean-room 占位视觉。 */
+.scene{position:absolute;inset:0;z-index:1;visibility:hidden;opacity:0;pointer-events:none;overflow:hidden;background:
+  repeating-linear-gradient(105deg,transparent 0 118px,rgba(53,224,255,.035) 118px 120px),
+  radial-gradient(105% 92% at 50% 108%,#172451 0%,#0a1025 52%,#060a14 82%)}
+.scene::before{content:"";position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(115deg,transparent 0 70%,rgba(255,77,145,.035) 70% 70.15%,transparent 70.15%),
+  radial-gradient(85% 60% at 50% 102%,rgba(53,224,255,.07),transparent 72%)}
+.scene.is-active,.scene.is-leaving{visibility:visible;opacity:1}
+.scene.is-active{z-index:2;pointer-events:auto}
+.scene.is-leaving{z-index:3;pointer-events:none}
+.scene.signal-in{animation:signalSceneIn var(--t-route) var(--e-signal) both}
+.scene.signal-out{animation:signalSceneOut var(--t-route) var(--e-exit) both}
+.scene.relay-in{animation:relaySceneIn var(--t-relay) var(--e-enter) both}
+.scene.relay-out{animation:relaySceneOut var(--t-relay) var(--e-exit) both}
+
+.scene-top{position:absolute;left:0;right:0;top:0;height:78px;z-index:20;display:flex;align-items:center;padding:0 38px;border-bottom:2px solid rgba(53,224,255,.19);background:linear-gradient(180deg,rgba(4,8,20,.96),rgba(8,13,29,.84));box-shadow:0 18px 44px rgba(0,0,0,.22)}
+.brand{font-size:28px;font-weight:850;white-space:nowrap}
+.brand span{color:var(--cyan)}
+.scene-code{margin-left:24px;padding-left:24px;border-left:1px solid var(--line);font-size:12px;color:var(--dim)}
+.scene-top .spacer{flex:1}
+.scene-state{display:flex;align-items:center;gap:9px;color:var(--dim);font-size:11px}
+.scene-state i{width:8px;height:8px;background:var(--cyan);box-shadow:0 0 12px rgba(53,224,255,.9);transform:rotate(45deg)}
+.clean-label{position:absolute;right:34px;bottom:164px;z-index:16;color:rgba(135,147,186,.7);font-size:11px;letter-spacing:.12em}
+
+/* MAIN */
+.main-orbit{position:absolute;right:108px;top:134px;width:780px;height:700px;opacity:.85;background:
+  repeating-conic-gradient(from 12deg at 50% 50%,rgba(53,224,255,.08) 0 .3deg,transparent .3deg 12deg),
+  repeating-radial-gradient(circle at 50% 50%,transparent 0 68px,rgba(53,224,255,.08) 69px 71px);clip-path:circle(48%)}
+.main-orbit::before,.main-orbit::after{content:"";position:absolute;left:50%;top:50%;border:2px solid rgba(53,224,255,.34);transform:translate(-50%,-50%) rotate(45deg)}
+.main-orbit::before{width:238px;height:238px}
+.main-orbit::after{width:132px;height:132px;border-color:rgba(255,77,145,.45)}
+.main-hero{position:absolute;left:116px;top:212px;z-index:4;width:920px}
+.main-kicker{color:var(--cyan);font-size:14px;font-weight:750;letter-spacing:.24em}
+.main-title{margin-top:18px;font-size:91px;line-height:.98;font-weight:850;letter-spacing:.035em;text-shadow:0 0 42px rgba(53,224,255,.12)}
+.main-title span{color:var(--cyan)}
+.main-sub{margin-top:24px;color:var(--dim);font-size:18px;letter-spacing:.18em}
+.main-menu{position:absolute;left:116px;top:590px;z-index:5;width:510px;display:grid;gap:14px}
+.main-option{height:82px;padding:0 26px;display:flex;align-items:center;gap:18px;border:2px solid var(--line);background:rgba(16,24,49,.84);color:var(--text);text-align:left}
+.main-option .index{width:46px;color:var(--dim);font-size:13px}
+.main-option b{display:block;font-size:22px;letter-spacing:.11em}
+.main-option small{display:block;margin-top:5px;color:var(--dim);font-size:10px;letter-spacing:.18em}
+.main-option.primary{border-color:var(--cyan);background:linear-gradient(90deg,var(--cyan),#72efff);color:var(--ink);box-shadow:0 0 30px rgba(53,224,255,.2)}
+.main-option.primary .index,.main-option.primary small{color:rgba(4,19,28,.62)}
+.main-signal-card{position:absolute;right:190px;top:302px;z-index:5;width:470px;height:318px;padding:32px;border:2px solid rgba(53,224,255,.5);background:rgba(7,15,34,.74)}
+.main-signal-card h2{font-size:18px;color:var(--cyan)}
+.main-signal-card p{margin-top:12px;color:var(--dim);font-size:14px;line-height:1.6}
+.signal-bars{position:absolute;left:32px;right:32px;bottom:38px;height:118px;display:flex;align-items:flex-end;gap:10px;border-bottom:1px solid var(--line)}
+.signal-bars i{flex:1;background:linear-gradient(180deg,var(--cyan),rgba(53,224,255,.1));clip-path:var(--cut-xs)}
+#sceneMain.demo-main-enter .main-kicker{animation:riseIn var(--t-enter) var(--e-enter) both}
+#sceneMain.demo-main-enter .main-title{animation:mainTitleIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 1) both}
+#sceneMain.demo-main-enter .main-sub{animation:riseIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 2) both}
+#sceneMain.demo-main-enter .main-option:nth-child(1){animation:menuIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 2) both}
+#sceneMain.demo-main-enter .main-option:nth-child(2){animation:menuIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 3) both}
+#sceneMain.demo-main-enter .main-option:nth-child(3){animation:menuIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 4) both}
+#sceneMain.demo-main-enter .main-signal-card{animation:panelLockIn var(--t-route) var(--e-signal) calc(var(--stagger) * 2) both}
+#sceneMain.demo-main-enter .main-orbit{animation:focusIn var(--t-route) var(--e-enter) both}
+
+/* SETTINGS */
+.settings-shell{position:absolute;left:228px;right:228px;top:142px;bottom:190px;z-index:4;padding:36px 46px;border:2px solid var(--line);background:rgba(9,15,33,.9);box-shadow:0 30px 70px rgba(0,0,0,.24)}
+.settings-head{display:flex;align-items:flex-end;padding-bottom:24px;border-bottom:2px solid rgba(53,224,255,.18)}
+.settings-head h1{font-size:50px;font-weight:700}
+.settings-head p{margin:0 0 7px 24px;color:var(--dim);font-size:13px}
+.settings-body{display:grid;grid-template-columns:1.08fr .92fr;gap:24px;margin-top:24px}
+.settings-grid{display:grid;gap:10px}
+.setting-row{position:relative;height:88px;padding:0 20px;display:flex;align-items:center;border:1px solid var(--line);background:rgba(18,28,58,.68);overflow:hidden}
+.setting-row.is-selected{border-color:var(--cyan);box-shadow:inset 5px 0 var(--cyan);background:linear-gradient(90deg,rgba(53,224,255,.13),rgba(18,28,58,.78))}
+.setting-row.is-selected::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--cyan);box-shadow:0 0 16px rgba(53,224,255,.8)}
+.setting-row .copy{flex:1}
+.setting-row b{font-size:18px;font-weight:600}
+.setting-row small{display:block;margin-top:5px;color:var(--dim);font-size:9px;letter-spacing:.15em}
+.setting-value{width:166px;height:46px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(53,224,255,.46);background:#0a1228;color:var(--cyan);font-size:14px}
+.settings-detail{position:relative;min-height:480px;padding:28px;border:1px solid rgba(53,224,255,.5);background:linear-gradient(145deg,rgba(20,34,70,.92),rgba(7,13,29,.96));overflow:hidden}
+.settings-detail::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 31px,rgba(53,224,255,.035) 31px 32px);pointer-events:none}
+.settings-detail-scan{position:absolute;left:0;right:0;top:0;height:3px;background:var(--cyan);box-shadow:0 0 20px rgba(53,224,255,.75);opacity:0}
+.settings-detail-label{position:relative;color:var(--cyan);font-size:11px;letter-spacing:.16em}
+.settings-detail h2{position:relative;margin-top:28px;font-size:34px;font-weight:650}
+.settings-detail p{position:relative;margin-top:18px;color:var(--dim);font-size:14px;line-height:1.7}
+.settings-policy{position:relative;margin-top:30px;padding-top:20px;border-top:1px solid var(--line);display:grid;gap:12px;color:var(--dim);font-size:11px}
+.settings-policy b{color:var(--text);font-weight:650}
+.settings-foot{display:flex;align-items:center;gap:16px;margin-top:18px;color:var(--dim);font-size:12px}
+.settings-foot::before{content:"";width:70px;height:2px;background:var(--cyan);box-shadow:0 0 10px rgba(53,224,255,.55)}
+#sceneSettings.signal-in .settings-shell{animation:settingsPanelIn var(--t-route) var(--e-enter) both}
+#sceneSettings.signal-in .setting-row{animation:riseIn var(--t-enter) var(--e-enter) both}
+#sceneSettings.signal-in .setting-row:nth-child(2){animation-delay:var(--stagger)}
+#sceneSettings.signal-in .setting-row:nth-child(3){animation-delay:calc(var(--stagger) * 2)}
+#sceneSettings.signal-in .setting-row:nth-child(4){animation-delay:calc(var(--stagger) * 3)}
+#sceneSettings.signal-in .setting-row:nth-child(5){animation-delay:calc(var(--stagger) * 4)}
+#sceneSettings.signal-in .settings-detail{animation:settingsDetailIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 2) both}
+#sceneSettings.signal-in .settings-detail-scan{animation:settingsDetailScan var(--t-route) var(--e-signal) calc(var(--stagger) * 2) both}
+
+/* SONG SELECT */
+.select-layout{position:absolute;left:44px;right:44px;top:106px;bottom:188px;z-index:4;display:grid;grid-template-columns:610px 1fr;gap:26px}
+.select-detail{position:relative;padding:24px;border:2px solid var(--line);background:rgba(10,17,37,.92);overflow:hidden}
+.synthetic-cover{position:relative;height:385px;overflow:hidden;border:2px solid rgba(53,224,255,.54);background:
+  linear-gradient(135deg,transparent 0 46%,rgba(255,77,145,.2) 46% 49%,transparent 49%),
+  repeating-linear-gradient(0deg,transparent 0 45px,rgba(53,224,255,.08) 45px 47px),
+  repeating-linear-gradient(90deg,transparent 0 45px,rgba(53,224,255,.08) 45px 47px),
+  radial-gradient(circle at 50% 50%,#1a3974 0,#0b1633 64%)}
+.synthetic-cover::before,.synthetic-cover::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);border:3px solid rgba(53,224,255,.48)}
+.synthetic-cover::before{width:176px;height:176px}
+.synthetic-cover::after{width:92px;height:92px;border-color:rgba(255,77,145,.62)}
+.cover-copy{position:absolute;left:0;right:0;top:143px;z-index:2;text-align:center}
+.cover-copy b{display:block;color:var(--cyan);font-size:25px}
+.cover-copy span{display:block;margin-top:83px;color:var(--dim);font-size:11px;letter-spacing:.18em}
+.detail-ready h1{margin:24px 5px 4px;font-size:38px;font-weight:600}
+.detail-ready .artist{margin-left:5px;color:var(--dim);font-size:15px}
+.detail-meta{display:flex;gap:32px;margin:22px 5px 0;padding-top:18px;border-top:1px solid var(--line);color:var(--dim);font-size:12px}
+.detail-meta b{display:block;margin-top:5px;color:var(--text);font-size:17px}
+.detail-loader{position:absolute;inset:24px;z-index:8;visibility:hidden;opacity:0;background:rgba(7,13,29,.92)}
+.detail-loader .scan-field{position:absolute;inset:0;border:2px solid var(--cyan);overflow:hidden;background:repeating-linear-gradient(0deg,rgba(53,224,255,.025) 0 19px,rgba(53,224,255,.08) 19px 20px)}
+.detail-loader .scan-field::after{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--cyan);box-shadow:0 0 24px rgba(53,224,255,.95)}
+.detail-loader .loader-copy{position:absolute;left:28px;bottom:28px;color:var(--cyan);font-size:13px}
+.select-detail.is-detail-loading .detail-ready{opacity:.12;filter:brightness(.55)}
+.select-detail.is-detail-loading .detail-loader{visibility:visible;opacity:1}
+.select-detail.is-detail-loading .scan-field::after{animation:detailScan var(--t-route) var(--e-signal) both}
+.select-detail.is-detail-ready .detail-ready{animation:detailReady var(--t-enter) var(--e-enter) both}
+.select-list{padding:20px;border:2px solid var(--line);background:rgba(10,17,37,.88)}
+.list-head{height:48px;display:flex;align-items:center;padding:0 13px;color:var(--dim);font-size:12px;border-bottom:1px solid var(--line)}
+.list-head span:last-child{margin-left:auto;color:var(--cyan)}
+.song-row{height:100px;margin-top:13px;padding:0 18px;display:flex;align-items:center;gap:18px;border:2px solid transparent;background:rgba(18,27,56,.65)}
+.song-row.selected{border-color:var(--cyan);background:linear-gradient(90deg,rgba(53,224,255,.16),rgba(18,27,56,.78));box-shadow:inset 5px 0 var(--cyan)}
+.song-thumb{width:68px;height:68px;flex:none;background:linear-gradient(135deg,#173c6e,#743254 58%,#186054);border:1px solid var(--line)}
+.song-row:nth-of-type(3) .song-thumb{background:linear-gradient(135deg,#6a4c1a,#153f72)}
+.song-row:nth-of-type(4) .song-thumb{background:linear-gradient(135deg,#4e2675,#6f202c)}
+.song-row:nth-of-type(5) .song-thumb{background:linear-gradient(135deg,#176657,#542771)}
+.song-copy{flex:1}
+.song-copy b{display:block;font-size:20px;font-weight:550}
+.song-copy small{display:block;margin-top:6px;color:var(--dim);font-size:11px}
+.song-level{width:70px;height:45px;display:flex;align-items:center;justify-content:center;background:var(--amber);color:var(--ink);font-weight:850;font-size:16px}
+.select-bottom{position:absolute;left:44px;right:44px;bottom:112px;z-index:10;height:60px;display:flex;gap:14px}
+.diff-chip,.best-chip,.start-chip{height:60px;border:2px solid var(--line);background:rgba(10,17,37,.94)}
+.diff-chip{width:300px;display:flex;align-items:center;justify-content:center;color:var(--amber);font-size:15px}
+.best-chip{flex:1;display:flex;align-items:center;padding:0 24px;color:var(--dim);font-size:12px}
+.best-chip b{margin-left:20px;color:var(--cyan);font-size:22px}
+.start-chip{width:270px;border-color:var(--cyan);background:var(--cyan);color:var(--ink);font-size:20px;font-weight:850;letter-spacing:.18em}
+#sceneSelect.demo-select-enter .select-detail{animation:selectDetailIn var(--t-route) var(--e-enter) both}
+#sceneSelect.demo-select-enter .song-row{animation:listRowIn var(--t-enter) var(--e-enter) both}
+#sceneSelect.demo-select-enter .song-row:nth-child(3){animation-delay:var(--stagger)}
+#sceneSelect.demo-select-enter .song-row:nth-child(4){animation-delay:calc(var(--stagger) * 2)}
+#sceneSelect.demo-select-enter .song-row:nth-child(5){animation-delay:calc(var(--stagger) * 3)}
+#sceneSelect.demo-select-enter .select-bottom{animation:riseIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 2) both}
+#sceneSelect.relay-out .song-row.selected,#sceneSelect.relay-out .start-chip{animation:selectionCommit var(--t-focus) var(--e-enter) both}
+
+/* TRACK HANDOFF：Select 与 Gameplay 之间的真实不透明场景。静态场景可显示合成封面；飞行卡保持纯文本。 */
+#sceneHandoff{background:
+  radial-gradient(circle at 50% 44%,rgba(53,224,255,.11),transparent 32%),
+  linear-gradient(145deg,#071126,#040812 68%);}
+.handoff-grid{position:absolute;inset:78px 0 0;z-index:2;background:
+  linear-gradient(90deg,transparent 49.94%,rgba(53,224,255,.09) 50%,transparent 50.06%),
+  repeating-linear-gradient(0deg,transparent 0 79px,rgba(53,224,255,.035) 79px 80px),
+  repeating-linear-gradient(90deg,transparent 0 79px,rgba(53,224,255,.035) 79px 80px)}
+.handoff-shell{position:absolute;left:230px;right:230px;top:160px;bottom:188px;z-index:5;display:grid;grid-template-columns:460px 1fr;gap:54px;padding:44px;border:2px solid rgba(53,224,255,.52);background:#081127;box-shadow:0 38px 90px rgba(0,0,0,.42);overflow:hidden}
+.handoff-cover{position:relative;width:100%;height:100%;min-height:540px;border:2px solid rgba(53,224,255,.62);background:
+  linear-gradient(135deg,transparent 0 32%,rgba(255,77,145,.3) 32% 34%,transparent 34% 66%,rgba(53,224,255,.23) 66% 68%,transparent 68%),
+  repeating-linear-gradient(0deg,transparent 0 39px,rgba(53,224,255,.08) 39px 41px),
+  repeating-linear-gradient(90deg,transparent 0 39px,rgba(53,224,255,.08) 39px 41px),
+  radial-gradient(circle at 50% 48%,#21468c 0,#111d45 43%,#080f24 74%);overflow:hidden}
+.handoff-cover::before,.handoff-cover::after{content:"";position:absolute;left:50%;top:48%;transform:translate(-50%,-50%) rotate(45deg);border:4px solid rgba(53,224,255,.62)}
+.handoff-cover::before{width:210px;height:210px;box-shadow:0 0 54px rgba(53,224,255,.18)}
+.handoff-cover::after{width:102px;height:102px;border-color:rgba(255,77,145,.76)}
+.handoff-cover-copy{position:absolute;left:0;right:0;bottom:38px;z-index:2;text-align:center}
+.handoff-cover-copy b{display:block;color:var(--cyan);font-size:24px}.handoff-cover-copy span{display:block;margin-top:8px;color:var(--dim);font-size:10px;letter-spacing:.18em}
+.handoff-context{position:relative;padding-top:12px}
+.handoff-kicker{color:var(--cyan);font-size:12px;letter-spacing:.2em}
+.handoff-context h1{margin-top:30px;font-size:62px;line-height:1;font-weight:720}
+.handoff-artist{margin-top:14px;color:var(--dim);font-size:14px}
+.handoff-tags{display:flex;gap:12px;margin-top:28px}
+.handoff-tag{min-width:132px;height:50px;padding:0 18px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:#0d1937;color:var(--dim);font-size:11px}
+.handoff-tag.difficulty{border-color:var(--amber);color:var(--amber)}
+.handoff-tag.level{background:var(--amber);color:var(--ink);border-color:var(--amber);font-weight:900}
+.handoff-path{margin-top:34px;padding:18px 20px;border:1px solid var(--line);background:rgba(4,9,21,.72)}
+.handoff-path span{display:block;color:var(--dim);font-size:9px;letter-spacing:.15em}.handoff-path b{display:block;margin-top:9px;color:var(--text);font-size:13px;font-weight:550}
+.handoff-state-row{display:grid;grid-template-columns:1fr 112px;gap:18px;align-items:center;margin-top:28px;padding-top:24px;border-top:1px solid var(--line)}
+.handoff-status{color:var(--cyan);font-size:13px;line-height:1.6}
+.handoff-status small{display:block;color:var(--dim);font-size:9px;letter-spacing:.16em}
+.handoff-core{position:relative;width:88px;height:88px;justify-self:end;border:3px solid var(--cyan);transform:rotate(45deg);box-shadow:0 0 28px rgba(53,224,255,.25)}
+.handoff-core::before{content:"";position:absolute;inset:16px;border:2px solid var(--pink)}
+.handoff-scan{position:absolute;left:0;right:0;top:0;height:4px;background:#fff;box-shadow:0 0 12px #fff,0 0 30px var(--cyan);opacity:0}
+#sceneHandoff[data-handoff-state="waiting"] .handoff-scan{animation:handoffScan var(--t-wait) linear both}
+#sceneHandoff[data-handoff-state="waiting"] .handoff-core{animation:handoffCoreLock var(--t-handoff-min) var(--e-signal) both}
+#sceneHandoff[data-handoff-state="waiting"] .handoff-status::after{content:"";display:inline-block;width:8px;height:8px;margin-left:12px;background:var(--cyan);transform:rotate(45deg);animation:waitingPing var(--t-focus) steps(1,end) infinite}
+#sceneHandoff[data-handoff-state="ready"] .handoff-status{color:var(--green)}
+#sceneHandoff[data-handoff-state="ready"] .handoff-core{border-color:var(--green);box-shadow:0 0 32px rgba(83,227,141,.34)}
+#sceneHandoff.signal-in .handoff-shell{animation:handoffOpaqueIn var(--t-enter) var(--e-enter) both}
+#sceneHandoff.relay-out .handoff-shell{animation:handoffCommit var(--t-focus) var(--e-enter) both}
+
+/* GAMEPLAY：仅程序化轨道与音符占位，不读取谱面或素材。 */
+#sceneGameplay{background:
+  repeating-conic-gradient(from 72deg at 50% 22%,rgba(53,224,255,.05) 0 .12deg,transparent .12deg 8deg),
+  repeating-radial-gradient(ellipse at 50% 22%,transparent 0 72px,rgba(53,224,255,.035) 74px 76px),
+  radial-gradient(110% 92% at 50% 108%,#172451 0%,#080e20 56%,#050813 82%)}
+.game-hud{position:absolute;left:50%;top:24px;z-index:10;display:flex;gap:11px;transform:translateX(-50%)}
+.hud-pill{width:164px;height:42px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line);background:rgba(6,11,25,.78);color:var(--dim);font-size:10px;border-radius:999px}
+.hud-pill b{color:var(--text);font-size:14px}
+.hud-pill.cyan{color:var(--cyan)}
+.hud-pill.green{color:var(--green)}
+.pause-trigger{position:absolute;left:50%;top:76px;z-index:12;width:122px;height:58px;transform:translateX(-50%);border:2px solid var(--line);background:rgba(12,19,41,.82);color:var(--text);font-size:22px}
+.track-field{position:absolute;inset:0;z-index:2;transform-origin:50% 58%;transition:filter var(--t-control) var(--e-standard),transform var(--t-control) var(--e-standard)}
+.horizon{position:absolute;left:50%;top:210px;width:120px;height:3px;transform:translateX(-50%);background:var(--cyan);box-shadow:0 0 26px rgba(53,224,255,.75)}
+.track-ray{position:absolute;top:212px;width:3px;height:650px;transform-origin:top center;background:linear-gradient(180deg,rgba(53,224,255,.16),rgba(53,224,255,.6));box-shadow:0 0 12px rgba(53,224,255,.22)}
+.track-ray.r1{left:50%;transform:rotate(27deg)}
+.track-ray.r2{left:50%;transform:rotate(-27deg)}
+.track-ray.r3{left:50%;transform:rotate(52deg);opacity:.45}
+.track-ray.r4{left:50%;transform:rotate(-52deg);opacity:.45}
+.judge-bottom{position:absolute;left:70px;right:70px;top:858px;height:4px;background:linear-gradient(90deg,transparent,var(--cyan) 4%,var(--cyan) 96%,transparent);box-shadow:0 0 14px rgba(53,224,255,.45)}
+.judge-side{position:absolute;top:162px;bottom:218px;width:4px;background:linear-gradient(180deg,transparent,var(--cyan) 7%,var(--cyan) 93%,transparent);box-shadow:0 0 14px rgba(53,224,255,.38)}
+.judge-side.left{left:184px}.judge-side.right{right:184px}
+.game-note{position:absolute;height:27px;border:1px solid rgba(255,255,255,.4);background:linear-gradient(180deg,#daf6ff,#51c7ff 48%,#207fc9);box-shadow:0 0 17px rgba(81,199,255,.6)}
+.game-note.drag{background:linear-gradient(180deg,#e3ffed,#54e694 48%,#1b9b57);box-shadow:0 0 17px rgba(84,230,148,.55)}
+.game-note.hold{height:168px;background:linear-gradient(180deg,rgba(255,189,89,.05),rgba(255,189,89,.25));border:2px solid rgba(255,210,126,.68);box-shadow:none}
+.game-note.hold::after{content:"";position:absolute;left:-2px;right:-2px;bottom:-2px;height:28px;background:linear-gradient(180deg,#fff1ca,#ffbd59 48%,#c87918);box-shadow:0 0 17px rgba(255,189,89,.55)}
+.game-note.side{width:27px;height:118px;background:linear-gradient(90deg,#daf6ff,#51c7ff 48%,#207fc9)}
+.game-song{position:absolute;left:44px;bottom:185px;z-index:9;font-size:16px}
+.game-song span{margin-left:12px;padding:4px 10px;border:1px solid var(--amber);color:var(--amber);font-size:10px}
+.game-score{position:absolute;right:44px;bottom:181px;z-index:9;text-align:right;font-size:45px;font-weight:800}
+.game-combo{position:absolute;left:50%;top:790px;z-index:9;transform:translate(-50%,-50%);text-align:center;font-size:52px;font-weight:750;text-shadow:0 0 25px rgba(232,237,255,.22)}
+.game-combo small{display:block;margin-top:7px;color:var(--dim);font-size:10px;letter-spacing:.24em}
+.game-judge{position:absolute;left:50%;top:692px;z-index:9;transform:translateX(-50%);color:var(--cyan);font-size:25px;font-weight:800;letter-spacing:.22em;text-shadow:0 0 20px rgba(53,224,255,.75)}
+#sceneGameplay.relay-in .horizon{animation:horizonLock var(--t-relay) var(--e-signal) both}
+#sceneGameplay.relay-in .track-ray{animation:trackDraw var(--t-relay) var(--e-enter) both}
+#sceneGameplay.relay-in .judge-bottom,#sceneGameplay.relay-in .judge-side{animation:judgeLock var(--t-relay) var(--e-enter) both}
+#sceneGameplay.relay-in .game-hud,#sceneGameplay.relay-in .game-song,#sceneGameplay.relay-in .game-score{animation:riseIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 3) both}
+#sceneGameplay.is-paused .track-field{filter:brightness(.42) saturate(.6);transform:scale(.992)}
+.pause-overlay{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;background:rgba(2,5,12,.64);backdrop-filter:blur(7px)}
+.pause-overlay.is-visible{visibility:visible;animation:pauseIn var(--t-focus) var(--e-enter) both}
+.pause-overlay.is-resuming{visibility:visible;animation:pauseOut var(--t-control) var(--e-exit) both}
+.pause-panel{width:580px;padding:40px 46px;border:2px solid var(--cyan);background:rgba(9,16,35,.96);text-align:center;box-shadow:0 0 50px rgba(53,224,255,.12)}
+.pause-panel .pause-mark{font-size:15px;color:var(--cyan)}
+.pause-panel h2{margin-top:15px;font-size:48px}
+.pause-panel p{margin-top:12px;color:var(--dim);font-size:14px}
+.resume-button{width:100%;height:62px;margin-top:28px;border:2px solid var(--cyan);background:var(--cyan);color:var(--ink);font-size:17px;font-weight:850;cursor:pointer}
+
+/* RESULT / Hit Echo */
+#sceneResult{background:#071020}
+#sceneResult::after{content:"";position:absolute;inset:-80px;background:repeating-linear-gradient(105deg,transparent 0 118px,rgba(53,224,255,.045) 118px 120px);filter:blur(13px)}
+.result-prelock{position:absolute;inset:0;z-index:40;background:#071020;transform-origin:left center;pointer-events:none}
+#sceneResult.demo-result-reveal .result-prelock{animation:resultPrelock var(--t-route) var(--e-signal) both}
+.result-panel{position:absolute;left:50%;top:485px;z-index:5;width:1020px;min-height:600px;padding:42px 52px;transform:translate(-50%,-50%);border:2px solid var(--line);background:rgba(8,14,31,.82);box-shadow:0 32px 80px rgba(0,0,0,.32)}
+.result-song{padding-bottom:19px;border-bottom:1px solid var(--line);color:var(--dim);font-size:13px}
+.result-song b{color:var(--text);font-size:18px}
+.result-main{display:grid;grid-template-columns:260px 1fr;gap:46px;margin-top:28px}
+.grade-wrap{position:relative;height:250px;display:flex;align-items:center;justify-content:center}
+.grade-core,.grade-echo{position:absolute;font-size:166px;line-height:1;font-weight:900;color:var(--cyan);text-shadow:0 0 36px rgba(53,224,255,.5)}
+.grade-echo{opacity:0;color:transparent;-webkit-text-stroke:2px var(--cyan);text-shadow:none}
+.grade-echo.pink{-webkit-text-stroke-color:var(--pink)}
+.new-record{position:absolute;left:50%;bottom:0;transform:translateX(-50%);padding:7px 18px;background:var(--pink);color:#240813;font-size:11px;font-weight:900;white-space:nowrap}
+.result-score{font-size:62px;font-weight:850}
+.result-clear{margin-top:5px;color:var(--dim);font-size:13px}
+.result-clear b{color:var(--text);font-size:19px}
+.hit-line{height:5px;margin:24px 0 17px;background:linear-gradient(90deg,var(--cyan),var(--pink));transform-origin:left center}
+.result-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.result-stat{padding:13px 14px;border:1px solid var(--line);background:rgba(14,22,47,.72);font-size:10px}
+.result-stat b{display:block;margin-top:5px;font-size:22px}
+.result-stat:nth-child(1){color:var(--cyan)}.result-stat:nth-child(2){color:var(--amber)}.result-stat:nth-child(3){color:var(--green)}.result-stat:nth-child(4){color:#949db8}
+.result-actions{display:flex;justify-content:flex-end;gap:13px;margin-top:34px}
+.result-actions button{height:55px;padding:0 27px;border:2px solid var(--line);background:#101936;color:var(--text);font-size:13px}
+.result-actions button.primary{border-color:var(--cyan);background:var(--cyan);color:var(--ink);font-weight:850}
+#sceneResult.demo-result-reveal .result-panel{animation:resultPanelIn var(--t-route) var(--e-enter) both}
+#sceneResult.demo-result-reveal .grade-core{animation:gradeHit var(--t-result) var(--e-echo) both}
+#sceneResult.demo-result-reveal .grade-echo.cyan{animation:hitEcho var(--t-result) var(--e-echo) calc(var(--stagger) * 1) both}
+#sceneResult.demo-result-reveal .grade-echo.pink{animation:hitEcho var(--t-result) var(--e-echo) calc(var(--stagger) * 2) both}
+#sceneResult.demo-result-reveal .result-score{animation:scoreReveal var(--t-enter) var(--e-enter) calc(var(--stagger) * 2) both}
+#sceneResult.demo-result-reveal .result-clear{animation:riseIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 3) both}
+#sceneResult.demo-result-reveal .hit-line{animation:lineReveal var(--t-focus) var(--e-signal) calc(var(--stagger) * 3) both}
+#sceneResult.demo-result-reveal .result-stat:nth-child(1){animation:statReveal var(--t-enter) var(--e-enter) calc(var(--stagger) * 4) both}
+#sceneResult.demo-result-reveal .result-stat:nth-child(2){animation:statReveal var(--t-enter) var(--e-enter) calc(var(--stagger) * 5) both}
+#sceneResult.demo-result-reveal .result-stat:nth-child(3){animation:statReveal var(--t-enter) var(--e-enter) calc(var(--stagger) * 6) both}
+#sceneResult.demo-result-reveal .result-stat:nth-child(4){animation:statReveal var(--t-enter) var(--e-enter) calc(var(--stagger) * 7) both}
+#sceneResult.demo-result-reveal .result-actions{animation:riseIn var(--t-enter) var(--e-enter) calc(var(--stagger) * 7) both}
+#sceneResult.relay-out .result-panel{animation:resultReplayOut var(--t-relay) var(--e-exit) both}
+
+/* Signal Lock：青色扫描线 + 切角分片，负责页面进入与路由切换。 */
+.signal-lock{position:absolute;inset:0;z-index:70;visibility:hidden;pointer-events:none;overflow:hidden}
+.signal-lock.is-running{visibility:visible}
+.signal-slice{position:absolute;left:-8%;width:116%;height:35%;background:rgba(53,224,255,.12);border-top:2px solid rgba(139,242,255,.8);border-bottom:1px solid rgba(53,224,255,.34);clip-path:polygon(0 0,96% 0,100% 20%,100% 100%,4% 100%,0 80%);transform:translateX(-108%)}
+.signal-slice.a{top:0}.signal-slice.b{top:33%;animation-delay:calc(var(--stagger) * .5)}.signal-slice.c{top:66%;animation-delay:var(--stagger)}
+.signal-lock.is-running .signal-slice{animation:signalSlice var(--t-route) var(--e-signal) both}
+.signal-scan{position:absolute;top:0;bottom:0;left:-18px;width:4px;background:#fff;box-shadow:0 0 9px #fff,0 0 28px var(--cyan),-28px 0 70px rgba(53,224,255,.45)}
+.signal-lock.is-running .signal-scan{animation:signalScan var(--t-route) var(--e-signal) both}
+.signal-corner{position:absolute;right:72px;top:102px;width:240px;height:58px;border-top:3px solid var(--cyan);border-right:3px solid var(--cyan);opacity:0;clip-path:var(--cut-sm)}
+.signal-lock.is-running .signal-corner{animation:cornerPing var(--t-focus) var(--e-enter) calc(var(--stagger) * 2) both}
+
+/* Track Relay：选择态压缩为携带上下文的信号卡，再展开为游玩轨道。 */
+.track-relay{position:absolute;inset:0;z-index:72;visibility:hidden;pointer-events:none}
+.track-relay.is-running{visibility:visible}
+.relay-beam{position:absolute;left:265px;top:520px;width:1120px;height:4px;transform:rotate(-15deg) scaleX(0);transform-origin:left center;background:linear-gradient(90deg,var(--cyan),rgba(53,224,255,.12));box-shadow:0 0 18px rgba(53,224,255,.66)}
+.track-relay.from-result .relay-beam{left:970px;top:680px;width:520px;transform:rotate(-54deg) scaleX(0)}
+.track-relay.is-running .relay-beam{animation:relayBeam var(--t-relay) var(--e-signal) both}
+.relay-card{position:absolute;left:0;top:0;width:270px;height:190px;padding:20px;border:3px solid var(--cyan);background:
+  repeating-linear-gradient(0deg,rgba(53,224,255,.04) 0 24px,rgba(53,224,255,.12) 24px 25px),
+  #0a1630;box-shadow:0 0 35px rgba(53,224,255,.25);transform-origin:center center}
+.relay-card b{display:block;color:var(--cyan);font-size:17px}.relay-card span{display:block;margin-top:10px;color:var(--dim);font-size:10px}
+.track-relay.from-select .relay-card{animation:relayCardSelect var(--t-relay) var(--e-signal) both}
+.track-relay.from-result .relay-card{animation:relayCardReplay var(--t-relay) var(--e-signal) both}
+.track-relay.from-result.is-running .relay-beam{animation-name:relayBeamReplay}
+.relay-target{position:absolute;left:50%;top:210px;width:90px;height:90px;transform:translate(-50%,-50%) rotate(45deg) scale(.2);border:3px solid var(--cyan);opacity:0;box-shadow:0 0 28px rgba(53,224,255,.75)}
+.track-relay.is-running .relay-target{animation:relayTarget var(--t-relay) var(--e-echo) both}
+
+/* Motion Lab 控制台：仅预览工具，不属于游戏界面。 */
+.lab-status{position:absolute;left:28px;top:92px;z-index:90;width:350px;padding:14px 17px;border:1px solid rgba(53,224,255,.4);background:rgba(4,9,22,.9);pointer-events:none}
+.lab-status strong{display:block;color:var(--cyan);font-size:12px}
+.lab-status span{display:block;margin-top:6px;color:var(--dim);font-size:10px;line-height:1.45}
+.motion-dock{position:absolute;left:24px;right:24px;bottom:22px;z-index:100;height:118px;padding:14px 16px;display:grid;grid-template-columns:340px 1fr;gap:16px;border:2px solid rgba(53,224,255,.34);background:rgba(4,8,19,.94);box-shadow:0 -16px 50px rgba(0,0,0,.3)}
+.mode-block{display:grid;grid-template-rows:18px 1fr;gap:9px;padding-right:16px;border-right:1px solid var(--line)}
+.mode-block h2,.demo-block h2{color:var(--dim);font-size:10px;font-weight:650;letter-spacing:.16em}
+.mode-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mode-button,.demo-button{border:1px solid var(--line);background:#101831;color:var(--text);cursor:pointer;transition:border-color var(--t-control) var(--e-standard),color var(--t-control) var(--e-standard),background var(--t-control) var(--e-standard)}
+.mode-button{font-size:12px}
+.mode-button:hover,.demo-button:hover{border-color:var(--cyan);color:var(--cyan)}
+.mode-button.is-active{border-color:var(--cyan);background:rgba(53,224,255,.16);color:var(--cyan);box-shadow:inset 0 -3px var(--cyan)}
+.demo-block{display:grid;grid-template-rows:18px 1fr;gap:9px}
+.demo-buttons{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.demo-button{padding:0 8px;font-size:10px;line-height:1.25}
+.demo-button.is-running{border-color:var(--pink);color:#ffd4e4;background:rgba(255,77,145,.12)}
+
+@keyframes signalSceneIn{
+  0%{opacity:.72;clip-path:polygon(0 0,0 0,0 100%,0 100%)}
+  42%{opacity:1;clip-path:polygon(0 0,46% 0,50% 8%,50% 92%,46% 100%,0 100%)}
+  100%{opacity:1;clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}
+}
+@keyframes signalSceneOut{0%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(calc(var(--move-sm) * -1));filter:brightness(.65)}}
+@keyframes relaySceneIn{0%{opacity:0;filter:brightness(.35)}38%{opacity:.2}100%{opacity:1;filter:none}}
+@keyframes relaySceneOut{0%{opacity:1;filter:none}56%{opacity:.7;filter:brightness(.7)}100%{opacity:0;filter:brightness(.4)}}
+@keyframes riseIn{0%{opacity:0;transform:translateY(var(--move-sm))}100%{opacity:1;transform:translateY(0)}}
+@keyframes menuIn{0%{opacity:0;transform:translateX(calc(var(--move-md) * -1))}100%{opacity:1;transform:translateX(0)}}
+@keyframes mainTitleIn{0%{opacity:0;transform:translateX(calc(var(--move-sm) * -1));letter-spacing:.12em;filter:blur(7px)}100%{opacity:1;transform:none;letter-spacing:.035em;filter:none}}
+@keyframes panelLockIn{0%{opacity:0;clip-path:polygon(0 0,0 0,0 100%,0 100%)}100%{opacity:1;clip-path:var(--cut)}}
+@keyframes focusIn{0%{opacity:0;transform:scale(.96)}100%{opacity:.85;transform:scale(1)}}
+@keyframes settingsPanelIn{0%{opacity:0;transform:translateX(var(--move-md));clip-path:polygon(0 0,0 0,0 100%,0 100%)}100%{opacity:1;transform:none;clip-path:var(--cut)}}
+@keyframes settingsDetailIn{0%{opacity:0;transform:translateX(var(--move-sm));filter:brightness(1.4)}100%{opacity:1;transform:none;filter:none}}
+@keyframes settingsDetailScan{0%{top:0;opacity:0}12%{opacity:1}88%{opacity:1}100%{top:calc(100% - 3px);opacity:0}}
+@keyframes selectDetailIn{0%{opacity:0;transform:translateX(calc(var(--move-md) * -1));clip-path:polygon(0 0,0 0,0 100%,0 100%)}100%{opacity:1;transform:none;clip-path:var(--cut)}}
+@keyframes listRowIn{0%{opacity:0;transform:translateX(var(--move-sm))}100%{opacity:1;transform:none}}
+@keyframes detailScan{0%{top:0}100%{top:calc(100% - 4px)}}
+@keyframes detailReady{0%{opacity:0;transform:translateY(var(--move-xs));filter:brightness(1.5)}100%{opacity:1;transform:none;filter:none}}
+@keyframes selectionCommit{0%{filter:none}42%{filter:brightness(1.65);box-shadow:0 0 34px rgba(53,224,255,.42)}100%{filter:brightness(.9)}}
+@keyframes handoffOpaqueIn{0%{opacity:0;filter:brightness(.5)}100%{opacity:1;filter:none}}
+@keyframes handoffScan{0%{top:0;opacity:0}8%{opacity:1}92%{opacity:1}100%{top:calc(100% - 4px);opacity:0}}
+@keyframes handoffCoreLock{0%{opacity:.35;transform:rotate(45deg) scale(.76)}60%{opacity:1;transform:rotate(45deg) scale(1.08)}100%{opacity:1;transform:rotate(45deg) scale(1)}}
+@keyframes waitingPing{0%,49%{opacity:1}50%,100%{opacity:.2}}
+@keyframes handoffCommit{0%{filter:none}45%{filter:brightness(1.32)}100%{filter:brightness(.8)}}
+@keyframes horizonLock{0%{width:10px;opacity:0}42%{width:180px;opacity:1}100%{width:120px;opacity:1}}
+@keyframes trackDraw{0%{height:0;opacity:0}36%{opacity:.2}100%{height:650px;opacity:1}}
+@keyframes judgeLock{0%{opacity:0;filter:brightness(2)}62%{opacity:.2}100%{opacity:1;filter:none}}
+@keyframes pauseIn{0%{opacity:0}100%{opacity:1}}
+@keyframes pauseOut{0%{opacity:1}100%{opacity:0}}
+@keyframes resultPrelock{0%,34%{opacity:1;transform:scaleX(1)}100%{opacity:0;transform:scaleX(0)}}
+@keyframes resultPanelIn{0%{opacity:0;transform:translate(-50%,calc(-50% + var(--move-sm)));clip-path:polygon(0 0,0 0,0 100%,0 100%)}100%{opacity:1;transform:translate(-50%,-50%);clip-path:var(--cut)}}
+@keyframes gradeHit{0%{opacity:0;transform:scale(.72);filter:brightness(2)}38%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1);filter:none}}
+@keyframes hitEcho{0%,18%{opacity:0;transform:scale(.78)}42%{opacity:.72}100%{opacity:0;transform:scale(1.42)}}
+@keyframes scoreReveal{0%{opacity:0;transform:translateX(var(--move-sm));letter-spacing:.16em}100%{opacity:1;transform:none;letter-spacing:.06em}}
+@keyframes lineReveal{0%{transform:scaleX(0);opacity:0}100%{transform:scaleX(1);opacity:1}}
+@keyframes statReveal{0%{opacity:0;transform:translateY(var(--move-sm));filter:brightness(1.7)}100%{opacity:1;transform:none;filter:none}}
+@keyframes resultReplayOut{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}42%{filter:brightness(1.35)}100%{opacity:0;transform:translate(-50%,-50%) scale(.94);filter:brightness(.6)}}
+@keyframes signalSlice{0%{transform:translateX(-108%);opacity:0}32%{opacity:1}68%{opacity:1}100%{transform:translateX(108%);opacity:0}}
+@keyframes signalScan{0%{left:-18px;opacity:0}12%{opacity:1}86%{opacity:1}100%{left:calc(100% + 18px);opacity:0}}
+@keyframes cornerPing{0%{opacity:0;transform:translateX(var(--move-xs))}42%{opacity:1}100%{opacity:0;transform:none}}
+@keyframes relayBeam{0%{transform:rotate(-15deg) scaleX(0);opacity:0}24%{opacity:1}70%{transform:rotate(-15deg) scaleX(1);opacity:1}100%{transform:rotate(-15deg) scaleX(1);opacity:0}}
+@keyframes relayBeamReplay{0%{transform:rotate(-54deg) scaleX(0);opacity:0}24%{opacity:1}70%{transform:rotate(-54deg) scaleX(1);opacity:1}100%{transform:rotate(-54deg) scaleX(1);opacity:0}}
+@keyframes relayCardSelect{0%{transform:translate(104px,224px) scale(1);opacity:0}12%{opacity:1}58%{transform:translate(655px,96px) scale(.58);opacity:1}100%{transform:translate(825px,115px) scale(.18) rotate(45deg);opacity:0}}
+@keyframes relayCardReplay{0%{transform:translate(820px,414px) scale(.6);opacity:0}12%{opacity:1}58%{transform:translate(850px,226px) scale(.38);opacity:1}100%{transform:translate(825px,115px) scale(.18) rotate(45deg);opacity:0}}
+@keyframes relayTarget{0%,44%{opacity:0;transform:translate(-50%,-50%) rotate(45deg) scale(.2)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(45deg) scale(1.5)}}
+
+html[data-motion="reduced"] .scene.signal-in,
+html[data-motion="reduced"] .scene.relay-in{animation-name:reducedSceneIn}
+html[data-motion="reduced"] .scene.signal-out,
+html[data-motion="reduced"] .scene.relay-out{animation-name:reducedSceneOut}
+html[data-motion="reduced"] .signal-lock.is-running .signal-slice,
+html[data-motion="reduced"] .signal-lock.is-running .signal-scan,
+html[data-motion="reduced"] .signal-lock.is-running .signal-corner{display:none}
+html[data-motion="reduced"] .track-relay{background:#071020}
+html[data-motion="reduced"] .track-relay .relay-beam,
+html[data-motion="reduced"] .track-relay .relay-card,
+html[data-motion="reduced"] .track-relay .relay-target{display:none}
+html[data-motion="reduced"] #sceneHandoff[data-handoff-state="waiting"] .handoff-scan,
+html[data-motion="reduced"] #sceneHandoff[data-handoff-state="waiting"] .handoff-core,
+html[data-motion="reduced"] #sceneHandoff[data-handoff-state="waiting"] .handoff-status::after,
+html[data-motion="reduced"] .select-detail.is-detail-loading .scan-field::after,
+html[data-motion="reduced"] #sceneSettings.signal-in .settings-detail-scan{animation:none}
+html[data-motion="reduced"] #sceneMain.demo-main-enter .main-signal-card,
+html[data-motion="reduced"] #sceneSettings.signal-in .settings-shell,
+html[data-motion="reduced"] #sceneSettings.signal-in .settings-detail,
+html[data-motion="reduced"] #sceneSelect.demo-select-enter .select-detail,
+html[data-motion="reduced"] #sceneResult.demo-result-reveal .result-panel,
+html[data-motion="reduced"] #sceneResult.demo-result-reveal .hit-line{animation-name:reducedContentIn}
+html[data-motion="reduced"] #sceneGameplay.relay-in .horizon,
+html[data-motion="reduced"] #sceneGameplay.relay-in .track-ray,
+html[data-motion="reduced"] #sceneGameplay.relay-in .judge-bottom,
+html[data-motion="reduced"] #sceneGameplay.relay-in .judge-side{animation-name:reducedTrack}
+html[data-motion="reduced"] #sceneResult.demo-result-reveal .grade-echo{animation:none;opacity:0}
+html[data-motion="reduced"] #sceneResult.demo-result-reveal .result-prelock{animation-name:reducedPrelock}
+@keyframes reducedSceneIn{0%{opacity:0}100%{opacity:1}}
+@keyframes reducedSceneOut{0%{opacity:1}100%{opacity:0}}
+@keyframes reducedContentIn{0%{opacity:0;filter:brightness(1.16)}100%{opacity:1;filter:none}}
+@keyframes reducedTrack{0%{opacity:0}100%{opacity:1}}
+@keyframes reducedPrelock{0%,40%{opacity:1}100%{opacity:0}}
+
+html[data-motion="off"] *,html[data-motion="off"] *::before,html[data-motion="off"] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html[data-motion="off"] .track-relay{background:#071020}
+html[data-motion="off"] .track-relay .relay-beam,
+html[data-motion="off"] .track-relay .relay-card,
+html[data-motion="off"] .track-relay .relay-target{display:none}
+html[data-motion="off"] .result-prelock{display:none}
+@media (prefers-reduced-motion:reduce){
+  html:not([data-motion-explicit="true"]){
+    --t-micro:70ms;--t-control:100ms;--t-focus:140ms;--t-enter:180ms;--t-route:220ms;--t-relay:220ms;--t-result:260ms;--t-wait:0ms;--t-handoff-min:180ms;--stagger:0ms;--move-xs:0px;--move-sm:0px;--move-md:0px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="viewport" id="appViewport" data-testid="viewport">
+  <main class="stage" id="motionStage" data-testid="motion-stage" aria-label="1920 × 1080 UI 动效预览舞台">
+    <section class="scene" id="sceneMain" data-scene="main" data-testid="scene-main" aria-label="主菜单场景">
+      <header class="scene-top">
+        <div class="brand tech">DUX·<span>COMMUNITY</span></div>
+        <div class="scene-code tech">MAIN / SIGNAL READY</div>
+        <div class="spacer"></div>
+        <div class="scene-state tech"><i></i>SYNTHETIC UI</div>
+      </header>
+      <div class="main-orbit"></div>
+      <div class="main-hero">
+        <div class="main-kicker tech">COMMUNITY-DRIVEN RHYTHM SYSTEM</div>
+        <h1 class="main-title tech">DUX<span>·</span><br>COMMUNITY</h1>
+        <p class="main-sub tech">CLEAN-ROOM INTERFACE / MOTION STUDY</p>
+      </div>
+      <div class="main-menu">
+        <button class="main-option primary cut-sm"><span class="index tech">01</span><span><b>游玩</b><small class="tech">PLAY / SONG SELECT</small></span></button>
+        <button class="main-option cut-sm"><span class="index tech">02</span><span><b>谱面工坊</b><small class="tech">WORKSHOP / DISCONNECTED</small></span></button>
+        <button class="main-option cut-sm"><span class="index tech">03</span><span><b>设置</b><small class="tech">SETTINGS</small></span></button>
+      </div>
+      <aside class="main-signal-card cut">
+        <h2 class="tech">SIGNAL / LOCKED</h2>
+        <p>青色扫描只表达导航确认与状态锁定；不模拟任何原版素材、谱面或品牌动画。</p>
+        <div class="signal-bars" aria-hidden="true"><i style="height:38%"></i><i style="height:72%"></i><i style="height:52%"></i><i style="height:88%"></i><i style="height:44%"></i><i style="height:64%"></i><i style="height:31%"></i><i style="height:76%"></i></div>
+      </aside>
+      <div class="clean-label tech">SYNTHETIC CLEAN-ROOM VISUALS · NO GAME ASSETS</div>
+    </section>
+
+    <section class="scene" id="sceneSettings" data-scene="settings" data-testid="scene-settings" aria-label="设置场景">
+      <header class="scene-top">
+        <div class="brand tech">DUX·<span>COMMUNITY</span></div>
+        <div class="scene-code tech">SETTINGS / LOCAL PROFILE</div>
+        <div class="spacer"></div>
+        <div class="scene-state tech"><i></i>CONFIG READY</div>
+      </header>
+      <div class="settings-shell cut">
+        <div class="settings-head"><h1 class="tech">设置</h1><p class="tech">SETTINGS / BEHAVIOR PREVIEW</p></div>
+        <div class="settings-body">
+          <div class="settings-grid">
+            <div class="setting-row cut-sm"><div class="copy"><b>判定偏移</b><small class="tech">TIMING OFFSET</small></div><div class="setting-value cut-xs tech">+0 ms</div></div>
+            <div class="setting-row cut-sm"><div class="copy"><b>音符落速</b><small class="tech">FALL SPEED</small></div><div class="setting-value cut-xs tech">Lv 10 · 1.0x</div></div>
+            <div class="setting-row cut-sm"><div class="copy"><b>音乐音量</b><small class="tech">MUSIC</small></div><div class="setting-value cut-xs tech">80%</div></div>
+            <div class="setting-row cut-sm"><div class="copy"><b>界面音量</b><small class="tech">UI SFX</small></div><div class="setting-value cut-xs tech">80%</div></div>
+            <div class="setting-row is-selected cut-sm"><div class="copy"><b>界面动效</b><small class="tech">MOTION POLICY</small></div><div class="setting-value cut-xs tech">FULL</div></div>
+          </div>
+          <aside class="settings-detail cut-sm" data-testid="settings-detail-card">
+            <div class="settings-detail-scan" aria-hidden="true"></div>
+            <div class="settings-detail-label tech">DETAIL / MOTION POLICY</div>
+            <h2>界面动效</h2>
+            <p>在不改变状态、布局与输入顺序的前提下，控制导航扫描、Track Handoff 与结算强调。</p>
+            <div class="settings-policy tech"><span><b>FULL</b> / COMPLETE SIGNAL LANGUAGE</span><span><b>REDUCED</b> / NO DIRECTIONAL MOTION OR ECHO</span><span><b>OFF</b> / INSTANT OPAQUE STATE</span></div>
+          </aside>
+        </div>
+        <div class="settings-foot"><span>行项目按阅读顺序进入；详情卡只进行一次局部扫描，不循环。</span></div>
+      </div>
+      <div class="clean-label tech">FIXED 1920 × 1080 · ROUTE PREVIEW</div>
+    </section>
+
+    <section class="scene" id="sceneSelect" data-scene="select" data-testid="scene-song-select" aria-label="选曲场景">
+      <header class="scene-top">
+        <div class="brand tech">DUX·<span>COMMUNITY</span></div>
+        <div class="scene-code tech">SONG SELECT / LOCAL SYNTHETIC CATALOG</div>
+        <div class="spacer"></div>
+        <div class="scene-state tech"><i></i>4 DEMO ENTRIES</div>
+      </header>
+      <div class="select-layout">
+        <article class="select-detail cut" id="selectDetail" data-testid="select-detail">
+          <div class="detail-ready">
+            <div class="synthetic-cover cut-sm">
+              <div class="cover-copy tech"><b>SIGNAL BLOOM</b><span>PROCEDURAL COVER / 001</span></div>
+            </div>
+            <h1>Signal Bloom</h1>
+            <div class="artist">Community Synthetic Unit · Chart: UI Sandbox</div>
+            <div class="detail-meta tech"><span>DURATION<b>02:18</b></span><span>OBJECTS<b>1,248</b></span><span>BPM<b>172</b></span></div>
+          </div>
+          <div class="detail-loader" id="detailLoader" data-testid="detail-loading-overlay" aria-hidden="true">
+            <div class="scan-field"></div><div class="loader-copy tech">DETAIL / VERIFYING LOCAL METADATA</div>
+          </div>
+        </article>
+        <section class="select-list cut">
+          <div class="list-head tech"><span>SONG LIBRARY / SYNTHETIC</span><span>LOCAL 04</span></div>
+          <div class="song-row selected cut-sm"><div class="song-thumb cut-xs"></div><div class="song-copy"><b>Signal Bloom</b><small>Community Synthetic Unit</small></div><div class="song-level cut-xs tech">H 12</div></div>
+          <div class="song-row cut-sm"><div class="song-thumb cut-xs"></div><div class="song-copy"><b>Vector Relay</b><small>Clean-room Sequence Lab</small></div><div class="song-level cut-xs tech" style="background:var(--green)">N 08</div></div>
+          <div class="song-row cut-sm"><div class="song-thumb cut-xs"></div><div class="song-copy"><b>Glass Circuit</b><small>Geometry Assembly</small></div><div class="song-level cut-xs tech" style="background:var(--pink);color:white">M 14</div></div>
+          <div class="song-row cut-sm"><div class="song-thumb cut-xs"></div><div class="song-copy"><b>Quiet Voltage</b><small>Placeholder Composer</small></div><div class="song-level cut-xs tech" style="background:var(--cyan)">C 04</div></div>
+        </section>
+      </div>
+      <div class="select-bottom">
+        <div class="diff-chip cut-sm tech">HARD · LEVEL 12</div>
+        <div class="best-chip cut-sm tech">BEST <b>982,460</b></div>
+        <button class="start-chip cut-sm tech" id="sceneStartButton" data-testid="scene-start">START ▶</button>
+      </div>
+    </section>
+
+    <section class="scene" id="sceneHandoff" data-scene="handoff" data-testid="scene-track-handoff" data-handoff-state="stable" aria-label="Track Handoff 场景">
+      <header class="scene-top">
+        <div class="brand tech">DUX·<span>COMMUNITY</span></div>
+        <div class="scene-code tech">TRACK HANDOFF / OPAQUE CONTEXT</div>
+        <div class="spacer"></div>
+        <div class="scene-state tech"><i></i>LOCAL SYNTHETIC TRACK</div>
+      </header>
+      <div class="handoff-grid"></div>
+      <article class="handoff-shell cut" data-testid="handoff-context">
+        <div class="handoff-scan" aria-hidden="true"></div>
+        <div class="handoff-cover cut-sm" data-testid="handoff-cover">
+          <div class="handoff-cover-copy tech"><b>SIGNAL BLOOM</b><span>SYNTHETIC CLEAN-ROOM COVER / 001</span></div>
+        </div>
+        <div class="handoff-context">
+          <div class="handoff-kicker tech">TRACK HANDOFF / CONTEXT LOCK</div>
+          <h1>Signal Bloom</h1>
+          <div class="handoff-artist">Community Synthetic Unit · UI Sandbox</div>
+          <div class="handoff-tags tech"><div class="handoff-tag difficulty cut-xs">HARD</div><div class="handoff-tag level cut-xs">LV 12</div></div>
+          <div class="handoff-path cut-xs"><span class="tech">PLACEHOLDER PATH</span><b class="tech">local://synthetic/signal-bloom/hard.chart</b></div>
+          <div class="handoff-state-row">
+            <div class="handoff-status tech" data-testid="handoff-status">AWAITING START CONFIRMATION<small>STATE / STABLE OPAQUE HANDOFF</small></div>
+            <div class="handoff-core" data-testid="handoff-core" aria-label="上下文核心"></div>
+          </div>
+        </div>
+      </article>
+      <div class="clean-label tech">STATIC HANDOFF MAY SHOW COVER · MOVING SIGNAL CARD IS TEXT-ONLY</div>
+    </section>
+
+    <section class="scene" id="sceneGameplay" data-scene="gameplay" data-testid="scene-gameplay" aria-label="游玩占位场景">
+      <div class="game-hud tech">
+        <div class="hud-pill cyan">PREFECT <b>846</b></div><div class="hud-pill">GREAT <b>31</b></div><div class="hud-pill">GOOD <b>07</b></div><div class="hud-pill">MISS <b>02</b></div><div class="hud-pill green">CLEAR <b>98.41%</b></div>
+      </div>
+      <button class="pause-trigger cut-xs" id="scenePauseButton" data-testid="scene-pause" aria-label="暂停">❚❚</button>
+      <div class="track-field" id="trackField">
+        <div class="horizon"></div><div class="track-ray r1"></div><div class="track-ray r2"></div><div class="track-ray r3"></div><div class="track-ray r4"></div>
+        <div class="judge-bottom"></div><div class="judge-side left"></div><div class="judge-side right"></div>
+        <div class="game-note tap cut-xs" style="left:470px;top:510px;width:310px"></div>
+        <div class="game-note drag cut-xs" style="left:890px;top:404px;width:270px"></div>
+        <div class="game-note tap cut-xs" style="left:1090px;top:625px;width:360px"></div>
+        <div class="game-note hold cut-xs" style="left:680px;top:645px;width:290px"></div>
+        <div class="game-note side cut-xs" style="left:171px;top:458px"></div>
+        <div class="game-note side cut-xs" style="right:171px;top:562px"></div>
+      </div>
+      <div class="game-judge tech">PREFECT</div>
+      <div class="game-combo tech">884<small>COMBO</small></div>
+      <div class="game-song tech">SIGNAL BLOOM <span class="cut-xs">HARD 12</span></div>
+      <div class="game-score tech">704,128</div>
+      <div class="pause-overlay" id="pauseOverlay" data-testid="pause-overlay" aria-hidden="true">
+        <div class="pause-panel cut">
+          <div class="pause-mark tech">SIGNAL HOLD / INPUT FROZEN</div><h2 class="tech">暂停</h2><p>舞台只做轻微压暗；不持续缩放、不循环漂移。</p>
+          <button class="resume-button cut-sm tech" id="resumeButton" data-testid="resume-button">RESUME / 继续</button>
+        </div>
+      </div>
+      <div class="clean-label tech">SYNTHETIC TRACK · NO CHART DATA LOADED</div>
+    </section>
+
+    <section class="scene" id="sceneResult" data-scene="result" data-testid="scene-result" aria-label="结算场景">
+      <div class="result-prelock" data-testid="result-pre-signal-lock" aria-hidden="true"></div>
+      <header class="scene-top">
+        <div class="brand tech">DUX·<span>COMMUNITY</span></div><div class="scene-code tech">RESULT / LOCAL RUN SUMMARY</div><div class="spacer"></div><div class="scene-state tech"><i></i>RUN COMPLETE</div>
+      </header>
+      <div class="result-panel cut">
+        <div class="result-song tech">RESULT / <b>SIGNAL BLOOM</b> / HARD 12</div>
+        <div class="result-main">
+          <div class="grade-wrap tech">
+            <div class="grade-echo cyan">S</div><div class="grade-echo pink">S</div><div class="grade-core">S</div><div class="new-record cut-xs">NEW RECORD</div>
+          </div>
+          <div>
+            <div class="result-score tech">991,204</div>
+            <div class="result-clear">CLEAR <b>99.03%</b> · MAX COMBO <b>1,180</b> / 1,204</div>
+            <div class="hit-line"></div>
+            <div class="result-stats tech">
+              <div class="result-stat">PREFECT<b>1,108</b></div><div class="result-stat">GREAT<b>61</b></div><div class="result-stat">GOOD<b>23</b></div><div class="result-stat">MISS<b>12</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button class="cut-sm">返回选曲</button><button class="cut-sm">下一首</button><button class="primary cut-sm" id="sceneReplayButton" data-testid="scene-replay">REPLAY / 再来一次</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="signal-lock" id="signalLock" data-testid="signal-lock" aria-hidden="true"><div class="signal-slice a"></div><div class="signal-slice b"></div><div class="signal-slice c"></div><div class="signal-scan"></div><div class="signal-corner"></div></div>
+    <div class="track-relay" id="trackRelay" data-testid="track-relay" aria-hidden="true"><div class="relay-beam"></div><div class="relay-card cut-sm"><b class="tech">SIGNAL BLOOM</b><span class="tech">TRACK CONTEXT / HARD 12 / TEXT ONLY</span></div><div class="relay-target"></div></div>
+
+    <aside class="lab-status cut-sm" data-testid="preview-status"><strong class="tech" id="statusTitle">READY / MAIN</strong><span id="statusCopy">选择下方按钮重播确定性动效。</span></aside>
+
+    <nav class="motion-dock cut-sm" id="motionControls" data-testid="motion-controls" aria-label="动效预览控制">
+      <section class="mode-block">
+        <h2 class="tech">MOTION POLICY</h2>
+        <div class="mode-buttons">
+          <button class="mode-button cut-xs tech" id="motionFull" data-testid="motion-full" data-motion-value="full">FULL</button>
+          <button class="mode-button cut-xs tech" id="motionReduced" data-testid="motion-reduced" data-motion-value="reduced">REDUCED</button>
+          <button class="mode-button cut-xs tech" id="motionOff" data-testid="motion-off" data-motion-value="off">OFF</button>
+        </div>
+      </section>
+      <section class="demo-block">
+        <h2 class="tech">DETERMINISTIC DEMOS</h2>
+        <div class="demo-buttons">
+          <button class="demo-button cut-xs tech" id="demoMainEnter" data-testid="demo-main-enter" data-demo="main-enter">MAIN<br>ENTER</button>
+          <button class="demo-button cut-xs tech" id="demoMainSettings" data-testid="demo-main-settings" data-demo="main-settings">MAIN →<br>SETTINGS</button>
+          <button class="demo-button cut-xs tech" id="demoSelectEnter" data-testid="demo-select-enter" data-demo="select-enter">SONG SELECT<br>ENTER</button>
+          <button class="demo-button cut-xs tech" id="demoDetailLoading" data-testid="demo-detail-loading" data-demo="detail-loading">DETAIL<br>LOADING</button>
+          <button class="demo-button cut-xs tech" id="demoStartGameplay" data-testid="demo-start-gameplay" data-demo="start-gameplay">START →<br>GAMEPLAY</button>
+          <button class="demo-button cut-xs tech" id="demoPauseResume" data-testid="demo-pause-resume" data-demo="pause-resume">PAUSE /<br>RESUME</button>
+          <button class="demo-button cut-xs tech" id="demoResultReveal" data-testid="demo-result-reveal" data-demo="result-reveal">RESULT<br>REVEAL</button>
+          <button class="demo-button cut-xs tech" id="demoReplay" data-testid="demo-replay" data-demo="replay">REPLAY</button>
+        </div>
+      </section>
+    </nav>
+  </main>
+</div>
+<script>
+(() => {
+  "use strict";
+
+  const DESIGN_W = 1920;
+  const DESIGN_H = 1080;
+  const MODE_TIMINGS = Object.freeze({
+    full: Object.freeze({ micro:90, control:160, focus:260, enter:420, route:620, relay:760, result:960, stagger:60, waiting:1200, handoff:650, hold:900 }),
+    reduced: Object.freeze({ micro:70, control:100, focus:140, enter:180, route:220, relay:220, result:260, stagger:0, waiting:0, handoff:180, hold:700 }),
+    off: Object.freeze({ micro:0, control:0, focus:0, enter:0, route:0, relay:0, result:0, stagger:0, waiting:0, handoff:0, hold:700 })
+  });
+  const CSS_TIMING_VARS = Object.freeze({ micro:"--t-micro", control:"--t-control", focus:"--t-focus", enter:"--t-enter", route:"--t-route", relay:"--t-relay", result:"--t-result", waiting:"--t-wait", handoff:"--t-handoff-min", stagger:"--stagger" });
+  const SCENE_ALIASES = Object.freeze({ main:"main", settings:"settings", select:"select", "song-select":"select", handoff:"handoff", "track-handoff":"handoff", gameplay:"gameplay", play:"gameplay", result:"result" });
+  const DEMOS = Object.freeze(["main-enter","main-settings","select-enter","detail-loading","start-gameplay","pause-resume","result-reveal","replay"]);
+
+  const root = document.documentElement;
+  const stage = document.getElementById("motionStage");
+  const scenes = Object.fromEntries([...document.querySelectorAll(".scene[data-scene]")].map(scene => [scene.dataset.scene, scene]));
+  const signalLock = document.getElementById("signalLock");
+  const trackRelay = document.getElementById("trackRelay");
+  const handoffScene = document.getElementById("sceneHandoff");
+  const handoffStatus = document.querySelector("[data-testid='handoff-status']");
+  const selectDetail = document.getElementById("selectDetail");
+  const pauseOverlay = document.getElementById("pauseOverlay");
+  const resumeButton = document.getElementById("resumeButton");
+  const statusTitle = document.getElementById("statusTitle");
+  const statusCopy = document.getElementById("statusCopy");
+  const modeButtons = [...document.querySelectorAll("[data-motion-value]")];
+  const demoButtons = [...document.querySelectorAll("[data-demo]")];
+
+  let generation = 0;
+  let timers = [];
+  let activeDemo = null;
+  let currentScene = "main";
+  let pauseCycle = null;
+
+  function fitStage(){
+    const scale = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+    stage.style.transform = `scale(${scale})`;
+  }
+
+  function query(){
+    try { return new URLSearchParams(window.location.search); }
+    catch { return new URLSearchParams(); }
+  }
+
+  function replaceQuery(key, value){
+    try{
+      const url = new URL(window.location.href);
+      url.searchParams.set(key, value);
+      window.history.replaceState(null, "", url);
+    }catch{
+      /* file:// 或受限预览器不允许改写地址时，交互仍保持完整。 */
+    }
+  }
+
+  function normalizeMode(value){
+    return value === "full" || value === "reduced" || value === "off" ? value : null;
+  }
+
+  function normalizeScene(value){
+    return SCENE_ALIASES[String(value || "").toLowerCase()] || "main";
+  }
+
+  function timing(name){
+    return MODE_TIMINGS[root.dataset.motion][name];
+  }
+
+  function applyMotionProfile(mode){
+    const profile = MODE_TIMINGS[mode];
+    for(const [name, variable] of Object.entries(CSS_TIMING_VARS)){
+      root.style.setProperty(variable, `${profile[name]}ms`);
+    }
+  }
+
+  function clearTimers(){
+    timers.forEach(window.clearTimeout);
+    timers = [];
+  }
+
+  function later(run, callback, delay){
+    const timer = window.setTimeout(() => {
+      if(run === generation) callback();
+    }, Math.max(0, delay));
+    timers.push(timer);
+    return timer;
+  }
+
+  function forceAnimationRestart(element){
+    void element.offsetWidth;
+  }
+
+  function resetTransient(){
+    clearTimers();
+    pauseCycle = null;
+    trackRelay.style.removeProperty("visibility");
+    for(const scene of Object.values(scenes)){
+      scene.classList.remove("is-active","is-leaving","signal-in","signal-out","relay-in","relay-out","demo-main-enter","demo-select-enter","demo-result-reveal","is-paused");
+      scene.setAttribute("aria-hidden", "true");
+    }
+    selectDetail.classList.remove("is-detail-loading","is-detail-ready");
+    handoffScene.dataset.handoffState = "stable";
+    handoffStatus.innerHTML = "AWAITING START CONFIRMATION<small>STATE / STABLE OPAQUE HANDOFF</small>";
+    pauseOverlay.classList.remove("is-visible","is-resuming");
+    pauseOverlay.setAttribute("aria-hidden", "true");
+    signalLock.className = "signal-lock";
+    trackRelay.className = "track-relay";
+    demoButtons.forEach(button => button.classList.remove("is-running"));
+  }
+
+  function beginDemo(name){
+    generation += 1;
+    resetTransient();
+    activeDemo = name;
+    const button = demoButtons.find(item => item.dataset.demo === name);
+    if(button) button.classList.add("is-running");
+    return generation;
+  }
+
+  function finishDemo(run, scene, title, copy){
+    if(run !== generation) return;
+    currentScene = scene;
+    activeDemo = null;
+    demoButtons.forEach(button => button.classList.remove("is-running"));
+    statusTitle.textContent = title;
+    statusCopy.textContent = copy;
+    replaceQuery("scene", scene);
+  }
+
+  function showOnly(name){
+    currentScene = name;
+    for(const [sceneName, scene] of Object.entries(scenes)){
+      const active = sceneName === name;
+      scene.classList.toggle("is-active", active);
+      scene.classList.remove("is-leaving");
+      scene.setAttribute("aria-hidden", active ? "false" : "true");
+    }
+  }
+
+  function activateAlongside(name, className){
+    const scene = scenes[name];
+    scene.classList.add("is-active", className);
+    scene.setAttribute("aria-hidden", "false");
+  }
+
+  function markLeaving(name, className){
+    const scene = scenes[name];
+    scene.classList.remove("is-active");
+    scene.classList.add("is-leaving", className);
+    scene.setAttribute("aria-hidden", "true");
+  }
+
+  function runSignal(run){
+    if(root.dataset.motion !== "full") return;
+    signalLock.className = "signal-lock";
+    forceAnimationRestart(signalLock);
+    signalLock.classList.add("is-running");
+    later(run, () => { signalLock.className = "signal-lock"; }, timing("route") + timing("stagger") * 2);
+  }
+
+  function runRelay(run, source){
+    if(root.dataset.motion !== "full") return;
+    trackRelay.className = `track-relay ${source}`;
+    forceAnimationRestart(trackRelay);
+    trackRelay.classList.add("is-running");
+    later(run, () => { trackRelay.className = "track-relay"; }, timing("relay") + timing("stagger"));
+  }
+
+  function demoMainEnter(){
+    const run = beginDemo("main-enter");
+    showOnly("main");
+    statusTitle.textContent = "RUNNING / MAIN ENTER";
+    statusCopy.textContent = "Signal Lock 扫描后，标题、菜单与状态卡按层级落位。";
+    if(root.dataset.motion !== "off"){
+      scenes.main.classList.add("demo-main-enter","signal-in");
+      runSignal(run);
+      later(run, () => scenes.main.classList.remove("signal-in"), timing("route"));
+    }
+    later(run, () => finishDemo(run,"main","READY / MAIN","MAIN ENTER 已完成，可重复播放。"), timing("route") + timing("stagger") * 5);
+  }
+
+  function demoMainSettings(){
+    const run = beginDemo("main-settings");
+    showOnly("main");
+    statusTitle.textContent = "RUNNING / MAIN → SETTINGS";
+    statusCopy.textContent = "确认输入后冻结旧页，由 Signal Lock 完成切角换页。";
+    if(root.dataset.motion === "off"){
+      showOnly("settings");
+      finishDemo(run,"settings","READY / SETTINGS","Motion Off：路由状态已即时切换。");
+      return;
+    }
+    later(run, () => {
+      runSignal(run);
+      markLeaving("main","signal-out");
+      activateAlongside("settings","signal-in");
+    }, timing("control"));
+    later(run, () => {
+      showOnly("settings");
+      finishDemo(run,"settings","READY / SETTINGS","Signal Lock 路由切换已完成。");
+    }, timing("control") + timing("route"));
+  }
+
+  function demoSelectEnter(){
+    const run = beginDemo("select-enter");
+    showOnly("select");
+    statusTitle.textContent = "RUNNING / SONG SELECT ENTER";
+    statusCopy.textContent = "详情先锁定，列表按阅读方向短距接入。";
+    if(root.dataset.motion !== "off"){
+      scenes.select.classList.add("demo-select-enter","signal-in");
+      runSignal(run);
+      later(run, () => scenes.select.classList.remove("signal-in"), timing("route"));
+    }
+    later(run, () => finishDemo(run,"select","READY / SONG SELECT","选曲进入动效已完成。"), timing("route") + timing("stagger") * 4);
+  }
+
+  function demoDetailLoading(){
+    const run = beginDemo("detail-loading");
+    showOnly("select");
+    statusTitle.textContent = "RUNNING / DETAIL LOADING";
+    statusCopy.textContent = "仅详情区域扫描；列表与当前选择保持稳定。";
+    if(root.dataset.motion === "off"){
+      selectDetail.classList.add("is-detail-ready");
+      finishDemo(run,"select","READY / DETAIL","Motion Off：详情内容已即时就绪。");
+      return;
+    }
+    selectDetail.classList.add("is-detail-loading");
+    later(run, () => {
+      selectDetail.classList.remove("is-detail-loading");
+      selectDetail.classList.add("is-detail-ready");
+    }, timing("route"));
+    later(run, () => finishDemo(run,"select","READY / DETAIL","详情扫描与内容确认已完成。"), timing("route") + timing("enter"));
+  }
+
+  function demoStartGameplay(){
+    const run = beginDemo("start-gameplay");
+    showOnly("select");
+    statusTitle.textContent = "RUNNING / START CONFIRM";
+    statusCopy.textContent = "START 确认后进入独立不透明 Track Handoff，再以 READY 解锁分层 Gameplay。";
+
+    if(root.dataset.motion === "off"){
+      trackRelay.style.visibility = "visible";
+      showOnly("handoff");
+      handoffScene.dataset.handoffState = "ready";
+      handoffStatus.innerHTML = "READY / CONTEXT COMMITTED<small>STATE / OPAQUE HANDOFF</small>";
+      statusTitle.textContent = "READY / TRACK HANDOFF";
+      statusCopy.textContent = "Motion Off：即时提交，但先绘制一个稳定不透明交接状态。";
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        if(run !== generation) return;
+        showOnly("gameplay");
+        trackRelay.style.removeProperty("visibility");
+        finishDemo(run,"gameplay","READY / GAMEPLAY","Motion Off：不透明 Handoff 已绘制，Gameplay 状态即时提交。");
+      }));
+      return;
+    }
+
+    later(run, () => {
+      scenes.select.classList.add("relay-out");
+      statusTitle.textContent = "RUNNING / TRACK HANDOFF";
+      statusCopy.textContent = "静态交接场景显示合成封面和路径/状态；飞行信号卡保持纯文本。";
+    }, timing("focus"));
+
+    later(run, () => {
+      showOnly("handoff");
+      scenes.handoff.classList.add("signal-in");
+      handoffScene.dataset.handoffState = "waiting";
+      handoffStatus.innerHTML = "WAITING / VERIFYING LOCAL CONTEXT<small>STATE / OPAQUE HANDOFF</small>";
+      runRelay(run,"from-select");
+    }, timing("focus") + timing("enter"));
+
+    const readyAt = timing("focus") + timing("enter") + timing("handoff");
+    later(run, () => {
+      handoffScene.dataset.handoffState = "ready";
+      handoffStatus.innerHTML = "READY / CONTEXT COMMITTED<small>STATE / PLAYBACK STILL LOCKED</small>";
+      statusTitle.textContent = "RUNNING / READY";
+      statusCopy.textContent = "Track Handoff 已满足最短上下文展示，现开始分层揭示 Gameplay。";
+    }, readyAt);
+
+    later(run, () => {
+      markLeaving("handoff","relay-out");
+      activateAlongside("gameplay","relay-in");
+    }, readyAt + timing("control"));
+
+    later(run, () => {
+      showOnly("gameplay");
+      finishDemo(run,"gameplay","READY / GAMEPLAY","START 确认 → 不透明 Handoff → READY → 分层 Gameplay 已完成。");
+    }, readyAt + timing("control") + timing("relay"));
+  }
+
+  function resumePause(run){
+    if(run !== generation || !pauseCycle || pauseCycle.resuming) return;
+    pauseCycle.resuming = true;
+    pauseOverlay.classList.remove("is-visible");
+    pauseOverlay.classList.add("is-resuming");
+    scenes.gameplay.classList.remove("is-paused");
+    later(run, () => {
+      pauseOverlay.classList.remove("is-resuming");
+      pauseOverlay.setAttribute("aria-hidden", "true");
+      pauseCycle = null;
+      finishDemo(run,"gameplay","READY / GAMEPLAY","暂停与恢复序列已完成。");
+    }, timing("control"));
+  }
+
+  function demoPauseResume(){
+    const run = beginDemo("pause-resume");
+    showOnly("gameplay");
+    statusTitle.textContent = "RUNNING / PAUSE → RESUME";
+    statusCopy.textContent = "暂停冻结输入并压暗舞台；恢复按钮或定时序列返回。";
+    pauseCycle = { run, resuming:false };
+    scenes.gameplay.classList.add("is-paused");
+    pauseOverlay.classList.add("is-visible");
+    pauseOverlay.setAttribute("aria-hidden", "false");
+    later(run, () => resumePause(run), timing("focus") + timing("hold"));
+  }
+
+  function demoResultReveal(){
+    const run = beginDemo("result-reveal");
+    showOnly("gameplay");
+    statusTitle.textContent = "RUNNING / HIT ECHO";
+    statusCopy.textContent = "结算核心先命中，等级轮廓回声与统计随后收束。";
+    if(root.dataset.motion === "off"){
+      showOnly("result");
+      finishDemo(run,"result","READY / RESULT","Motion Off：结算信息已即时显示。");
+      return;
+    }
+    later(run, () => {
+      markLeaving("gameplay","signal-out");
+      activateAlongside("result","signal-in");
+      scenes.result.classList.add("demo-result-reveal");
+      runSignal(run);
+    }, timing("focus"));
+    later(run, () => {
+      showOnly("result");
+      scenes.result.classList.add("demo-result-reveal");
+      finishDemo(run,"result","READY / RESULT","Hit Echo 只强调等级、分数与关键统计。");
+    }, timing("focus") + Math.max(timing("route"), timing("result") + timing("stagger") * 7));
+  }
+
+  function demoReplay(){
+    const run = beginDemo("replay");
+    showOnly("result");
+    statusTitle.textContent = "RUNNING / REPLAY";
+    statusCopy.textContent = "结算确认被压缩为 Track Relay，再次展开同一游玩上下文。";
+    if(root.dataset.motion === "off"){
+      showOnly("gameplay");
+      finishDemo(run,"gameplay","READY / GAMEPLAY","Motion Off：Replay 已即时返回同一游玩上下文。");
+      return;
+    }
+    later(run, () => {
+      runRelay(run,"from-result");
+      markLeaving("result","relay-out");
+      activateAlongside("gameplay","relay-in");
+    }, timing("focus"));
+    later(run, () => {
+      showOnly("gameplay");
+      finishDemo(run,"gameplay","READY / GAMEPLAY","Replay Track Relay 已完成。");
+    }, timing("focus") + timing("relay"));
+  }
+
+  const runners = Object.freeze({
+    "main-enter":demoMainEnter,
+    "main-settings":demoMainSettings,
+    "select-enter":demoSelectEnter,
+    "detail-loading":demoDetailLoading,
+    "start-gameplay":demoStartGameplay,
+    "pause-resume":demoPauseResume,
+    "result-reveal":demoResultReveal,
+    replay:demoReplay
+  });
+
+  function runDemo(name){
+    if(!DEMOS.includes(name)) return false;
+    runners[name]();
+    return true;
+  }
+
+  function setMotion(mode, explicit = true){
+    const normalized = normalizeMode(mode);
+    if(!normalized) return false;
+    const preservedScene = currentScene;
+    generation += 1;
+    resetTransient();
+    activeDemo = null;
+    root.dataset.motion = normalized;
+    root.dataset.motionExplicit = explicit ? "true" : "false";
+    applyMotionProfile(normalized);
+    modeButtons.forEach(button => button.classList.toggle("is-active", button.dataset.motionValue === normalized));
+    showOnly(preservedScene);
+    statusTitle.textContent = `READY / ${preservedScene.toUpperCase()}`;
+    statusCopy.textContent = normalized === "full" ? "Full：完整扫描、约 1200ms 等待、独立 Handoff 与双层回声。" : normalized === "reduced" ? "Reduced：无方向运动、循环或回声，stagger 为 0。" : "Off：即时提交，但 Track Handoff 保持稳定不透明。";
+    replaceQuery("motion", normalized);
+    return true;
+  }
+
+  modeButtons.forEach(button => button.addEventListener("click", () => setMotion(button.dataset.motionValue, true)));
+  demoButtons.forEach(button => button.addEventListener("click", () => runDemo(button.dataset.demo)));
+  document.getElementById("sceneStartButton").addEventListener("click", demoStartGameplay);
+  document.getElementById("scenePauseButton").addEventListener("click", demoPauseResume);
+  document.getElementById("sceneReplayButton").addEventListener("click", demoReplay);
+  resumeButton.addEventListener("click", () => { if(pauseCycle) resumePause(pauseCycle.run); });
+  window.addEventListener("resize", fitStage);
+
+  const params = query();
+  const explicitMode = normalizeMode(params.get("motion"));
+  const preferredMode = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "reduced" : "full";
+  const initialMode = explicitMode || preferredMode;
+  const initialScene = normalizeScene(params.get("scene"));
+  currentScene = initialScene;
+  root.dataset.motion = initialMode;
+  root.dataset.motionExplicit = explicitMode ? "true" : "false";
+  applyMotionProfile(initialMode);
+  modeButtons.forEach(button => button.classList.toggle("is-active", button.dataset.motionValue === initialMode));
+  showOnly(initialScene);
+  statusTitle.textContent = `READY / ${initialScene.toUpperCase()}`;
+  statusCopy.textContent = explicitMode ? `Query motion=${initialMode}；选择任意演示重播。` : initialMode === "reduced" ? "已按 prefers-reduced-motion 启用 Reduced。" : "选择下方按钮重播确定性动效。";
+  fitStage();
+
+  window.MotionPreview = Object.freeze({
+    runDemo,
+    setMotion:mode => setMotion(mode, true),
+    showScene:scene => {
+      const normalized = normalizeScene(scene);
+      generation += 1;
+      resetTransient();
+      showOnly(normalized);
+      finishDemo(generation, normalized, `READY / ${normalized.toUpperCase()}`, "场景已即时切换。");
+      return normalized;
+    },
+    getState:() => Object.freeze({ motion:root.dataset.motion, scene:currentScene, demo:activeDemo })
+  });
+})();
+</script>
+</body>
+</html>

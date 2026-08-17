@@ -37,6 +37,14 @@ tools/style_refs.json
 local-generated/
 __pycache__/
 
+# Local GUI/runtime verification output
+/gui-test-screenshots/
+/tmp_editor_check/
+/tmp_shots/
+
+# Locally compiled research utility
+/tools/memscan/memscan
+
 # Local ZCode session metadata
 .zcode/
 

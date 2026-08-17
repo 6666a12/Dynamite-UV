@@ -15,6 +15,10 @@ public sealed class SustainPath
     public required int HeadId { get; init; }
     public required Track Track { get; init; }
     public required IReadOnlyList<Note> Nodes { get; init; }
+    /// <summary>Exact v2 path evaluator when this sustain originated from a v2 chart.</summary>
+    public DuxShared.Chart.V2.V2PathEvaluator? V2Evaluator { get; init; }
+    /// <summary>Exact v2 BPM map used to translate runtime seconds back to path BarTime.</summary>
+    public DuxShared.Chart.V2.V2BpmTimeline? V2BpmTimeline { get; init; }
 
     public Note Head => Nodes[0];
     public Note End => Nodes[^1];
@@ -23,6 +27,11 @@ public sealed class SustainPath
 
     public NoteBounds BoundsAt(double time)
     {
+        if (V2Evaluator is not null && V2BpmTimeline is not null)
+        {
+            var sample = V2Evaluator.Evaluate(V2BpmTimeline.ToBarTime(time));
+            return new NoteBounds(sample.Left, sample.Right);
+        }
         if (Nodes.Count == 1 || time <= Nodes[0].Second)
             return InputJudgeRules.Bounds(Nodes[0].Position, Nodes[0].Width);
         if (time >= Nodes[^1].Second)

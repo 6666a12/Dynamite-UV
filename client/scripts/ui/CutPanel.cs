@@ -24,17 +24,11 @@ public partial class CutPanel : Control
     public override void _Draw()
     {
         var c = Mathf.Min(_cut, Mathf.Min(Size.X, Size.Y) * 0.5f);
-        Vector2[] pts =
-        {
-            new(c, 0), new(Size.X, 0), new(Size.X, Size.Y - c),
-            new(Size.X - c, Size.Y), new(0, Size.Y), new(0, c),
-        };
+        Vector2[] pts = UiGeometry.CutCorners(Size, c);
         DrawColoredPolygon(pts, _fill);
         if (_borderWidth > 0f)
         {
-            var closed = new Vector2[pts.Length + 1];
-            pts.CopyTo(closed, 0);
-            closed[^1] = pts[0];
+            var closed = UiGeometry.Close(pts);
             DrawPolyline(closed, _border, _borderWidth, true);
         }
     }

@@ -1,5 +1,7 @@
 using DuxShared.Chart;
+using DuxShared.Chart.V2;
 using DuxShared.Judge;
+using DuxShared.Score;
 
 namespace CoreTests;
 
@@ -38,6 +40,7 @@ public static class Program
             TestLoad(chartPath, out var chart);
             TestBarTimeConversion(chart!);
             TestDropSpeedVisualModel(chart!);
+            TestConstantBpmVisualSpeed(chart!);
             TestAutoFullCombo(chart!);
             if (devTestdataDirectory is not null)
                 TestHeadlineCountsAcrossDevPacks(devTestdataDirectory);
@@ -51,6 +54,11 @@ public static class Program
             TestReleasedHoldSettlement();
             TestSustainInterpolation();
             TestResolutionAndScaledVitals();
+            TestV2ExactBarTimeAndLegacyConversion();
+            TestV2GeometryJudgementAndSync();
+            TestV2CurvesMixerAndDigest();
+            TestD4CFrozenGrace();
+            TestScoreStoreMigrationAndIdentity();
         }
         catch (Exception ex)
         {
@@ -198,6 +206,42 @@ public static class Program
         var duplicate = new DropSpeedMap(new[] { (2.0, 0.5), (2.0, 0.8) });
         Check(Math.Abs(duplicate.SpeedAt(2.0) - 0.8) < 1e-12,
             nameof(TestDropSpeedVisualModel));
+    }
+
+    private static void TestConstantBpmVisualSpeed(Chart chart)
+    {
+        Console.WriteLine(nameof(TestConstantBpmVisualSpeed));
+        const double basePixelsPerSecond = 1026.0;
+
+        var slowCurrentSecond = 3.0;
+        var fastCurrentSecond = 4.5;
+        var slowCurrentBar = chart.SecondsToBarTime(slowCurrentSecond);
+        var fastCurrentBar = chart.SecondsToBarTime(fastCurrentSecond);
+        Check(chart.BpmAtSeconds(slowCurrentSecond) == 120.0 &&
+            chart.BpmAtSeconds(fastCurrentSecond) == 240.0,
+            "visual speed fixture samples 120 and 240 BPM segments");
+
+        var slowScroll = new DropSpeedMap(new[] { (0.0, 1.0) }).SpeedAt(slowCurrentBar);
+        var fastScroll = new DropSpeedMap(new[] { (0.0, 1.0) }).SpeedAt(fastCurrentBar);
+        var slowDistance = VisualScrollMath.DistancePixels(
+            slowCurrentSecond + 0.5, slowCurrentSecond, basePixelsPerSecond,
+            slowScroll, 1.0);
+        var fastDistance = VisualScrollMath.DistancePixels(
+            fastCurrentSecond + 0.5, fastCurrentSecond, basePixelsPerSecond,
+            fastScroll, 1.0);
+        Check(Math.Abs(slowDistance - 513.0) < 1e-12 &&
+            Math.Abs(fastDistance - 513.0) < 1e-12,
+            "same 0.5s lead stays 513px at both 120 and 240 BPM");
+
+        Check(Math.Abs(VisualScrollMath.DistancePixels(
+            2.0, 1.0, basePixelsPerSecond, 1.25, 0.5) - 641.25) < 1e-12,
+            "scroll and player speed multiply the fixed 1026px/s baseline");
+        Check(Math.Abs(VisualScrollMath.DistancePixels(
+            2.0, 1.0, basePixelsPerSecond, -0.5, 1.0) + 513.0) < 1e-12,
+            "legacy negative DropSpeed preserves signed approach distance");
+        Check(Math.Abs(VisualScrollMath.FallthroughSpeedPixelsPerSecond(
+            basePixelsPerSecond, -0.5, 1.0) - 513.0) < 1e-12,
+            "fallthrough keeps moving outward at the absolute scroll speed");
     }
 
     // 3. Auto-FC：fixture 的 15 个主判定精确命中。
@@ -723,6 +767,322 @@ public static class Program
 			OriginalJudgeMath.MixerEndGrade(5, 10) == JudgeGrade.Good &&
 			OriginalJudgeMath.MixerEndGrade(4, 10) == JudgeGrade.Miss,
 			"Mixer 尾判 70%/50% 边界");
+	}
+
+	private static void TestV2ExactBarTimeAndLegacyConversion()
+	{
+		Console.WriteLine("[12] v2 exact binary64 legacy conversion");
+		var sevenTenths = ExactBarTime.FromDouble(0.7);
+		Check(sevenTenths.ImproperNumerator == 3152519739159347 &&
+			sevenTenths.Denominator == 4503599627370496,
+			"ExactBarTime.FromDouble preserves the exact 0.7 binary64 rational");
+		Check(sevenTenths.ToDouble() == 0.7, "exact binary64 rational round trips to 0.7");
+
+		var head = TestNote(1, 2, NoteType.HoldHead, 0.7, -2.0, 7.0, 0.0);
+		var tail = TestNote(2, -1, NoteType.HoldNode, 0.875, -1.0, 8.0, 0.0);
+		var tap = TestNote(3, -1, NoteType.Tap, 0.75, 4.5, 2.0, 0.0,
+			Track.Right);
+		var legacy = new Chart
+		{
+			Name = "legacy",
+			Title = "legacy",
+			Difficulty = 3,
+			TotalMainNote = 0,
+			Sections = new[]
+			{
+				new BarSection { Bpm = 120.0, BarTime = 0.25, Seconds = 1.0 },
+				new BarSection { Bpm = 240.0, BarTime = 1.25, Seconds = 3.0 },
+			},
+			NotesLeft = Array.Empty<Note>(),
+			NotesCenter = new[] { head, tail },
+			NotesRight = new[] { tap },
+			DropSpeeds = new[] { (0.5, 2.0), (0.5, 3.0), (1.0, 4.0) },
+		};
+		var converted = V2Integration.ConvertLegacyChart(legacy, "legacy-chart");
+		Check(converted.Bpms.Count == 3 && converted.Bpms[0].Time == ExactBarTime.Zero &&
+			converted.Bpms[0].Bpm == 120.0,
+			"legacy first BPM is extrapolated back to bar 0");
+		Check(Math.Abs(converted.AudioOffsetSec - 0.5) < 1e-12,
+			"legacy audio offset is extrapolated from first section");
+		Check(converted.ScrollSpeeds.Count == 3 &&
+			converted.ScrollSpeeds[0].Time == ExactBarTime.Zero &&
+			converted.ScrollSpeeds[0].Value == 3.0 &&
+			converted.ScrollSpeeds[1].Time == ExactBarTime.FromDouble(0.5) &&
+			converted.ScrollSpeeds[1].Value == 3.0,
+			"duplicate DropSpeed is later-wins and first event is prefixed to bar 0");
+		var convertedHold = (V2PathNote)converted.NotesCenter.Single();
+		Check(convertedHold.Time == sevenTenths,
+			"in-memory converter uses exact binary64 BarTime authority");
+		Check(convertedHold.Center == 1.5 && convertedHold.Width == 7.0 &&
+			convertedHold.Nodes[0].Center == 3.0 && convertedHold.Nodes[0].Width == 8.0,
+			"legacy Position to center retains overscan without clamping");
+	}
+
+	private static void TestV2GeometryJudgementAndSync()
+	{
+		Console.WriteLine("[13] v2 geometry, Hold judge, and sync derivation");
+		var hold = new V2PathNote
+		{
+			Id = "hold",
+			Type = V2NoteType.Hold,
+			Time = Bar(1),
+			Center = -2.0,
+			Width = 7.0,
+			CurveToNext = V2PathCurve.Linear,
+			Nodes = new[]
+			{
+				new V2PathNode
+				{
+					Id = "shape", Time = Bar(2), Center = 7.0, Width = 8.0,
+					CurveToNext = V2PathCurve.Linear, Judge = false,
+					JudgeWasExplicit = true,
+				},
+				new V2PathNode
+				{
+					Id = "tail", Time = Bar(3), Center = 2.0, Width = 1.0,
+					Judge = true, JudgeWasExplicit = true,
+				},
+			},
+		};
+		var mixer = new V2PathNote
+		{
+			Id = "mixer",
+			Type = V2NoteType.Mixer,
+			Time = Bar(0),
+			Center = -3.0,
+			Width = 9.0,
+			CurveToNext = V2PathCurve.Linear,
+			Nodes = new[]
+			{
+				new V2PathNode
+				{
+					Id = "mixer-tail", Time = ExactBarTime.FromFraction(3, 8),
+					Center = 6.0, Width = 7.0,
+				},
+			},
+		};
+		var chart = new V2Chart
+		{
+			ChartId = "geometry",
+			AudioOffsetSec = 0.0,
+			Bpms = new[] { new V2BpmEvent(Bar(0), 120.0) },
+			NotesLeft = new V2Note[]
+			{
+				new V2BasicNote
+				{
+					Id = "tap-left", Type = V2NoteType.Tap, Time = Bar(0),
+					Center = 1.0, Width = 1.0,
+				},
+			},
+			NotesCenter = new V2Note[] { mixer, hold },
+			NotesRight = new V2Note[]
+			{
+				new V2BasicNote
+				{
+					Id = "tap-right-near", Type = V2NoteType.Tap,
+					Time = ExactBarTime.FromFraction(1, 9),
+					Center = 1.0, Width = 1.0,
+				},
+			},
+		};
+		V2SemanticValidator.ValidateChart(chart);
+		Check(V2SemanticValidator.CountMainJudgements(chart) == 8,
+			"Hold judge:false omits one unit while center Mixer retains exact ticks");
+		var adapted = V2RuntimeAdapter.Adapt(chart);
+		var plan = JudgePlan.Build(adapted.RuntimeChart,
+			JudgeSettings.ForPreset(JudgePreset.Hard));
+		Check(plan.Units.All(unit => adapted.Metadata.SourceIdsByRuntimeId[unit.NoteId] != "shape"),
+			"Hold shape-only node is absent from runtime JudgePlan");
+		Check(adapted.RuntimeChart.AllNotes.Count(note =>
+			note.V2Metadata?.SourceId.Contains(".__shape.", StringComparison.Ordinal) == true) == 0,
+			"linear paths add no hidden render subdivision and stay legacy-equivalent");
+		var holdRuntime = adapted.RuntimeChart.NotesCenter.Single(note =>
+			note.V2Metadata?.SourceId == "hold");
+		Check(holdRuntime.Position == -5.5 && holdRuntime.Width == 7.0,
+			"runtime adapter preserves overscan left edge and width");
+		Check(adapted.SyncAccentRuntimeIds.SetEquals(new[]
+		{
+			adapted.RuntimeIdsBySourceId["tap-left"],
+		}), "exact cross-track Mixer/Tap time accents only the Tap");
+		Check(!adapted.SyncAccentRuntimeIds.Contains(
+			adapted.RuntimeIdsBySourceId["tap-right-near"]),
+			"near but unequal exact BarTime is not merged for sync accent");
+	}
+
+	private static void TestV2CurvesMixerAndDigest()
+	{
+		Console.WriteLine("[14] v2 curves, Mixer ticks, and golden digest");
+		var path = new V2PathNote
+		{
+			Id = "curve",
+			Type = V2NoteType.Hold,
+			Time = Bar(0),
+			Center = 0.0,
+			Width = 1.0,
+			CurveToNext = V2PathCurve.EaseInQuad,
+			Nodes = new[]
+			{
+				new V2PathNode
+				{
+					Id = "curve-tail", Time = Bar(1), Center = 4.0, Width = 3.0,
+					Judge = true, JudgeWasExplicit = true,
+				},
+			},
+		};
+		var sample = new V2PathEvaluator(path).Evaluate(ExactBarTime.FromFraction(1, 2));
+		Check(Math.Abs(sample.Center - 1.0) < 1e-12 &&
+			Math.Abs(sample.Width - 1.5) < 1e-12,
+			"easeInQuad path evaluates center and width at u^2");
+		var curveChart = new V2Chart
+		{
+			ChartId = "curve-chart", AudioOffsetSec = 0.0,
+			Bpms = new[] { new V2BpmEvent(Bar(0), 120.0) },
+			NotesLeft = Array.Empty<V2Note>(),
+			NotesCenter = new V2Note[] { path },
+			NotesRight = Array.Empty<V2Note>(),
+		};
+		var curveRuntime = V2RuntimeAdapter.Adapt(curveChart).RuntimeChart;
+		var hidden = curveRuntime.NotesCenter.Where(note =>
+			note.V2Metadata?.SourceId.Contains(".__shape.", StringComparison.Ordinal) == true)
+			.ToArray();
+		Check(hidden.Length > 0 && hidden.All(note => note.V2Metadata?.HoldJudge == false),
+			"curved body gets adaptive hidden render points with no Hold judgements");
+		var midpoint = hidden.Single(note => note.V2Metadata!.ExactTime ==
+			ExactBarTime.FromFraction(1, 2));
+		Check(Math.Abs(midpoint.Position - 0.25) < 1e-12 &&
+			Math.Abs(midpoint.Width - 1.5) < 1e-12,
+			"hidden midpoint follows the authoritative eased center/width sample");
+		var scroll = new V2ScrollMap(new[]
+		{
+			new V2ScrollEvent
+			{
+				Time = Bar(0), Value = 1.0, CurveToNext = V2ScrollCurve.EaseOutQuad,
+			},
+			new V2ScrollEvent { Time = Bar(1), Value = 3.0 },
+		});
+		Check(Math.Abs(scroll.SpeedAt(ExactBarTime.FromFraction(1, 2)) - 2.5) < 1e-12,
+			"easeOutQuad scroll midpoint is exact known value");
+
+		var mixer = new V2PathNote
+		{
+			Id = "ticks", Type = V2NoteType.Mixer, Time = ExactBarTime.FromFraction(1, 10),
+			Center = 0.0, Width = 1.0, CurveToNext = V2PathCurve.Linear,
+			Nodes = new[]
+			{
+				new V2PathNode
+				{
+					Id = "ticks-tail", Time = ExactBarTime.FromFraction(49, 100),
+					Center = 0.0, Width = 1.0,
+				},
+			},
+		};
+		var ticks = V2MixerTicks.Enumerate(mixer).ToArray();
+		Check(ticks.Length == 3 && ticks[0] == ExactBarTime.FromFraction(9, 40) &&
+			ticks[2] == ExactBarTime.FromFraction(19, 40),
+			"Mixer exact grid is head-relative k/8 and omits non-grid tail");
+
+		var root = FindRepositoryRoot();
+		var vectorPath = Path.Combine(root, "schemas", "chart-format-v2", "vectors",
+			"gameplay-digest-v1.json");
+		using var vector = System.Text.Json.JsonDocument.Parse(File.ReadAllText(vectorPath));
+		var vectorRoot = vector.RootElement;
+		var expected = vectorRoot.GetProperty("expectedSha256").GetString();
+		var projection = vectorRoot.GetProperty("projection");
+		var actual = V2GameplayDigest.Sha256Hex(
+			System.Text.Encoding.UTF8.GetBytes(JsonCanonicalizer.Canonicalize(projection)));
+		Check(actual == expected, "C# RFC8785 canonicalizer matches golden gameplay digest vector");
+	}
+
+	private static void TestD4CFrozenGrace()
+	{
+		Console.WriteLine("[15] D4-C frozen Hold grace");
+		var settings = JudgeSettings.ForPreset(JudgePreset.Hard);
+		var slow = SustainJudgementRules.BeginHoldContactLoss(10.0, 90.0, settings);
+		Check(Math.Abs(slow.GraceDuration - 0.25) < 1e-12 &&
+			Math.Abs(slow.Deadline - 10.25) < 1e-12,
+			"loss BPM clamps to 120 and freezes a 250ms deadline");
+		Check(!SustainJudgementRules.ShouldBreakHold(10.24, 12.0, slow) &&
+			SustainJudgementRules.ShouldBreakHold(10.25, 12.0, slow),
+			"Hold breaks exactly at the frozen deadline, independent of later BPM");
+		Check(SustainJudgementRules.HoldSettlementTime(10.2, slow) == 10.2 &&
+			SustainJudgementRules.HoldSettlementTime(12.0, slow) == 10.25,
+			"D4-C settlement time is min(tail, deadline)");
+		var fast = SustainJudgementRules.BeginHoldContactLoss(20.0, 240.0, settings);
+		Check(Math.Abs(fast.GraceDuration - 0.15) < 1e-12,
+			"loss BPM clamps to 200 and freezes a 150ms deadline");
+	}
+
+	private static void TestScoreStoreMigrationAndIdentity()
+	{
+		Console.WriteLine("[16] score migration and four-part identity");
+		const string legacyJson = """
+		{
+		  "pack:giga": {
+		    "score": 700000,
+		    "acc": 70,
+		    "maxCombo": 10,
+		    "grade": "C",
+		    "perfect": 7,
+		    "great": 2,
+		    "good": 1,
+		    "miss": 0,
+		    "date": "2026-01-01 00:00:00"
+		  }
+		}
+		""";
+		var store = new ScoreStoreCore();
+		store.LoadJson(legacyJson);
+		var identity = new ScoreIdentity("pack", "giga",
+			V2Format.RulesetId, new string('a', 64));
+		Check(store.GetLegacy("pack", "giga")?.Score == 700000,
+			"legacy dictionary migrates into historical records");
+		Check(store.Get(identity) == null,
+			"legacy record never masquerades as current gameplay identity");
+		var acceptedAt = new DateTime(2026, 8, 14, 12, 34, 56);
+		Check(store.TryUpdate(identity, new ScoreRecord
+		{
+			Score = 800000, Acc = 91.0, MaxCombo = 20,
+		}, acceptedAt), "new four-part score is accepted");
+		Check(store.Get(identity)?.Grade == "A" &&
+			store.Get(identity)?.Date == "2026-08-14 12:34:56",
+			"accepted score resolves grade and stable timestamp");
+		Check(!store.TryUpdate(identity, new ScoreRecord
+		{
+			Score = 799999, Acc = 100.0,
+		}, acceptedAt), "lower score cannot overwrite current BEST");
+		var changedDigest = new ScoreIdentity("pack", "giga",
+			V2Format.RulesetId, new string('b', 64));
+		Check(store.Get(changedDigest) == null,
+			"gameplay digest change isolates BEST");
+		var metadataOnly = new ScoreIdentity("pack", "giga",
+			V2Format.RulesetId, new string('a', 64));
+		Check(store.Get(metadataOnly)?.Score == 800000,
+			"same four-part identity preserves BEST across metadata-only changes");
+
+		var saved = store.SaveJson();
+		Check(saved.Contains("\"formatVersion\": 2", StringComparison.Ordinal) &&
+			!saved.Contains("\"version\"", StringComparison.Ordinal),
+			"score codec writes formatVersion:2");
+		var roundTrip = new ScoreStoreCore();
+		roundTrip.LoadJson(saved);
+		Check(roundTrip.Get(identity)?.Score == 800000 &&
+			roundTrip.GetLegacy("pack", "giga")?.Score == 700000,
+			"versioned round trip preserves current and historical records");
+	}
+
+	private static ExactBarTime Bar(long value) =>
+		ExactBarTime.FromJsonComponents(value, 0, 1);
+
+	private static string FindRepositoryRoot()
+	{
+		var directory = new DirectoryInfo(AppContext.BaseDirectory);
+		while (directory != null)
+		{
+			if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")))
+				return directory.FullName;
+			directory = directory.Parent;
+		}
+		throw new DirectoryNotFoundException("Cannot find repository root from core-tests output.");
 	}
 
 	private static Note TestNote(int id, int subId, NoteType type,
