@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""程序合成打击音效（DUX-Community 原创，对标原版 7 种 HitSound 类别）。
+"""程序合成打击音效（Dynamite Universe 原创，对标原版 7 种 HitSound 类别）。
 
 用法：
     python3 synth_hitsounds.py [--out DIR]

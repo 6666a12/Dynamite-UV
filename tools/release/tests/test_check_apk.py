@@ -16,15 +16,15 @@ CHECKER = REPO_ROOT / "tools" / "release" / "check_apk.py"
 POLICY = REPO_ROOT / "release" / "apk-policy.json"
 
 PUBLIC_IDENTITY = {
-    "application_id": "org.duxcommunity.game",
-    "application_label": "DUX-Community",
+    "application_id": "com.dynamiteuniverse.game",
+    "application_label": "Dynamite Universe",
     "version_name": "0.1.2-dev",
     "version_code": "4",
     "debuggable": "false",
 }
 INTERNAL_IDENTITY = {
-    "application_id": "org.duxcommunity.game.internaltest",
-    "application_label": "DUX-Community Internal Test",
+    "application_id": "com.dynamiteuniverse.game.internaltest",
+    "application_label": "Dynamite Universe Internal Test",
     "version_name": "0.1.2-internal-testdata",
     "version_code": "4",
     "debuggable": "true",
@@ -128,7 +128,7 @@ print("Verifies")
 print("Verified using v2 scheme (APK Signature Scheme v2): true")
 print("Verified using v3 scheme (APK Signature Scheme v3): true")
 print("Number of signers: 1")
-print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNER_SHA256"])
+print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256"])
 """,
                 encoding="utf-8",
             )
@@ -142,7 +142,7 @@ print("Verifies")
 print("Verified using v2 scheme (APK Signature Scheme v2): true")
 print("Verified using v3 scheme (APK Signature Scheme v3): true")
 print("Number of signers: 1")
-print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNER_SHA256"])
+print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256"])
 """,
             encoding="utf-8",
         )
@@ -160,8 +160,8 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
             "runtimeTarget": {"name": ".NETCoreApp,Version=v9.0/android-arm64"},
             "targets": {
                 ".NETCoreApp,Version=v9.0/android-arm64": {
-                    "DuxCommunity/1.0.0": {
-                        "dependencies": {"DuxShared": "1.0.0", "GodotSharp": "4.7.1"}
+                    "DynamiteUniverse/1.0.0": {
+                        "dependencies": {"DynamiteUniverse.Shared": "1.0.0", "GodotSharp": "4.7.1"}
                     }
                 }
             },
@@ -179,12 +179,28 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
             "assets/scenes/gameplay.tscn.remap": b"[remap]\npath=\"res://.godot/exported/game.scn\"\n",
             "assets/scenes/settings.tscn.remap": b"[remap]\npath=\"res://.godot/exported/settings.scn\"\n",
             "assets/shaders/note_surface.gdshader": b"shader_type canvas_item;",
+            "assets/assets/models/detonation-orrery-mk2.glb": (
+                REPO_ROOT / "client" / "assets" / "models" / "detonation-orrery-mk2.glb"
+            ).read_bytes(),
+            "assets/assets/fonts/Orbitron.woff2": (
+                REPO_ROOT / "client" / "assets" / "fonts" / "Orbitron.woff2"
+            ).read_bytes(),
+            "assets/assets/fonts/SpaceGrotesk-Regular.woff2": (
+                REPO_ROOT / "client" / "assets" / "fonts" / "SpaceGrotesk-Regular.woff2"
+            ).read_bytes(),
+            "assets/assets/fonts/SpaceGrotesk-Bold.woff2": (
+                REPO_ROOT / "client" / "assets" / "fonts" / "SpaceGrotesk-Bold.woff2"
+            ).read_bytes(),
             "assets/assets/fonts/Orbitron.woff2.import": b"[remap]\n",
+            "assets/assets/fonts/SpaceGrotesk-Regular.woff2.import": b"[remap]\n",
+            "assets/assets/fonts/SpaceGrotesk-Bold.woff2.import": b"[remap]\n",
             "assets/.godot/imported/Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata": bytes.fromhex("4744464401000000030000000800000053796e7468657469634f72626974726f6e5061796c6f6164"),
-            "assets/.godot/mono/publish/arm64/DuxCommunity.deps.json": json.dumps(deps),
-            "assets/.godot/mono/publish/arm64/DuxCommunity.dll": b"dll",
-            "assets/.godot/mono/publish/arm64/DuxCommunity.runtimeconfig.json": b"{}",
-            "assets/.godot/mono/publish/arm64/DuxShared.dll": b"dll",
+            "assets/.godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata": b"synthetic-space-grotesk-regular",
+            "assets/.godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata": b"synthetic-space-grotesk-bold",
+            "assets/.godot/mono/publish/arm64/DynamiteUniverse.deps.json": json.dumps(deps),
+            "assets/.godot/mono/publish/arm64/DynamiteUniverse.dll": b"dll",
+            "assets/.godot/mono/publish/arm64/DynamiteUniverse.runtimeconfig.json": b"{}",
+            "assets/.godot/mono/publish/arm64/DynamiteUniverse.Shared.dll": b"dll",
             "assets/.godot/mono/publish/arm64/GodotSharp.dll": b"dll",
             "assets/.godot/mono/publish/arm64/.dotnet-publish-manifest": b"manifest",
             "lib/arm64-v8a/libgodot_android.so": b"so",
@@ -192,6 +208,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         if include_public_license:
             for relative in (
                 "Orbitron-OFL-1.1.txt",
+                "SpaceGrotesk-OFL-1.1.txt",
                 "Godot-LICENSE.txt",
                 "DotNet-LICENSE.txt",
                 "DotNet-THIRD-PARTY-NOTICES.txt",
@@ -223,15 +240,19 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         ))
         policy["modes"]["public"]["allowed_imported_payloads"] = {
             "Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata":
-                hashlib.sha256(font_payload.read_bytes()).hexdigest()
+                hashlib.sha256(font_payload.read_bytes()).hexdigest(),
+            "SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata":
+                hashlib.sha256(b"synthetic-space-grotesk-regular").hexdigest(),
+            "SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata":
+                hashlib.sha256(b"synthetic-space-grotesk-bold").hexdigest(),
         }
         policy_path = self.root / "policy.json"
         policy_path.write_text(json.dumps(policy), encoding="utf-8")
         environment["FAKE_APK_IDENTITY"] = json.dumps(
             identity or (PUBLIC_IDENTITY if mode == "public" else INTERNAL_IDENTITY)
         )
-        environment["DUX_PUBLIC_SIGNER_SHA256"] = "a" * 64
-        environment["DUX_APKSIGNER_PATH"] = str(self.fake_apksigner)
+        environment["DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256"] = "a" * 64
+        environment["DYNAMITE_UNIVERSE_APKSIGNER_PATH"] = str(self.fake_apksigner)
         return subprocess.run(
             [
                 sys.executable,
@@ -258,7 +279,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         self.assertIn(phrase.casefold(), (completed.stdout + completed.stderr).casefold())
 
     def test_clean_public_passes_and_reports_sha256(self) -> None:
-        apk = self.make_apk("dux-community-public.apk")
+        apk = self.make_apk("dynamite-universe-public.apk")
         completed = self.run_gate("public", apk)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("APK gate PASS", completed.stdout)
@@ -269,7 +290,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
 
     def test_clean_public_accepts_non_utf8_binary_entries(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {
                 "classes.dex": b"\xff\xfe\x00\x80synthetic-dex",
                 "lib/arm64-v8a/libgodot_android.so": b"\x7fELF\xff\x00\x80",
@@ -281,14 +302,14 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
 
     def test_public_rejects_nested_testdata_component(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {"assets/some/deep/testdata/packs/chart.json": "{}"},
         )
         self.assert_rejected(self.run_gate("public", apk), "testdata path")
 
     def test_public_rejects_unapproved_orphaned_imported_payload(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {
                 "assets/.godot/imported/unknown.wav-ffffffffffffffffffffffffffffffff.sample": b"unknown",
             },
@@ -296,14 +317,14 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         self.assert_rejected(self.run_gate("public", apk), "unapproved imported payload")
 
     def test_public_allows_only_policy_approved_imported_payload(self) -> None:
-        apk = self.make_apk("dux-community-public.apk")
+        apk = self.make_apk("dynamite-universe-public.apk")
         completed = self.run_gate("public", apk)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 
     def test_public_rejects_testdata_source_mapping_and_payload(self) -> None:
         destination = "res://.godot/imported/secret.wav-0123456789abcdef0123456789abcdef.sample"
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {
                 "assets/metadata/secret.wav.import": import_text(
                     "res://private/testdata/packs/secret.wav", destination
@@ -317,7 +338,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
 
     def test_public_rejects_orphaned_quarantined_testdata_payload(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {
                 "assets/.godot/imported/song_tablear.wav-51f928fa8ffdc4b0c30e755caf063f6e.sample": b"orphan",
             },
@@ -326,7 +347,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
 
     def test_rejects_legacy_ai_cover_path(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {"assets/assets/covers/cover_style_navy_03.png.import": "[remap]\n"},
         )
         self.assert_rejected(self.run_gate("public", apk), "legacy AI cover path")
@@ -334,7 +355,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
     def test_rejects_legacy_ai_cover_source_mapping_and_payload(self) -> None:
         destination = "res://.godot/imported/cover_style_purple_04.png-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.ctex"
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {
                 "assets/renamed/cover.import": import_text(
                     "res://assets/covers/cover_style_purple_04.png", destination
@@ -348,7 +369,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
 
     def test_rejects_legacy_ai_cover_orphaned_payload(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {
                 "assets/.godot/imported/cover_style_navy_02.png-adbe7e7cf03178e80b3547b92caee653.ctex": b"orphan",
             },
@@ -356,7 +377,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         self.assert_rejected(self.run_gate("public", apk), "legacy AI cover imported payload")
 
     def test_rejects_identity_cross_wiring(self) -> None:
-        apk = self.make_apk("dux-community-public.apk")
+        apk = self.make_apk("dynamite-universe-public.apk")
         completed = self.run_gate("public", apk, INTERNAL_IDENTITY)
         self.assert_rejected(completed, "identity mismatch for application_id")
         self.assertIn("identity mismatch for application_label", completed.stderr)
@@ -364,7 +385,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
 
     def test_internal_with_testdata_passes_and_warns(self) -> None:
         apk = self.make_apk(
-            "dux-community-internal-testdata.apk",
+            "dynamite-universe-internal-testdata.apk",
             {"assets/testdata/packs/synthetic/chart.json": "{}"},
         )
         completed = self.run_gate("internal", apk)
@@ -373,28 +394,28 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         self.assertIn("APK gate PASS", completed.stdout)
 
     def test_internal_without_testdata_is_rejected_and_warns(self) -> None:
-        apk = self.make_apk("dux-community-internal-testdata.apk")
+        apk = self.make_apk("dynamite-universe-internal-testdata.apk")
         completed = self.run_gate("internal", apk)
         self.assert_rejected(completed, "must contain at least one file under a testdata path")
         self.assertIn("DO NOT DISTRIBUTE", completed.stderr)
 
     def test_public_missing_font_license_is_rejected(self) -> None:
-        apk = self.make_apk("dux-community-public.apk", include_public_license=False)
+        apk = self.make_apk("dynamite-universe-public.apk", include_public_license=False)
         self.assert_rejected(self.run_gate("public", apk), "missing required entry suffix")
 
     def test_public_filename_error(self) -> None:
-        apk = self.make_apk("dux-community.apk")
+        apk = self.make_apk("dynamite-universe.apk")
         self.assert_rejected(self.run_gate("public", apk), "filename mismatch")
 
     def test_internal_filename_error(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {"assets/testdata/chart.json": "{}"},
         )
         self.assert_rejected(self.run_gate("internal", apk), "filename mismatch")
 
     def test_missing_identity_label_value_fails_closed(self) -> None:
-        apk = self.make_apk("dux-community-public.apk")
+        apk = self.make_apk("dynamite-universe-public.apk")
         incomplete_identity = dict(PUBLIC_IDENTITY)
         del incomplete_identity["application_label"]
         self.assert_rejected(
@@ -403,47 +424,47 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         )
 
     def test_missing_identity_tool_fails_closed(self) -> None:
-        apk = self.make_apk("dux-community-public.apk")
+        apk = self.make_apk("dynamite-universe-public.apk")
         missing = self.root / "does-not-exist" / "apkanalyzer"
         self.assert_rejected(self.run_gate("public", apk, apkanalyzer=missing), "critical identity")
 
     def test_public_missing_runtime_is_rejected(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
-            {"assets/.godot/mono/publish/arm64/DuxShared.dll": b""},
+            "dynamite-universe-public.apk",
+            {"assets/.godot/mono/publish/arm64/DynamiteUniverse.Shared.dll": b""},
         )
         self.assert_rejected(self.run_gate("public", apk), "required entry is empty")
 
     def test_public_rejects_debug_symbols(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
-            {"assets/.godot/mono/publish/arm64/DuxCommunity.pdb": b"pdb"},
+            "dynamite-universe-public.apk",
+            {"assets/.godot/mono/publish/arm64/DynamiteUniverse.pdb": b"pdb"},
         )
         self.assert_rejected(self.run_gate("public", apk), "forbidden entry")
 
     def test_public_rejects_wrong_abi(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {"lib/x86_64/libgodot_android.so": b"so"},
         )
         self.assert_rejected(self.run_gate("public", apk), "unapproved ABI")
 
     def test_public_rejects_tampered_notice(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {"assets/assets/licenses/Godot-LICENSE.txt": b"tampered"},
         )
         self.assert_rejected(self.run_gate("public", apk), "hash mismatch")
 
     def test_public_rejects_missing_custom_feature(self) -> None:
         apk = self.make_apk(
-            "dux-community-public.apk",
+            "dynamite-universe-public.apk",
             {"assets/project.binary": b"ECFG unclassified"},
         )
         self.assert_rejected(self.run_gate("public", apk), "missing custom feature")
 
     def test_public_rejects_debuggable_identity(self) -> None:
-        apk = self.make_apk("dux-community-public.apk")
+        apk = self.make_apk("dynamite-universe-public.apk")
         identity = dict(PUBLIC_IDENTITY)
         identity["debuggable"] = "true"
         self.assert_rejected(
@@ -454,18 +475,22 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DUX_PUBLIC_SIGNE
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
         self.assertEqual(policy["schema_version"], 1)
         self.assertTrue(policy["policy_revision"])
-        self.assertEqual(policy["modes"]["public"]["filename"], "dux-community-public.apk")
+        self.assertEqual(policy["modes"]["public"]["filename"], "dynamite-universe-public.apk")
         self.assertIn(
-            "assets/licenses/Orbitron-OFL-1.1.txt",
+            "assets/licenses/SpaceGrotesk-OFL-1.1.txt",
             policy["modes"]["public"]["required_entry_suffixes"],
         )
         self.assertIn(
-            "Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata",
+            "assets/models/detonation-orrery-mk2.glb",
+            policy["modes"]["public"]["required_entry_suffixes"],
+        )
+        self.assertIn(
+            "SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata",
             policy["modes"]["public"]["allowed_imported_payloads"],
         )
         self.assertEqual(
             policy["modes"]["internal"]["filename"],
-            "dux-community-internal-testdata.apk",
+            "dynamite-universe-internal-testdata.apk",
         )
 
 

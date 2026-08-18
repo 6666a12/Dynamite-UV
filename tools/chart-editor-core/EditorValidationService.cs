@@ -1,6 +1,6 @@
-using DuxShared.Chart.V2;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.ChartEditor.Core;
+namespace DynamiteUniverse.ChartEditor.Core;
 
 /// <summary>Unified validation used by the editor property workspace and export command.</summary>
 public static class EditorValidationService
@@ -66,10 +66,10 @@ public static class EditorValidationService
                 "object exceeds the recommended [0,5] authoring range; v2 overscan is preserved"));
     }
 
-    private static string TrackName(DuxShared.Chart.Track track) => track switch
+    private static string TrackName(DynamiteUniverse.Shared.Chart.Track track) => track switch
     {
-        DuxShared.Chart.Track.Left => "notesLeft",
-        DuxShared.Chart.Track.Center => "notesCenter",
+        DynamiteUniverse.Shared.Chart.Track.Left => "notesLeft",
+        DynamiteUniverse.Shared.Chart.Track.Center => "notesCenter",
         _ => "notesRight",
     };
 }

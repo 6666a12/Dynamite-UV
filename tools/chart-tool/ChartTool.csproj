@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../shared/DuxShared.csproj" />
+    <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

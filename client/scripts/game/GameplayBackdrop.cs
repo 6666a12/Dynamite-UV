@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>
 /// Clean-room 游玩背景：仅用低透明度几何提供地平线、侧壁与纵深参照。

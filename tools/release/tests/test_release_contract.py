@@ -47,8 +47,10 @@ class ReleaseContractTests(unittest.TestCase):
             "res://scenes/gameplay.tscn",
             "res://scenes/settings.tscn",
             "res://shaders/note_surface.gdshader",
-            "res://assets/fonts/Orbitron.woff2",
-            "res://assets/licenses/Orbitron-OFL-1.1.txt",
+            "res://assets/fonts/SpaceGrotesk-Regular.woff2",
+            "res://assets/fonts/SpaceGrotesk-Bold.woff2",
+            "res://assets/models/detonation-orrery-mk2.glb",
+            "res://assets/licenses/SpaceGrotesk-OFL-1.1.txt",
             "res://assets/licenses/Godot-LICENSE.txt",
             "res://assets/licenses/DotNet-LICENSE.txt",
             "res://assets/licenses/DotNet-THIRD-PARTY-NOTICES.txt",
@@ -71,7 +73,7 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertNotIn("testdata", preset["exclude_filter"].casefold())
         self.assertEqual(options["dotnet/include_scripts_content"], "false")
         self.assertEqual(options["package/unique_name"].strip('"'),
-                         "org.duxcommunity.game.internaltest")
+                         "com.dynamiteuniverse.game.internaltest")
 
     def test_provenance_hashes_match(self) -> None:
         provenance = json.loads(PROVENANCE.read_text(encoding="utf-8"))

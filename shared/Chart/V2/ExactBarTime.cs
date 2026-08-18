@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>
 /// An exact rational chart-bar position. Values use a normalized floor-based mixed form, so the

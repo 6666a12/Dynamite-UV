@@ -1,4 +1,4 @@
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>
 /// Immutable cross-scene chart choice. The committed choice controls gameplay entry; an unrelated

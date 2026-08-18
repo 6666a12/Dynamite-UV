@@ -1,7 +1,7 @@
 using Godot;
-using DuxShared.Chart;
+using DynamiteUniverse.Shared.Chart;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Immutable note presentation catalog shared by the gameplay renderer and note view.</summary>
 internal static class NoteVisualSpec

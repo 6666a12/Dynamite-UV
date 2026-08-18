@@ -1,7 +1,7 @@
 using System.Text;
-using DuxShared.Judge;
+using DynamiteUniverse.Shared.Judge;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>
 /// Typed client-facing bridge result. It contains the compatibility runtime graph and the stable v2
@@ -9,7 +9,7 @@ namespace DuxShared.Chart.V2;
 /// </summary>
 public sealed record V2LoadedPackageChart
 {
-    public required DuxShared.Chart.Chart RuntimeChart { get; init; }
+    public required DynamiteUniverse.Shared.Chart.Chart RuntimeChart { get; init; }
     public required string RulesetId { get; init; }
     public required string GameplayDigest { get; init; }
     public required JudgePreset Preset { get; init; }
@@ -115,14 +115,14 @@ public static class V2Integration
             packId, chartId, preset);
 
     public static V2LoadedPackageChart LoadLegacyAsV2(
-        DuxShared.Chart.Chart legacyChart, ReadOnlySpan<byte> resolvedAudioBytes,
+        DynamiteUniverse.Shared.Chart.Chart legacyChart, ReadOnlySpan<byte> resolvedAudioBytes,
         string packId = "legacy.pack", string? chartId = null,
         JudgePreset preset = JudgePreset.Hard) =>
         ConvertLegacyPackageChart(legacyChart, resolvedAudioBytes,
             packId, chartId, preset);
 
     public static V2LoadedPackageChart ConvertLegacyPackageChart(
-        DuxShared.Chart.Chart legacyChart, ReadOnlySpan<byte> resolvedAudioBytes,
+        DynamiteUniverse.Shared.Chart.Chart legacyChart, ReadOnlySpan<byte> resolvedAudioBytes,
         string packId = "legacy.pack", string? chartId = null,
         JudgePreset preset = JudgePreset.Hard, string resolvedAudioPath = "audio")
     {
@@ -157,14 +157,14 @@ public static class V2Integration
     }
 
     public static V2LoadedPackageChart ConvertLegacyPackageChart(
-        DuxShared.Chart.Chart legacyChart, string packId = "legacy.pack",
+        DynamiteUniverse.Shared.Chart.Chart legacyChart, string packId = "legacy.pack",
         string? chartId = null, JudgePreset preset = JudgePreset.Hard) =>
         ConvertLegacyPackageChart(legacyChart, ReadOnlySpan<byte>.Empty,
             packId, chartId, preset);
 
     /// <summary>Converts a legacy runtime graph into canonical semantic v2 structures.</summary>
     public static V2Chart ConvertLegacyChart(
-        DuxShared.Chart.Chart legacyChart, string chartId = "legacy.chart")
+        DynamiteUniverse.Shared.Chart.Chart legacyChart, string chartId = "legacy.chart")
     {
         ArgumentNullException.ThrowIfNull(legacyChart);
         if (legacyChart.Sections.Count == 0)
@@ -514,12 +514,12 @@ public static class V2PackageLoader
         JudgePreset preset = JudgePreset.Hard) =>
         V2Integration.LoadLegacyPackageChart(legacyChartPath, packId, chartId, preset);
 
-    public static V2LoadedPackageChart LoadLegacyAsV2(DuxShared.Chart.Chart chart,
+    public static V2LoadedPackageChart LoadLegacyAsV2(DynamiteUniverse.Shared.Chart.Chart chart,
         string packId = "legacy.pack", string? chartId = null,
         JudgePreset preset = JudgePreset.Hard) =>
         V2Integration.ConvertLegacyPackageChart(chart, packId, chartId, preset);
 
-    public static V2LoadedPackageChart ConvertLegacyPackageChart(DuxShared.Chart.Chart chart,
+    public static V2LoadedPackageChart ConvertLegacyPackageChart(DynamiteUniverse.Shared.Chart.Chart chart,
         string packId = "legacy.pack", string? chartId = null,
         JudgePreset preset = JudgePreset.Hard) =>
         V2Integration.ConvertLegacyPackageChart(chart, packId, chartId, preset);

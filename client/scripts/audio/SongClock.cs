@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Audio;
+namespace DynamiteUniverse.Audio;
 
 /// <summary>
 /// 歌曲时钟：AudioStreamPlayer 播放位置 + 混音补偿 - 输出延迟 + 用户校准。

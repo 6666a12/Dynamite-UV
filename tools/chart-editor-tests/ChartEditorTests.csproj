@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../chart-editor-core/ChartEditor.Core.csproj" />
-    <ProjectReference Include="../../shared/DuxShared.csproj" />
+    <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
     <None Include="../../schemas/chart-format-v2/examples/golden-pack/**">
       <Link>Fixtures/golden-pack/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -1,6 +1,6 @@
-using DuxShared.Chart.V2;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.ChartEditor.Core;
+namespace DynamiteUniverse.ChartEditor.Core;
 
 /// <summary>Strict local-directory package opening for the desktop editor.</summary>
 public static class EditorPackageRepository

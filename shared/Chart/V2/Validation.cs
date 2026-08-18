@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>Semantic validation not expressible by the v2 JSON schemas.</summary>
 public static class V2SemanticValidator

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "policy_id": "dux-community-apk-final-gate",
+  "policy_id": "dynamite-universe-apk-final-gate",
   "policy_revision": "2026-08-14.1",
   "identity": {
     "label_resource": {
@@ -11,28 +11,32 @@
   },
   "modes": {
     "public": {
-      "application_id": "org.duxcommunity.game",
-      "application_label": "DUX-Community",
+      "application_id": "com.dynamiteuniverse.game",
+      "application_label": "Dynamite Universe",
       "version_name": "0.1.2-dev",
       "version_code": "4",
       "debuggable": "false",
       "required_custom_feature": "public_release",
-      "filename": "dux-community-public.apk",
+      "filename": "dynamite-universe-public.apk",
       "testdata_requirement": "forbid",
       "required_entry_suffixes": [
-        "assets/licenses/Orbitron-OFL-1.1.txt",
+        "assets/fonts/SpaceGrotesk-Regular.woff2",
+        "assets/fonts/SpaceGrotesk-Bold.woff2",
+        "assets/models/detonation-orrery-mk2.glb",
+        "assets/licenses/SpaceGrotesk-OFL-1.1.txt",
         "assets/licenses/Godot-LICENSE.txt",
         "assets/licenses/DotNet-LICENSE.txt",
         "assets/licenses/DotNet-THIRD-PARTY-NOTICES.txt"
       ],
       "required_entry_sha256": {
-        "assets/licenses/Orbitron-OFL-1.1.txt": "ab609b0e110d622435ff337cdf233288556e011bbf9bd0550be98846c0630819",
+        "assets/licenses/SpaceGrotesk-OFL-1.1.txt": "564ce565c371c5e5bbf286006565a7c9aa55a9f56e7ca58d56e05d649dd61a72",
         "assets/licenses/Godot-LICENSE.txt": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80",
         "assets/licenses/DotNet-LICENSE.txt": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
         "assets/licenses/DotNet-THIRD-PARTY-NOTICES.txt": "fa3e9d0a2c52476f04fe798d7dc4f6e7edb7b68a3d2f4d5f59a39bce957eedc8"
       },
       "allowed_imported_payloads": {
-        "Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata": "eee9f0c2f86372270bb675f14054e5ef239eb3d9c08dfea21214c6f8078c40ba"
+        "SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata": "0ba8904f37dbe8a2a3599edab2beaf3d60989e572a9f1ea47bd2259193df8f47",
+        "SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata": "a8a810bd6648a07ada01e3805dd69daa3b84a01494049b090f06cdd4523d5192"
       },
       "required_nonempty_entry_suffixes": [
         "project.binary",
@@ -42,12 +46,12 @@
         "scenes/gameplay.tscn.remap",
         "scenes/settings.tscn.remap",
         "shaders/note_surface.gdshader",
-        "assets/fonts/Orbitron.woff2.import",
-        ".godot/imported/Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata",
-        ".godot/mono/publish/arm64/DuxCommunity.deps.json",
-        ".godot/mono/publish/arm64/DuxCommunity.dll",
-        ".godot/mono/publish/arm64/DuxCommunity.runtimeconfig.json",
-        ".godot/mono/publish/arm64/DuxShared.dll",
+        ".godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata",
+        ".godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata",
+        ".godot/mono/publish/arm64/DynamiteUniverse.deps.json",
+        ".godot/mono/publish/arm64/DynamiteUniverse.dll",
+        ".godot/mono/publish/arm64/DynamiteUniverse.runtimeconfig.json",
+        ".godot/mono/publish/arm64/DynamiteUniverse.Shared.dll",
         ".godot/mono/publish/arm64/GodotSharp.dll",
         ".godot/mono/publish/arm64/.dotnet-publish-manifest",
         "lib/arm64-v8a/libgodot_android.so"
@@ -61,17 +65,17 @@
       "signing": {
         "require_valid": true,
         "required_schemes": ["v2", "v3"],
-        "certificate_sha256_env": "DUX_PUBLIC_SIGNER_SHA256"
+        "certificate_sha256_env": "DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256"
       }
     },
     "internal": {
-      "application_id": "org.duxcommunity.game.internaltest",
-      "application_label": "DUX-Community Internal Test",
+      "application_id": "com.dynamiteuniverse.game.internaltest",
+      "application_label": "Dynamite Universe Internal Test",
       "version_name": "0.1.2-internal-testdata",
       "version_code": "4",
       "debuggable": "true",
       "required_custom_feature": "internal_testdata",
-      "filename": "dux-community-internal-testdata.apk",
+      "filename": "dynamite-universe-internal-testdata.apk",
       "testdata_requirement": "require",
       "warning": "DO NOT DISTRIBUTE",
       "signing": {

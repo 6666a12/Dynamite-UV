@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Immutable metadata consumed by gameplay presentation and score persistence.</summary>
 internal sealed record GameplayRunContext(

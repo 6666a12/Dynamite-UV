@@ -1,10 +1,10 @@
 using Godot;
-using DuxCommunity.Game;
-using DuxCommunity.Ui;
+using DynamiteUniverse.Game;
+using DynamiteUniverse.Ui;
 
-namespace DuxCommunity;
+namespace DynamiteUniverse;
 
-/// <summary>主菜单（样式稿 #mmenu）：Logo + 游玩/谱面工坊(阶段3)/设置。</summary>
+/// <summary>Branded home screen with a fixed 1920x1080 action rail.</summary>
 public partial class Main : Node2D
 {
 	private readonly List<(Control Item, Vector2 BasePosition, int Order)> _enterItems = new();
@@ -14,32 +14,100 @@ public partial class Main : Node2D
 	public override void _Ready()
 	{
 		GameSession.EnsureInit();
-		GD.Print($"DUX-Community running on Godot {Engine.GetVersionInfo()["string"]}");
+		GD.Print($"Dynamite Universe running on Godot {Engine.GetVersionInfo()["string"]}");
 
 		UiLayout.AddBackground(this);
 
-		var title = new Label { Position = new Vector2(210, 300), Text = "DUX·COMMUNITY" };
-		title.AddThemeFontOverride("font", UiFonts.TechBold);
-		title.AddThemeFontSizeOverride("font_size", 110);
-		title.AddThemeColorOverride("font_color", UiFonts.Text);
-		AddChild(title);
-		RegisterEntrance(title, 0);
+		var energyCore = new HomeEnergyReactor
+		{
+			Position = new Vector2(915, 92),
+			Size = new Vector2(900, 830),
+		};
+		AddChild(energyCore);
+		RegisterEntrance(energyCore, 0);
 
-		var sub = new Label { Position = new Vector2(216, 440), Text = "COMMUNITY-DRIVEN RHYTHM GAME" };
-		sub.AddThemeFontOverride("font", UiFonts.Tech);
-		sub.AddThemeFontSizeOverride("font_size", 26);
-		sub.AddThemeColorOverride("font_color", UiFonts.Dim);
+		var eyebrow = new Label
+		{
+			Position = new Vector2(176, 194),
+			Size = new Vector2(600, 34),
+			Text = "COMMUNITY RHYTHM SYSTEM  /  DU-01",
+		};
+		UiLabels.Tech(eyebrow, 18, UiFonts.Cyan);
+		AddChild(eyebrow);
+		RegisterEntrance(eyebrow, 0);
+
+		var titlePrimary = new Label
+		{
+			Position = new Vector2(166, 238),
+			Size = new Vector2(790, 126),
+			Text = "DYNAMITE",
+		};
+		UiLabels.TechBold(titlePrimary, 112, UiFonts.Text);
+		AddChild(titlePrimary);
+		RegisterEntrance(titlePrimary, 1);
+
+		var titleSecondary = new Label
+		{
+			Position = new Vector2(166, 342),
+			Size = new Vector2(790, 112),
+			Text = "UNIVERSE",
+		};
+		UiLabels.TechBold(titleSecondary, 96, UiFonts.Cyan);
+		AddChild(titleSecondary);
+		RegisterEntrance(titleSecondary, 1);
+
+		var accentRail = new ColorRect
+		{
+			Position = new Vector2(176, 466),
+			Size = new Vector2(176, 4),
+			Color = UiFonts.Pink,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+		};
+		AddChild(accentRail);
+		RegisterEntrance(accentRail, 2);
+
+		var sub = new Label
+		{
+			Position = new Vector2(176, 486),
+			Size = new Vector2(700, 34),
+			Text = "CLEAN-ROOM COMMUNITY RHYTHM GAME",
+		};
+		UiLabels.Tech(sub, 22, UiFonts.Dim);
 		AddChild(sub);
-		RegisterEntrance(sub, 1);
+		RegisterEntrance(sub, 2);
+
+		var actionPanel = new CutPanel
+		{
+			Position = new Vector2(152, 548),
+			Size = new Vector2(746, 390),
+			Cut = 28,
+			Fill = new Color(0.025f, 0.045f, 0.105f, 0.88f),
+			Border = new Color(UiFonts.Line, 0.92f),
+			BorderWidth = 2f,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+		};
+		AddChild(actionPanel);
+		RegisterEntrance(actionPanel, 3);
+
+		var actionLabel = new Label
+		{
+			Position = new Vector2(190, 576),
+			Size = new Vector2(650, 28),
+			Text = "SELECT DESTINATION",
+		};
+		UiLabels.Tech(actionLabel, 16, UiFonts.Dim);
+		AddChild(actionLabel);
+		RegisterEntrance(actionLabel, 3);
 
 		var play = new CutButton
 		{
-			Position = new Vector2(210, 570),
-			Size = new Vector2(480, 104),
+			Position = new Vector2(188, 620),
+			Size = new Vector2(674, 112),
 			Text = "游玩",
-			SubText = "PLAY / SONG SELECT",
+			SubText = "PLAY  /  ENTER SONG LIBRARY",
 			StyleKind = CutButton.ButtonStyle.Solid,
-			FontSize = 34,
+			FontSize = 36,
+			TechFont = true,
 			AlignLeft = true,
 		};
 		play.Pressed += () => TransitionDirector.Navigate(
@@ -48,28 +116,30 @@ public partial class Main : Node2D
 			"OPEN CHANNEL",
 			"SONG LIBRARY");
 		AddChild(play);
-		RegisterEntrance(play, 2);
+		RegisterEntrance(play, 4);
 
 		var workshop = new CutButton
 		{
-			Position = new Vector2(210, 700),
-			Size = new Vector2(480, 104),
+			Position = new Vector2(188, 752),
+			Size = new Vector2(325, 142),
 			Text = "谱面工坊",
-			SubText = "WORKSHOP（阶段3）",
-			FontSize = 34,
+			SubText = "WORKSHOP  /  OFFLINE",
+			FontSize = 28,
+			TechFont = true,
 			AlignLeft = true,
 			Disabled = true,
 		};
 		AddChild(workshop);
-		RegisterEntrance(workshop, 3);
+		RegisterEntrance(workshop, 5);
 
 		var settings = new CutButton
 		{
-			Position = new Vector2(210, 830),
-			Size = new Vector2(480, 104),
+			Position = new Vector2(537, 752),
+			Size = new Vector2(325, 142),
 			Text = "设置",
-			SubText = "SETTINGS",
-			FontSize = 34,
+			SubText = "SETTINGS  /  SYSTEM",
+			FontSize = 28,
+			TechFont = true,
 			AlignLeft = true,
 		};
 		settings.Pressed += () => TransitionDirector.Navigate(
@@ -78,17 +148,16 @@ public partial class Main : Node2D
 			"OPEN CHANNEL",
 			"SETTINGS");
 		AddChild(settings);
-		RegisterEntrance(settings, 4);
+		RegisterEntrance(settings, 5);
 
 		var ver = new Label
 		{
-			Position = new Vector2(1420, 1020),
-			Size = new Vector2(440, 30),
+			Position = new Vector2(1240, 1014),
+			Size = new Vector2(620, 30),
 			Text = BuildDescription(),
 			HorizontalAlignment = HorizontalAlignment.Right,
 		};
-		ver.AddThemeFontSizeOverride("font_size", 18);
-		ver.AddThemeColorOverride("font_color", UiFonts.Dim);
+		UiLabels.Tech(ver, 16, UiFonts.Dim);
 		AddChild(ver);
 
 		SetProcess(false);

@@ -1,6 +1,7 @@
-# DUX-Community 交接文档
+# Dynamite Universe 交接文档
 
-> 最后更新：2026-08-15。本文只记录当前有效实现、固定决策、待办和验证流程。
+> 最后更新：2026-08-18。本文只记录当前有效实现、固定决策、待办和验证流程。
+> 2026-08-18 起正式项目名为 Dynamite Universe；冻结的 `dynamite-uv-*` / `gameplay-v1` wire 标签继续原样兼容。
 > 当前 legacy 运行时与行为规格见 `gameplay-spec.md`；运行时职责边界见
 > `runtime-architecture.md`；正式目标格式见 `chart-format-v2.md`；原版判定证据见
 > `original-judgement-analysis.md`，布局数值来源见 `video-geometry-analysis.md` 和
@@ -112,6 +113,9 @@ Mixer 的持续效果在 0.28 秒内爬到满亮，之后只循环纹理，松�
 
 ## 4. 仍需处理
 
+- 2026-08-18 完成首页与游玩 HUD 的第一轮品牌美化：主菜单改为两行 Dynamite Universe wordmark、程序化能量核心和主次明确的 action rail；游玩左下曲目信息改为固定两行切角信息板，长歌名使用 ellipsis。客户端拉丁/数字 UI 字体改为 OFL-1.1 的 Space Grotesk Regular/Bold，中文继续使用系统 CJK fallback。路由、输入、固定舞台和 HUD 数据来源均未改变；效果仍需用户运行后目测。
+- 2026-08-17 已完成 Avalonia 制谱器第四版 authoring 闭环。界面用 clean-room 程序化 `SignalIcon`、轨道/Note 装饰、选择呼吸、放置 pulse 和低速 signal backdrop 替代大量常驻文字；Welcome、主工具区、导航和主要动作已图标化，完整名称保留在 tooltip 与 AutomationProperties。新增 en-US/zh-CN 225 组资源键、应用内语言切换和用户目录偏好持久化，motion 支持 Full/Reduced/Off，语言与动效状态不写入谱面包。工具现可创建全部七种 v2 Note，并可选择 Mixer head/path node、增删移动 Hold/Mixer 节点、编辑路径曲线与 Hold judge、创建/修改 Scroll；任意正整数 Grid、Snap 开关与 canonical `bar+n/d` 精确输入不再经 double 往返。Canvas 的曲线路径预览按约 0.5px 设计坐标误差自适应细分，EX-Tap/Mine/Drag/BarLine 有几何区分。真实音频 transport 以设备已播放帧为时钟，支持 WAV/MP3/FLAC/Ogg Vorbis/Ogg Opus，以及 Windows Media Foundation 下的 M4A/AAC；非 Windows 对 M4A/AAC 明确 fail closed。新建包保留音频扩展名，Save/Create 在 staging 注入相同 decoder probe 后再做音频边界、strict reopen 与 Gameplay Digest。剩余细调项主要是视觉间距/动效参数、长文本覆盖、路径节点列表交互手感、波形显示，以及 multi-chart 增删排序和 chart-entry 级媒体/preview 管理。
+
 - 2026-08-15 已完成第二轮 UI 动效与对应网页预览：Full token 统一为 `90/160/260/420/620/760/960ms`、stagger `60ms`，等待扫描约 `1200ms`；Reduced 为 `70/100/140/180/220/220/260ms`、stagger `0`，关闭方向移动/循环/Echo；Off 即时但先绘制稳定不透明 handoff。`TransitionDirector` 新增 opaque barrier、Track context hold 与 Gameplay reveal progress；Select/Replay 有 focus confirm，独立 `TRACK HANDOFF` 静态显示已解码封面或 clean-room placeholder，Gameplay 舞台/Note/HUD 仅按 alpha 分层揭示，遮罩移除后才启动 playback。原生同步补入三段 Signal Lock、Settings 行 stagger/数值替换、详情卡单次扫描、Result pre-signal scan 与 cyan+pink Echo。legacy optional cover 路径限制在包内，raw 玩家图片增加格式、字节与解码尺寸上限。预览同步同一 token，并保持移动 Relay 卡只含文字。
 - 2026-08-15 已完成第一轮 UI 动效：`docs/ui-mock/motion-preview.html` 提供可交互的 Signal Lock、Track Relay 和 Hit Echo 分镜，`docs/ui-motion.md` 固定时长与 Reduced/Off 策略；客户端新增持久 `TransitionDirector`、Full/Reduced/Off 设置、主菜单/选曲入场、选曲详情准备态、Gameplay 播放前 ready gate、暂停和结算内容动画。转场期间统一锁输入，Gameplay 只在遮罩完全揭开后启动 `SongPlayback`，verification 仍绕过普通动画。
 - 最新命中爆发亮度和 Note 生命周期分流尚待用户下次运行时目测确认。
@@ -134,7 +138,7 @@ Mixer 的持续效果在 0.28 秒内爬到满亮，之后只循环纹理，松�
 - shared 已提供确定性 `V2JsonEncoder` 和事务式 `V2PackageWriter`。编辑器 Save/Save As 会在 staging
   中重新 decode、跨文件校验、探测 WAV 时长并计算 Gameplay Digest；非 WAV 保存暂时 fail closed，
   音频试听、波形和 Mixer/Mine/EX-Tap/BarLine/Scroll 的完整交互编辑留待后续。
-- Dynamite UV Chart Format v2 已在 `chart-format-v2.md` 正式冻结，机器 Schema、clean-room
+- Dynamite Universe Chart Format v2 已在 `chart-format-v2.md` 正式冻结，机器 Schema、clean-room
   golden pack 和 Gameplay Digest known-answer vector 位于 `../schemas/chart-format-v2/`。客户端已接入
   v2 loader/validator、Digest 成绩身份和运行时适配；legacy 格式继续作为兼容输入。
 - 原版已经确认不消费触点，同一触点可命中多颗重叠 Note；社区版 `OnPress` 已按 Note 独立扫描并允许触点复用。仍需补充端到端输入序列回归和真机多指验证。仍未知：设备 `NSTouchWidth` 真值、BPM 切段同帧
@@ -177,6 +181,8 @@ dotnet build
 ```powershell
 dotnet build tools/chart-editor/ChartEditor.csproj
 dotnet run --project tools/chart-editor-tests/ChartEditorTests.csproj
+dotnet run --project tools/chart-editor-resource-check/ChartEditorResourceCheck.csproj
+dotnet run --project tools/chart-editor-audio-check/ChartEditorAudioCheck.csproj
 ```
 
 shared 核心测试同样从仓库根目录运行；默认只读取版本化的 clean-room
@@ -220,7 +226,7 @@ Godot 4.7.1 mono 位于 `../godot/Godot_v4.7.1-stable_mono_win64/`。标准版�
 
 ```bash
 mkdir -p ../tmp_shots
-DUX_START_SEC=0 ../../godot/Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe \
+DYNAMITE_UNIVERSE_START_SEC=0 ../../godot/Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe \
   --path . --position 0,0 --resolution 1600x900 --borderless --always-on-top \
   res://scenes/gameplay.tscn > ../tmp_shots/godot.log 2>&1 &
 godot_pid=$!
@@ -241,13 +247,13 @@ ffmpeg -y -f gdigrab -offset_x 0 -offset_y 0 -video_size 1600x900 -framerate 30 
 ```
 
 `-frames:v` 必须位于 `-i` 之后；yuv420p 输出尺寸必须为偶数。直接调试游玩场景可修改
-`DUX_START_SEC` 与参考视频做同刻对比。游玩调试键：F1 切换 Auto，Esc 暂停，F12 跳到
+`DYNAMITE_UNIVERSE_START_SEC` 与参考视频做同刻对比。游玩调试键：F1 切换 Auto，Esc 暂停，F12 跳到
 谱尾前 3 秒。
 
 ## 7. 环境注意事项
 
-- Public APK 使用 `org.duxcommunity.game`；Internal Testdata APK 使用独立的
-  `org.duxcommunity.game.internaltest`。`export_presets.cfg` 可提交，签名凭据只能进入被忽略的
+- Public APK 使用 `com.dynamiteuniverse.game`；Internal Testdata APK 使用独立的
+  `com.dynamiteuniverse.game.internaltest`。`export_presets.cfg` 可提交，签名凭据只能进入被忽略的
   `client/.godot/export_credentials.cfg` 或环境变量。
 - 历史中的 `tools/apktool/dynamix_debug.keystore` 已公开暴露并从当前树移除，绝不能用于产品
   签名；Apktool JAR 改为按 `tools/apktool/README.md` 外部安装。

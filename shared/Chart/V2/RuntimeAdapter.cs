@@ -1,6 +1,6 @@
-using DuxShared.Judge;
+using DynamiteUniverse.Shared.Judge;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>v2 metadata retained on each flattened legacy runtime Note.</summary>
 public sealed record V2RuntimeNoteMetadata
@@ -30,7 +30,7 @@ public sealed record V2RuntimeChartMetadata
 /// <summary>Result of projecting a semantic v2 chart into the existing runtime Chart/Note graph.</summary>
 public sealed record V2RuntimeAdapterResult
 {
-    public required DuxShared.Chart.Chart RuntimeChart { get; init; }
+    public required DynamiteUniverse.Shared.Chart.Chart RuntimeChart { get; init; }
     public required V2RuntimeChartMetadata Metadata { get; init; }
     public IReadOnlyDictionary<int, string> SourceIdsByRuntimeId => Metadata.SourceIdsByRuntimeId;
     public IReadOnlyDictionary<string, int> RuntimeIdsBySourceId => Metadata.RuntimeIdsBySourceId;
@@ -131,7 +131,7 @@ public static class V2RuntimeAdapter
             SyncAccentRuntimeIds = accents,
         };
 
-        var runtime = new DuxShared.Chart.Chart
+        var runtime = new DynamiteUniverse.Shared.Chart.Chart
         {
             Name = chart.ChartId,
             Title = title ?? chart.ChartId,

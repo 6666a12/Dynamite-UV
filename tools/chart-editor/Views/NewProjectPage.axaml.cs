@@ -4,10 +4,12 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
-using DuxCommunity.ChartEditor.Core;
-using DuxShared.Chart.V2;
+using DynamiteUniverse.ChartEditor.Audio;
+using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.ChartEditor.Localization;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.ChartEditor.Views;
+namespace DynamiteUniverse.ChartEditor.Views;
 
 public sealed partial class NewProjectPage : UserControl
 {
@@ -18,6 +20,7 @@ public sealed partial class NewProjectPage : UserControl
     public NewProjectPage()
     {
         InitializeComponent();
+        EditorLocalization.Current.LanguageChanged += (_, _) => UpdateForm();
         UpdateForm();
     }
 
@@ -65,9 +68,12 @@ public sealed partial class NewProjectPage : UserControl
         var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions
             {
-                Title = "Choose RIFF/WAVE chart audio",
+                Title = "Choose chart audio",
                 AllowMultiple = false,
-                FileTypeFilter = [new FilePickerFileType("RIFF/WAVE audio") { Patterns = ["*.wav"] }],
+                FileTypeFilter = [new FilePickerFileType("Supported chart audio")
+                {
+                    Patterns = EditorAudioFormatRegistry.FilePickerPatterns,
+                }],
             });
         if (files.Count == 1)
             UseAudioSource(files[0].TryGetLocalPath() ?? files[0].Path.LocalPath);
@@ -93,12 +99,13 @@ public sealed partial class NewProjectPage : UserControl
     {
         if (!TryBuildRequest(out var request))
         {
-            FormStatusText.Text = "Resolve the highlighted fields before creating the draft.";
+            FormStatusText.Text = EditorLocalization.Current.Get("NewProject.StatusIncomplete");
             return;
         }
         try
         {
-            CreateRequested?.Invoke(this, EditorProjectDraftFactory.Create(request!));
+            CreateRequested?.Invoke(this, EditorProjectDraftFactory.Create(
+                request!, EditorAudioProbe.Instance));
         }
         catch (Exception exception)
         {
@@ -158,10 +165,10 @@ public sealed partial class NewProjectPage : UserControl
         var valid = TryBuildRequest(out _, updateErrors: true);
         CreateButton.IsEnabled = valid;
         SummaryTitle.Text = string.IsNullOrWhiteSpace(TitleBox.Text)
-            ? "UNTITLED PROJECT"
+            ? EditorLocalization.Current.Get("NewProject.Untitled")
             : TitleBox.Text!.Trim();
         SummaryArtist.Text = string.IsNullOrWhiteSpace(ArtistBox.Text)
-            ? "ARTIST NOT SET"
+            ? EditorLocalization.Current.Get("NewProject.ArtistNotSet")
             : ArtistBox.Text!.Trim();
         SummaryPackId.Text = string.IsNullOrWhiteSpace(PackIdBox.Text) ? "—" : PackIdBox.Text!.Trim();
         var difficulty = SelectedDifficulty();
@@ -169,11 +176,11 @@ public sealed partial class NewProjectPage : UserControl
             ? (DifficultyKeyBox.Text ?? "CUSTOM").Trim().ToUpperInvariant()
             : difficulty.ToString().ToUpperInvariant();
         SummaryChart.Text = UnratedCheck.IsChecked == true
-            ? $"{difficultyText} · UNRATED"
+            ? $"{difficultyText} · {EditorLocalization.Current.Get("NewProject.Unrated")}"
             : $"{difficultyText} · Lv {(LevelBox.Text ?? "—").Trim()}";
         FormStatusText.Text = valid
-            ? "Ready to create an empty in-memory authoring draft."
-            : "Complete the required fields to create the draft.";
+            ? EditorLocalization.Current.Get("NewProject.StatusReady")
+            : EditorLocalization.Current.Get("NewProject.StatusIncomplete");
     }
 
     private bool TryBuildRequest(out EditorProjectDraftRequest? request, bool updateErrors = true)
@@ -190,28 +197,33 @@ public sealed partial class NewProjectPage : UserControl
             : null;
         var unrated = UnratedCheck.IsChecked == true;
 
-        var titleError = title.Length == 0 ? "Title is required." : null;
-        var artistError = artist.Length == 0 ? "Artist is required." : null;
-        var packIdError = IsValidId(packId) ? null : "Use a valid stable v2 ID.";
-        var chartIdError = IsValidId(chartId) ? null : "Use a valid chart ID.";
-        var charterError = charter.Length == 0 ? "Charter is required." : null;
+        var titleError = title.Length == 0 ? EditorLocalization.Current.Get("NewProject.ErrorTitleRequired") : null;
+        var artistError = artist.Length == 0 ? EditorLocalization.Current.Get("NewProject.ErrorArtistRequired") : null;
+        var packIdError = IsValidId(packId) ? null : EditorLocalization.Current.Get("NewProject.ErrorPackId");
+        var chartIdError = IsValidId(chartId) ? null : EditorLocalization.Current.Get("NewProject.ErrorChartId");
+        var charterError = charter.Length == 0 ? EditorLocalization.Current.Get("NewProject.ErrorCharterRequired") : null;
         var difficultyError = difficulty == V2Difficulty.Custom && string.IsNullOrWhiteSpace(difficultyKey)
             ? "Custom difficulty needs a display key."
             : null;
         var levelValue = 0;
         var levelValid = unrated || int.TryParse(LevelBox.Text, NumberStyles.Integer,
             CultureInfo.InvariantCulture, out levelValue) && levelValue is >= 1 and <= 99;
-        var levelError = levelValid ? null : "Level must be from 1 to 99.";
+        var levelError = levelValid ? null : EditorLocalization.Current.Get("NewProject.ErrorLevel");
         var bpmValid = double.TryParse(BpmBox.Text, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var bpm) && double.IsFinite(bpm) && bpm > 0;
-        var bpmError = bpmValid ? null : "BPM must be finite and greater than zero.";
+        var bpmError = bpmValid ? null : EditorLocalization.Current.Get("NewProject.ErrorBpm");
         var offsetValid = double.TryParse(OffsetBox.Text, NumberStyles.Float,
             CultureInfo.InvariantCulture, out var offsetMs) && double.IsFinite(offsetMs);
-        var offsetError = offsetValid ? null : "Offset must be a finite millisecond value.";
-        var audioError = _audioSourcePath.Length == 0 ? "Choose a RIFF/WAVE source file."
-            : !Path.GetExtension(_audioSourcePath).Equals(".wav", StringComparison.OrdinalIgnoreCase)
-                ? "The verified writer currently requires .wav audio."
-                : !File.Exists(_audioSourcePath) ? "The selected audio file no longer exists." : null;
+        var offsetError = offsetValid ? null : EditorLocalization.Current.Get("NewProject.ErrorOffset");
+        var audioError = _audioSourcePath.Length == 0 ? "Choose a chart audio source file."
+            : !EditorAudioFormatRegistry.TryGet(_audioSourcePath, out var audioFormat)
+                ? "Use .wav, .mp3, .flac, .ogg, .opus, .m4a, or .aac audio."
+                : audioFormat.Backend == EditorAudioBackend.WindowsMediaFoundation &&
+                    !OperatingSystem.IsWindows()
+                    ? $"{audioFormat.DisplayName} requires Windows Media Foundation."
+                    : !File.Exists(_audioSourcePath)
+                        ? "The selected audio file no longer exists."
+                        : null;
 
         if (updateErrors)
         {

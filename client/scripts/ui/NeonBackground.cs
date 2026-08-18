@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>样式稿背景：深海军蓝底 + 极淡斜向透视线 + 底部辉光（菜单/选曲用）。</summary>
 public partial class NeonBackground : Control

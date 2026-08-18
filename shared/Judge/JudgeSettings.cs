@@ -1,4 +1,4 @@
-namespace DuxShared.Judge;
+namespace DynamiteUniverse.Shared.Judge;
 
 /// <summary>4 套判定预设（规格书 §6.1，Hard 及以上所有难度共用 Hard 档）。</summary>
 public enum JudgePreset

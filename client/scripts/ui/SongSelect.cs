@@ -1,8 +1,8 @@
 using Godot;
-using DuxCommunity.Game;
-using DuxShared.Score;
+using DynamiteUniverse.Game;
+using DynamiteUniverse.Shared.Score;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>
 /// 选曲界面（样式稿 #select）：左详情（封面/曲名/谱师/时长/Note）+ 右曲库列表
@@ -123,7 +123,7 @@ public partial class SongSelect : Node2D
         _topRoot.AddChild(bar);
         AddLine(_topRoot, new Vector2(0, 76), new Vector2(UiLayout.DesignWidth, 2));
 
-        var logo = new Label { Position = new Vector2(66, 16), Text = "DUX·Community" };
+        var logo = new Label { Position = new Vector2(66, 16), Text = "Dynamite Universe" };
         UiLabels.Tech(logo, 34, UiFonts.Text);
         _topRoot.AddChild(logo);
 

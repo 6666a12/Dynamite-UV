@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DuxCommunity.Ui;
+using DynamiteUniverse.Ui;
 using Godot;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>本地玩法设置，持久化到 user://settings.json。</summary>
 public sealed class GameSettings

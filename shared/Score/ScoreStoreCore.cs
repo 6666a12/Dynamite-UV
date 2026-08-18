@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DuxShared.Score;
+namespace DynamiteUniverse.Shared.Score;
 
 /// <summary>Complete gameplay score identity; members are compared independently.</summary>
 public readonly struct ScoreIdentity : IEquatable<ScoreIdentity>

@@ -1,7 +1,7 @@
 using Godot;
-using DuxCommunity.Audio;
+using DynamiteUniverse.Audio;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Owns the Godot player plus SongClock without changing clock policy or pause semantics.</summary>
 internal sealed class SongPlayback

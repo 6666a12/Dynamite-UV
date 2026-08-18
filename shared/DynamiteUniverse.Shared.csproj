@@ -3,6 +3,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>DuxShared</RootNamespace>
+    <RootNamespace>DynamiteUniverse.Shared</RootNamespace>
+    <AssemblyName>DynamiteUniverse.Shared</AssemblyName>
   </PropertyGroup>
 </Project>

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>切角面板：样式稿的 clip-path 切角矩形（半透明深色底+描边）。</summary>
 public partial class CutPanel : Control

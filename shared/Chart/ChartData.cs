@@ -1,4 +1,4 @@
-namespace DuxShared.Chart;
+namespace DynamiteUniverse.Shared.Chart;
 
 /// <summary>三条判定轨（规格书 §8.1 NoteRegion_Left/Center/Right）。</summary>
 public enum Track

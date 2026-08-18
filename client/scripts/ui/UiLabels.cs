@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>Named label treatments shared by the programmatic menu screens.</summary>
 public static class UiLabels

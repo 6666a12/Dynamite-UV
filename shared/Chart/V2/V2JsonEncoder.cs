@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>
 /// Deterministic writer for the frozen v2 package and chart contracts. It deliberately maps the

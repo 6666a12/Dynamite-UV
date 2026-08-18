@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1024" viewBox="0 0 1280 1024" role="img" aria-labelledby="title desc">
-  <title id="title">DUX Community miss fallthrough animation V1</title>
+  <title id="title">Dynamite Universe miss fallthrough animation V1</title>
   <desc id="desc">A distance-driven twenty-frame miss preview: the note passes the judgment line, stays opaque for 24 pixels, then fades out by 64 pixels.</desc>
   <defs>
     <linearGradient id="tap" x1="0" y1="0" x2="0" y2="1">

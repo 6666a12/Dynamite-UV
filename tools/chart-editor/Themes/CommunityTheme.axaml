@@ -189,7 +189,9 @@
   </Style>
   <Style Selector="Button.create"><Setter Property="MinWidth" Value="178" /><Setter Property="MinHeight" Value="42" /></Style>
   <Style Selector="Button.tool">
-    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="7" />
+    <Setter Property="MinHeight" Value="42" />
     <Setter Property="Background" Value="#5E111A2B" />
     <Setter Property="BorderBrush" Value="#313E5A" />
   </Style>

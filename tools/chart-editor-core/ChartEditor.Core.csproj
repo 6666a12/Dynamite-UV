@@ -3,9 +3,9 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>DuxCommunity.ChartEditor.Core</RootNamespace>
+    <RootNamespace>DynamiteUniverse.ChartEditor.Core</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../shared/DuxShared.csproj" />
+    <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
   </ItemGroup>
 </Project>

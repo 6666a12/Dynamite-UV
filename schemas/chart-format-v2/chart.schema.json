@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "chart.schema.json",
-  "title": "Dynamite UV Chart v2",
-  "description": "Structural schema for a Dynamite UV v2 single-difficulty chart. Semantic validation is additionally required by docs/chart-format-v2.md.",
+  "title": "Dynamite Universe Chart v2",
+  "description": "Structural schema for a Dynamite Universe v2 single-difficulty chart. Semantic validation is additionally required by docs/chart-format-v2.md.",
   "type": "object",
   "additionalProperties": false,
   "required": [

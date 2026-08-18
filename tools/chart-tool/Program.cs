@@ -182,11 +182,11 @@ internal static class SelfTests
             var converted = ReadConvertedPack(fixture);
             Check(firstHashes.SequenceEqual(secondHashes), "conversion output is byte-deterministic");
             Check(File.ReadAllBytes(Path.Combine(first, "meta.json")).SequenceEqual(
-                    DuxShared.Chart.V2.V2JsonEncoder.EncodePack(
+                    DynamiteUniverse.Shared.Chart.V2.V2JsonEncoder.EncodePack(
                         V2OutputProjection.ToPack(converted))),
                 "converted pack bytes use the shared v2 encoder");
             Check(File.ReadAllBytes(Path.Combine(first, "chart_hard.json")).SequenceEqual(
-                    DuxShared.Chart.V2.V2JsonEncoder.EncodeChart(
+                    DynamiteUniverse.Shared.Chart.V2.V2JsonEncoder.EncodeChart(
                         V2OutputProjection.ToChart(converted.Charts.Single().Chart))),
                 "converted chart bytes use the shared v2 encoder");
             Check(V2Commands.Validate(first) == 0, "converted fixture passes shared v2 validation");

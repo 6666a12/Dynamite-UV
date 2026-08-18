@@ -2,10 +2,12 @@
 
 本文区分两种合法但用途不同的 Android APK。两条流程不能混用。
 
+> 本次更名把 Android application ID 改为 `com.dynamiteuniverse.game`。Android 会将其视为新的应用身份，旧 `org.duxcommunity.game` 沙箱中的设置、谱面和成绩无法由新应用自动读取；需要用户自行导出并迁入可移植数据。
+
 | 模式 | Godot preset | application id | 输出 | 官方测试数据 |
 | --- | --- | --- | --- | --- |
-| Public | `Android Public Release (NO TESTDATA)` | `org.duxcommunity.game` | `builds/public/dux-community-public.apk` | 禁止 |
-| Internal | `Android Internal Testdata (DO NOT DISTRIBUTE)` | `org.duxcommunity.game.internaltest` | `builds/internal/dux-community-internal-testdata.apk` | 允许且必须存在 |
+| Public | `Android Public Release (NO TESTDATA)` | `com.dynamiteuniverse.game` | `builds/public/dynamite-universe-public.apk` | 禁止 |
+| Internal | `Android Internal Testdata (DO NOT DISTRIBUTE)` | `com.dynamiteuniverse.game.internaltest` | `builds/internal/dynamite-universe-internal-testdata.apk` | 允许且必须存在 |
 
 Public APK 可以公开分发；Internal APK 只能给开发设备和受控测试者使用，**不得上传到公开
 Release、网盘、应用商店或公开聊天群**。
@@ -38,7 +40,7 @@ Git 忽略。也可用 Godot 支持的 Android keystore 环境变量在 CI/本�
 从仓库根目录执行：
 
 ```powershell
-dotnet build client/DuxCommunity.csproj --configuration Release
+dotnet build client/DynamiteUniverse.csproj --configuration Release
 dotnet run --project tools/core-tests/CoreTests.csproj --configuration Release
 python -m unittest discover -s tools/release/tests -p "test_*.py"
 ```
@@ -76,7 +78,7 @@ taskkill /F /IM Godot_v4.7.1-stable_mono_win64.exe
 & "..\godot\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe" `
   --headless --path ..\community-public-export\client `
   --export-release "Android Public Release (NO TESTDATA)" `
-  ..\community-public-export\client\builds\public\dux-community-public.apk
+  ..\community-public-export\client\builds\public\dynamite-universe-public.apk
 ```
 
 若 Godot 位于其他目录，只调整可执行文件路径；不要修改并提交机器绝对路径。
@@ -85,7 +87,7 @@ taskkill /F /IM Godot_v4.7.1-stable_mono_win64.exe
 
 ```powershell
 python tools/release/check_apk.py --mode public `
-  --apk ..\community-public-export\client\builds\public\dux-community-public.apk
+  --apk ..\community-public-export\client\builds\public\dynamite-universe-public.apk
 ```
 
 只有退出码为 0 且显示 Public 检查通过的 APK 才能分发。Public 首次验包前先取得产品
@@ -93,8 +95,8 @@ python tools/release/check_apk.py --mode public `
 shell 中设置：
 
 ```powershell
-# Windows PowerShell；Git Bash 使用 export DUX_PUBLIC_SIGNER_SHA256=<值>
-$env:DUX_PUBLIC_SIGNER_SHA256 = "<64位产品证书SHA-256>"
+# Windows PowerShell；Git Bash 使用 export DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256=<值>
+$env:DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256 = "<64位产品证书SHA-256>"
 ```
 
 该值是证书公钥身份，不是私钥；不应把私钥、keystore 或密码写入仓库。检查器会验证：
@@ -125,14 +127,14 @@ Internal APK 可以从含 `client/testdata/` 的开发目录导出。启动 Godo
 & "..\godot\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe" `
   --headless --path client `
   --export-debug "Android Internal Testdata (DO NOT DISTRIBUTE)" `
-  client\builds\internal\dux-community-internal-testdata.apk
+  client\builds\internal\dynamite-universe-internal-testdata.apk
 ```
 
 导出后必须检查内部身份和 testdata 的存在：
 
 ```powershell
 python tools/release/check_apk.py --mode internal `
-  --apk client\builds\internal\dux-community-internal-testdata.apk
+  --apk client\builds\internal\dynamite-universe-internal-testdata.apk
 ```
 
 Internal 模式要求独立 application id、内部应用名、内部版本和内部文件名；如果没有 testdata，
@@ -142,7 +144,7 @@ Internal 模式要求独立 application id、内部应用名、内部版本和�
 
 - [ ] 当前提交中的 `client/testdata/` 跟踪文件数量为 0。
 - [ ] Public APK 从 clean worktree 导出。
-- [ ] 使用正确的 Public preset、包名和签名密钥；`DUX_PUBLIC_SIGNER_SHA256` 已钉住产品证书。
+- [ ] 使用正确的 Public preset、包名和签名密钥；`DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256` 已钉住产品证书。
 - [ ] Release build、默认核心测试和 APK checker 单测通过。
 - [ ] `check_apk.py --mode public` 退出码为 0。
 - [ ] 已记录 APK SHA-256。

@@ -1,4 +1,4 @@
-# DUX-Community 当前客户端玩法与 Legacy 格式
+# Dynamite Universe 当前客户端玩法与 Legacy 格式
 
 > 本文描述 Godot 客户端的 legacy 兼容路径、判定、计分和布局规则，不是 v2
 > 序列化合同。正式 v2 合同见 `chart-format-v2.md`；客户端已通过 strict loader、shared runtime
@@ -55,7 +55,7 @@ Testdata 构建先扫描 `res://testdata/packs`，再扫描 `user://charts`，�
 
 ### 1.4 与正式 v2 的边界
 
-正式 Dynamite UV Chart Format v2 见 `chart-format-v2.md`。它使用 `dynamite-uv-pack` /
+正式 Dynamite Universe Chart Format v2 见 `chart-format-v2.md`。它使用 `dynamite-uv-pack` /
 `dynamite-uv-chart`、精确有理 BarTime、`center+width`、内嵌 Hold/Mixer nodes、Hold `judge`、
 严格正向 Scroll 和 Gameplay Digest。v2 为无损迁移既有谱面允许三轨 Mixer 和超出推荐 `[0,5]`
 安全区的有限 center/正 width；消费者不得擅自 clamp。同步 Tap 金框由精确时间与异轨按下型

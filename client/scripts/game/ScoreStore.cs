@@ -1,7 +1,7 @@
 using Godot;
-using DuxShared.Score;
+using DynamiteUniverse.Shared.Score;
 
-namespace DuxCommunity;
+namespace DynamiteUniverse;
 
 /// <summary>
 /// Godot persistence wrapper around the shared score codec. Legacy packId:diff records remain

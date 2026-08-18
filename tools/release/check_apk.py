@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed release gate for DUX-Community Android APKs.
+"""Fail-closed release gate for Dynamite Universe Android APKs.
 
 The checker deliberately uses only Python's standard library. Android manifest
 identity is delegated to the Android SDK's ``apkanalyzer``; if the tool or any
@@ -443,7 +443,7 @@ def inspect_apk(apk_path: Path, mode: str, policy: dict[str, Any], result: GateR
             result.errors.append(f"cannot verify assets.sparsepck: {exc}")
 
     deps_entry = _find_entry_by_suffix(
-        normalized_entries, ".godot/mono/publish/arm64/DuxCommunity.deps.json"
+        normalized_entries, ".godot/mono/publish/arm64/DynamiteUniverse.deps.json"
     )
     if deps_entry is not None:
         try:
@@ -452,21 +452,21 @@ def inspect_apk(apk_path: Path, mode: str, policy: dict[str, Any], result: GateR
             runtime_name = deps.get("runtimeTarget", {}).get("name", "")
             if not runtime_name.endswith("/android-arm64"):
                 result.errors.append(
-                    f"DuxCommunity.deps.json has unexpected runtime target: {runtime_name!r}"
+                    f"DynamiteUniverse.deps.json has unexpected runtime target: {runtime_name!r}"
                 )
             target = deps.get("targets", {}).get(runtime_name, {})
             project = next(
-                (value for key, value in target.items() if key.startswith("DuxCommunity/")),
+                (value for key, value in target.items() if key.startswith("DynamiteUniverse/")),
                 None,
             )
             dependencies = project.get("dependencies", {}) if isinstance(project, dict) else {}
-            if "DuxShared" not in dependencies or "GodotSharp" not in dependencies:
+            if "DynamiteUniverse.Shared" not in dependencies or "GodotSharp" not in dependencies:
                 result.errors.append(
-                    "DuxCommunity.deps.json is missing DuxShared/GodotSharp dependencies"
+                    "DynamiteUniverse.deps.json is missing DynamiteUniverse.Shared/GodotSharp dependencies"
                 )
         except (OSError, RuntimeError, zipfile.BadZipFile, UnicodeDecodeError,
                 json.JSONDecodeError) as exc:
-            result.errors.append(f"cannot verify DuxCommunity.deps.json: {exc}")
+            result.errors.append(f"cannot verify DynamiteUniverse.deps.json: {exc}")
 
     entry_names = list(normalized_entries)
     allowed_imported_payloads = {
@@ -609,7 +609,7 @@ def find_android_tool(tool_name: str) -> Path:
     names = (
         f"{tool_name}.bat", f"{tool_name}.exe", tool_name,
     ) if os.name == "nt" else (tool_name, f"{tool_name}.bat")
-    env_override = os.environ.get(f"DUX_{tool_name.upper()}_PATH")
+    env_override = os.environ.get(f"DYNAMITE_UNIVERSE_{tool_name.upper()}_PATH")
     if env_override:
         candidate = Path(env_override).expanduser()
         if candidate.is_file():
@@ -752,7 +752,7 @@ def inspect_identity(
 
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate a DUX-Community APK against the final public/internal release policy."
+        description="Validate a Dynamite Universe APK against the final public/internal release policy."
     )
     parser.add_argument("--mode", required=True, choices=("public", "internal"))
     parser.add_argument("--apk", required=True, type=Path, help="APK file to validate")

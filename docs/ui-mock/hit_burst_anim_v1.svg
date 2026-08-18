@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="768" viewBox="0 0 1024 768" role="img" aria-labelledby="title desc">
-  <title id="title">DUX Community hit burst animation V1</title>
+  <title id="title">Dynamite Universe hit burst animation V1</title>
   <desc id="desc">A twelve-frame additive hit burst sprite sheet arranged in four columns and three rows.</desc>
   <defs>
     <clipPath id="cell"><rect width="256" height="256"/></clipPath>

@@ -1,8 +1,8 @@
 using System.Numerics;
-using DuxShared.Chart;
-using DuxShared.Chart.V2;
+using DynamiteUniverse.Shared.Chart;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.ChartEditor.Core;
+namespace DynamiteUniverse.ChartEditor.Core;
 
 public enum EditorSelectionKind
 {
@@ -10,6 +10,7 @@ public enum EditorSelectionKind
     Note,
     PathNode,
     Bpm,
+    Scroll,
 }
 
 public sealed record EditorSelection(EditorSelectionKind Kind, string? Id)
@@ -28,6 +29,20 @@ public sealed class EditableBpm
 {
     public required ExactBarTime Time { get; set; }
     public required double Bpm { get; set; }
+}
+
+public sealed class EditableScroll
+{
+    public required ExactBarTime Time { get; set; }
+    public required double Value { get; set; }
+    public V2ScrollCurve? CurveToNext { get; set; }
+
+    public EditableScroll Clone() => new()
+    {
+        Time = Time,
+        Value = Value,
+        CurveToNext = CurveToNext,
+    };
 }
 
 public sealed class EditablePathNode
@@ -92,7 +107,7 @@ public sealed class EditableChart
     public V2Preview? Preview { get; set; }
     public required double AudioOffsetSec { get; set; }
     public List<EditableBpm> Bpms { get; } = [];
-    public List<V2ScrollEvent> ScrollSpeeds { get; } = [];
+    public List<EditableScroll> ScrollSpeeds { get; } = [];
     public List<EditableNote> Notes { get; } = [];
 }
 
@@ -161,7 +176,12 @@ public sealed class EditorDocument
                 Time = item.Time,
                 Bpm = item.Bpm,
             }));
-            editable.ScrollSpeeds.AddRange(chart.ScrollSpeeds);
+            editable.ScrollSpeeds.AddRange(chart.ScrollSpeeds.Select(item => new EditableScroll
+            {
+                Time = item.Time,
+                Value = item.Value,
+                CurveToNext = item.CurveToNext,
+            }));
             editable.Notes.AddRange(ToEditableNotes(chart.NotesLeft, EditorTrack.Left));
             editable.Notes.AddRange(ToEditableNotes(chart.NotesCenter, EditorTrack.Center));
             editable.Notes.AddRange(ToEditableNotes(chart.NotesRight, EditorTrack.Right));
@@ -256,7 +276,21 @@ public sealed class EditorDocument
         HasUnsavedChanges = IsUnpersisted || _historyPosition != _savedHistoryPosition;
 
     internal EditableNote RequireNote(string id) => SelectedChart.Notes.Single(note => note.Id == id);
+    internal EditablePathNode RequirePathNode(string noteId, string nodeId) =>
+        RequireNote(noteId).Nodes.Single(node => node.Id == nodeId);
     internal EditableBpm RequireBpm(ExactBarTime time) => SelectedChart.Bpms.Single(item => item.Time == time);
+    internal EditableScroll RequireScroll(ExactBarTime time) =>
+        SelectedChart.ScrollSpeeds.Single(item => item.Time == time);
+
+    internal void RequireChartWideIdAvailable(string id, string? exceptId = null)
+    {
+        var chartIds = SelectedChart.Notes.SelectMany(note =>
+            new[] { note.Id }.Concat(note.Nodes.Select(node => node.Id)));
+        if (chartIds.Any(existing =>
+                !string.Equals(existing, exceptId, StringComparison.Ordinal) &&
+                string.Equals(existing, id, StringComparison.Ordinal)))
+            throw new InvalidOperationException($"Chart object ID '{id}' already exists.");
+    }
 
     public V2Pack BuildPackSnapshot() => new()
     {
@@ -290,7 +324,13 @@ public sealed class EditorDocument
             AudioOffsetSec = chart.AudioOffsetSec,
             Bpms = chart.Bpms.OrderBy(item => item.Time)
                 .Select(item => new V2BpmEvent(item.Time, item.Bpm)).ToArray(),
-            ScrollSpeeds = chart.ScrollSpeeds.OrderBy(item => item.Time).ToArray(),
+            ScrollSpeeds = chart.ScrollSpeeds.OrderBy(item => item.Time)
+                .Select(item => new V2ScrollEvent
+                {
+                    Time = item.Time,
+                    Value = item.Value,
+                    CurveToNext = item.CurveToNext,
+                }).ToArray(),
             NotesLeft = BuildTrack(chart, EditorTrack.Left),
             NotesCenter = BuildTrack(chart, EditorTrack.Center),
             NotesRight = BuildTrack(chart, EditorTrack.Right),

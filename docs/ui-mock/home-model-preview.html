@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dynamite Universe · Detonation Orrery Mk II</title>
+<style>
+@font-face{font-family:SpaceGrotesk;src:url("fonts/SpaceGrotesk-Regular.woff2") format("woff2");font-weight:400}
+@font-face{font-family:SpaceGrotesk;src:url("fonts/SpaceGrotesk-Bold.woff2") format("woff2");font-weight:700}
+:root{--bg:#0a0e1a;--panel:rgba(6,12,30,.92);--line:#2a3560;--cyan:#35e0ff;--pink:#ff4d8f;--orange:#ff9d45;--text:#dfe6ff;--dim:#7c88b0}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#050812;color:var(--text);font-family:SpaceGrotesk,"Microsoft YaHei",sans-serif}body{padding:24px}
+.toolbar{display:flex;align-items:center;gap:8px;width:min(100%,1280px);margin:0 auto 14px}.toolbar .title{margin-right:auto;color:var(--dim);font-size:13px;letter-spacing:2px}.toolbar button{min-width:90px;border:1px solid var(--line);background:#101a35;color:var(--text);padding:9px 14px;font:700 13px SpaceGrotesk;cursor:pointer}.toolbar button:hover,.toolbar button.active{border-color:var(--cyan);color:#04121a;background:var(--cyan)}.status{width:116px;text-align:right;color:var(--cyan);font-size:12px;letter-spacing:1px}
+.stage{width:min(100%,1280px);height:min(calc((100vw - 48px)*.5625),720px);min-height:420px;margin:auto;overflow:hidden;box-shadow:0 18px 80px #000;background:#080c18}.viewport{position:relative;width:1920px;height:1080px;transform-origin:top left;overflow:hidden;background:radial-gradient(ellipse at 74% 49%,rgba(53,224,255,.10),transparent 29%),radial-gradient(ellipse at 79% 60%,rgba(255,77,143,.055),transparent 30%),linear-gradient(120deg,#0a0e1a,#070b18 68%,#101634)}.viewport:before{content:"";position:absolute;inset:-300px;background:repeating-linear-gradient(105deg,transparent 0 118px,rgba(53,224,255,.035) 120px 122px);pointer-events:none}
+.brand{position:absolute;left:166px;top:190px;width:760px;z-index:3}.eyebrow{font-size:18px;letter-spacing:4px;color:var(--cyan)}h1{font-size:112px;line-height:.92;letter-spacing:-4px;margin:18px 0 0;font-weight:700}h1 span{display:block;font-size:96px;color:var(--cyan);letter-spacing:2px}.accent{width:176px;height:4px;background:var(--pink);margin:30px 0 16px}.subtitle{font-size:22px;letter-spacing:3px;color:var(--dim)}
+.model{position:absolute;left:915px;top:92px;width:900px;height:830px;z-index:1}.model:before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 54% 50%,rgba(4,8,19,.38),rgba(7,14,34,.18) 62%,rgba(8,12,24,0) 86%)}.model video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen;filter:drop-shadow(0 0 34px rgba(53,224,255,.16)) drop-shadow(0 0 12px rgba(255,77,143,.08));pointer-events:none}.model-label,.telemetry{display:none}
+.actions{position:absolute;left:152px;top:548px;width:746px;height:390px;padding:28px 36px;border:2px solid var(--line);background:var(--panel);clip-path:polygon(28px 0,100% 0,100% calc(100% - 28px),calc(100% - 28px) 100%,0 100%,0 28px);z-index:3}.actions>label{font-size:16px;letter-spacing:4px;color:var(--dim)}.action{position:relative;margin-top:16px;padding:22px 28px;border:2px solid var(--line);height:112px;clip-path:polygon(15px 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,0 100%,0 15px)}.action.primary{background:var(--cyan);border-color:var(--cyan);color:#04121a}.action b{display:block;font-size:36px}.action small{font-size:17px;letter-spacing:2px;opacity:.68}.secondary{display:grid;grid-template-columns:1fr 1fr;gap:24px}.secondary .action{height:142px;opacity:.82}.secondary .action b{font-size:28px}.annotation{position:absolute;right:60px;bottom:32px;color:var(--dim);font-size:16px;letter-spacing:2px;z-index:4}
+@media(max-width:900px){body{padding:12px}.toolbar{flex-wrap:wrap}.toolbar .title{width:100%}.stage{width:100%;height:auto;min-height:0;aspect-ratio:16/9}.viewport{transform:scale(calc((100vw - 24px)/1920));transform-origin:top left}}
+</style>
+</head>
+<body>
+<div class="toolbar"><span class="title">BLENDER MOTION STUDY / DETONATION ORRERY MK II / 8S SEAMLESS LOOP</span><button class="active" id="play">PAUSE</button><button class="active" data-speed="1">NORMAL</button><button data-speed="0.35">SLOW</button><span class="status" id="status">LOADING</span></div>
+<div class="stage"><div class="viewport"><section class="brand"><div class="eyebrow">COMMUNITY RHYTHM SYSTEM / DU-01</div><h1>DYNAMITE<span>UNIVERSE</span></h1><div class="accent"></div><div class="subtitle">CLEAN-ROOM COMMUNITY RHYTHM GAME</div></section>
+<section class="model"><video id="orrery" autoplay muted loop playsinline preload="auto" poster="assets/home-model/detonation-orrery-mk2-poster.png"><source src="assets/home-model/detonation-orrery-mk2.mp4" type="video/mp4"></video><div class="model-label"><strong>DETONATION ORRERY</strong>MK II / ORBITAL REACTOR</div><div class="telemetry">MOTION MODEL <b>LIVE</b><br>ORBITAL AXES 03 / 03<br>LOOP PERIOD 08.00S</div></section>
+<section class="actions"><label>SELECT DESTINATION</label><div class="action primary"><b>游玩</b><small>PLAY / ENTER SONG LIBRARY</small></div><div class="secondary"><div class="action"><b>谱面工坊</b><small>WORKSHOP / OFFLINE</small></div><div class="action"><b>设置</b><small>SETTINGS / SYSTEM</small></div></div></section>
+<div class="annotation">FIXED 1920×1080 AUTHORING PREVIEW / BLENDER CONCEPT ONLY</div></div></div>
+<script>
+const video=document.querySelector('#orrery'),play=document.querySelector('#play'),status=document.querySelector('#status'),stage=document.querySelector('.stage'),viewport=document.querySelector('.viewport');
+function fit(){const scale=Math.min(stage.clientWidth/1920,stage.clientHeight/1080);viewport.style.transform=`scale(${scale})`;viewport.style.transformOrigin='top left'}
+addEventListener('resize',fit);fit();
+function update(){status.textContent=video.error?'VIDEO ERROR':`${video.paused?'PAUSED':'PLAYING'} ${video.currentTime.toFixed(1)}S`;play.textContent=video.paused?'PLAY':'PAUSE';play.classList.toggle('active',!video.paused)}
+play.onclick=async()=>{if(video.paused)await video.play();else video.pause();update()};
+document.querySelectorAll('[data-speed]').forEach(button=>button.onclick=()=>{video.playbackRate=Number(button.dataset.speed);document.querySelectorAll('[data-speed]').forEach(item=>item.classList.toggle('active',item===button));update()});
+video.addEventListener('loadeddata',async()=>{try{await video.play()}catch{}update()});video.addEventListener('error',update);video.addEventListener('play',update);video.addEventListener('pause',update);setInterval(update,250);update();
+</script>
+</body>
+</html>

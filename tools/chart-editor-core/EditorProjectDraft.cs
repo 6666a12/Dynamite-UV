@@ -1,6 +1,6 @@
-using DuxShared.Chart.V2;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.ChartEditor.Core;
+namespace DynamiteUniverse.ChartEditor.Core;
 
 /// <summary>Typed user input for a new, not-yet-persisted editor project.</summary>
 public sealed record EditorProjectDraftRequest(
@@ -30,7 +30,8 @@ public sealed record EditorProjectDraft(
     string? ExternalCoverSource,
     string ChartDestination,
     string AudioDestination,
-    string? CoverDestination)
+    string? CoverDestination,
+    IV2PackageAudioProbe? AudioProbe = null)
 {
     public IReadOnlyDictionary<string, string> ExternalResources { get; } =
         BuildExternalResources(ExternalAudioSource, ExternalCoverSource,
@@ -44,6 +45,7 @@ public sealed record EditorProjectDraft(
         Charts = Document.BuildAllChartSnapshots(),
         ExternalResources = ExternalResources.Select(resource =>
             new V2ExternalResourceMapping(resource.Value, resource.Key)).ToArray(),
+        AudioProbe = AudioProbe,
         AllowEmptyDestination = allowEmptyDestination,
     };
 
@@ -63,14 +65,36 @@ public sealed record EditorProjectDraft(
 /// <summary>Creates validated empty editor drafts without weakening strict persisted v2 rules.</summary>
 public static class EditorProjectDraftFactory
 {
-    public static EditorProjectDraft Create(EditorProjectDraftRequest request)
+    private static readonly IReadOnlyDictionary<string, string> SupportedAudioExtensions =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [".wav"] = ".wav",
+            [".mp3"] = ".mp3",
+            [".flac"] = ".flac",
+            [".ogg"] = ".ogg",
+            [".opus"] = ".opus",
+            [".m4a"] = ".m4a",
+            [".aac"] = ".aac",
+        };
+
+    public static bool IsSupportedAudioPath(string path) =>
+        SupportedAudioExtensions.ContainsKey(Path.GetExtension(path));
+
+    public static string AudioDestinationFor(string sourcePath)
+    {
+        if (!SupportedAudioExtensions.TryGetValue(Path.GetExtension(sourcePath), out var extension))
+            throw new V2DiagnosticException("new-project", "/audioSource",
+                "audio source must use .wav, .mp3, .flac, .ogg, .opus, .m4a, or .aac");
+        return "audio" + extension;
+    }
+
+    public static EditorProjectDraft Create(EditorProjectDraftRequest request,
+        IV2PackageAudioProbe? audioProbe = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         var audioSource = RequireExternalRegularFile(request.ExternalAudioSource,
             "new-project", "/audioSource");
-        if (!Path.GetExtension(audioSource).Equals(".wav", StringComparison.OrdinalIgnoreCase))
-            throw new V2DiagnosticException("new-project", "/audioSource",
-                "editor v2 projects require an external RIFF/WAVE audio source");
+        var audioDestination = AudioDestinationFor(audioSource);
         var coverSource = request.ExternalCoverSource is null
             ? null
             : RequireExternalRegularFile(request.ExternalCoverSource,
@@ -87,7 +111,6 @@ public static class EditorProjectDraftFactory
                 "grid divisor must be positive");
 
         var chartDestination = $"charts/{request.ChartId}.json";
-        const string audioDestination = "audio.wav";
         var coverDestination = coverSource is null ? null : CoverDestination(coverSource);
         var entry = new V2ChartEntry
         {
@@ -130,7 +153,7 @@ public static class EditorProjectDraftFactory
         document.GridDivisor = request.GridDivisor;
 
         return new EditorProjectDraft(request, document, audioSource, coverSource,
-            chartDestination, audioDestination, coverDestination);
+            chartDestination, audioDestination, coverDestination, audioProbe);
     }
 
     private static void ValidateEmptyDraftChart(V2Chart chart, string source)

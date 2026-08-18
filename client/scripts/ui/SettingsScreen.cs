@@ -1,7 +1,7 @@
 using Godot;
-using DuxCommunity.Game;
+using DynamiteUniverse.Game;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>v0.1 设置页：判定偏移、落速、三类音量和 UI 动效。</summary>
 public partial class SettingsScreen : Node2D

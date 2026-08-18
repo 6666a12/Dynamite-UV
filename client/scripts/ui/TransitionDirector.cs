@@ -1,7 +1,7 @@
 using Godot;
-using DuxCommunity.Game;
+using DynamiteUniverse.Game;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>Opaque scene relay styles. Gameplay and Restart use the Track Handoff presentation.</summary>
 public enum TransitionKind

@@ -1,4 +1,4 @@
-namespace DuxShared.Chart;
+namespace DynamiteUniverse.Shared.Chart;
 
 /// <summary>
 /// DropSpeed runtime mapping. Events are interpolated by BarTime; a later value wins on duplicates.

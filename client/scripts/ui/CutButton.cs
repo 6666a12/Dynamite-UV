@@ -1,7 +1,7 @@
 using Godot;
-using DuxCommunity.Game;
+using DynamiteUniverse.Game;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>
 /// 切角按钮：样式稿的 clip-path 按钮（描边款 / 实心青款），自绘多边形+文字，

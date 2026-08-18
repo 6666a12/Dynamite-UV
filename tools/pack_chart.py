@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把谱面 JSON + 音频 + 封面打成一个 DUX-Community 谱面包（目录形式）。
+"""把谱面 JSON + 音频 + 封面打成一个 Dynamite Universe 谱面包（目录形式）。
 
 谱面包结构（client 运行时扫描 user://charts/ 与 res://testdata/packs/）：
 
@@ -26,7 +26,7 @@ DIFFS = ["casual", "normal", "hard", "mega", "giga", "tech"]
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="DUX-Community 谱面包打包工具")
+    ap = argparse.ArgumentParser(description="Dynamite Universe 谱面包打包工具")
     ap.add_argument("--id", required=True, help="谱面包 ID（目录名，建议英文小写+下划线）")
     ap.add_argument("--title", required=True, help="曲名")
     ap.add_argument("--artist", default="-", help="曲师")

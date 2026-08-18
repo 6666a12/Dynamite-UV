@@ -1,20 +1,26 @@
-# Godot 4 .NET
+# Godot editor/import cache. Keep source-side .import and .uid files tracked.
 .godot/
+
+# IDE and user-specific settings
 .vs/
 .idea/
+.vscode/
 *.user
+*.suo
+*.userosscache
+*.sln.docstates
 
 # .NET build output
-bin/
-obj/
+**/[Bb]in/
+**/[Oo]bj/
 
-# Godot/Android export tooling and generated packages
-client/build/
+# Godot/Android export output
+/client/build/
+/builds/
 *.apk
 *.aab
 *.apks
 *.idsig
-builds/
 
 # Export credentials and signing keys are always local
 .godot/export_credentials.cfg
@@ -25,19 +31,20 @@ builds/
 *.pem
 *.key
 
-# External research binaries are installed locally
+# Locally installed research binaries
 *.jar
 
-# 版权内容：测试用官方谱面/音频（仅本地，绝不分发）
-client/testdata/
+# Development-only test content; never ship this in a public build.
+/client/testdata/
 
-# 生成的素材缓存
-tools/.venv/
-tools/style_refs.json
-local-generated/
-__pycache__/
+# Generated tool assets and Python caches
+/tools/.venv/
+/tools/style_refs.json
+/local-generated/
+**/__pycache__/
+*.py[cod]
 
-# Local GUI/runtime verification output
+# Local visual verification output
 /gui-test-screenshots/
 /tmp_editor_check/
 /tmp_shots/
@@ -45,7 +52,11 @@ __pycache__/
 # Locally compiled research utility
 /tools/memscan/memscan
 
-# Local ZCode session metadata
-.zcode/
-
+# Local agent/session metadata
+/.zcode/
 AGENTS.md
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+desktop.ini

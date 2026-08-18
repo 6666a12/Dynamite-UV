@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dynamite Universe branding preview</title>
+<style>
+@font-face{font-family:SpaceGrotesk;src:url("fonts/SpaceGrotesk-Regular.woff2") format("woff2");font-weight:400}
+@font-face{font-family:SpaceGrotesk;src:url("fonts/SpaceGrotesk-Bold.woff2") format("woff2");font-weight:700}
+:root{--bg:#0a0e1a;--panel:rgba(6,12,30,.9);--line:#2a3560;--cyan:#35e0ff;--pink:#ff4d8f;--text:#dfe6ff;--dim:#7c88b0;--hard:#fbbf24}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#050812;color:var(--text);font-family:SpaceGrotesk,"Microsoft YaHei",sans-serif}
+body{padding:30px}.toolbar{display:flex;gap:10px;position:sticky;top:14px;z-index:5;margin:0 auto 18px;width:min(100%,1280px)}
+button{font:700 14px SpaceGrotesk;border:1px solid var(--line);background:#101a35;color:var(--text);padding:10px 16px;cursor:pointer}button:hover{border-color:var(--cyan)}
+.viewport{position:relative;width:1920px;height:1080px;overflow:hidden;transform-origin:top left;background:radial-gradient(circle at 70% 52%,rgba(53,224,255,.11),transparent 26%),linear-gradient(120deg,#0a0e1a,#070b18 68%,#101634)}
+.scale{width:min(100%,1280px);height:720px;margin:auto;overflow:hidden;box-shadow:0 18px 80px #000}.scale .viewport{transform:scale(.6666667)}
+.viewport:before{content:"";position:absolute;inset:-300px;background:repeating-linear-gradient(105deg,transparent 0 118px,rgba(53,224,255,.045) 120px 122px)}
+.brand{position:absolute;left:166px;top:190px;width:760px}.eyebrow{font-size:18px;letter-spacing:4px;color:var(--cyan)}
+.brand h1{font-size:112px;line-height:.92;letter-spacing:-4px;margin:18px 0 0;font-weight:700}.brand h1 span{display:block;font-size:96px;color:var(--cyan);letter-spacing:2px}
+.accent{width:176px;height:4px;background:var(--pink);margin:30px 0 16px}.subtitle{font-size:22px;letter-spacing:3px;color:var(--dim)}
+.core{position:absolute;left:1120px;top:225px;width:470px;height:470px;border:2px solid rgba(53,224,255,.28);border-radius:50%;box-shadow:0 0 0 70px rgba(255,77,143,.06),0 0 0 150px rgba(53,224,255,.035),inset 0 0 80px rgba(53,224,255,.08)}
+.core:before,.core:after{content:"";position:absolute;border-radius:50%;inset:95px;border:1px solid rgba(255,77,143,.45);transform:rotate(24deg)}.core:after{inset:205px;background:var(--cyan);box-shadow:0 0 42px var(--cyan);border:0}
+.actions{position:absolute;left:152px;top:548px;width:746px;height:390px;padding:28px 36px;border:2px solid var(--line);background:var(--panel);clip-path:polygon(28px 0,100% 0,100% calc(100% - 28px),calc(100% - 28px) 100%,0 100%,0 28px)}
+.actions>label{font-size:16px;letter-spacing:4px;color:var(--dim)}.action{position:relative;margin-top:16px;padding:22px 28px;border:2px solid var(--line);height:112px;clip-path:polygon(15px 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,0 100%,0 15px)}
+.action.primary{background:var(--cyan);border-color:var(--cyan);color:#04121a}.action b{display:block;font-size:36px}.action small{font-size:17px;letter-spacing:2px;opacity:.68}.secondary{display:grid;grid-template-columns:1fr 1fr;gap:24px}.secondary .action{height:142px;opacity:.82}.secondary .action b{font-size:28px}
+.hud{display:none;position:absolute;inset:0;background:linear-gradient(180deg,rgba(53,224,255,.06),transparent 38%),radial-gradient(circle at 50% 82%,#1b2450,#080c18 58%)}
+.viewport.hud-mode .home{display:none}.viewport.hud-mode .hud{display:block}.judge{position:absolute;left:184px;top:70px;width:4px;height:791px;background:rgba(223,230,255,.25);box-shadow:1552px 0 rgba(223,230,255,.25)}.judge:after{content:"";position:absolute;left:-124px;top:789px;width:1740px;height:3px;background:rgba(223,230,255,.24)}
+.track-card{position:absolute;left:52px;top:884px;width:612px;height:104px;padding:12px 26px;border:1.5px solid color-mix(in srgb,var(--difficulty) 56%,transparent);border-left:6px solid var(--difficulty);background:rgba(5,9,21,.9);clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)}
+.track-card .title{font-family:SpaceGrotesk,"Microsoft YaHei",sans-serif;font-size:27px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.track-card .meta{margin-top:9px;color:var(--difficulty);font-size:17px;font-weight:700;letter-spacing:2px}
+.score{position:absolute;right:80px;top:878px;font-size:58px;font-weight:700}.note{position:absolute;left:750px;top:500px;width:420px;height:44px;background:linear-gradient(90deg,var(--cyan),#c9f9ff);clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%);box-shadow:0 0 28px rgba(53,224,255,.5)}
+.annotation{position:absolute;right:60px;bottom:32px;color:var(--dim);font-size:16px;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div class="toolbar">
+<button data-mode="home">首页方案</button><button data-mode="hud">游玩 HUD</button>
+<button data-case="short">短中文</button><button data-case="long">长中文</button><button data-case="english">英文</button><button data-case="unrated">UNRATED + AUTO</button>
+</div>
+<div class="scale"><main class="viewport" id="viewport">
+<section class="home">
+<div class="brand"><div class="eyebrow">COMMUNITY RHYTHM SYSTEM / DU-01</div><h1>DYNAMITE<span>UNIVERSE</span></h1><div class="accent"></div><div class="subtitle">CLEAN-ROOM COMMUNITY RHYTHM GAME</div></div>
+<div class="core"></div>
+<div class="actions"><label>SELECT DESTINATION</label><div class="action primary"><b>游玩</b><small>PLAY / ENTER SONG LIBRARY</small></div><div class="secondary"><div class="action"><b>谱面工坊</b><small>WORKSHOP / OFFLINE</small></div><div class="action"><b>设置</b><small>SETTINGS / SYSTEM</small></div></div></div>
+</section>
+<section class="hud"><div class="judge"></div><div class="note"></div><div class="track-card" style="--difficulty:#fbbf24"><div class="title" id="songTitle">Synthetic Pulse</div><div class="meta" id="songMeta">HARD / LEVEL 12</div></div><div class="score">0986420</div><div class="annotation">FIXED 1920×1080 AUTHORING PREVIEW</div></section>
+</main></div>
+<script>
+const viewport=document.querySelector('#viewport'),title=document.querySelector('#songTitle'),meta=document.querySelector('#songMeta'),card=document.querySelector('.track-card');
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>viewport.classList.toggle('hud-mode',b.dataset.mode==='hud'));
+const cases={short:['星海回声','HARD / LEVEL 12','#fbbf24'],long:['在宇宙能量潮汐尽头再次相遇的超长测试曲名','TECH / LEVEL 15','#f87171'],english:['The Constellation Beyond the Detonation Horizon','GIGA / LEVEL 14','#f87171'],unrated:['Community Signal Prototype No. 2026','CUSTOM / UNRATED / AUTO (F1)','#c084fc']};
+document.querySelectorAll('[data-case]').forEach(b=>b.onclick=()=>{viewport.classList.add('hud-mode');const c=cases[b.dataset.case];title.textContent=c[0];meta.textContent=c[1];card.style.setProperty('--difficulty',c[2])});
+</script>
+</body>
+</html>

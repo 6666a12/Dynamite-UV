@@ -1,8 +1,8 @@
-using DuxShared.Judge;
+using DynamiteUniverse.Shared.Judge;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
-/// <summary>Literal identifiers frozen by Dynamite UV Chart Format v2.</summary>
+/// <summary>Literal identifiers frozen by Dynamite Universe Chart Format v2.</summary>
 public static class V2Format
 {
     public const string PackFormat = "dynamite-uv-pack";

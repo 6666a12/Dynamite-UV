@@ -1,23 +1,33 @@
 using System.Diagnostics;
 using System.Globalization;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using DuxCommunity.ChartEditor.Controls;
-using DuxCommunity.ChartEditor.Core;
-using DuxCommunity.ChartEditor.Editor;
-using DuxCommunity.ChartEditor.Views;
-using DuxShared.Chart.V2;
-using UiEditorTrack = DuxCommunity.ChartEditor.Editor.EditorTrack;
-using CoreEditorTrack = DuxCommunity.ChartEditor.Core.EditorTrack;
+using DynamiteUniverse.ChartEditor.Controls;
+using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.ChartEditor.Audio;
+using DynamiteUniverse.ChartEditor.Localization;
+using DynamiteUniverse.ChartEditor.Settings;
+using DynamiteUniverse.ChartEditor.Editor;
+using DynamiteUniverse.ChartEditor.Views;
+using DynamiteUniverse.Shared.Chart.V2;
+using UiEditorTrack = DynamiteUniverse.ChartEditor.Editor.EditorTrack;
+using CoreEditorTrack = DynamiteUniverse.ChartEditor.Core.EditorTrack;
 
-namespace DuxCommunity.ChartEditor;
+namespace DynamiteUniverse.ChartEditor;
 
 public sealed partial class MainWindow : Window
 {
+    private static readonly V2NoteType[] NoteTypes =
+    [
+        V2NoteType.Tap, V2NoteType.Drag, V2NoteType.ExTap, V2NoteType.Hold,
+        V2NoteType.Mixer, V2NoteType.Mine, V2NoteType.BarLine,
+    ];
+
     private enum WorkspacePage
     {
         Main,
@@ -29,18 +39,20 @@ public sealed partial class MainWindow : Window
 
     private readonly SharedV2ProjectLoader _loader = new();
     private readonly DispatcherTimer _playbackTimer;
-    private readonly Stopwatch _playbackClock = new();
+    private IAudioTransport? _audioTransport;
+    private string? _audioTransportPath;
+    private EditorAudioProbeResult? _audioInfo;
     private EditorDocument? _document;
     private EditorProject? _project;
     private EditorChartDocument? _activeChart;
     private EditorProjectDraft? _draft;
-    private double _playbackOrigin;
     private bool _timelineInternalUpdate;
     private bool _refreshing;
     private UiEditorTrack _track = UiEditorTrack.Center;
     private EditorTool _tool = EditorTool.Select;
     private WorkspacePage _workspacePage;
     private ExactBarTime? _pendingBpmTime;
+    private ExactBarTime? _pendingScrollTime;
     private bool _shiftDown;
 
     public MainWindow()
@@ -61,6 +73,10 @@ public sealed partial class MainWindow : Window
 
         _playbackTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(16),
             DispatcherPriority.Render, PlaybackTick);
+        PopulateEnumCombos();
+        GridDivisorBox.TextChanged += GridDivisorChanged;
+        SnapToggle.IsCheckedChanged += SnapToggleChanged;
+        EditorLocalization.Current.LanguageChanged += (_, _) => ApplyLocalization();
 
         PackPathBox.Text = FindDefaultGoldenPack() ?? string.Empty;
         SetTrack(UiEditorTrack.Center, announce: false);
@@ -69,6 +85,8 @@ public sealed partial class MainWindow : Window
         SetVisualSpeed(1.0, announce: false);
         ClearCoreSelection();
         UpdateCommandButtons();
+        ApplyMotionPreference();
+        ApplyLocalization();
         ShowWelcomePage();
     }
 
@@ -128,7 +146,7 @@ public sealed partial class MainWindow : Window
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Select a clean-room Dynamite UV v2 pack",
+            Title = "Select a clean-room Dynamite Universe v2 pack",
             AllowMultiple = false,
         });
         if (folders.Count != 1)
@@ -179,6 +197,7 @@ public sealed partial class MainWindow : Window
     private void AttachDocument(EditorDocument document)
     {
         _document = document;
+        DisposeAudioTransport();
         _project = SharedV2ProjectLoader.Snapshot(document);
         PopulateProject(_project);
         _refreshing = true;
@@ -256,6 +275,12 @@ public sealed partial class MainWindow : Window
         StageCanvas.Document = chart;
         _refreshing = false;
 
+        if (EnsureAudioTransport())
+        {
+            chart = chart with { DurationSec = _audioTransport!.Duration.TotalSeconds };
+            _activeChart = chart;
+            StageCanvas.Document = chart;
+        }
         TimelineSlider.Maximum = chart.DurationSec;
         _timelineInternalUpdate = true;
         TimelineSlider.Value = Math.Min(TimelineSlider.Value, chart.DurationSec);
@@ -264,6 +289,10 @@ public sealed partial class MainWindow : Window
         OffsetValueText.Text = FormatOffset(chart.AudioOffsetSec);
         BpmList.ItemsSource = chart.Bpms.Select(bpm =>
             $"BAR {bpm.ExactTime}   {bpm.Bpm:0.###} BPM\n{bpm.Second:0.000}s").ToArray();
+        ScrollList.ItemsSource = chart.Scrolls.Select(scroll =>
+            $"BAR {scroll.ExactTime}   ×{scroll.Value:0.###}\n{scroll.CurveToNext?.ToString() ?? "TAIL"}").ToArray();
+        GridDivisorBox.Text = _document.GridDivisor.ToString(CultureInfo.InvariantCulture);
+        SnapToggle.IsChecked = _document.SnapEnabled;
         UpdateTransport(TimelineSlider.Value);
         RefreshCoreSelection();
         UpdateValidation();
@@ -300,18 +329,19 @@ public sealed partial class MainWindow : Window
             return;
         }
         StageCanvas.SetSelection(new EditorSelectionInfo(
-            "EVENT", bpm.Id, "BPM", $"{bpm.Second:0.000}s · bar {bpm.ExactTime}",
+            EditorObjectKind.Bpm, bpm.Id, UiEditorTrack.Events,
+            $"{bpm.Second:0.000}s · bar {bpm.ExactTime}",
             "—", "—", $"BPM {bpm.Bpm:0.###}"));
     }
 
     private static EditorSelectionInfo ToSelectionInfo(EditorNoteModel note) => new(
-        "NOTE", note.Id, note.Track.ToString().ToUpperInvariant(),
+        EditorObjectKind.Note, note.Id, note.Track,
         $"{note.Second:0.000}s · bar {note.ExactTime}",
         note.Center.ToString("0.###", CultureInfo.InvariantCulture),
         note.Width.ToString("0.###", CultureInfo.InvariantCulture),
         note.IsPath
             ? $"{note.Type} · terminal {note.EndBar:0.####} · {note.Path.Count} evaluated samples"
-            : note.Type);
+            : note.Type.ToString());
 
     private void ClearCoreSelection()
     {
@@ -326,7 +356,10 @@ public sealed partial class MainWindow : Window
         SelectionCard.IsVisible = false;
         NoteFieldsPanel.IsVisible = false;
         TailFieldsPanel.IsVisible = false;
+        PathFieldsPanel.IsVisible = false;
+        PathNodeFieldsPanel.IsVisible = false;
         BpmFieldsPanel.IsVisible = false;
+        ScrollFieldsPanel.IsVisible = false;
     }
 
     private void TrackButtonClicked(object? sender, RoutedEventArgs e)
@@ -355,13 +388,33 @@ public sealed partial class MainWindow : Window
     private void SetTool(EditorTool tool, bool announce = true)
     {
         _tool = tool;
+        if (tool == EditorTool.PathNode && _document is not null)
+        {
+            StageCanvas.PathInsertOwnerId = _document.Selection.Kind switch
+            {
+                EditorSelectionKind.Note => _document.Selection.Id,
+                EditorSelectionKind.PathNode => _document.SelectedChart.Notes.FirstOrDefault(note =>
+                    note.Nodes.Any(node => node.Id == _document.Selection.Id))?.Id,
+                _ => null,
+            };
+        }
+        else
+        {
+            StageCanvas.PathInsertOwnerId = null;
+        }
         StageCanvas.ActiveTool = tool;
         SetSelected(SelectToolButton, tool == EditorTool.Select);
         SetSelected(TapToolButton, tool == EditorTool.Tap);
         SetSelected(DragToolButton, tool == EditorTool.Drag);
         SetSelected(HoldToolButton, tool == EditorTool.Hold);
+        SetSelected(ExTapToolButton, tool == EditorTool.ExTap);
+        SetSelected(MixerToolButton, tool == EditorTool.Mixer);
+        SetSelected(MineToolButton, tool == EditorTool.Mine);
+        SetSelected(BarLineToolButton, tool == EditorTool.BarLine);
+        SetSelected(PathNodeToolButton, tool == EditorTool.PathNode);
         SetSelected(BpmToolButton, tool == EditorTool.Bpm);
-        var trackEnabled = tool != EditorTool.Bpm;
+        SetSelected(ScrollToolButton, tool == EditorTool.Scroll);
+        var trackEnabled = tool is not (EditorTool.Bpm or EditorTool.Scroll);
         TrackLeftButton.IsEnabled = trackEnabled;
         TrackCenterButton.IsEnabled = trackEnabled;
         TrackRightButton.IsEnabled = trackEnabled;
@@ -370,8 +423,9 @@ public sealed partial class MainWindow : Window
             SetStatus(tool switch
             {
                 EditorTool.Select => "SELECT active. Click an object to inspect it.",
-                EditorTool.Hold => "HOLD active. Place the head, move in time, then place the tail.",
-                EditorTool.Bpm => "BPM active. Click a target Bar and enter its value.",
+                EditorTool.Hold or EditorTool.Mixer => $"{tool.ToString().ToUpperInvariant()} active. Place the head, then the tail.",
+                EditorTool.Bpm or EditorTool.Scroll => $"{tool.ToString().ToUpperInvariant()} active. Click an exact event time.",
+                EditorTool.PathNode => "PATH NODE active. Select a Hold or Mixer, then click a point in time.",
                 _ => $"{tool.ToString().ToUpperInvariant()} active. Drag to set center and width.",
             });
         }
@@ -400,12 +454,13 @@ public sealed partial class MainWindow : Window
 
     private void StartPlayback()
     {
-        if (_activeChart is null)
+        if (_activeChart is null || !EnsureAudioTransport())
             return;
         if (TimelineSlider.Value >= _activeChart.DurationSec)
-            TimelineSlider.Value = 0;
-        _playbackOrigin = TimelineSlider.Value;
-        _playbackClock.Restart();
+            SeekTransport(0);
+        else
+            SeekTransport(TimelineSlider.Value);
+        _audioTransport!.Play();
         _playbackTimer.Start();
         PlayButton.Content = "❚❚";
     }
@@ -414,32 +469,31 @@ public sealed partial class MainWindow : Window
     {
         var wasEnabled = _playbackTimer.IsEnabled;
         _playbackTimer.Stop();
-        if (wasEnabled && _activeChart is not null)
+        if (wasEnabled && _audioTransport is not null)
         {
-            var next = Math.Min(_activeChart.DurationSec,
-                _playbackOrigin + _playbackClock.Elapsed.TotalSeconds);
+            _audioTransport.Pause();
+            var next = Math.Min(_activeChart?.DurationSec ?? _audioTransport.Duration.TotalSeconds,
+                _audioTransport.Position.TotalSeconds);
             SetTimelineWithoutEvent(next);
             UpdateTransport(next);
         }
-        _playbackClock.Stop();
         PlayButton.Content = "▶";
     }
 
     private void PlaybackTick(object? sender, EventArgs e)
     {
-        if (_activeChart is null)
+        if (_activeChart is null || _audioTransport is null)
         {
             StopPlayback();
             return;
         }
-        var next = Math.Min(_activeChart.DurationSec,
-            _playbackOrigin + _playbackClock.Elapsed.TotalSeconds);
+        var next = Math.Min(_activeChart.DurationSec, _audioTransport.Position.TotalSeconds);
         SetTimelineWithoutEvent(next);
         UpdateTransport(next);
-        if (next >= _activeChart.DurationSec)
+        if (next >= _activeChart.DurationSec || _audioTransport.State == AudioTransportState.Stopped)
         {
             StopPlayback();
-            SetStatus("Reached the end of the visual timeline.");
+            SetStatus(EditorLocalization.Current.Get("Dynamic.Ready"));
         }
     }
 
@@ -448,11 +502,7 @@ public sealed partial class MainWindow : Window
     {
         if (_timelineInternalUpdate)
             return;
-        if (_playbackTimer.IsEnabled)
-        {
-            _playbackOrigin = e.NewValue;
-            _playbackClock.Restart();
-        }
+        SeekTransport(e.NewValue);
         UpdateTransport(e.NewValue);
     }
 
@@ -461,12 +511,64 @@ public sealed partial class MainWindow : Window
         if (_activeChart is null)
             return;
         SetTimelineWithoutEvent(e.Second);
-        if (_playbackTimer.IsEnabled)
-        {
-            _playbackOrigin = e.Second;
-            _playbackClock.Restart();
-        }
+        SeekTransport(e.Second);
         UpdateTransport(e.Second);
+    }
+
+    private bool EnsureAudioTransport()
+    {
+        if (_activeChart is null)
+            return false;
+        var path = ResolveActiveAudioPath();
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            SetStatus("Audio file is unavailable for playback.");
+            return false;
+        }
+        try
+        {
+            if (_audioTransport is not null && string.Equals(_audioTransportPath, path,
+                    StringComparison.OrdinalIgnoreCase))
+                return true;
+            DisposeAudioTransport();
+            _audioInfo = EditorAudioProbe.Instance.Probe(path);
+            _audioTransport = EditorAudioTransportFactory.Instance.Open(path);
+            _audioTransportPath = path;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            DisposeAudioTransport();
+            SetStatus($"Audio backend unavailable: {exception.Message}");
+            return false;
+        }
+    }
+
+    private string? ResolveActiveAudioPath()
+    {
+        if (_activeChart is null)
+            return null;
+        if (_document?.IsUnpersisted == true && _draft is not null)
+            return _draft.ExternalAudioSource;
+        return _activeChart.ResolvedAudioPath;
+    }
+
+    private void SeekTransport(double second)
+    {
+        if (_audioTransport is null && !EnsureAudioTransport())
+            return;
+        var wasPlaying = _audioTransport!.State == AudioTransportState.Playing;
+        _audioTransport.Seek(TimeSpan.FromSeconds(Math.Clamp(second, 0, _audioTransport.Duration.TotalSeconds)));
+        if (wasPlaying)
+            _audioTransport.Play();
+    }
+
+    private void DisposeAudioTransport()
+    {
+        _audioTransport?.Dispose();
+        _audioTransport = null;
+        _audioTransportPath = null;
+        _audioInfo = null;
     }
 
     private void SetTimelineWithoutEvent(double second)
@@ -541,16 +643,24 @@ public sealed partial class MainWindow : Window
             UpdateCommandButtons();
             return;
         }
-        SelectionKindText.Text = selection.Kind;
+        SelectionKindText.Text = selection.Kind == EditorObjectKind.Note && _document is not null
+            ? EditorDisplayText.Note(_document.SelectedChart.Notes.Single(note => note.Id == selection.Id).Type)
+            : selection.Kind.ToString();
         SelectionIdText.Text = selection.Id;
-        SelectionTrackText.Text = selection.Track;
+        SelectionTrackText.Text = EditorDisplayText.Track(selection.Track);
         SelectionTimeText.Text = selection.Time;
         SelectionPositionText.Text = selection.Position;
         SelectionWidthText.Text = selection.Width;
         SelectionDetailText.Text = selection.Detail;
         if (_document is not null)
         {
-            var kind = selection.Kind == "EVENT" ? EditorSelectionKind.Bpm : EditorSelectionKind.Note;
+            var kind = selection.Kind switch
+            {
+                EditorObjectKind.PathNode => EditorSelectionKind.PathNode,
+                EditorObjectKind.Bpm => EditorSelectionKind.Bpm,
+                EditorObjectKind.Scroll => EditorSelectionKind.Scroll,
+                _ => EditorSelectionKind.Note,
+            };
             _document.Select(new EditorSelection(kind, selection.Id));
             PopulateSelectionEditors();
         }
@@ -564,41 +674,73 @@ public sealed partial class MainWindow : Window
             return;
         SelectionEmptyCard.IsVisible = false;
         SelectionCard.IsVisible = true;
+        NoteFieldsPanel.IsVisible = false;
+        TailFieldsPanel.IsVisible = false;
+        PathFieldsPanel.IsVisible = false;
+        PathNodeFieldsPanel.IsVisible = false;
+        BpmFieldsPanel.IsVisible = false;
+        ScrollFieldsPanel.IsVisible = false;
 
         if (_document.Selection.Kind == EditorSelectionKind.Note)
         {
             var note = _document.SelectedChart.Notes.SingleOrDefault(item => item.Id == _document.Selection.Id);
             if (note is null)
                 return;
-            SelectionBarBox.Text = note.Time.ToDouble().ToString("0.########", CultureInfo.InvariantCulture);
+            SelectionBarBox.Text = ExactBarTimeText.Format(note.Time);
             SelectionCenterBox.Text = note.Center.ToString("0.########", CultureInfo.InvariantCulture);
             SelectionWidthBox.Text = note.Width.ToString("0.########", CultureInfo.InvariantCulture);
+            NoteTypeCombo.SelectedIndex = Array.IndexOf(NoteTypes, note.Type);
             NoteFieldsPanel.IsVisible = true;
-            BpmFieldsPanel.IsVisible = false;
-            var hasTerminal = note.Type is V2NoteType.Hold or V2NoteType.Mixer && note.Nodes.Count > 0;
-            TailFieldsPanel.IsVisible = hasTerminal;
-            if (hasTerminal)
+            var isPath = note.Type is V2NoteType.Hold or V2NoteType.Mixer && note.Nodes.Count > 0;
+            TailFieldsPanel.IsVisible = isPath;
+            PathFieldsPanel.IsVisible = isPath;
+            if (isPath)
             {
                 var tail = note.Nodes[^1];
-                TailBarBox.Text = tail.Time.ToDouble().ToString("0.########", CultureInfo.InvariantCulture);
+                TailBarBox.Text = ExactBarTimeText.Format(tail.Time);
                 TailCenterBox.Text = tail.Center.ToString("0.########", CultureInfo.InvariantCulture);
                 TailWidthBox.Text = tail.Width.ToString("0.########", CultureInfo.InvariantCulture);
-                TailPreservedText.Text = note.Nodes.Count > 1
-                    ? $"+ {note.Nodes.Count - 1} intermediate node(s) preserved"
-                    : "Terminal node";
+                ParentCurveCombo.SelectedItem = note.CurveToNext ?? V2PathCurve.Linear;
+                PathNodeList.ItemsSource = note.Nodes.Select(node =>
+                    $"{node.Id}  ·  {ExactBarTimeText.Format(node.Time)}  ·  {node.CurveToNext?.ToString() ?? "TAIL"}  ·  {(node.Judge == true ? "J" : "—")}").ToArray();
+                TailPreservedText.Text = $"{note.Nodes.Count} node{(note.Nodes.Count == 1 ? string.Empty : "s")}";
             }
+        }
+        else if (_document.Selection.Kind == EditorSelectionKind.PathNode)
+        {
+            var owner = _document.SelectedChart.Notes.FirstOrDefault(note =>
+                note.Nodes.Any(node => node.Id == _document.Selection.Id));
+            var node = owner?.Nodes.FirstOrDefault(item => item.Id == _document.Selection.Id);
+            if (owner is null || node is null)
+                return;
+            PathNodeBarBox.Text = ExactBarTimeText.Format(node.Time);
+            PathNodeCenterBox.Text = node.Center.ToString("0.########", CultureInfo.InvariantCulture);
+            PathNodeWidthBox.Text = node.Width.ToString("0.########", CultureInfo.InvariantCulture);
+            PathNodeCurveCombo.SelectedItem = node.CurveToNext;
+            PathNodeJudgeCheck.IsVisible = owner.Type == V2NoteType.Hold;
+            PathNodeJudgeCheck.IsChecked = node.Judge == true;
+            PathNodeFieldsPanel.IsVisible = true;
         }
         else if (_document.Selection.Kind == EditorSelectionKind.Bpm)
         {
             var bpm = _document.SelectedChart.Bpms.SingleOrDefault(item =>
-                item.Time.ToString() == _document.Selection.Id);
+                ExactBarTimeText.Format(item.Time) == _document.Selection.Id);
             if (bpm is null)
                 return;
-            BpmBarBox.Text = bpm.Time.ToDouble().ToString("0.########", CultureInfo.InvariantCulture);
+            BpmBarBox.Text = ExactBarTimeText.Format(bpm.Time);
             BpmValueBox.Text = bpm.Bpm.ToString("0.########", CultureInfo.InvariantCulture);
-            NoteFieldsPanel.IsVisible = false;
-            TailFieldsPanel.IsVisible = false;
             BpmFieldsPanel.IsVisible = true;
+        }
+        else if (_document.Selection.Kind == EditorSelectionKind.Scroll)
+        {
+            var scroll = _document.SelectedChart.ScrollSpeeds.SingleOrDefault(item =>
+                ExactBarTimeText.Format(item.Time) == _document.Selection.Id);
+            if (scroll is null)
+                return;
+            ScrollBarBox.Text = ExactBarTimeText.Format(scroll.Time);
+            ScrollValueBox.Text = scroll.Value.ToString("0.########", CultureInfo.InvariantCulture);
+            ScrollCurveCombo.SelectedItem = scroll.CurveToNext;
+            ScrollFieldsPanel.IsVisible = true;
         }
     }
 
@@ -625,18 +767,91 @@ public sealed partial class MainWindow : Window
             return;
 
         var note = _document.SelectedChart.Notes.Single(item => item.Id == _document.Selection.Id);
-        if (TailFieldsPanel.IsVisible)
+        var targetType = NoteTypeCombo.SelectedItem is ComboBoxItem { Tag: string typeText } &&
+            Enum.TryParse<V2NoteType>(typeText, out var parsedType) ? parsedType : note.Type;
+        var commands = new List<IEditorCommand>
+        {
+            new MoveNoteCommand(note.Id, time, center, width),
+        };
+        if (targetType != note.Type)
+            commands.Add(new ChangeNoteTypeCommand(note.Id, targetType));
+        if (TailFieldsPanel.IsVisible && targetType is V2NoteType.Hold or V2NoteType.Mixer)
         {
             if (!TryReadBar(TailBarBox.Text, out var tailTime) ||
                 !TryReadFinite(TailCenterBox.Text, out var tailCenter) ||
                 !TryReadPositive(TailWidthBox.Text, out var tailWidth))
                 return;
-            ExecuteCommand(new CompositeEditorCommand(
-                new MoveNoteCommand(note.Id, time, center, width),
-                new EditPathTerminalCommand(note.Id, tailTime, tailCenter, tailWidth)));
+            commands.Add(new EditPathTerminalCommand(note.Id, tailTime, tailCenter, tailWidth));
+            if (ParentCurveCombo.SelectedItem is V2PathCurve curve)
+                commands.Add(new SetPathCurveCommand(note.Id, curve));
+            ExecuteCommand(commands.Count == 1 ? commands[0] : new CompositeEditorCommand(commands.ToArray()));
             return;
         }
-        ExecuteCommand(new MoveNoteCommand(note.Id, time, center, width));
+        ExecuteCommand(commands.Count == 1 ? commands[0] : new CompositeEditorCommand(commands.ToArray()));
+    }
+
+    private void ApplyPathNodeClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_document?.Selection is not { Kind: EditorSelectionKind.PathNode, Id: { } nodeId })
+            return;
+        var owner = _document.SelectedChart.Notes.FirstOrDefault(note =>
+            note.Nodes.Any(node => node.Id == nodeId));
+        var node = owner?.Nodes.FirstOrDefault(item => item.Id == nodeId);
+        if (owner is null || node is null || !TryReadBar(PathNodeBarBox.Text, out var time) ||
+            !TryReadFinite(PathNodeCenterBox.Text, out var center) ||
+            !TryReadPositive(PathNodeWidthBox.Text, out var width))
+            return;
+        var commands = new List<IEditorCommand>
+        {
+            new EditPathNodeCommand(owner.Id, nodeId, time, center, width),
+        };
+        if (!ReferenceEquals(node, owner.Nodes[^1]))
+            commands.Add(new SetPathCurveCommand(owner.Id, nodeId,
+                PathNodeCurveCombo.SelectedItem as V2PathCurve? ?? V2PathCurve.Linear));
+        if (owner.Type == V2NoteType.Hold && PathNodeJudgeCheck.IsVisible)
+            commands.Add(new SetHoldJudgeCommand(owner.Id, nodeId, PathNodeJudgeCheck.IsChecked == true));
+        ExecuteCommand(commands.Count == 1 ? commands[0] : new CompositeEditorCommand(commands.ToArray()));
+    }
+
+    private void AddPathNodeClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_document?.Selection.Id is not { } id)
+            return;
+        var owner = _document.Selection.Kind == EditorSelectionKind.Note
+            ? _document.SelectedChart.Notes.FirstOrDefault(note => note.Id == id)
+            : _document.SelectedChart.Notes.FirstOrDefault(note => note.Nodes.Any(node => node.Id == id));
+        if (owner is null || owner.Type is not (V2NoteType.Hold or V2NoteType.Mixer))
+        {
+            SetStatus("Select a Hold or Mixer before adding a path node.");
+            return;
+        }
+        var selectedTime = _document.Selection.Kind == EditorSelectionKind.PathNode
+            ? owner.Nodes.Single(node => node.Id == id).Time
+            : owner.Time;
+        var next = owner.Nodes.FirstOrDefault(node => node.Time > selectedTime);
+        var time = next is null
+            ? selectedTime + ExactBarTime.FromFraction(1, _document.GridDivisor)
+            : (selectedTime + next.Time) / new System.Numerics.BigInteger(2);
+        var reference = next ?? owner.Nodes[^1];
+        ExecuteCommand(new AddPathNodeCommand(owner.Id, new EditablePathNode
+        {
+            Id = _document.AllocateId(owner.Type == V2NoteType.Hold ? "hold-node" : "mixer-node"),
+            Time = time,
+            Center = reference.Center,
+            Width = reference.Width,
+            CurveToNext = next is null ? null : V2PathCurve.Linear,
+            Judge = owner.Type == V2NoteType.Hold,
+        }));
+    }
+
+    private void ApplyScrollClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_document?.Selection is not { Kind: EditorSelectionKind.Scroll, Id: { } id } ||
+            !ExactBarTimeText.TryParse(id, out var original) || !TryReadBar(ScrollBarBox.Text, out var time) ||
+            !TryReadPositive(ScrollValueBox.Text, out var value))
+            return;
+        var curve = ScrollCurveCombo.SelectedItem as V2ScrollCurve?;
+        ExecuteCommand(new EditScrollCommand(original, time, value, curve));
     }
 
     private void ApplyBpmClicked(object? sender, RoutedEventArgs e)
@@ -668,26 +883,10 @@ public sealed partial class MainWindow : Window
 
     private bool TryReadBar(string? text, out ExactBarTime time)
     {
-        time = ExactBarTime.Zero;
-        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var bar) ||
-            !double.IsFinite(bar) || bar < 0)
-        {
-            SetStatus("BAR must be a finite non-negative number.");
-            return false;
-        }
-        try
-        {
-            var exact = ExactBarTime.FromDouble(bar);
-            time = _document?.SnapEnabled == true
-                ? EditorGeometry.Snap(exact, _document.GridDivisor)
-                : exact;
+        if (ExactBarTimeText.TryParse(text, out time))
             return true;
-        }
-        catch (Exception exception)
-        {
-            SetStatus($"Invalid BAR: {exception.Message}");
-            return false;
-        }
+        SetStatus("BAR must be a non-negative exact value such as 2+1/7.");
+        return false;
     }
 
     private bool TryReadFinite(string? text, out double value)
@@ -732,10 +931,45 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
+            if (request.Tool == EditorTool.PathNode)
+            {
+                var ownerId = StageCanvas.PathInsertOwnerId ?? throw new InvalidOperationException(
+                    "Select a Hold or Mixer before placing a path node.");
+                var owner = _document.SelectedChart.Notes.Single(note => note.Id == ownerId);
+                if (owner.Type is not (V2NoteType.Hold or V2NoteType.Mixer))
+                    throw new InvalidOperationException("Path nodes can only be added to Hold or Mixer.");
+                var nodeTime = time;
+                var next = owner.Nodes.FirstOrDefault(node => node.Time > nodeTime);
+                ExecuteCommand(new AddPathNodeCommand(owner.Id, new EditablePathNode
+                {
+                    Id = _document.AllocateId(owner.Type == V2NoteType.Hold ? "hold-node" : "mixer-node"),
+                    Time = nodeTime,
+                    Center = request.Center,
+                    Width = request.Width,
+                    CurveToNext = next is null ? null : V2PathCurve.Linear,
+                    Judge = owner.Type == V2NoteType.Hold,
+                }));
+                return;
+            }
+
+            if (request.Tool == EditorTool.Scroll)
+            {
+                _pendingScrollTime = time;
+                ScrollPlacementBarText.Text = $"BAR {ExactBarTimeText.Format(time)}";
+                ScrollPlacementValueBox.Text = "1";
+                ScrollPlacementCurveCombo.SelectedItem = V2ScrollCurve.Linear;
+                ScrollPopup.IsOpen = true;
+                return;
+            }
+
             var type = request.Tool switch
             {
                 EditorTool.Drag => V2NoteType.Drag,
+                EditorTool.ExTap => V2NoteType.ExTap,
                 EditorTool.Hold => V2NoteType.Hold,
+                EditorTool.Mixer => V2NoteType.Mixer,
+                EditorTool.Mine => V2NoteType.Mine,
+                EditorTool.BarLine => V2NoteType.BarLine,
                 _ => V2NoteType.Tap,
             };
             var note = new EditableNote
@@ -743,6 +977,10 @@ public sealed partial class MainWindow : Window
                 Id = _document.AllocateId(type switch
                 {
                     V2NoteType.Hold => "hold",
+                    V2NoteType.Mixer => "mixer",
+                    V2NoteType.ExTap => "ex-tap",
+                    V2NoteType.Mine => "mine",
+                    V2NoteType.BarLine => "barline",
                     V2NoteType.Drag => "drag",
                     _ => "tap",
                 }),
@@ -757,24 +995,24 @@ public sealed partial class MainWindow : Window
                 Center = request.Center,
                 Width = request.Width,
             };
-            if (type == V2NoteType.Hold)
+            if (type is V2NoteType.Hold or V2NoteType.Mixer)
             {
                 if (request.TailBar is not { } tailBar || request.TailCenter is not { } tailCenter ||
                     request.TailWidth is not { } tailWidth)
-                    throw new InvalidOperationException("Hold placement requires a terminal tail.");
+                    throw new InvalidOperationException($"{type} placement requires a terminal tail.");
                 var tailExact = ExactBarTime.FromDouble(tailBar);
                 var tailTime = _document.SnapEnabled
                     ? EditorGeometry.Snap(tailExact, _document.GridDivisor)
                     : tailExact;
                 if (tailTime <= time)
-                    throw new InvalidOperationException("Hold tail must be later than the head.");
+                    throw new InvalidOperationException($"{type} tail must be later than the head.");
                 note.Nodes.Add(new EditablePathNode
                 {
-                    Id = _document.AllocateId("hold-node"),
+                    Id = _document.AllocateId(type == V2NoteType.Hold ? "hold-node" : "mixer-node"),
                     Time = tailTime,
                     Center = tailCenter,
                     Width = tailWidth,
-                    Judge = true,
+                    Judge = type == V2NoteType.Hold ? true : null,
                     CurveToNext = null,
                 });
             }
@@ -784,6 +1022,31 @@ public sealed partial class MainWindow : Window
         {
             SetStatus($"Placement failed: {exception.Message}");
         }
+    }
+
+    private void CommitScrollPlacementClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_pendingScrollTime is not { } time || !TryReadPositive(ScrollPlacementValueBox.Text, out var value))
+            return;
+        var curve = ScrollPlacementCurveCombo.SelectedItem as V2ScrollCurve?;
+        ScrollPopup.IsOpen = false;
+        _pendingScrollTime = null;
+        if (_document is not null && _document.SelectedChart.ScrollSpeeds.Count == 0 && time != ExactBarTime.Zero)
+        {
+            ExecuteCommand(new CompositeEditorCommand(
+                new AddScrollCommand(ExactBarTime.Zero, 1),
+                new AddScrollCommand(time, value, curve)));
+        }
+        else
+        {
+            ExecuteCommand(new AddScrollCommand(time, value, curve));
+        }
+    }
+
+    private void CancelScrollPlacementClicked(object? sender, RoutedEventArgs e)
+    {
+        ScrollPopup.IsOpen = false;
+        _pendingScrollTime = null;
     }
 
     private void BpmPopupKeyDown(object? sender, KeyEventArgs e)
@@ -846,6 +1109,18 @@ public sealed partial class MainWindow : Window
             if (_document.Selection.Kind == EditorSelectionKind.Note)
             {
                 _document.Execute(new DeleteNoteCommand(_document.Selection.Id));
+            }
+            else if (_document.Selection.Kind == EditorSelectionKind.PathNode)
+            {
+                var owner = _document.SelectedChart.Notes.First(note =>
+                    note.Nodes.Any(node => node.Id == _document.Selection.Id));
+                _document.Execute(new DeletePathNodeCommand(owner.Id, _document.Selection.Id));
+            }
+            else if (_document.Selection.Kind == EditorSelectionKind.Scroll)
+            {
+                if (!ExactBarTimeText.TryParse(_document.Selection.Id, out var time))
+                    return;
+                _document.Execute(new DeleteScrollCommand(time));
             }
             else if (_document.Selection.Kind == EditorSelectionKind.Bpm)
             {
@@ -948,8 +1223,18 @@ public sealed partial class MainWindow : Window
             case Key.D2:
             case Key.NumPad2: SetTool(EditorTool.Drag); break;
             case Key.D3:
-            case Key.NumPad3: SetTool(EditorTool.Hold); break;
+            case Key.NumPad3: SetTool(EditorTool.ExTap); break;
+            case Key.D4:
+            case Key.NumPad4: SetTool(EditorTool.Hold); break;
+            case Key.D5:
+            case Key.NumPad5: SetTool(EditorTool.Mixer); break;
+            case Key.D6:
+            case Key.NumPad6: SetTool(EditorTool.Mine); break;
+            case Key.D7:
+            case Key.NumPad7: SetTool(EditorTool.BarLine); break;
+            case Key.N: SetTool(EditorTool.PathNode); break;
             case Key.B: SetTool(EditorTool.Bpm); break;
+            case Key.S: SetTool(EditorTool.Scroll); break;
             case Key.Left: SetTrack(UiEditorTrack.Left); break;
             case Key.Down: SetTrack(UiEditorTrack.Center); break;
             case Key.Right: SetTrack(UiEditorTrack.Right); break;
@@ -965,6 +1250,8 @@ public sealed partial class MainWindow : Window
 
     private void WindowClosing(object? sender, WindowClosingEventArgs e)
     {
+        StopPlayback();
+        DisposeAudioTransport();
         if (_document?.HasUnsavedChanges != true)
             return;
         e.Cancel = true;
@@ -1074,6 +1361,7 @@ public sealed partial class MainWindow : Window
                 DestinationDirectory = target,
                 Pack = pack,
                 Charts = _document.BuildAllChartSnapshots(),
+                AudioProbe = EditorAudioProbe.Instance,
                 AllowEmptyDestination = !string.Equals(source, target, StringComparison.OrdinalIgnoreCase),
             });
             _document.Revision = revision;
@@ -1208,7 +1496,8 @@ public sealed partial class MainWindow : Window
     {
         UndoButton.IsEnabled = _document?.CanUndo == true;
         RedoButton.IsEnabled = _document?.CanRedo == true;
-        DeleteButton.IsEnabled = _document?.Selection.Kind is EditorSelectionKind.Note or EditorSelectionKind.Bpm;
+        DeleteButton.IsEnabled = _document?.Selection.Kind is EditorSelectionKind.Note or
+            EditorSelectionKind.PathNode or EditorSelectionKind.Bpm or EditorSelectionKind.Scroll;
         SaveButton.IsEnabled = _document?.HasUnsavedChanges == true;
         SaveAsButton.IsEnabled = _document is not null && !_document.IsUnpersisted;
         DirtyText.Text = _document?.IsUnpersisted == true
@@ -1232,6 +1521,67 @@ public sealed partial class MainWindow : Window
             ProjectStateText.Text = "● READY";
             ProjectStateText.Foreground = this.FindResource("CommunityGreen") as IBrush;
         }
+    }
+
+    private void PopulateEnumCombos()
+    {
+        ParentCurveCombo.ItemsSource = Enum.GetValues<V2PathCurve>();
+        PathNodeCurveCombo.ItemsSource = Enum.GetValues<V2PathCurve>().Cast<V2PathCurve?>().Append(null).ToArray();
+        ScrollCurveCombo.ItemsSource = Enum.GetValues<V2ScrollCurve>().Cast<V2ScrollCurve?>().Append(null).ToArray();
+        ScrollPlacementCurveCombo.ItemsSource = Enum.GetValues<V2ScrollCurve>();
+        ParentCurveCombo.SelectedItem = V2PathCurve.Linear;
+        ScrollCurveCombo.SelectedItem = null;
+        ScrollPlacementCurveCombo.SelectedItem = null;
+    }
+
+    private void GridDivisorChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_refreshing || _document is null || !int.TryParse(GridDivisorBox.Text,
+                NumberStyles.Integer, CultureInfo.InvariantCulture, out var divisor) || divisor <= 0)
+            return;
+        _document.GridDivisor = divisor;
+        StageCanvas.GridDivisor = divisor;
+        UpdateTransport(TimelineSlider.Value);
+    }
+
+    private void SnapToggleChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_refreshing || _document is null)
+            return;
+        _document.SnapEnabled = SnapToggle.IsChecked == true;
+        StageCanvas.SnapEnabled = _document.SnapEnabled;
+    }
+
+    private void ApplyMotionPreference()
+    {
+        StageCanvas.MotionMode = EditorPreferences.Current.Motion;
+    }
+
+    private void ApplyLocalization()
+    {
+        var localization = EditorLocalization.Current;
+        Title = localization.Get("Common.AppName");
+        ToolTip.SetTip(UndoButton, localization.Get("MainEditor.TooltipUndo"));
+        ToolTip.SetTip(RedoButton, localization.Get("MainEditor.TooltipRedo"));
+        ToolTip.SetTip(MainPageButton, localization.Get("Navigation.Main"));
+        ToolTip.SetTip(ProjectPageButton, localization.Get("Navigation.Project"));
+        ToolTip.SetTip(EventsPageButton, localization.Get("Navigation.Events"));
+        ToolTip.SetTip(ValidationPageButton, localization.Get("Navigation.Validation"));
+        ToolTip.SetTip(PublishPageButton, localization.Get("Navigation.Publish"));
+        ToolTip.SetTip(TrackLeftButton, localization.Get("Track.Left"));
+        ToolTip.SetTip(TrackCenterButton, localization.Get("Track.Center"));
+        ToolTip.SetTip(TrackRightButton, localization.Get("Track.Right"));
+        ToolTip.SetTip(SelectToolButton, localization.Get("Tool.Select") + " · E");
+        ToolTip.SetTip(TapToolButton, localization.Get("Tool.Tap") + " · 1");
+        ToolTip.SetTip(DragToolButton, localization.Get("Tool.Drag") + " · 2");
+        ToolTip.SetTip(ExTapToolButton, localization.Get("Tool.ExTap") + " · 3");
+        ToolTip.SetTip(HoldToolButton, localization.Get("Tool.Hold") + " · 4");
+        ToolTip.SetTip(MixerToolButton, localization.Get("Tool.Mixer") + " · 5");
+        ToolTip.SetTip(MineToolButton, localization.Get("Tool.Mine") + " · 6");
+        ToolTip.SetTip(BarLineToolButton, localization.Get("Tool.BarLine") + " · 7");
+        ToolTip.SetTip(BpmToolButton, localization.Get("Tool.Bpm") + " · B");
+        ToolTip.SetTip(ScrollToolButton, localization.Get("Tool.Scroll") + " · S");
+        UpdateCommandButtons();
     }
 
     private static string? NullIfEmpty(string? value) =>

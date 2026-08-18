@@ -1,4 +1,4 @@
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>UI 动效强度。</summary>
 public enum UiMotionMode

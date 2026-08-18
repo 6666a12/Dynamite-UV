@@ -76,7 +76,7 @@ def build_workflow(prompt: str, negative: str, width: int, height: int,
         "8": {"class_type": "VAEDecode",
               "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
         "9": {"class_type": "SaveImage", "inputs": {
-            "filename_prefix": "dux", "images": ["8", 0]}},
+            "filename_prefix": "dynamite-universe", "images": ["8", 0]}},
     }
     if img2img:
         wf["10"] = {"class_type": "VAEEncode", "inputs": {

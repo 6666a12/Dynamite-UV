@@ -1,4 +1,4 @@
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>UI 动效的统一时长、位移和效果策略。</summary>
 public sealed class UiMotionProfile

@@ -1,22 +1,15 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>样式稿（docs/ui-mock）定稿的字体与配色，全客户端统一从这里取。</summary>
 public static class UiFonts
 {
-    /// <summary>科技字体（拉丁/数字，OFL 开源）。</summary>
-    public static readonly Font Tech = GD.Load<Font>("res://assets/fonts/Orbitron.woff2");
+    /// <summary>Primary Latin and numeric interface font (OFL).</summary>
+    public static readonly Font Tech = GD.Load<Font>("res://assets/fonts/SpaceGrotesk-Regular.woff2");
 
-    /// <summary>科技字体粗体变体（可变字重 wght=800）：标题/分数/大数字用。</summary>
-    public static readonly Font TechBold = MakeTechBold();
-
-    private static Font MakeTechBold()
-    {
-        var fv = new FontVariation { BaseFont = Tech };
-        fv.VariationOpentype = new Godot.Collections.Dictionary { { "wght", 800 } };
-        return fv;
-    }
+    /// <summary>Bold display and numeric interface font (OFL).</summary>
+    public static readonly Font TechBold = GD.Load<Font>("res://assets/fonts/SpaceGrotesk-Bold.woff2");
 
     /// <summary>中文回退：系统黑体（正式发布前应打包 Noto Sans SC 等开源字体）。</summary>
     public static readonly Font Cjk = new SystemFont

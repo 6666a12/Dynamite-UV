@@ -1,7 +1,15 @@
 {
   "schemaVersion": 1,
-  "policy": "DUX-Community release asset provenance",
+  "policy": "Dynamite Universe release asset provenance",
   "assets": [
+    {
+      "path": "client/assets/models/detonation-orrery-mk2.glb",
+      "sha256": "89f87551d04a5a9b6d3bbb2da1820ee3538d5aadf5d8689313c444f6c3543e6f",
+      "kind": "project-generated-model",
+      "source": "Clean-room Blender 5.2 export from Z:\\DynamiteUniverse\\visual-tools\\blender-orrery\\detonation-orrery-mk2.blend",
+      "generator": "Z:/DynamiteUniverse/visual-tools/blender-orrery/build_orrery.py",
+      "generatorSha256": "3538f8c43312ea3f0f172463d04bdcb5813a508b5eef8f2f7644dea36b069275"
+    },
     {
       "path": "client/assets/fonts/Orbitron.woff2",
       "sha256": "c25a9f9da5d9f3db1bf2a01474722dc9b377675b7bbab6d0dfda6902794fd1ed",
@@ -23,6 +31,45 @@
       "sha256": "ab609b0e110d622435ff337cdf233288556e011bbf9bd0550be98846c0630819",
       "kind": "third-party-license",
       "source": "https://github.com/google/fonts/tree/main/ofl/orbitron",
+      "license": "SIL Open Font License 1.1"
+    },
+    {
+      "path": "client/assets/fonts/SpaceGrotesk-Regular.woff2",
+      "kind": "third-party-font",
+      "sha256": "7a8a1718f5c74eb311a5269bb511f3c5ff462d6cbef8fa52d2ac32c164a284c9",
+      "source": "https://github.com/google/fonts/tree/main/ofl/spacegrotesk",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/space-grotesk/OFL-1.1.txt"
+    },
+    {
+      "path": "client/assets/fonts/SpaceGrotesk-Bold.woff2",
+      "kind": "third-party-font",
+      "sha256": "e0f106bbd065200c761af4a330fbbfa5273bf02661d62da476c902970b4013b8",
+      "source": "https://github.com/google/fonts/tree/main/ofl/spacegrotesk",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/space-grotesk/OFL-1.1.txt"
+    },
+    {
+      "path": "docs/ui-mock/fonts/SpaceGrotesk-Regular.woff2",
+      "kind": "third-party-font",
+      "sha256": "7a8a1718f5c74eb311a5269bb511f3c5ff462d6cbef8fa52d2ac32c164a284c9",
+      "source": "https://github.com/google/fonts/tree/main/ofl/spacegrotesk",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/space-grotesk/OFL-1.1.txt"
+    },
+    {
+      "path": "docs/ui-mock/fonts/SpaceGrotesk-Bold.woff2",
+      "kind": "third-party-font",
+      "sha256": "e0f106bbd065200c761af4a330fbbfa5273bf02661d62da476c902970b4013b8",
+      "source": "https://github.com/google/fonts/tree/main/ofl/spacegrotesk",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/space-grotesk/OFL-1.1.txt"
+    },
+    {
+      "path": "client/assets/licenses/SpaceGrotesk-OFL-1.1.txt",
+      "kind": "third-party-license",
+      "sha256": "564ce565c371c5e5bbf286006565a7c9aa55a9f56e7ca58d56e05d649dd61a72",
+      "source": "https://github.com/google/fonts/tree/main/ofl/spacegrotesk",
       "license": "SIL Open Font License 1.1"
     },
     {
@@ -50,7 +97,7 @@
       "sha256": "13d3ef9b2940214bc6c9c14f614bb0de0232960af451f04b250bdccd46657130",
       "kind": "project-generated-audio",
       "generator": "tools/synth_hitsounds.py",
-      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "generatorSha256": "22b9938264704e030644ee8629c5f38636dbf83bd3c3f1a26eae862d15d91a03",
       "method": "Programmatic synthesis; no sampled source audio"
     },
     {
@@ -58,7 +105,7 @@
       "sha256": "69d7323a542220b203ac58af8a7e0ade793e3ab7397ac60c45aaf884f9d2c93b",
       "kind": "project-generated-audio",
       "generator": "tools/synth_hitsounds.py",
-      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "generatorSha256": "22b9938264704e030644ee8629c5f38636dbf83bd3c3f1a26eae862d15d91a03",
       "method": "Programmatic synthesis; no sampled source audio"
     },
     {
@@ -66,7 +113,7 @@
       "sha256": "ea77b3f134ca5ee16694c51f207e9284b4a9529140b8e669b9d2b74bf5959a14",
       "kind": "project-generated-audio",
       "generator": "tools/synth_hitsounds.py",
-      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "generatorSha256": "22b9938264704e030644ee8629c5f38636dbf83bd3c3f1a26eae862d15d91a03",
       "method": "Programmatic synthesis; no sampled source audio"
     },
     {
@@ -74,7 +121,7 @@
       "sha256": "00294ee69383b5eb8fca1d7b688331d0a79096428ecca92b693b88cad5f0f3f6",
       "kind": "project-generated-audio",
       "generator": "tools/synth_hitsounds.py",
-      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "generatorSha256": "22b9938264704e030644ee8629c5f38636dbf83bd3c3f1a26eae862d15d91a03",
       "method": "Programmatic synthesis; no sampled source audio"
     },
     {
@@ -82,7 +129,7 @@
       "sha256": "64d267ecc2b5bda04a2fb5f5ed84fe01a75716d5b88eb18aa296cc5814383ef2",
       "kind": "project-generated-audio",
       "generator": "tools/synth_hitsounds.py",
-      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "generatorSha256": "22b9938264704e030644ee8629c5f38636dbf83bd3c3f1a26eae862d15d91a03",
       "method": "Programmatic synthesis; no sampled source audio"
     },
     {
@@ -90,7 +137,7 @@
       "sha256": "a0679b06dcfded18677d4fe74358543ed0cca93b74cce84fd356af6c01ffb970",
       "kind": "project-generated-audio",
       "generator": "tools/synth_hitsounds.py",
-      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "generatorSha256": "22b9938264704e030644ee8629c5f38636dbf83bd3c3f1a26eae862d15d91a03",
       "method": "Programmatic synthesis; no sampled source audio"
     },
     {
@@ -98,7 +145,7 @@
       "sha256": "58dc918b78d802e06ec2808afc504e36c8c5e7890f9349474cbe9ae6e815bf73",
       "kind": "project-generated-audio",
       "generator": "tools/synth_hitsounds.py",
-      "generatorSha256": "4268b3b41a1ec9ddfeaeb5f192e3846a739dc9efe2b67b554392b11b96320d9d",
+      "generatorSha256": "22b9938264704e030644ee8629c5f38636dbf83bd3c3f1a26eae862d15d91a03",
       "method": "Programmatic synthesis; no sampled source audio"
     },
     {

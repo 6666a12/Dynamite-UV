@@ -1,9 +1,9 @@
 using System.Text.Json;
 using Godot;
-using DuxShared.Chart;
-using DuxShared.Judge;
+using DynamiteUniverse.Shared.Chart;
+using DynamiteUniverse.Shared.Judge;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Editor/Internal-only deterministic package verification environment.</summary>
 internal sealed class V2IntegrationVerification

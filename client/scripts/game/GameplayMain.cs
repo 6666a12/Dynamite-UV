@@ -1,12 +1,12 @@
 using Godot;
-using DuxCommunity.Audio;
-using DuxCommunity.Ui;
-using DuxShared.Chart;
-using DuxShared.Chart.V2;
-using DuxShared.Judge;
-using DuxShared.Score;
+using DynamiteUniverse.Audio;
+using DynamiteUniverse.Ui;
+using DynamiteUniverse.Shared.Chart;
+using DynamiteUniverse.Shared.Chart.V2;
+using DynamiteUniverse.Shared.Judge;
+using DynamiteUniverse.Shared.Score;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>
 /// MVP 玩法主场景：加载谱面+音频，按 SongClock 生成/移动音符，三判定区
@@ -74,7 +74,7 @@ public partial class GameplayMain : Node2D
 	private static readonly Rect2 PauseButtonRect = new(900f, 60f, 120f, 64f);
 	private static readonly Color JudgeLineColor = new(0.9f, 0.9f, 0.9f);
 
-	private DuxShared.Chart.Chart _chart = null!;
+	private DynamiteUniverse.Shared.Chart.Chart _chart = null!;
 	private LoadedChart _loaded = null!;
 	private JudgePlan.Plan _plan = null!;
 	private JudgeEngine _engine = null!;
@@ -292,9 +292,9 @@ public partial class GameplayMain : Node2D
 
 		_playback = new SongPlayback(this, songPath, GameSession.Settings.TimingOffsetMs,
 			_verification);
-		// 调试：DUX_START_SEC=起始秒（用于与录屏做同刻对比截图）
+		// 调试：DYNAMITE_UNIVERSE_START_SEC=起始秒（用于与录屏做同刻对比截图）
 		_startSecond = 0.0;
-		if (double.TryParse(System.Environment.GetEnvironmentVariable("DUX_START_SEC"),
+		if (double.TryParse(System.Environment.GetEnvironmentVariable("DYNAMITE_UNIVERSE_START_SEC"),
 				out var envStart) && envStart > 0)
 			_startSecond = envStart;
 		_trace = _verification?.CreateTrace(_loaded);

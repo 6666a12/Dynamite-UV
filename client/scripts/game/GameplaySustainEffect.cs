@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 public enum SustainEffectKind
 {

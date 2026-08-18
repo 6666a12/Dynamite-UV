@@ -1,4 +1,4 @@
-# DUX-Community
+# Dynamite Universe
 
 Dynamix 风格的 clean-room 社区音游重实现。公开发布包不使用任何原版素材，
 也不包含原版谱面；内部测试包可在受控开发环境中临时携带官方测试数据，绝不可公开分发。
@@ -41,7 +41,7 @@ Dynamix 风格的 clean-room 社区音游重实现。公开发布包不使用任
 | [`docs/handoff.md`](docs/handoff.md) | 当前实现、用户拍板项、待办与运行/验证流程 |
 | [`docs/gameplay-spec.md`](docs/gameplay-spec.md) | 当前 legacy loader、运行时玩法、判定和布局规格 |
 | [`docs/runtime-architecture.md`](docs/runtime-architecture.md) | 客户端、shared 与工具链的职责边界及重构不变量 |
-| [`docs/chart-format-v2.md`](docs/chart-format-v2.md) | 正式 Dynamite UV Chart Format v2；客户端、工具和编辑器已接入 |
+| [`docs/chart-format-v2.md`](docs/chart-format-v2.md) | 正式 Dynamite Universe Chart Format v2；客户端、工具和编辑器已接入 |
 | [`schemas/chart-format-v2/`](schemas/chart-format-v2/) | v2 Draft 2020-12 Schema、clean-room 示例与 Digest 测试向量 |
 | [`docs/original-judgement-analysis.md`](docs/original-judgement-analysis.md) | 原版判定机制与仍未确认的边界 |
 | [`docs/video-geometry-analysis.md`](docs/video-geometry-analysis.md) | 当前采用的视频几何结论 |

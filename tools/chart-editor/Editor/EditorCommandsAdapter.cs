@@ -1,7 +1,7 @@
-using DuxCommunity.ChartEditor.Core;
-using DuxShared.Chart.V2;
+using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.ChartEditor.Editor;
+namespace DynamiteUniverse.ChartEditor.Editor;
 
 /// <summary>Undoable project metadata transaction owned by the Avalonia adapter.</summary>
 public sealed class EditProjectCommand(string title, string artist, string? audio) : IEditorCommand

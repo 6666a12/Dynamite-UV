@@ -1,7 +1,7 @@
-namespace DuxShared.Judge;
+namespace DynamiteUniverse.Shared.Judge;
 
 /// <summary>
-/// Confirmed original-game math kept as an optional policy. DUX-Community does
+/// Confirmed original-game math kept as an optional policy. Dynamite Universe does
 /// not wire these functions into its approved million-score/main-combo display.
 /// </summary>
 public static class OriginalJudgeMath

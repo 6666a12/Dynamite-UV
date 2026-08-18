@@ -1,6 +1,6 @@
-using DuxShared.Chart;
+using DynamiteUniverse.Shared.Chart;
 
-namespace DuxShared.Judge;
+namespace DynamiteUniverse.Shared.Judge;
 
 /// <summary>判定等级（规格书 §6.4，原文拼写 Prefect）。</summary>
 public enum JudgeGrade
@@ -434,7 +434,7 @@ public static class JudgePlan
         }
     }
 
-    public static Plan Build(DuxShared.Chart.Chart chart, JudgeSettings settings)
+    public static Plan Build(DynamiteUniverse.Shared.Chart.Chart chart, JudgeSettings settings)
     {
         var units = new List<JudgeUnit>();
         var sustains = new Dictionary<int, SustainPath>();
@@ -543,7 +543,7 @@ public static class JudgePlan
     };
 
     /// <summary>沿 SubNoteId 构建时间有序的 sustain 路径（悬空/环容错）。</summary>
-    private static SustainPath? BuildSustainPath(DuxShared.Chart.Chart chart, Note head,
+    private static SustainPath? BuildSustainPath(DynamiteUniverse.Shared.Chart.Chart chart, Note head,
         Dictionary<int, Note> byId, SustainKind kind)
     {
         var nodes = new List<Note> { head };
@@ -591,16 +591,16 @@ public static class JudgePlan
     }
 
     private static void AddMixerPoints(List<JudgeUnit> units,
-        DuxShared.Chart.Chart chart, SustainPath path, double intervalBar)
+        DynamiteUniverse.Shared.Chart.Chart chart, SustainPath path, double intervalBar)
     {
         if (chart.V2Metadata is not null && path.Head.V2Metadata is not null)
         {
             var source = chart.V2Metadata.SourceChart.AllNotes
                 .Select(item => item.Note)
-                .OfType<DuxShared.Chart.V2.V2PathNote>()
+                .OfType<DynamiteUniverse.Shared.Chart.V2.V2PathNote>()
                 .Single(note => string.Equals(note.Id,
                     path.Head.V2Metadata.SourceId, StringComparison.Ordinal));
-            foreach (var exactTick in DuxShared.Chart.V2.V2MixerTicks.Enumerate(source))
+            foreach (var exactTick in DynamiteUniverse.Shared.Chart.V2.V2MixerTicks.Enumerate(source))
             {
                 units.Add(new JudgeUnit
                 {
@@ -638,7 +638,7 @@ public static class JudgePlan
         }
     }
 
-    private static double SecondAtBar(DuxShared.Chart.Chart chart,
+    private static double SecondAtBar(DynamiteUniverse.Shared.Chart.Chart chart,
         SustainPath path, double bar)
     {
         if (chart.Sections.Count > 0)

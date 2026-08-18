@@ -1,82 +1,92 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:DuxCommunity.ChartEditor.Controls"
-             x:Class="DuxCommunity.ChartEditor.Views.StartPage">
+             xmlns:controls="using:DynamiteUniverse.ChartEditor.Controls"
+             x:Class="DynamiteUniverse.ChartEditor.Views.StartPage">
   <Grid x:Name="RootGrid">
     <controls:SignalBackdrop />
-    <Grid Margin="56,42,56,38" RowDefinitions="Auto,*,Auto">
-      <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+    <Grid Margin="54,40,54,36" RowDefinitions="Auto,*,Auto">
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
         <Border Classes="brandMark" Width="42" Height="42">
           <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
                      FontSize="20" FontWeight="Bold" Text="D" />
         </Border>
         <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center" Spacing="2">
-          <TextBlock Classes="eyebrow" Text="DUX COMMUNITY" />
-          <TextBlock Classes="dim" FontSize="12" Text="CHART AUTHORING / FORMAT V2" />
+          <controls:LocalizedText Classes="eyebrow" Key="Welcome.Eyebrow" />
+          <controls:LocalizedText Classes="dim" FontSize="12" Key="Welcome.Subtitle" />
         </StackPanel>
+        <controls:LanguageButton Grid.Column="2" Classes="quiet" />
       </Grid>
 
-      <Grid Grid.Row="1" Margin="20,0" Width="980" HorizontalAlignment="Center" VerticalAlignment="Center"
-            ColumnDefinitions="560,24,396">
-        <StackPanel Grid.Column="0" Spacing="18" Margin="0,0,28,0">
-          <Border Classes="signalPill" HorizontalAlignment="Left">
-            <TextBlock Classes="eyebrow cyan" Text="AUTHORING LINK READY" />
-          </Border>
-          <TextBlock FontSize="46" FontWeight="SemiBold" LetterSpacing="-0.8"
-                     LineHeight="50" TextWrapping="Wrap"
-                     Text="Build the chart, not the dashboard." />
-          <TextBlock MaxWidth="610" FontSize="17" LineHeight="27" Classes="dim" TextWrapping="Wrap"
-                     Text="Create a clean-room project from a RIFF/WAVE track, or strictly open an existing Dynamite UV v2 package." />
-          <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,10,0,0">
-            <StackPanel Spacing="3">
-              <TextBlock Classes="metric" Text="1920 × 1080" />
-              <TextBlock Classes="micro" Text="FIXED AUTHORING STAGE" />
-            </StackPanel>
-            <Border Width="1" Background="{StaticResource CommunityLine}" />
-            <StackPanel Spacing="3">
-              <TextBlock Classes="metric" Text="STRICT V2" />
-              <TextBlock Classes="micro" Text="DETERMINISTIC PACKAGE" />
-            </StackPanel>
+      <Grid Grid.Row="1" Margin="20,0" Width="980" HorizontalAlignment="Center"
+            VerticalAlignment="Center" ColumnDefinitions="540,36,404">
+        <StackPanel Grid.Column="0" Spacing="18" Margin="0,0,24,0">
+          <controls:SignalIcon Kind="NavigateMain" Width="74" Height="74"
+                               Foreground="{StaticResource CommunityCyan}" StrokeThickness="1.2" />
+          <controls:LocalizedText FontSize="45" FontWeight="SemiBold" LetterSpacing="-0.7"
+                                  LineHeight="49" TextWrapping="Wrap" Key="Welcome.Tagline" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Border Classes="signalPill" ToolTip.Tip="Fixed 1920×1080 authoring coordinates">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <controls:SignalIcon Kind="Grid" Width="16" Height="16" />
+                <TextBlock Classes="micro" Text="1920 × 1080" />
+              </StackPanel>
+            </Border>
+            <Border Classes="signalPill" ToolTip.Tip="Strict deterministic v2 package output">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <controls:SignalIcon Kind="NavigateValidation" Width="16" Height="16" />
+                <TextBlock Classes="micro" Text="STRICT V2" />
+              </StackPanel>
+            </Border>
           </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="2" Width="396" Spacing="12" VerticalAlignment="Center">
-          <Button Classes="launch primary" Click="NewProjectClicked">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Spacing="5">
-                <TextBlock FontSize="22" FontWeight="SemiBold" Text="New project" />
-                <TextBlock FontSize="13" Opacity="0.70" Text="Start an empty in-memory chart draft" />
+        <StackPanel Grid.Column="2" Width="404" Spacing="12" VerticalAlignment="Center">
+          <Button Classes="launch primary" Click="NewProjectClicked"
+                  AutomationProperties.Name="New project">
+            <Grid ColumnDefinitions="Auto,*">
+              <controls:SignalIcon Kind="NavigateProject" Width="30" Height="30"
+                                   VerticalAlignment="Center" Margin="0,0,18,0" />
+              <StackPanel Grid.Column="1" Spacing="4">
+                <controls:LocalizedText FontSize="21" FontWeight="SemiBold" Key="Welcome.NewProject" />
+                <controls:LocalizedText FontSize="12" Opacity="0.70" Key="Welcome.NewProjectHint" />
               </StackPanel>
-              <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="22" Text="＋" />
             </Grid>
           </Button>
-          <Button Classes="launch secondary" Click="OpenProjectClicked">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Spacing="5">
-                <TextBlock FontSize="20" FontWeight="SemiBold" Text="Open v2 package" />
-                <TextBlock Classes="dim" FontSize="13" Text="Validate a local package before editing" />
+          <Button Classes="launch secondary" Click="OpenProjectClicked"
+                  AutomationProperties.Name="Open v2 package">
+            <Grid ColumnDefinitions="Auto,*">
+              <controls:SignalIcon Kind="Open" Width="30" Height="30"
+                                   VerticalAlignment="Center" Margin="0,0,18,0" />
+              <StackPanel Grid.Column="1" Spacing="4">
+                <controls:LocalizedText FontSize="20" FontWeight="SemiBold" Key="Welcome.OpenPackage" />
+                <controls:LocalizedText Classes="dim" FontSize="12" Key="Welcome.OpenPackageHint" />
               </StackPanel>
-              <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="20" Text="↗" />
             </Grid>
           </Button>
-          <Border Classes="infoPanel" Margin="0,8,0,0">
-            <Grid ColumnDefinitions="4,*">
-              <Border Background="{StaticResource CommunityPink}" />
-              <StackPanel Grid.Column="1" Margin="16,13" Spacing="4">
-                <TextBlock Classes="eyebrow" Text="CLEAN-ROOM BOUNDARY" />
-                <TextBlock Classes="dim" TextWrapping="Wrap"
-                           Text="Use community-owned audio, artwork and chart data only. Development testdata cannot be opened here." />
-              </StackPanel>
+          <Border Classes="infoPanel" Margin="0,6,0,0"
+                  ToolTip.Tip="Use community-owned audio, artwork and chart data only. Development testdata cannot be opened here.">
+            <Grid ColumnDefinitions="Auto,*" Margin="14,11">
+              <controls:SignalIcon Kind="Info" Width="20" Height="20"
+                                   Foreground="{StaticResource CommunityPink}" />
+              <controls:LocalizedText Grid.Column="1" Margin="12,0,0,0" Classes="dim"
+                                      VerticalAlignment="Center" Key="Welcome.CleanRoomBoundary" />
             </Grid>
           </Border>
         </StackPanel>
       </Grid>
 
-      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto">
-        <TextBlock Classes="micro" Text="DUX CHART EDITOR · AVALONIA DESKTOP" />
-        <TextBlock Grid.Column="1" Classes="statusGood" Text="● CLEAN-ROOM" />
-        <TextBlock Grid.Column="2" Margin="24,0,0,0" Classes="statusGood" Text="● STRICT OPEN" />
-        <TextBlock Grid.Column="3" Margin="24,0,0,0" Classes="statusWarn" Text="● WAV WRITER" />
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto">
+        <controls:LocalizedText Classes="micro" Key="Welcome.DesktopFooter" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7">
+          <controls:SignalIcon Kind="NavigateValidation" Width="14" Height="14"
+                               Foreground="{StaticResource CommunityGreen}" />
+          <controls:LocalizedText Classes="statusGood" Key="Welcome.CleanRoomStatus" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Margin="24,0,0,0" Orientation="Horizontal" Spacing="7">
+          <controls:SignalIcon Kind="Open" Width="14" Height="14"
+                               Foreground="{StaticResource CommunityGreen}" />
+          <controls:LocalizedText Classes="statusGood" Key="Welcome.StrictOpenStatus" />
+        </StackPanel>
       </Grid>
     </Grid>
   </Grid>

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "pack.schema.json",
-  "title": "Dynamite UV Chart Pack v2",
-  "description": "Structural schema for a Dynamite UV v2 meta.json. Semantic and cross-file validation is additionally required by docs/chart-format-v2.md.",
+  "title": "Dynamite Universe Chart Pack v2",
+  "description": "Structural schema for a Dynamite Universe v2 meta.json. Semantic and cross-file validation is additionally required by docs/chart-format-v2.md.",
   "type": "object",
   "additionalProperties": false,
   "required": [

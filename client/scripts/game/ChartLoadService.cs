@@ -1,4 +1,4 @@
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>
 /// Stable client boundary for chart loading modes. The format-specific implementation remains in

@@ -1,4 +1,4 @@
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>Severity used by editor-facing v2 validation and package-write diagnostics.</summary>
 public enum V2DiagnosticSeverity

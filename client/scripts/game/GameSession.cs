@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>
 /// 跨场景会话状态：当前选中的谱面包/难度、成绩库、包列表。

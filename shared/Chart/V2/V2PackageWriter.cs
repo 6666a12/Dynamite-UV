@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>Input for transactional writes of one fully resolved local v2 package.</summary>
 public sealed record V2PackageWriteRequest
@@ -12,6 +12,11 @@ public sealed record V2PackageWriteRequest
     public required V2Pack Pack { get; init; }
     /// <summary>Charts keyed by their v2 chartId. Every declared pack entry is required.</summary>
     public required IReadOnlyDictionary<string, V2Chart> Charts { get; init; }
+    /// <summary>
+    /// Optional host decoder used to validate and measure staged audio. Null preserves the built-in
+    /// PCM/IEEE-float RIFF/WAVE-only behavior.
+    /// </summary>
+    public IV2PackageAudioProbe? AudioProbe { get; init; }
     /// <summary>Allows Save As to target an existing empty directory only.</summary>
     public bool AllowEmptyDestination { get; init; }
 }
@@ -31,7 +36,24 @@ public sealed record V2PackageCreateRequest
     public required IReadOnlyDictionary<string, V2Chart> Charts { get; init; }
     /// <summary>External regular files copied to safe package-relative resource paths.</summary>
     public required IReadOnlyList<V2ExternalResourceMapping> ExternalResources { get; init; }
+    /// <summary>
+    /// Optional host decoder used to validate and measure staged audio. Null preserves the built-in
+    /// PCM/IEEE-float RIFF/WAVE-only behavior.
+    /// </summary>
+    public IV2PackageAudioProbe? AudioProbe { get; init; }
     public bool AllowEmptyDestination { get; init; }
+}
+
+/// <summary>Validated metadata returned by a package audio decoder.</summary>
+public sealed record V2PackageAudioInfo(double DurationSeconds);
+
+/// <summary>
+/// Host-supplied staged-audio validator. Implementations must decode enough of the regular file to
+/// reject malformed or unsupported content and return a finite non-negative duration.
+/// </summary>
+public interface IV2PackageAudioProbe
+{
+    V2PackageAudioInfo Probe(string absolutePath, string packageRelativePath);
 }
 
 /// <summary>Verified result of a successful v2 package write.</summary>
@@ -56,13 +78,13 @@ public static class V2PackageWriter
         ValidateRequest(request.Pack, request.Charts);
         var sourcePack = V2JsonDecoder.DecodePackFile(Resolve(source, "meta.json", requireFile: true));
 
-        var staging = destination + ".dux-staging-" + Guid.NewGuid().ToString("N");
+        var staging = destination + ".dynamite-universe-staging-" + Guid.NewGuid().ToString("N");
         try
         {
             CopyDirectory(source, staging);
             WriteJsonFiles(staging, request.Pack, request.Charts);
             RemoveObsoleteChartFiles(staging, sourcePack, request.Pack);
-            var verified = VerifyStaging(staging, request.Pack);
+            var verified = VerifyStaging(staging, request.Pack, request.AudioProbe);
 
             if (SameDirectory(source, destination))
             {
@@ -92,13 +114,13 @@ public static class V2PackageWriter
         ValidateRequest(request.Pack, request.Charts);
         var resources = ValidateExternalResources(request.Pack, request.ExternalResources);
 
-        var staging = destination + ".dux-staging-" + Guid.NewGuid().ToString("N");
+        var staging = destination + ".dynamite-universe-staging-" + Guid.NewGuid().ToString("N");
         try
         {
             Directory.CreateDirectory(staging);
             CopyExternalResources(staging, resources);
             WriteJsonFiles(staging, request.Pack, request.Charts);
-            var verified = VerifyStaging(staging, request.Pack);
+            var verified = VerifyStaging(staging, request.Pack, request.AudioProbe);
             PublishNewPackage(staging, destination);
             return new V2PackageWriteResult(destination, verified);
         }
@@ -131,22 +153,46 @@ public static class V2PackageWriter
     }
 
     private static IReadOnlyDictionary<string, V2GameplayDigestResult> VerifyStaging(
-        string staging, V2Pack expectedPack)
+        string staging, V2Pack expectedPack, IV2PackageAudioProbe? audioProbe)
     {
         ValidateSourceTree(staging);
         var meta = Resolve(staging, "meta.json", requireFile: true);
         var pack = V2JsonDecoder.DecodePackFile(meta);
+        var audioResults = new Dictionary<string, V2PackageAudioInfo>(StringComparer.Ordinal);
+        V2PackageAudioInfo Probe(string relative)
+        {
+            if (audioResults.TryGetValue(relative, out var cached))
+                return cached;
+            var absolute = Resolve(staging, relative, requireFile: true);
+            V2PackageAudioInfo result;
+            try
+            {
+                result = audioProbe?.Probe(absolute, relative) ??
+                    new V2PackageAudioInfo(ProbeWaveDuration(staging, relative));
+            }
+            catch (V2DiagnosticException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new V2DiagnosticException(relative, "/",
+                    "audio probe failed to validate the staged file", exception);
+            }
+            if (result is null || !double.IsFinite(result.DurationSeconds) ||
+                result.DurationSeconds < 0.0)
+                throw new V2DiagnosticException(relative, "/",
+                    "audio probe returned an invalid duration");
+            audioResults.Add(relative, result);
+            return result;
+        }
+
         var resolved = V2PackageValidator.Validate(pack, new V2PackageValidationHooks
         {
             LoadChart = entry => V2JsonDecoder.DecodeChartFile(Resolve(staging, entry.File, true)),
             FileExists = path => IsRegularFile(staging, path),
-            AudioDurationSeconds = path => ProbeWaveDuration(staging, path),
-            ValidateResolvedAudio = (_, path) =>
-            {
-                if (!Path.GetExtension(path).Equals(".wav", StringComparison.OrdinalIgnoreCase))
-                    throw new V2DiagnosticException(path, "/",
-                        "editor v2 writer currently requires RIFF/WAVE audio for duration validation");
-            },
+            AudioDurationSeconds = path => Probe(path).DurationSeconds,
+            ValidateResolvedAudio = (entry, path) => { _ = Probe(path); },
         }, meta);
 
         if (!string.Equals(pack.Id, expectedPack.Id, StringComparison.Ordinal) ||
@@ -187,7 +233,7 @@ public static class V2PackageWriter
                 var replacement = Resolve(staging, relative, requireFile: false);
                 if (File.Exists(target))
                 {
-                    var backup = target + ".dux-backup-" + Guid.NewGuid().ToString("N");
+                    var backup = target + ".dynamite-universe-backup-" + Guid.NewGuid().ToString("N");
                     File.Move(target, backup);
                     backups.Add((target, backup));
                 }
@@ -264,7 +310,7 @@ public static class V2PackageWriter
             return;
         }
 
-        var placeholder = destination + ".dux-empty-" + Guid.NewGuid().ToString("N");
+        var placeholder = destination + ".dynamite-universe-empty-" + Guid.NewGuid().ToString("N");
         Directory.Move(destination, placeholder);
         try
         {
@@ -552,7 +598,7 @@ public static class V2PackageWriter
         return full;
     }
 
-    private static double? ProbeWaveDuration(string root, string relative)
+    private static double ProbeWaveDuration(string root, string relative)
     {
         if (!Path.GetExtension(relative).Equals(".wav", StringComparison.OrdinalIgnoreCase))
             throw new V2DiagnosticException(relative, "/",

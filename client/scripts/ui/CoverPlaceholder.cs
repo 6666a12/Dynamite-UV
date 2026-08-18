@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>Clean-room procedural cover used whenever a chart pack has no decodable artwork.</summary>
 public partial class CoverPlaceholder : Control

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>Fixed-coordinate UI contract shared by every menu scene.</summary>
 public static class UiLayout

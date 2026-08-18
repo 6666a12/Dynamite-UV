@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="using:DuxCommunity.ChartEditor.Controls"
-        xmlns:views="using:DuxCommunity.ChartEditor.Views"
-        x:Class="DuxCommunity.ChartEditor.MainWindow"
-        Title="DUX Chart Editor"
+        xmlns:controls="using:DynamiteUniverse.ChartEditor.Controls"
+        xmlns:views="using:DynamiteUniverse.ChartEditor.Views"
+        x:Class="DynamiteUniverse.ChartEditor.MainWindow"
+        Title="Dynamite Universe Chart Editor"
         Width="1560" Height="920"
         MinWidth="1180" MinHeight="720"
         WindowStartupLocation="CenterScreen">
@@ -28,8 +28,9 @@
               </StackPanel>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-              <Border Classes="signalPill"><TextBlock Classes="micro" Text="FIXED STAGE / 1920×1080" /></Border>
-              <Button Classes="quiet" ToolTip.Tip="Focus stage" Click="ToggleWorkspaceClicked">◫</Button>
+              <Border Classes="signalPill" ToolTip.Tip="Fixed 1920×1080 stage"><TextBlock Classes="micro" Text="1920×1080" /></Border>
+              <controls:LanguageButton Classes="quiet" />
+              <Button Classes="quiet" ToolTip.Tip="Focus stage" AutomationProperties.Name="Focus stage" Click="ToggleWorkspaceClicked"><controls:SignalIcon Kind="Grid" /></Button>
             </StackPanel>
             <Slider x:Name="TimelineSlider" Grid.Row="1" Grid.ColumnSpan="2" Height="14" Margin="0,8,0,-5"
                     Minimum="0" Maximum="8" ValueChanged="TimelineChanged" />
@@ -53,12 +54,12 @@
             <TextBlock x:Name="DurationText" Grid.Column="2" VerticalAlignment="Center" Classes="dim" Text="/ 00:08.000" />
             <TextBlock x:Name="StageStatusText" Grid.Column="3" Margin="22,0" VerticalAlignment="Center"
                        Classes="dim" Text="Ready" TextTrimming="CharacterEllipsis" />
-            <TextBlock Grid.Column="4" VerticalAlignment="Center" Classes="micro" Text="SPEED" />
+            <controls:SignalIcon Grid.Column="4" Kind="Speed" Width="17" Height="17" ToolTip.Tip="Visual speed" />
             <Button Grid.Column="5" Classes="quiet" Width="30" Click="SpeedDownClicked">−</Button>
             <TextBlock x:Name="SpeedValueText" Grid.Column="6" Width="43" TextAlignment="Center" VerticalAlignment="Center" Text="1.0×" />
             <Button Grid.Column="7" Classes="quiet" Width="30" Click="SpeedUpClicked">＋</Button>
             <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="4" Margin="14,0,0,0">
-              <TextBlock VerticalAlignment="Center" Classes="micro" Text="OFFSET" />
+              <controls:SignalIcon Kind="Offset" Width="17" Height="17" VerticalAlignment="Center" ToolTip.Tip="Chart audio offset" />
               <Button Classes="quiet" Width="28" Click="OffsetDownClicked">−</Button>
               <TextBlock x:Name="OffsetValueText" Width="58" TextAlignment="Center" VerticalAlignment="Center" Text="0ms" />
               <Button Classes="quiet" Width="28" Click="OffsetUpClicked">＋</Button>
@@ -72,11 +73,11 @@
           <Border Grid.Row="0" Padding="13,12" BorderBrush="{StaticResource CommunityLine}" BorderThickness="0,0,0,1">
             <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,Auto,Auto">
               <StackPanel>
-                <TextBlock Classes="eyebrow cyan" FontSize="10" Text="AUTHORING" />
+                <controls:LocalizedText Classes="eyebrow cyan" FontSize="10" Key="MainEditor.Authoring" />
                 <TextBlock x:Name="DirtyText" Classes="micro" Text="NO DOCUMENT" />
               </StackPanel>
-              <Button x:Name="UndoButton" Grid.Column="1" Classes="quiet" ToolTip.Tip="Undo · Ctrl+Z" Click="UndoClicked">↶</Button>
-              <Button x:Name="RedoButton" Grid.Column="2" Classes="quiet" ToolTip.Tip="Redo · Ctrl+Y" Click="RedoClicked">↷</Button>
+              <Button x:Name="UndoButton" Grid.Column="1" Classes="quiet" ToolTip.Tip="Undo · Ctrl+Z" Click="UndoClicked"><controls:SignalIcon Kind="Undo" /></Button>
+              <Button x:Name="RedoButton" Grid.Column="2" Classes="quiet" ToolTip.Tip="Redo · Ctrl+Y" Click="RedoClicked"><controls:SignalIcon Kind="Redo" /></Button>
               <Button Grid.Column="3" Classes="quiet" ToolTip.Tip="File actions" Click="ToggleFileMenuClicked">⋯</Button>
               <ComboBox x:Name="ChartCombo" Grid.Row="1" Grid.ColumnSpan="4" Margin="0,10,0,0"
                         SelectionChanged="ChartSelectionChanged" />
@@ -86,11 +87,11 @@
           <Grid Grid.Row="1" ColumnDefinitions="50,*">
             <Border Grid.Column="0" Background="#090F1B" BorderBrush="{StaticResource CommunityLine}" BorderThickness="0,0,1,0">
               <StackPanel Margin="4,10" Spacing="5">
-                <Button x:Name="MainPageButton" Classes="pageNav selected" ToolTip.Tip="Tools and object" Click="ShowMainWorkspaceClicked">✦</Button>
-                <Button x:Name="ProjectPageButton" Classes="pageNav" ToolTip.Tip="Project" Click="ShowProjectWorkspaceClicked">P</Button>
-                <Button x:Name="EventsPageButton" Classes="pageNav" ToolTip.Tip="Events" Click="ShowEventsWorkspaceClicked">B</Button>
-                <Button x:Name="ValidationPageButton" Classes="pageNav" ToolTip.Tip="Validation" Click="ShowValidationWorkspaceClicked">✓</Button>
-                <Button x:Name="PublishPageButton" Classes="pageNav" ToolTip.Tip="Publish" Click="ShowPublishWorkspaceClicked">↗</Button>
+                <Button x:Name="MainPageButton" Classes="pageNav selected" ToolTip.Tip="Tools and object" AutomationProperties.Name="Tools and object" Click="ShowMainWorkspaceClicked"><controls:SignalIcon Kind="NavigateMain" /></Button>
+                <Button x:Name="ProjectPageButton" Classes="pageNav" ToolTip.Tip="Project" AutomationProperties.Name="Project" Click="ShowProjectWorkspaceClicked"><controls:SignalIcon Kind="NavigateProject" /></Button>
+                <Button x:Name="EventsPageButton" Classes="pageNav" ToolTip.Tip="Events" AutomationProperties.Name="Events" Click="ShowEventsWorkspaceClicked"><controls:SignalIcon Kind="NavigateEvents" /></Button>
+                <Button x:Name="ValidationPageButton" Classes="pageNav" ToolTip.Tip="Validation" AutomationProperties.Name="Validation" Click="ShowValidationWorkspaceClicked"><controls:SignalIcon Kind="NavigateValidation" /></Button>
+                <Button x:Name="PublishPageButton" Classes="pageNav" ToolTip.Tip="Publish" AutomationProperties.Name="Publish" Click="ShowPublishWorkspaceClicked"><controls:SignalIcon Kind="NavigatePublish" /></Button>
               </StackPanel>
             </Border>
 
@@ -99,27 +100,38 @@
                 <ScrollViewer x:Name="MainWorkspace">
                   <StackPanel Margin="14" Spacing="15">
                     <StackPanel Spacing="7">
-                      <TextBlock Classes="section" Text="TRACK" />
+                      <controls:LocalizedText Classes="section" Key="MainEditor.Track" />
                       <Grid ColumnDefinitions="*,*,*">
-                        <Button x:Name="TrackLeftButton" Classes="track" Margin="0,0,5,0" Click="TrackButtonClicked" Tag="Left">LEFT</Button>
-                        <Button x:Name="TrackCenterButton" Grid.Column="1" Classes="track selected" Margin="0,0,5,0" Click="TrackButtonClicked" Tag="Center">CENTER</Button>
-                        <Button x:Name="TrackRightButton" Grid.Column="2" Classes="track" Click="TrackButtonClicked" Tag="Right">RIGHT</Button>
+                        <Button x:Name="TrackLeftButton" Classes="track" Margin="0,0,5,0" Click="TrackButtonClicked" Tag="Left" ToolTip.Tip="Left track" AutomationProperties.Name="Left track"><controls:SignalIcon Kind="TrackLeft" /></Button>
+                        <Button x:Name="TrackCenterButton" Grid.Column="1" Classes="track selected" Margin="0,0,5,0" Click="TrackButtonClicked" Tag="Center" ToolTip.Tip="Center track" AutomationProperties.Name="Center track"><controls:SignalIcon Kind="TrackCenter" /></Button>
+                        <Button x:Name="TrackRightButton" Grid.Column="2" Classes="track" Click="TrackButtonClicked" Tag="Right" ToolTip.Tip="Right track" AutomationProperties.Name="Right track"><controls:SignalIcon Kind="TrackRight" /></Button>
                       </Grid>
                     </StackPanel>
                     <StackPanel Spacing="7">
-                      <TextBlock Classes="section" Text="TOOL" />
-                      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
-                        <Button x:Name="SelectToolButton" Grid.ColumnSpan="2" Classes="tool selected" Margin="0,0,0,5" Click="ToolButtonClicked" Tag="Select">E   SELECT</Button>
-                        <Button x:Name="TapToolButton" Grid.Row="1" Classes="tool" Margin="0,0,5,5" Click="ToolButtonClicked" Tag="Tap">1   TAP</Button>
-                        <Button x:Name="DragToolButton" Grid.Row="1" Grid.Column="1" Classes="tool" Margin="0,0,0,5" Click="ToolButtonClicked" Tag="Drag">2   DRAG</Button>
-                        <Button x:Name="HoldToolButton" Grid.Row="2" Classes="tool" Margin="0,0,5,0" Click="ToolButtonClicked" Tag="Hold">3   HOLD</Button>
-                        <Button x:Name="BpmToolButton" Grid.Row="2" Grid.Column="1" Classes="tool" Click="ToolButtonClicked" Tag="Bpm">B   BPM</Button>
+                      <controls:LocalizedText Classes="section" Key="MainEditor.Tool" />
+                      <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto,Auto">
+                        <Button x:Name="SelectToolButton" Classes="tool selected" Margin="0,0,5,5" Click="ToolButtonClicked" Tag="Select" ToolTip.Tip="Select · E" AutomationProperties.Name="Select"><controls:SignalIcon Kind="Select" /></Button>
+                        <Button x:Name="TapToolButton" Grid.Column="1" Classes="tool" Margin="0,0,5,5" Click="ToolButtonClicked" Tag="Tap" ToolTip.Tip="Tap · 1" AutomationProperties.Name="Tap"><controls:SignalIcon Kind="Tap" /></Button>
+                        <Button x:Name="DragToolButton" Grid.Column="2" Classes="tool" Margin="0,0,5,5" Click="ToolButtonClicked" Tag="Drag" ToolTip.Tip="Drag · 2" AutomationProperties.Name="Drag"><controls:SignalIcon Kind="Drag" /></Button>
+                        <Button x:Name="ExTapToolButton" Grid.Column="3" Classes="tool" Margin="0,0,0,5" Click="ToolButtonClicked" Tag="ExTap" ToolTip.Tip="EX-Tap · 3" AutomationProperties.Name="EX-Tap"><controls:SignalIcon Kind="ExTap" /></Button>
+                        <Button x:Name="HoldToolButton" Grid.Row="1" Classes="tool" Margin="0,0,5,5" Click="ToolButtonClicked" Tag="Hold" ToolTip.Tip="Hold · 4" AutomationProperties.Name="Hold"><controls:SignalIcon Kind="Hold" /></Button>
+                        <Button x:Name="MixerToolButton" Grid.Row="1" Grid.Column="1" Classes="tool" Margin="0,0,5,5" Click="ToolButtonClicked" Tag="Mixer" ToolTip.Tip="Mixer · 5" AutomationProperties.Name="Mixer"><controls:SignalIcon Kind="Mixer" /></Button>
+                        <Button x:Name="MineToolButton" Grid.Row="1" Grid.Column="2" Classes="tool" Margin="0,0,5,5" Click="ToolButtonClicked" Tag="Mine" ToolTip.Tip="Mine · 6" AutomationProperties.Name="Mine"><controls:SignalIcon Kind="Mine" /></Button>
+                        <Button x:Name="BarLineToolButton" Grid.Row="1" Grid.Column="3" Classes="tool" Margin="0,0,0,5" Click="ToolButtonClicked" Tag="BarLine" ToolTip.Tip="BarLine · 7" AutomationProperties.Name="BarLine"><controls:SignalIcon Kind="BarLine" /></Button>
+                        <Button x:Name="PathNodeToolButton" Grid.Row="2" Classes="tool" Margin="0,0,5,0" Click="ToolButtonClicked" Tag="PathNode" ToolTip.Tip="Add path node · N" AutomationProperties.Name="Add path node"><controls:SignalIcon Kind="NavigateEvents" /></Button>
+                        <Button x:Name="BpmToolButton" Grid.Row="2" Grid.Column="1" Classes="tool" Margin="0,0,5,0" Click="ToolButtonClicked" Tag="Bpm" ToolTip.Tip="BPM · B" AutomationProperties.Name="BPM"><controls:SignalIcon Kind="Bpm" /></Button>
+                        <Button x:Name="ScrollToolButton" Grid.Row="2" Grid.Column="2" Classes="tool" Click="ToolButtonClicked" Tag="Scroll" ToolTip.Tip="Scroll · S" AutomationProperties.Name="Scroll"><controls:SignalIcon Kind="Scroll" /></Button>
+                      </Grid>
+                      <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
+                        <controls:SignalIcon Kind="Grid" Width="17" Height="17" VerticalAlignment="Center" />
+                        <TextBox x:Name="GridDivisorBox" Grid.Column="1" Margin="8,0" Text="16" Watermark="Grid" TextChanged="GridDivisorChanged" />
+                        <ToggleButton x:Name="SnapToggle" Grid.Column="2" IsChecked="True" IsCheckedChanged="SnapToggleChanged" ToolTip.Tip="Snap"><controls:SignalIcon Kind="Snap" /></ToggleButton>
                       </Grid>
                     </StackPanel>
                     <Border Height="1" Background="{StaticResource CommunityLine}" />
-                    <TextBlock Classes="section" Text="OBJECT" />
+                    <controls:LocalizedText Classes="section" Key="MainEditor.Object" />
                     <Border x:Name="SelectionEmptyCard" Classes="card">
-                      <TextBlock Classes="dim" TextWrapping="Wrap" Text="Select an object on the stage to edit exact values." />
+                      <controls:LocalizedText Classes="dim" TextWrapping="Wrap" Key="MainEditor.SelectObjectHint" />
                     </Border>
                     <StackPanel x:Name="SelectionCard" IsVisible="False" Spacing="8">
                       <TextBlock x:Name="SelectionKindText" FontSize="18" FontWeight="SemiBold" />
@@ -132,37 +144,62 @@
                       <TextBlock x:Name="SelectionDetailText" Classes="dim" TextWrapping="Wrap" />
                     </StackPanel>
                     <StackPanel x:Name="NoteFieldsPanel" Spacing="7">
-                      <TextBlock Classes="section" Text="HEAD" />
-                      <TextBox x:Name="SelectionBarBox" Watermark="Bar" />
+                      <controls:LocalizedText Classes="section" Key="MainEditor.Object" />
+                      <ComboBox x:Name="NoteTypeCombo">
+                        <ComboBoxItem Content="TAP" Tag="Tap"/><ComboBoxItem Content="DRAG" Tag="Drag"/>
+                        <ComboBoxItem Content="EX-TAP" Tag="ExTap"/><ComboBoxItem Content="HOLD" Tag="Hold"/>
+                        <ComboBoxItem Content="MIXER" Tag="Mixer"/><ComboBoxItem Content="MINE" Tag="Mine"/>
+                        <ComboBoxItem Content="BARLINE" Tag="BarLine"/>
+                      </ComboBox>
+                      <TextBox x:Name="SelectionBarBox" Watermark="Exact bar · 2+1/7" />
                       <Grid ColumnDefinitions="*,*">
                         <TextBox x:Name="SelectionCenterBox" Margin="0,0,4,0" Watermark="Position" />
                         <TextBox x:Name="SelectionWidthBox" Grid.Column="1" Margin="4,0,0,0" Watermark="Width" />
                       </Grid>
-                      <StackPanel x:Name="TailFieldsPanel" IsVisible="False" Spacing="7" Margin="0,8,0,0">
-                        <TextBlock Classes="section" Text="TAIL" />
-                        <TextBox x:Name="TailBarBox" Watermark="Tail bar" />
-                        <Grid ColumnDefinitions="*,*">
-                          <TextBox x:Name="TailCenterBox" Margin="0,0,4,0" Watermark="Tail position" />
-                          <TextBox x:Name="TailWidthBox" Grid.Column="1" Margin="4,0,0,0" Watermark="Tail width" />
+                      <StackPanel x:Name="PathFieldsPanel" IsVisible="False" Spacing="7" Margin="0,8,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBlock Classes="section" Text="PATH" />
+                          <Button Grid.Column="1" Classes="quiet" ToolTip.Tip="Add node after selected point" Click="AddPathNodeClicked"><controls:SignalIcon Kind="NavigateEvents"/></Button>
                         </Grid>
+                        <ComboBox x:Name="ParentCurveCombo" />
+                        <ItemsControl x:Name="PathNodeList" />
                         <TextBlock x:Name="TailPreservedText" Classes="fieldHint" TextWrapping="Wrap" />
                       </StackPanel>
-                      <Button Classes="primary" Click="ApplyNoteClicked">APPLY OBJECT</Button>
+                      <StackPanel x:Name="TailFieldsPanel" IsVisible="False" Spacing="7">
+                        <TextBox x:Name="TailBarBox" Watermark="Tail exact bar" />
+                        <Grid ColumnDefinitions="*,*"><TextBox x:Name="TailCenterBox" Margin="0,0,4,0" Watermark="Tail position"/><TextBox x:Name="TailWidthBox" Grid.Column="1" Margin="4,0,0,0" Watermark="Tail width"/></Grid>
+                      </StackPanel>
+                      <Button Classes="primary" Click="ApplyNoteClicked"><controls:SignalIcon Kind="Apply" /></Button>
+                    </StackPanel>
+                    <StackPanel x:Name="PathNodeFieldsPanel" IsVisible="False" Spacing="7">
+                      <TextBlock Classes="section" Text="PATH NODE" />
+                      <TextBox x:Name="PathNodeBarBox" Watermark="Exact bar" />
+                      <Grid ColumnDefinitions="*,*"><TextBox x:Name="PathNodeCenterBox" Margin="0,0,4,0" Watermark="Position"/><TextBox x:Name="PathNodeWidthBox" Grid.Column="1" Margin="4,0,0,0" Watermark="Width"/></Grid>
+                      <ComboBox x:Name="PathNodeCurveCombo" />
+                      <CheckBox x:Name="PathNodeJudgeCheck" Content="JUDGE" />
+                      <Button Classes="primary" Click="ApplyPathNodeClicked"><controls:SignalIcon Kind="Apply" /></Button>
                     </StackPanel>
                     <StackPanel x:Name="BpmFieldsPanel" IsVisible="False" Spacing="7">
-                      <TextBlock Classes="section" Text="BPM EVENT" />
-                      <TextBox x:Name="BpmBarBox" Watermark="Bar" />
+                      <controls:LocalizedText Classes="section" Key="MainEditor.BpmEvent" />
+                      <TextBox x:Name="BpmBarBox" Watermark="Exact bar" />
                       <TextBox x:Name="BpmValueBox" Watermark="BPM" />
-                      <Button Classes="primary" Click="ApplyBpmClicked">APPLY BPM</Button>
+                      <Button Classes="primary" Click="ApplyBpmClicked"><controls:SignalIcon Kind="Apply" /></Button>
                     </StackPanel>
-                    <Button x:Name="DeleteButton" Classes="warn" Click="DeleteSelectedClicked">DELETE SELECTED</Button>
+                    <StackPanel x:Name="ScrollFieldsPanel" IsVisible="False" Spacing="7">
+                      <controls:LocalizedText Classes="section" Key="Event.Scroll" />
+                      <TextBox x:Name="ScrollBarBox" Watermark="Exact bar" />
+                      <TextBox x:Name="ScrollValueBox" Watermark="Speed · 0..64" />
+                      <ComboBox x:Name="ScrollCurveCombo" />
+                      <Button Classes="primary" Click="ApplyScrollClicked"><controls:SignalIcon Kind="Apply" /></Button>
+                    </StackPanel>
+                    <Button x:Name="DeleteButton" Classes="warn" Click="DeleteSelectedClicked" ToolTip.Tip="Delete selected object"><controls:SignalIcon Kind="Delete" /></Button>
                   </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="ProjectWorkspace" IsVisible="False">
                   <StackPanel Margin="14" Spacing="10">
-                    <TextBlock Classes="eyebrow cyan" Text="PROJECT" />
-                    <TextBlock x:Name="PackTitleText" FontSize="22" Text="No package loaded" TextWrapping="Wrap" />
+                    <controls:LocalizedText Classes="eyebrow cyan" Key="MainEditor.Project" />
+                    <TextBlock x:Name="PackTitleText" FontSize="22" TextWrapping="Wrap" />
                     <TextBlock x:Name="PackArtistText" Classes="dim" />
                     <TextBlock x:Name="PackIdentityText" Classes="micro" TextWrapping="Wrap" />
                     <Border Height="1" Background="{StaticResource CommunityLine}" Margin="0,5" />
@@ -170,7 +207,7 @@
                     <TextBox x:Name="ProjectTitleBox" Watermark="Project title" />
                     <TextBox x:Name="ProjectArtistBox" Watermark="Artist" />
                     <TextBox x:Name="ProjectAudioBox" IsReadOnly="True" Watermark="Package audio path" />
-                    <Button Classes="primary" Click="ApplyProjectClicked">APPLY PROJECT</Button>
+                    <controls:LocalizedButton Classes="primary" Click="ApplyProjectClicked" Key="Common.Apply" />
                     <TextBlock Classes="section" Margin="0,12,0,0" Text="DETAIL" />
                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
                       <TextBlock Classes="micro" Text="CHARTS"/><TextBlock x:Name="ProjectChartsText" Grid.Column="1" Margin="12,0,0,0"/>
@@ -181,12 +218,18 @@
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="EventsWorkspace" IsVisible="False">
-                  <StackPanel Margin="14" Spacing="10"><TextBlock Classes="eyebrow" Foreground="{StaticResource CommunityPink}" Text="BPM EVENTS"/><ItemsControl x:Name="BpmList" /></StackPanel>
+                  <StackPanel Margin="14" Spacing="14">
+                    <StackPanel Orientation="Horizontal" Spacing="8"><controls:SignalIcon Kind="Bpm" Foreground="{StaticResource CommunityPink}"/><TextBlock Classes="eyebrow" Foreground="{StaticResource CommunityPink}" Text="BPM"/></StackPanel>
+                    <ItemsControl x:Name="BpmList" />
+                    <Border Height="1" Background="{StaticResource CommunityLine}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8"><controls:SignalIcon Kind="Scroll" Foreground="{StaticResource CommunityGreen}"/><TextBlock Classes="eyebrow" Foreground="{StaticResource CommunityGreen}" Text="SCROLL"/></StackPanel>
+                    <ItemsControl x:Name="ScrollList" />
+                  </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="ValidationWorkspace" IsVisible="False">
                   <StackPanel Margin="14" Spacing="10">
-                    <TextBlock Classes="eyebrow cyan" Text="VALIDATION" />
+                    <controls:LocalizedText Classes="eyebrow cyan" Key="MainEditor.Validation" />
                     <Border x:Name="ValidationSummaryCard" Classes="card"><StackPanel Spacing="6"><TextBlock x:Name="ValidationHeadlineText" FontSize="18" Text="Waiting for a package"/><TextBlock x:Name="ValidationDetailText" Classes="dim" TextWrapping="Wrap"/></StackPanel></Border>
                     <ItemsControl x:Name="ValidationList" />
                   </StackPanel>
@@ -194,13 +237,13 @@
 
                 <ScrollViewer x:Name="PublishWorkspace" IsVisible="False">
                   <StackPanel Margin="14" Spacing="10">
-                    <TextBlock Classes="eyebrow" Foreground="{StaticResource CommunityPink}" Text="PUBLISH" />
+                    <controls:LocalizedText Classes="eyebrow" Foreground="{StaticResource CommunityPink}" Key="MainEditor.Publish" />
                     <TextBox x:Name="SaveTargetBox" Watermark="Save As target directory" />
-                    <Button Click="BrowseSaveTargetClicked">BROWSE TARGET</Button>
-                    <Button x:Name="SaveAsButton" Classes="primary" Click="SaveAsClicked">SAVE AS</Button>
+                    <controls:LocalizedButton Click="BrowseSaveTargetClicked" Key="Publish.BrowseTarget" />
+                    <controls:LocalizedButton x:Name="SaveAsButton" Classes="primary" Click="SaveAsClicked" Key="Publish.SaveAs" />
                     <TextBlock x:Name="SaveResultText" Text="No write performed." TextWrapping="Wrap" />
                     <ItemsControl x:Name="DigestList" />
-                    <TextBlock Classes="fieldHint" TextWrapping="Wrap" Text="Writes are staged, strictly verified and published only after Gameplay Digest succeeds." />
+                    <controls:LocalizedText Classes="fieldHint" TextWrapping="Wrap" Key="Publish.StagedVerified" />
                   </StackPanel>
                 </ScrollViewer>
               </Grid>
@@ -208,7 +251,7 @@
               <Border Grid.Row="1" Padding="10,9" BorderBrush="{StaticResource CommunityLine}" BorderThickness="0,1,0,0">
                 <StackPanel Spacing="7">
                   <Grid ColumnDefinitions="Auto,*"><TextBlock x:Name="ProjectStateText" Classes="dim" Text="●"/><TextBlock x:Name="GlobalStatusText" Grid.Column="1" Margin="8,0,0,0" Classes="dim" TextWrapping="Wrap" Text="Ready."/></Grid>
-                  <Button x:Name="SaveButton" Classes="primary" HorizontalAlignment="Stretch" Click="SaveClicked">SAVE</Button>
+                  <controls:LocalizedButton x:Name="SaveButton" Classes="primary" HorizontalAlignment="Stretch" Click="SaveClicked" Key="Common.Save" />
                 </StackPanel>
               </Border>
             </Grid>
@@ -219,20 +262,26 @@
       <Popup x:Name="FileMenuPopup" Placement="BottomEdgeAlignedRight" IsLightDismissEnabled="True">
         <Border Background="{StaticResource CommunitySurfaceRaised}" BorderBrush="{StaticResource CommunityLineStrong}" BorderThickness="1" Padding="8" CornerRadius="3">
           <StackPanel Width="210" Spacing="4">
-            <Button Classes="quiet" HorizontalContentAlignment="Left" Click="NewFromMenuClicked">NEW PROJECT   Ctrl+N</Button>
-            <Button Classes="quiet" HorizontalContentAlignment="Left" Click="OpenAndLoadClicked">OPEN PACKAGE   Ctrl+O</Button>
-            <Button Classes="quiet" HorizontalContentAlignment="Left" Click="ReturnHomeClicked">RETURN HOME</Button>
+            <controls:LocalizedButton Classes="quiet" HorizontalContentAlignment="Left" Click="NewFromMenuClicked" Key="MainEditor.NewProject" />
+            <controls:LocalizedButton Classes="quiet" HorizontalContentAlignment="Left" Click="OpenAndLoadClicked" Key="MainEditor.OpenPackage" />
+            <controls:LocalizedButton Classes="quiet" HorizontalContentAlignment="Left" Click="ReturnHomeClicked" Key="MainEditor.ReturnHome" />
           </StackPanel>
+        </Border>
+      </Popup>
+
+      <Popup x:Name="ScrollPopup" Placement="Pointer" IsLightDismissEnabled="False">
+        <Border Background="{StaticResource CommunitySurfaceRaised}" BorderBrush="{StaticResource CommunityGreen}" BorderThickness="1" Padding="14" CornerRadius="3">
+          <StackPanel Width="230" Spacing="8"><TextBlock Classes="eyebrow" Foreground="{StaticResource CommunityGreen}" Text="SCROLL"/><TextBlock x:Name="ScrollPlacementBarText" Classes="dim"/><TextBox x:Name="ScrollPlacementValueBox" Text="1" Watermark="Speed"/><ComboBox x:Name="ScrollPlacementCurveCombo"/><StackPanel Orientation="Horizontal" Spacing="6"><controls:LocalizedButton Classes="primary" Click="CommitScrollPlacementClicked" Key="Common.Add"/><controls:LocalizedButton Click="CancelScrollPlacementClicked" Key="Common.Cancel"/></StackPanel></StackPanel>
         </Border>
       </Popup>
 
       <Popup x:Name="BpmPopup" Placement="Pointer" IsLightDismissEnabled="False">
         <Border Background="{StaticResource CommunitySurfaceRaised}" BorderBrush="{StaticResource CommunityPink}" BorderThickness="1" Padding="14" CornerRadius="3">
           <StackPanel Width="220" Spacing="8">
-            <TextBlock Classes="eyebrow" Foreground="{StaticResource CommunityPink}" Text="ADD BPM" />
+            <controls:LocalizedText Classes="eyebrow" Foreground="{StaticResource CommunityPink}" Key="MainEditor.AddBpm" />
             <TextBlock x:Name="BpmPlacementBarText" Classes="dim" />
             <TextBox x:Name="BpmPlacementValueBox" Watermark="BPM" KeyDown="BpmPopupKeyDown" />
-            <StackPanel Orientation="Horizontal" Spacing="6"><Button Classes="primary" Click="CommitBpmPlacementClicked">ADD</Button><Button Click="CancelBpmPlacementClicked">CANCEL</Button></StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6"><controls:LocalizedButton Classes="primary" Click="CommitBpmPlacementClicked" Key="Common.Add"/><controls:LocalizedButton Click="CancelBpmPlacementClicked" Key="Common.Cancel"/></StackPanel>
           </StackPanel>
         </Border>
       </Popup>

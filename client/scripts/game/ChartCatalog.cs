@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Scans chart package roots according to the current build's release policy.</summary>
 public static class ChartCatalog

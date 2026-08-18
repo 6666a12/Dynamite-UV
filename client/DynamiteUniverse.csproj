@@ -3,12 +3,13 @@
     <TargetFramework>net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
-    <RootNamespace>DuxCommunity</RootNamespace>
+    <RootNamespace>DynamiteUniverse</RootNamespace>
+    <AssemblyName>DynamiteUniverse</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- 本机可能只有更高版本 .NET 运行时，允许前滚 -->
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../shared/DuxShared.csproj" />
+    <ProjectReference Include="../shared/DynamiteUniverse.Shared.csproj" />
   </ItemGroup>
 </Project>

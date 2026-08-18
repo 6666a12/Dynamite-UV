@@ -1,6 +1,6 @@
-using DuxShared.Chart.V2;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.ChartEditor.Core;
+namespace DynamiteUniverse.ChartEditor.Core;
 
 /// <summary>Fixed 1920×1080 editor geometry, matching the approved gameplay layout.</summary>
 public static class EditorGeometry

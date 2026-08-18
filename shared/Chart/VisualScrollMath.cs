@@ -1,4 +1,4 @@
-namespace DuxShared.Chart;
+namespace DynamiteUniverse.Shared.Chart;
 
 /// <summary>Shared real-time visual scroll math; BPM only maps chart time to audio seconds.</summary>
 public static class VisualScrollMath

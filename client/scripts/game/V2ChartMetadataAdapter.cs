@@ -1,6 +1,6 @@
-using DuxShared.Chart.V2;
+using DynamiteUniverse.Shared.Chart.V2;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Converts strict shared v2 metadata into stable client directory models.</summary>
 internal static class V2ChartMetadataAdapter

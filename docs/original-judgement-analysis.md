@@ -2,6 +2,7 @@
 
 > 分析对象：`Dynamix Universe 00.18.00`（Unity IL2CPP）
 > 报告日期：2026-08-13
+> 项目名称说明：本文中的 `DUX-Community` 是 Dynamite Universe 的前身项目名；为保留研究证据链，历史表述不机械改写。
 > 用途：为 DUX-Community 的 clean-room 重写提供行为规格，不包含原版素材、谱面、代码或二进制。
 
 ## 0. 结论摘要

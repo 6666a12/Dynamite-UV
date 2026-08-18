@@ -1,9 +1,9 @@
 using Godot;
-using DuxCommunity.Ui;
-using DuxShared.Score;
-using DuxShared.Judge;
+using DynamiteUniverse.Ui;
+using DynamiteUniverse.Shared.Score;
+using DynamiteUniverse.Shared.Judge;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Procedural gameplay stage, HUD, pause and result presentation. GameplayMain owns the callbacks and score timing.</summary>
 public partial class GameplayMain
@@ -97,19 +97,51 @@ public partial class GameplayMain
 		};
 		_hudRoot.AddChild(_progressFill);
 
-		// 左下：曲名 + 难度（Dynamit 样例布局；实时评级已按用户要求删除）
-		_titleTag = new RichTextLabel
-		{
-			Position = new Vector2(67, 920),
-			Size = new Vector2(620, 44),
-			BbcodeEnabled = true,
-			ScrollActive = false,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		};
-		_titleTag.AddThemeFontOverride("normal_font", UiFonts.Cjk);
-		_titleTag.AddThemeFontSizeOverride("normal_font_size", 24);
-		_hudRoot.AddChild(_titleTag);
+			// Left-bottom track identity: stable two-line plate with independent title and status.
+			_titleTagPanel = new CutPanel
+			{
+				Position = new Vector2(52, 884),
+				Size = new Vector2(612, 104),
+				Cut = 16,
+				Fill = new Color(0.018f, 0.035f, 0.082f, 0.88f),
+				Border = new Color(UiFonts.Line, 0.82f),
+				BorderWidth = 1.5f,
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				ZIndex = 2,
+			};
+			_hudRoot.AddChild(_titleTagPanel);
+			_titleTagAccent = new ColorRect
+			{
+				Position = new Vector2(52, 884),
+				Size = new Vector2(6, 104),
+				Color = UiFonts.Cyan,
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				ZIndex = 3,
+			};
+			_hudRoot.AddChild(_titleTagAccent);
+			_titleTag = new Label
+			{
+				Position = new Vector2(78, 896),
+				Size = new Vector2(556, 42),
+				TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				ZIndex = 3,
+			};
+			_titleTag.AddThemeFontOverride("font", UiFonts.Cjk);
+			_titleTag.AddThemeFontSizeOverride("font_size", 27);
+			_titleTag.AddThemeColorOverride("font_color", UiFonts.Text);
+			_hudRoot.AddChild(_titleTag);
+			_titleTagStatus = new Label
+			{
+				Position = new Vector2(78, 944),
+				Size = new Vector2(556, 28),
+				TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				ZIndex = 3,
+			};
+			_titleTagStatus.AddThemeFontOverride("font", UiFonts.TechBold);
+			_titleTagStatus.AddThemeFontSizeOverride("font_size", 17);
+			_hudRoot.AddChild(_titleTagStatus);
 
 		// 右下：分数（CLEAR 收进顶部 pill 行）
 		_scoreLabel = new Label
@@ -203,19 +235,24 @@ public partial class GameplayMain
 		return label;
 	}
 
-	private RichTextLabel _titleTag = null!;
+		private CutPanel _titleTagPanel = null!;
+		private ColorRect _titleTagAccent = null!;
+		private Label _titleTag = null!;
+		private Label _titleTagStatus = null!;
 
-	private void RefreshTitleTag()
-	{
-		var hex = UiFonts.DiffColor(_run.DifficultyColorKey).ToHtml(false);
-		var auto = _auto ? "   [color=#7c88b0]AUTO (F1)[/color]" : "";
-		var display = _run.DifficultyDisplay.ToUpperInvariant();
-		var diff = _run.DifficultyLevel is { } level
-			? $"{display} · Lv {level}"
-			: $"{display} · UNRATED";
-		_titleTag.Text =
-			$"{_run.SongTitle}   [color=#{hex}]{diff}[/color]{auto}";
-	}
+		private void RefreshTitleTag()
+		{
+			var color = UiFonts.DiffColor(_run.DifficultyColorKey);
+			var display = _run.DifficultyDisplay.ToUpperInvariant();
+			var difficulty = _run.DifficultyLevel is { } level
+				? $"{display}   /   LEVEL {level}"
+				: $"{display}   /   UNRATED";
+			_titleTag.Text = _run.SongTitle;
+			_titleTagStatus.Text = _auto ? $"{difficulty}   /   AUTO (F1)" : difficulty;
+			_titleTagStatus.AddThemeColorOverride("font_color", color);
+			_titleTagAccent.Color = color;
+			_titleTagPanel.Border = new Color(color, 0.56f);
+		}
 
 	private void BuildPauseMenu()
 	{
@@ -368,8 +405,14 @@ public partial class GameplayMain
 		};
 		_presentationResultContent.AddChild(_presentationResultSignalScan);
 
-		_songLine = new Label { Position = new Vector2(450, 276), Size = new Vector2(1020, 34) };
-		_songLine.AddThemeFontSizeOverride("font_size", 24);
+			_songLine = new Label
+			{
+				Position = new Vector2(450, 276),
+				Size = new Vector2(1020, 34),
+				TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+			};
+			_songLine.AddThemeFontOverride("font", UiFonts.Cjk);
+			_songLine.AddThemeFontSizeOverride("font_size", 24);
 		_songLine.AddThemeColorOverride("font_color", UiFonts.Dim);
 		_presentationResultContent.AddChild(_songLine);
 

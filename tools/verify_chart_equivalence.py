@@ -140,7 +140,7 @@ def command_record(args: argparse.Namespace) -> int:
             "DUV_VERIFY_TRACE": str(trace),
             "DUV_VERIFY_READY": str(ready),
             "DUV_VERIFY_START_GATE": str(start_gate),
-            "DUX_START_SEC": format(args.start_sec, ".17g"),
+            "DYNAMITE_UNIVERSE_START_SEC": format(args.start_sec, ".17g"),
         }
     )
 

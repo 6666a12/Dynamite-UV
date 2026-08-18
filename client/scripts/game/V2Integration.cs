@@ -1,10 +1,10 @@
 using Godot;
-using DuxShared.Chart;
-using DuxShared.Chart.V2;
-using DuxShared.Judge;
-using SharedV2Integration = DuxShared.Chart.V2.V2Integration;
+using DynamiteUniverse.Shared.Chart;
+using DynamiteUniverse.Shared.Chart.V2;
+using DynamiteUniverse.Shared.Judge;
+using SharedV2Integration = DynamiteUniverse.Shared.Chart.V2.V2Integration;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>
 /// Typed client boundary around the strict shared v2 decoder/validator/runtime adapter/digest and

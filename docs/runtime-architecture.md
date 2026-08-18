@@ -1,4 +1,4 @@
-# DUX Community 运行时架构
+# Dynamite Universe 运行时架构
 
 > 本文描述当前社区客户端的职责边界与重构不变量。它不是玩法规格；判定与布局的权威规则仍见
 > `gameplay-spec.md`、`chart-format-v2.md` 和 `GameplayMain.cs` 顶部的测量注释。

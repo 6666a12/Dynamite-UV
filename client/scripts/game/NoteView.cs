@@ -1,7 +1,7 @@
 using Godot;
-using DuxShared.Chart;
+using DynamiteUniverse.Shared.Chart;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>
 /// 单个音符的运行时视觉，居中于节点原点。全部 Note 类型使用同一套

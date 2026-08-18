@@ -1,5 +1,5 @@
-using DuxCommunity.ChartEditor.Core;
-using DuxShared.Chart.V2;
+using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.Shared.Chart.V2;
 
 internal static class Program
 {
@@ -8,9 +8,13 @@ internal static class Program
         try
         {
             TestExactSnap();
+            TestExactBarTimeText();
             TestDraftCreationAndValidation();
             TestDraftPersistenceState();
             TestCommandsAndSnapshots();
+            TestAllSevenNoteTypes();
+            TestPathEditingCommands();
+            TestScrollEditingCommands();
             TestUndoFollowsOwningChart();
             TestBpmCollisionIsRejected();
             TestDirectEditingCommands();
@@ -33,6 +37,267 @@ internal static class Program
         var input = ExactBarTime.FromJsonComponents(2, 1, 7);
         var snapped = EditorGeometry.Snap(input, 16);
         Check(snapped == ExactBarTime.FromJsonComponents(2, 1, 8), "exact arbitrary-denominator snap");
+    }
+
+    private static void TestExactBarTimeText()
+    {
+        Check(ExactBarTimeText.Parse("42") == ExactBarTime.FromFraction(42, 1),
+            "exact time parses integer");
+        Check(ExactBarTimeText.Parse("2+3/7") == ExactBarTime.FromJsonComponents(2, 3, 7),
+            "exact time parses mixed fraction");
+        Check(ExactBarTimeText.Parse("17/7") == ExactBarTime.FromFraction(17, 7),
+            "exact time parses improper fraction");
+        Check(ExactBarTimeText.Parse("9007199254740990.125") ==
+              ExactBarTime.FromFraction(
+                  System.Numerics.BigInteger.Parse("72057594037927921"), 8),
+            "finite decimal parses without binary64 loss");
+        Check(ExactBarTimeText.Parse(".5") == ExactBarTime.FromFraction(1, 2) &&
+              ExactBarTimeText.Parse("1.") == ExactBarTime.One,
+            "finite decimal accepts omitted edge digits");
+        var exact = ExactBarTime.FromJsonComponents(12, 5, 13);
+        Check(ExactBarTimeText.Parse(ExactBarTimeText.Format(exact)) == exact &&
+              ExactBarTimeText.Format(ExactBarTime.FromFraction(5, 13)) == "5/13",
+            "exact time format round-trips canonical fractions");
+        Check(!ExactBarTimeText.TryParse("-1", out _) &&
+              !ExactBarTimeText.TryParse("1/0", out _) &&
+              !ExactBarTimeText.TryParse("NaN", out _) &&
+              !ExactBarTimeText.TryParse("Infinity", out _) &&
+              !ExactBarTimeText.TryParse("9007199254740992", out _),
+            "exact time rejects negative non-finite and non-v2-safe text");
+    }
+
+    private static void TestAllSevenNoteTypes()
+    {
+        var document = CreateCleanDocument("editor.types", "hard", "Types", "Community");
+        var types = Enum.GetValues<V2NoteType>();
+        Check(types.Length == 7, "v2 exposes seven note types");
+        for (var index = 0; index < types.Length; index++)
+        {
+            var type = types[index];
+            var note = new EditableNote
+            {
+                Id = $"type-{index}",
+                Type = type,
+                Track = (EditorTrack)(index % 3),
+                Time = ExactBarTime.FromFraction(index, 2),
+                Center = 1 + index * .25,
+                Width = .75,
+            };
+            if (type is V2NoteType.Hold or V2NoteType.Mixer)
+            {
+                note.CurveToNext = V2PathCurve.EaseInQuad;
+                note.Nodes.Add(new EditablePathNode
+                {
+                    Id = $"type-{index}-tail",
+                    Time = note.Time + ExactBarTime.FromFraction(1, 2),
+                    Center = note.Center + .25,
+                    Width = 1,
+                    Judge = type == V2NoteType.Hold ? true : null,
+                });
+            }
+            document.Execute(new AddNoteCommand(note));
+        }
+
+        var snapshot = document.BuildChartSnapshot("hard");
+        V2SemanticValidator.ValidateChart(snapshot, "seven-types.json");
+        var roundTrip = V2JsonDecoder.DecodeChart(V2JsonEncoder.EncodeChart(snapshot), "seven-types.json");
+        Check(roundTrip.AllNotes.Select(item => item.Note.Type).Order()
+                .SequenceEqual(types.Order()),
+            "strict snapshot keeps all seven note types");
+
+        document.Execute(new ChangeNoteTypeCommand("type-0", V2NoteType.Hold,
+            new EditablePathNode
+            {
+                Id = "type-0-tail",
+                Time = ExactBarTime.FromFraction(1, 4),
+                Center = 1.25,
+                Width = 1,
+            }));
+        var changed = document.RequireTestNote("type-0");
+        Check(changed.Type == V2NoteType.Hold && changed.Nodes.Count == 1 &&
+              changed.Nodes[0].Judge == true,
+            "basic note converts to Hold with valid terminal semantics");
+        document.Undo();
+        Check(document.RequireTestNote("type-0").Type == V2NoteType.Tap &&
+              document.RequireTestNote("type-0").Nodes.Count == 0,
+            "undo restores basic note type exactly");
+        document.Redo();
+        document.Execute(new ChangeNoteTypeCommand("type-0", V2NoteType.Mixer));
+        Check(document.RequireTestNote("type-0").Type == V2NoteType.Mixer &&
+              document.RequireTestNote("type-0").Nodes.All(node => node.Judge is null),
+            "Hold converts to Mixer and strips judge state");
+        document.Execute(new ChangeNoteTypeCommand("type-0", V2NoteType.ExTap));
+        Check(document.RequireTestNote("type-0").Nodes.Count == 0 &&
+              document.RequireTestNote("type-0").CurveToNext is null,
+            "path note converts to basic and strips path data");
+    }
+
+    private static void TestPathEditingCommands()
+    {
+        var document = CreateCleanDocument("editor.path", "hard", "Paths", "Community");
+        var hold = new EditableNote
+        {
+            Id = "hold-path",
+            Type = V2NoteType.Hold,
+            Track = EditorTrack.Center,
+            Time = ExactBarTime.Zero,
+            Center = 2,
+            Width = 1,
+            CurveToNext = V2PathCurve.Linear,
+        };
+        hold.Nodes.Add(new EditablePathNode
+        {
+            Id = "hold-tail",
+            Time = ExactBarTime.FromFraction(2, 1),
+            Center = 3,
+            Width = 1,
+            Judge = true,
+        });
+        document.Execute(new AddNoteCommand(hold));
+        document.Execute(new AddPathNodeCommand(hold.Id, new EditablePathNode
+        {
+            Id = "hold-mid",
+            Time = ExactBarTime.FromFraction(1, 1),
+            Center = 2.5,
+            Width = .8,
+            CurveToNext = V2PathCurve.EaseOutQuad,
+            Judge = false,
+        }));
+        Check(document.RequireTestNote(hold.Id).Nodes.Select(node => node.Id)
+                .SequenceEqual(["hold-mid", "hold-tail"]),
+            "add path node inserts in strict time order");
+        Check(document.Selection == new EditorSelection(EditorSelectionKind.PathNode, "hold-mid"),
+            "path node selection uses stable ID");
+
+        document.Execute(new EditPathNodeCommand(hold.Id, "hold-mid",
+            ExactBarTime.FromFraction(3, 2), 2.75, .9));
+        document.Execute(new SetPathCurveCommand(hold.Id, V2PathCurve.Smooth));
+        document.Execute(new SetPathCurveCommand(hold.Id, "hold-mid", V2PathCurve.Hold));
+        document.Execute(new SetHoldJudgeCommand(hold.Id, "hold-mid", true));
+        var edited = document.RequireTestNote(hold.Id);
+        Check(edited.Nodes[0].Time == ExactBarTime.FromFraction(3, 2) &&
+              edited.CurveToNext == V2PathCurve.Smooth &&
+              edited.Nodes[0].CurveToNext == V2PathCurve.Hold &&
+              edited.Nodes[0].Judge == true,
+            "edit path node curve and Hold judge commands");
+
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new EditPathNodeCommand(hold.Id, "hold-mid",
+                    ExactBarTime.FromFraction(5, 2), 2, 1)),
+            "path node cannot cross its successor");
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new SetPathCurveCommand(hold.Id, "hold-tail", V2PathCurve.Linear)),
+            "tail path node cannot gain an outgoing curve");
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new SetHoldJudgeCommand(hold.Id, "hold-tail", false)),
+            "Hold tail cannot disable judge");
+
+        document.Execute(new DeletePathNodeCommand(hold.Id, "hold-tail"));
+        edited = document.RequireTestNote(hold.Id);
+        Check(edited.Nodes.Count == 1 && edited.Nodes[0].Id == "hold-mid" &&
+              edited.Nodes[0].CurveToNext is null && edited.Nodes[0].Judge == true,
+            "deleting path tail promotes a valid Hold tail");
+        V2SemanticValidator.ValidateChart(document.BuildChartSnapshot("hard"), "path.json");
+        document.Undo();
+        edited = document.RequireTestNote(hold.Id);
+        Check(edited.Nodes.Count == 2 && edited.Nodes[0].CurveToNext == V2PathCurve.Hold &&
+              edited.Nodes[0].Judge == true && edited.Nodes[1].Judge == true,
+            "undo tail deletion restores path semantics");
+        document.Redo();
+        Check(document.RequireTestNote(hold.Id).Nodes.Count == 1,
+            "redo tail deletion is stable");
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new DeletePathNodeCommand(hold.Id, "hold-mid")),
+            "path cannot delete its only terminal");
+    }
+
+    private static void TestScrollEditingCommands()
+    {
+        var document = CreateCleanDocument("editor.scroll", "hard", "Scroll", "Community");
+        AddTap(document, "scroll-main-note");
+        Check(document.SelectedChart.ScrollSpeeds.Count == 0,
+            "empty Scroll timeline keeps implicit speed one");
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new AddScrollCommand(ExactBarTime.One, 1)),
+            "first explicit Scroll must start at bar zero");
+
+        document.Execute(new AddScrollCommand(ExactBarTime.Zero, 1));
+        document.Execute(new AddScrollCommand(ExactBarTime.FromFraction(2, 1), .75));
+        document.Execute(new EditScrollCommand(ExactBarTime.Zero, ExactBarTime.Zero, 1,
+            V2ScrollCurve.EaseInOutCubic));
+        document.Execute(new AddScrollCommand(ExactBarTime.FromFraction(1, 1), 1.5,
+            V2ScrollCurve.Hold));
+        Check(document.SelectedChart.ScrollSpeeds.Select(item => item.Time).SequenceEqual(
+                [ExactBarTime.Zero, ExactBarTime.One, ExactBarTime.FromFraction(2, 1)]),
+            "Scroll commands maintain strict chronological order");
+        Check(document.Selection.Kind == EditorSelectionKind.Scroll,
+            "Scroll command selects Scroll kind");
+
+        document.Execute(new EditScrollCommand(ExactBarTime.One,
+            ExactBarTime.FromFraction(3, 2), 2, V2ScrollCurve.EaseOutQuad));
+        var snapshot = document.BuildChartSnapshot("hard");
+        Check(snapshot.ScrollSpeeds[1].Time == ExactBarTime.FromFraction(3, 2) &&
+              snapshot.ScrollSpeeds[1].Value == 2 &&
+              snapshot.ScrollSpeeds[1].CurveToNext == V2ScrollCurve.EaseOutQuad,
+            "mutable EditableScroll edits reach strict snapshot");
+        V2SemanticValidator.ValidateChart(snapshot, "scroll.json");
+        var loaded = EditorDocument.FromPackage(document.PackageDirectory, document.BuildPackSnapshot(),
+            new Dictionary<string, V2Chart>(StringComparer.Ordinal) { ["hard"] = snapshot });
+        Check(loaded.SelectedChart.ScrollSpeeds is List<EditableScroll> &&
+              loaded.SelectedChart.ScrollSpeeds[1].Time == ExactBarTime.FromFraction(3, 2) &&
+              loaded.SelectedChart.ScrollSpeeds[1].Value == 2,
+            "strict load creates mutable EditableScroll values");
+        loaded.SelectedChart.ScrollSpeeds[1].Value = 2.25;
+        Check(loaded.BuildChartSnapshot("hard").ScrollSpeeds[1].Value == 2.25,
+            "loaded EditableScroll mutation reaches snapshot without immutable aliases");
+
+        document.Execute(new DeleteScrollCommand(ExactBarTime.FromFraction(2, 1)));
+        Check(document.SelectedChart.ScrollSpeeds[^1].CurveToNext is null,
+            "deleting Scroll tail clears promoted tail curve");
+        document.Undo();
+        Check(document.SelectedChart.ScrollSpeeds[^2].CurveToNext == V2ScrollCurve.EaseOutQuad &&
+              document.SelectedChart.ScrollSpeeds[^1].Time == ExactBarTime.FromFraction(2, 1),
+            "undo Scroll tail deletion restores curve and event");
+        document.Redo();
+        document.Undo();
+        document.Execute(new EditScrollCommand(ExactBarTime.FromFraction(3, 2),
+            ExactBarTime.FromFraction(5, 4), 1.25, V2ScrollCurve.Linear));
+        Check(!document.CanRedo && document.IsDirty,
+            "new Scroll edit after undo clears redo and remains dirty");
+
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new EditScrollCommand(ExactBarTime.Zero, ExactBarTime.FromFraction(1, 4),
+                    1, V2ScrollCurve.Linear)),
+            "bar zero Scroll cannot move");
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new DeleteScrollCommand(ExactBarTime.Zero)),
+            "bar zero Scroll cannot leave later events orphaned");
+        ExpectException<InvalidOperationException>(() => document.Execute(
+                new EditScrollCommand(ExactBarTime.FromFraction(2, 1),
+                    ExactBarTime.FromFraction(2, 1), 65, null)),
+            "Scroll rejects value above strict v2 maximum");
+
+        var pack = document.BuildPackSnapshot();
+        var secondEntry = pack.Charts[0] with { Id = "mega", File = "charts/mega.json" };
+        var twoChart = EditorDocument.FromPackage(null, pack with
+        {
+            Charts = [pack.Charts[0], secondEntry],
+        }, new Dictionary<string, V2Chart>(StringComparer.Ordinal)
+        {
+            ["hard"] = document.BuildChartSnapshot("hard"),
+            ["mega"] = document.BuildChartSnapshot("hard") with { ChartId = "mega", ScrollSpeeds = [] },
+        });
+        twoChart.Execute(new EditScrollCommand(ExactBarTime.Zero, ExactBarTime.Zero, 1.1,
+            V2ScrollCurve.Linear));
+        twoChart.SelectChart("mega");
+        twoChart.Undo();
+        Check(twoChart.SelectedChartId == "hard" &&
+              twoChart.SelectedChart.ScrollSpeeds[0].Value == 1,
+            "Scroll undo follows owning chart");
+        twoChart.Redo();
+        Check(twoChart.SelectedChartId == "hard" &&
+              twoChart.SelectedChart.ScrollSpeeds[0].Value == 1.1,
+            "Scroll redo follows owning chart");
     }
 
     private static void TestDraftCreationAndValidation()
@@ -279,6 +544,18 @@ internal static class Program
 
         try
         {
+            document.Execute(new EditBpmCommand(ExactBarTime.Zero,
+                ExactBarTime.FromFraction(1, 2), 200));
+        }
+        catch (InvalidOperationException)
+        {
+            Check(document.SelectedChart.Bpms.Count(item => item.Time == ExactBarTime.Zero) == 1 &&
+                  document.SelectedChart.Bpms.Single(item => item.Time == ExactBarTime.Zero).Bpm == 150,
+                "base BPM move is rejected without mutation");
+        }
+
+        try
+        {
             document.Execute(new DeleteBpmCommand(ExactBarTime.Zero));
         }
         catch (InvalidOperationException)
@@ -316,7 +593,7 @@ internal static class Program
 
     private static void TestStrictPackageOpen()
     {
-        var root = Path.Combine(Path.GetTempPath(), "dux-editor-open-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(Path.GetTempPath(), "dynamite-universe-editor-open-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
         {
@@ -360,7 +637,7 @@ internal static class Program
 
     private static void TestPackageWriter()
     {
-        var root = Path.Combine(Path.GetTempPath(), "dux-editor-writer-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(Path.GetTempPath(), "dynamite-universe-editor-writer-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
         {
@@ -481,7 +758,7 @@ internal static class Program
                 AllowEmptyDestination = true,
             });
             Check(File.Exists(Path.Combine(allowedEmpty, "meta.json")) &&
-                  !Directory.EnumerateFileSystemEntries(root, "allowed-empty.dux-empty-*",
+                  !Directory.EnumerateFileSystemEntries(root, "allowed-empty.dynamite-universe-empty-*",
                       SearchOption.TopDirectoryOnly).Any(),
                 "first create publishes to explicitly allowed empty destination");
 
@@ -615,6 +892,9 @@ internal static class Program
             new Dictionary<string, V2Chart>(StringComparer.Ordinal) { [chartId] = chart });
     }
 
+    private static EditableNote RequireTestNote(this EditorDocument document, string id) =>
+        document.SelectedChart.Notes.Single(note => note.Id == id);
+
     private static void AddTap(EditorDocument document, string id)
     {
         document.Execute(new AddNoteCommand(new EditableNote
@@ -631,7 +911,7 @@ internal static class Program
     private static void WithExternalResources(Action<string, string, string> test)
     {
         var root = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory)!,
-            "dux-editor-draft-" + Guid.NewGuid().ToString("N"));
+            "dynamite-universe-editor-draft-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
         {
@@ -649,7 +929,7 @@ internal static class Program
     }
 
     private static IEnumerable<string> FindStagingDirectories(string root) =>
-        Directory.EnumerateDirectories(root, "*.dux-staging-*", SearchOption.TopDirectoryOnly);
+        Directory.EnumerateDirectories(root, "*.dynamite-universe-staging-*", SearchOption.TopDirectoryOnly);
 
     private static void ExpectDiagnostic(Action action, string source, string pointer, string name)
     {

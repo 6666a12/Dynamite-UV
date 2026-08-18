@@ -1,11 +1,11 @@
 using System.Text.Json;
 using Godot;
-using DuxShared.Chart;
-using DuxShared.Chart.V2;
-using DuxShared.Judge;
-using DuxShared.Score;
+using DynamiteUniverse.Shared.Chart;
+using DynamiteUniverse.Shared.Chart.V2;
+using DynamiteUniverse.Shared.Judge;
+using DynamiteUniverse.Shared.Score;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 public enum ChartPackageFormat
 {
@@ -71,8 +71,8 @@ public sealed class LoadedChart
         new Dictionary<int, string>();
     public IReadOnlyDictionary<int, ExactBarTime> ExactTimesByRuntimeId { get; init; } =
         new Dictionary<int, ExactBarTime>();
-    public DuxShared.Chart.V2.V2BpmTimeline? V2Timeline { get; init; }
-    public DuxShared.Chart.V2.V2ScrollMap? V2Scroll { get; init; }
+    public DynamiteUniverse.Shared.Chart.V2.V2BpmTimeline? V2Timeline { get; init; }
+    public DynamiteUniverse.Shared.Chart.V2.V2ScrollMap? V2Scroll { get; init; }
 
     public bool TryGetScoreIdentity(out ScoreIdentity identity)
     {
@@ -191,7 +191,7 @@ public sealed class ChartPack
 
             if (packageFormat == ChartPackageFormat.V2)
             {
-                var strictPack = DuxShared.Chart.V2.V2JsonDecoder.DecodePack(
+                var strictPack = DynamiteUniverse.Shared.Chart.V2.V2JsonDecoder.DecodePack(
                     Godot.FileAccess.GetFileAsBytes(metaPath), metaPath);
                 return V2ChartMetadataAdapter.ToChartPack(dirPath, strictPack);
             }

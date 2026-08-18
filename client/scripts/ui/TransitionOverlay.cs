@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>Fixed-design opaque Signal Lock and cover-capable Track Handoff presentation.</summary>
 public partial class TransitionOverlay : Control

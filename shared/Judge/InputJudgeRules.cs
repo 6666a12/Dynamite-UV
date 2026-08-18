@@ -1,6 +1,6 @@
-using DuxShared.Chart;
+using DynamiteUniverse.Shared.Chart;
 
-namespace DuxShared.Judge;
+namespace DynamiteUniverse.Shared.Judge;
 
 /// <summary>Per-contact phase values used by the original manual judge.</summary>
 public enum ContactPhase

@@ -1,6 +1,6 @@
 using Avalonia;
 
-namespace DuxCommunity.ChartEditor;
+namespace DynamiteUniverse.ChartEditor;
 
 internal static class Program
 {

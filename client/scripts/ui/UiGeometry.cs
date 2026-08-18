@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>Shared cut-corner polygon construction for custom-drawn controls.</summary>
 public static class UiGeometry

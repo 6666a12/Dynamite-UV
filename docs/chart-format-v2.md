@@ -1,4 +1,4 @@
-# Dynamite UV Chart Format v2
+# Dynamite Universe Chart Format v2
 
 > 状态：正式目标格式，版本 `2`，规则集 `dynamite-uv-ruleset-2.0`。
 >
@@ -8,7 +8,7 @@
 > Gameplay Digest 成绩 identity 与独立 Avalonia 制谱器；legacy 仍是兼容输入。
 > “正式”表示本文的数据合同与玩法语义已经冻结，客户端和工具必须按此 fail closed。
 
-本文是 Dynamite UV 社区谱面包 v2 的权威规范。机器可读约束见
+本文是 Dynamite Universe 社区谱面包 v2 的权威规范。机器可读约束见
 `../schemas/chart-format-v2/`，clean-room 完整示例见
 `../schemas/chart-format-v2/examples/golden-pack/`。
 
@@ -150,7 +150,7 @@ cover.png
   "id": "example.synthetic-pulse",
   "revision": 1,
   "title": "Synthetic Pulse",
-  "artist": "Dynamite UV Contributors",
+  "artist": "Dynamite Universe Contributors",
   "audio": "audio.wav",
   "preview": {
     "startSec": 0.5,
@@ -946,7 +946,7 @@ schemas/chart-format-v2/examples/golden-pack/audio.wav
   "id": "example.synthetic-pulse",
   "revision": 1,
   "title": "Synthetic Pulse",
-  "artist": "Dynamite UV Contributors",
+  "artist": "Dynamite Universe Contributors",
   "audio": "audio.wav",
   "preview": { "startSec": 0.5, "durationSec": 4.0 },
   "charts": [

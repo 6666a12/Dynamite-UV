@@ -1,6 +1,6 @@
-using DuxShared.Chart;
+using DynamiteUniverse.Shared.Chart;
 
-namespace DuxShared.Judge;
+namespace DynamiteUniverse.Shared.Judge;
 
 public enum SustainKind
 {
@@ -16,9 +16,9 @@ public sealed class SustainPath
     public required Track Track { get; init; }
     public required IReadOnlyList<Note> Nodes { get; init; }
     /// <summary>Exact v2 path evaluator when this sustain originated from a v2 chart.</summary>
-    public DuxShared.Chart.V2.V2PathEvaluator? V2Evaluator { get; init; }
+    public DynamiteUniverse.Shared.Chart.V2.V2PathEvaluator? V2Evaluator { get; init; }
     /// <summary>Exact v2 BPM map used to translate runtime seconds back to path BarTime.</summary>
-    public DuxShared.Chart.V2.V2BpmTimeline? V2BpmTimeline { get; init; }
+    public DynamiteUniverse.Shared.Chart.V2.V2BpmTimeline? V2BpmTimeline { get; init; }
 
     public Note Head => Nodes[0];
     public Note End => Nodes[^1];

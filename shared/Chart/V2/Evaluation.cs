@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>An exact-time BPM map with exact rational segment accumulation.</summary>
 public sealed class V2BpmTimeline

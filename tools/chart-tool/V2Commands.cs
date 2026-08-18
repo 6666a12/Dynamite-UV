@@ -1,4 +1,4 @@
-using DuxShared.Chart.V2;
+using DynamiteUniverse.Shared.Chart.V2;
 using System.Buffers.Binary;
 
 namespace ChartTool;

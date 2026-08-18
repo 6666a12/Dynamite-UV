@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DuxShared.Chart;
+namespace DynamiteUniverse.Shared.Chart;
 
 /// <summary>
 /// 解析逆向提取的谱面 JSON（结构见规格书 §1）。

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-namespace DuxShared.Chart.V2;
+namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>A fail-closed v2 diagnostic carrying the source name and RFC 6901 JSON Pointer.</summary>
 public sealed class V2DiagnosticException : FormatException

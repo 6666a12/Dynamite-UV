@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>Small JSON helpers for the permissive legacy package metadata format.</summary>
 internal static class LegacyChartMetadata

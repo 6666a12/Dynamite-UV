@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 
-namespace DuxCommunity.ChartEditor.Views;
+namespace DynamiteUniverse.ChartEditor.Views;
 
 public sealed partial class StartPage : UserControl
 {

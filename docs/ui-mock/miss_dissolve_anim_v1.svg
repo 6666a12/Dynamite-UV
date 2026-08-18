@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="768" height="512" viewBox="0 0 768 512" role="img" aria-labelledby="title desc">
-  <title id="title">DUX Community miss dissolve animation V1</title>
+  <title id="title">Dynamite Universe miss dissolve animation V1</title>
   <desc id="desc">A six-frame muted miss dissolve sprite sheet arranged in three columns and two rows.</desc>
   <defs>
     <clipPath id="cell"><rect width="256" height="256"/></clipPath>

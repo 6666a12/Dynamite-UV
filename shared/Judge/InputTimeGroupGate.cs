@@ -1,4 +1,4 @@
-namespace DuxShared.Judge;
+namespace DynamiteUniverse.Shared.Judge;
 
 /// <summary>
 /// Locks the early/exact side of one input update batch to a single note

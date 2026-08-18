@@ -1,7 +1,7 @@
-using DuxShared.Chart;
-using DuxShared.Chart.V2;
-using DuxShared.Judge;
-using DuxShared.Score;
+using DynamiteUniverse.Shared.Chart;
+using DynamiteUniverse.Shared.Chart.V2;
+using DynamiteUniverse.Shared.Judge;
+using DynamiteUniverse.Shared.Score;
 
 namespace CoreTests;
 

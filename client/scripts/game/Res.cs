@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DuxCommunity.Game;
+namespace DynamiteUniverse.Game;
 
 /// <summary>运行时资源加载：res:// 与用户目录（user://，无 .import）通吃。</summary>
 public static class Res

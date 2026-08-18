@@ -1,7 +1,7 @@
 using Godot;
-using DuxCommunity.Game;
+using DynamiteUniverse.Game;
 
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>
 /// 选曲列表行（样式稿）：左对齐曲名+曲师，右侧彩色难度徽章（切角小块+等级数字）。

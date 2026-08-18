@@ -1,4 +1,4 @@
-namespace DuxCommunity.Ui;
+namespace DynamiteUniverse.Ui;
 
 /// <summary>Semantic UI easing curves shared by manual progress and Tween callbacks.</summary>
 public static class UiEase

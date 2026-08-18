@@ -1,6 +1,6 @@
 using ChartTool.IsolatedV2;
-using DuxShared.Chart;
-using DuxShared.Judge;
+using DynamiteUniverse.Shared.Chart;
+using DynamiteUniverse.Shared.Judge;
 
 namespace ChartTool;
 

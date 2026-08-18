@@ -2,7 +2,7 @@
 
 This file lists third-party content that is intentionally redistributed by the
 current repository or public client build. It does not grant a license for the
-DUX-Community project's own code or assets.
+Dynamite Universe project's own code or assets.
 
 ## Orbitron
 
@@ -18,6 +18,21 @@ DUX-Community project's own code or assets.
 
 The font is redistributed unmodified. The project's own code and assets are
 not licensed under the OFL.
+
+## Space Grotesk
+
+- Files: `client/assets/fonts/SpaceGrotesk-Regular.woff2`,
+  `client/assets/fonts/SpaceGrotesk-Bold.woff2` and matching files under
+  `docs/ui-mock/fonts/`
+- Copyright: Copyright 2018 The Space Grotesk Project Authors
+  (<https://github.com/floriankarsten/space-grotesk>)
+- License: SIL Open Font License, Version 1.1
+- Source: <https://github.com/google/fonts/tree/main/ofl/spacegrotesk>
+- License text: [`third_party/space-grotesk/OFL-1.1.txt`](third_party/space-grotesk/OFL-1.1.txt)
+- Public APK copy: `client/assets/licenses/SpaceGrotesk-OFL-1.1.txt`
+
+The Regular and Bold fonts are redistributed unmodified. The project's own
+code and assets are not licensed under the OFL.
 
 ## Godot Engine
 
@@ -44,6 +59,31 @@ not licensed under the OFL.
 
 The Public export policy includes all of the above license and notice files,
 and the final APK gate verifies their SHA-256 values.
+
+## Chart editor audio dependencies
+
+The desktop chart editor under `tools/chart-editor/` redistributes the following
+NuGet libraries. They are editor-only dependencies and are not included in the
+game APK.
+
+- **NAudio 2.2.1** and component packages — Copyright 2008-2026 Mark Heath;
+  MIT; <https://github.com/naudio/NAudio>
+- **NLayer 2.0.1** — Copyright 2018 Mark Heath, Andrew Ward & Contributors;
+  MIT; <https://github.com/naudio/NLayer>
+- **NAudio.Vorbis 1.5.0 / NVorbis 0.10.4** — Copyright Andrew Ward; MIT;
+  <https://github.com/naudio/Vorbis> and <https://github.com/NVorbis/NVorbis>
+- **Concentus.Oggfile 1.0.7** — Copyright 2020 Andrew Ward and Logan Stromberg;
+  MIT; <https://github.com/lostromb/concentus.oggfile>
+- **Concentus 2.2.2** — copyright held by the Opus contributors listed by the
+  package; 3-clause BSD-style Opus license;
+  <https://github.com/lostromb/concentus>
+- **BunLabs.NAudio.Flac 2.0.1** — authorship attributed to Vivelin by the NuGet
+  package; Microsoft Public License (Ms-PL);
+  <https://github.com/BunLabs/NAudio.Flac>
+
+The dependency packages carry their license metadata/text in NuGet. Windows
+Media Foundation is used through the operating system for M4A/AAC and is not
+redistributed by this repository.
 
 ## Research tooling boundary
 

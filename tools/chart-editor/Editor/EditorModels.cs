@@ -1,4 +1,6 @@
-namespace DuxCommunity.ChartEditor.Editor;
+using DynamiteUniverse.Shared.Chart.V2;
+
+namespace DynamiteUniverse.ChartEditor.Editor;
 
 public enum EditorTrack
 {
@@ -13,8 +15,22 @@ public enum EditorTool
     Select,
     Tap,
     Drag,
+    ExTap,
     Hold,
+    Mixer,
+    Mine,
+    BarLine,
+    PathNode,
     Bpm,
+    Scroll,
+}
+
+public enum EditorObjectKind
+{
+    Note,
+    PathNode,
+    Bpm,
+    Scroll,
 }
 
 public sealed record EditorBpmEvent(
@@ -24,25 +40,46 @@ public sealed record EditorBpmEvent(
     double Bpm,
     string ExactTime);
 
+public sealed record EditorScrollEventModel(
+    string Id,
+    double Bar,
+    double Second,
+    double Value,
+    V2ScrollCurve? CurveToNext,
+    string ExactTime);
+
 public sealed record EditorPathPoint(
     double Bar,
     double Second,
     double Center,
     double Width);
 
+public sealed record EditorPathNodeModel(
+    string Id,
+    double Bar,
+    double Second,
+    double Center,
+    double Width,
+    V2PathCurve? CurveToNext,
+    bool? Judge,
+    string ExactTime,
+    bool IsTerminal);
+
 public sealed record EditorNoteModel
 {
     public required string Id { get; init; }
-    public required string Type { get; init; }
+    public required V2NoteType Type { get; init; }
     public required EditorTrack Track { get; init; }
     public required double Bar { get; init; }
     public required double Second { get; init; }
     public required double Center { get; init; }
     public required double Width { get; init; }
     public required string ExactTime { get; init; }
+    public V2PathCurve? CurveToNext { get; init; }
     public required IReadOnlyList<EditorPathPoint> Path { get; init; }
+    public required IReadOnlyList<EditorPathNodeModel> PathNodes { get; init; }
 
-    public bool IsPath => Path.Count > 1;
+    public bool IsPath => Type is V2NoteType.Hold or V2NoteType.Mixer;
     public double EndBar => Path.Count == 0 ? Bar : Path[^1].Bar;
     public double EndSecond => Path.Count == 0 ? Second : Path[^1].Second;
 }
@@ -56,10 +93,12 @@ public sealed record EditorChartDocument
     public required IReadOnlyList<string> Charters { get; init; }
     public required string SourceFile { get; init; }
     public required string ResolvedAudio { get; init; }
+    public required string ResolvedAudioPath { get; init; }
     public required double AudioOffsetSec { get; init; }
     public required double DurationSec { get; init; }
     public required long MainJudgementCount { get; init; }
     public required IReadOnlyList<EditorBpmEvent> Bpms { get; init; }
+    public required IReadOnlyList<EditorScrollEventModel> Scrolls { get; init; }
     public required IReadOnlyList<EditorNoteModel> Notes { get; init; }
     public required Func<double, double> SecondsToBar { get; init; }
     public required Func<double, double> BarToSeconds { get; init; }
@@ -84,10 +123,11 @@ public sealed record EditorProject
 }
 
 public sealed record EditorSelectionInfo(
-    string Kind,
+    EditorObjectKind Kind,
     string Id,
-    string Track,
+    EditorTrack Track,
     string Time,
     string Position,
     string Width,
-    string Detail);
+    string Detail,
+    string? ParentId = null);

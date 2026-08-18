@@ -9,7 +9,7 @@
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../shared/DuxShared.csproj" />
+    <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
     <None Include="Fixtures/synthetic_chart.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
