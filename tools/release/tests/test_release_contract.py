@@ -58,6 +58,8 @@ class ReleaseContractTests(unittest.TestCase):
             self.assertIn(f'"{resource}"', exports)
         excludes = preset["exclude_filter"].strip('"').split(",")
         self.assertIn("testdata/*", excludes)
+        self.assertNotIn("scenes/dyna_maker_uv.tscn", excludes)
+        self.assertNotIn("scripts/editor/*", excludes)
         self.assertEqual(options["architectures/arm64-v8a"], "true")
         for key in (
             "architectures/armeabi-v7a", "architectures/x86", "architectures/x86_64"
@@ -115,6 +117,70 @@ class ReleaseContractTests(unittest.TestCase):
         # to be absent from the working tree as well.
         self.assertFalse((REPO_ROOT / "tools/apktool/apktool.jar").exists())
         self.assertFalse((REPO_ROOT / "tools/apktool/dynamix_debug.keystore").exists())
+
+    def test_game_and_editor_are_separate_godot_projects(self) -> None:
+        client = REPO_ROOT / "client"
+        editor = REPO_ROOT / "editor"
+        self.assertTrue((client / "project.godot").is_file())
+        self.assertTrue((editor / "project.godot").is_file())
+        self.assertTrue((editor / "scenes/editor_main.tscn").is_file())
+        self.assertTrue((editor / "DynaMakerUv.Editor.csproj").is_file())
+        self.assertFalse((client / "scenes/dyna_maker_uv.tscn").exists())
+        self.assertFalse(any((client / "scripts/editor").glob("**/*")))
+
+        project = (client / "DynamiteUniverse.csproj").read_text(encoding="utf-8")
+        self.assertNotIn("ChartEditor.Core.csproj", project)
+        self.assertNotIn("scripts/editor", project)
+        client_sources = "\n".join(
+            path.read_text(encoding="utf-8-sig")
+            for path in (client / "scripts").rglob("*.cs")
+        )
+        self.assertNotIn("DynamiteUniverse.Editor", client_sources)
+        self.assertNotIn("DynaMakerUvMain", client_sources)
+        self.assertNotIn('HasFeature("editor_runtime")', client_sources)
+
+        editor_project = (editor / "project.godot").read_text(encoding="utf-8")
+        editor_csproj = (editor / "DynaMakerUv.Editor.csproj").read_text(encoding="utf-8")
+        editor_presets = (editor / "export_presets.cfg").read_text(encoding="utf-8")
+        self.assertIn('run/main_scene="res://scenes/editor_main.tscn"', editor_project)
+        self.assertIn('project/assembly_name="DynaMakerUv.Editor"', editor_project)
+        self.assertNotIn("DynamiteUniverse.csproj", editor_csproj)
+        self.assertNotIn("client/DynamiteUniverse.csproj", editor_csproj)
+        self.assertNotIn("client/scripts/editor", editor_csproj)
+        self.assertIn('name="DynaMaker UV Windows"', editor_presets)
+        self.assertIn('export_filter="resources"', editor_presets)
+        for resource in (
+            "res://scenes/editor_main.tscn",
+            "res://shaders/note_surface.gdshader",
+            "res://assets/fonts/SpaceGrotesk-Regular.woff2",
+            "res://assets/fonts/SpaceGrotesk-Bold.woff2",
+        ):
+            self.assertIn(f'"{resource}"', editor_presets)
+        self.assertIn("testdata/*", editor_presets)
+        self.assertIn(".godot/*", editor_presets)
+
+    def test_local_dynamaker_reference_contains_code_but_no_upstream_assets(self) -> None:
+        # Optional development reference, ignored by Git and never a build/export dependency.
+        reference = REPO_ROOT / "third_party/dynamaker-modified-reference"
+        if not reference.exists():
+            self.skipTest("Optional local DynaMaker reference snapshot is not installed")
+        self.assertTrue(reference.is_dir())
+        origin = (reference / "ORIGIN.md").read_text(encoding="utf-8")
+        self.assertIn("dynamaker-tool/dynamaker-modified", origin)
+        self.assertIn("99a5a6049f5bc3ee69e5c8cd3a72f4d8c1e99a8d", origin)
+        for source in ("mouse.js", "keyboard.js", "playView.js", "function.js"):
+            self.assertTrue((reference / "app/src/Script" / source).is_file(), source)
+
+        forbidden_suffixes = {
+            ".png", ".jpg", ".jpeg", ".webp", ".wav", ".mp3",
+            ".ogg", ".ttf", ".otf", ".ico", ".icns",
+        }
+        binaries = [
+            path.relative_to(reference).as_posix()
+            for path in reference.rglob("*")
+            if path.is_file() and path.suffix.casefold() in forbidden_suffixes
+        ]
+        self.assertEqual([], binaries)
 
 
 if __name__ == "__main__":

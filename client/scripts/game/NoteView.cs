@@ -69,7 +69,8 @@ public partial class NoteView : Node2D
 	public Note Model { get; private set; } = null!;
 
 	private ColorRect? _flatRect;
-	private readonly List<ShaderMaterial> _surfaceMaterials = new();
+	private readonly List<(ColorRect Rect, ShaderMaterial Material, Vector2 Expansion)> _surfaces = new();
+	private Vector2 _sizePx;
 	private float _ttl = -1f; // 命中后的残留显示时间（秒）
 	private float _depthAlpha = 1f;
 	private float _stateAlpha = 1f;
@@ -79,15 +80,15 @@ public partial class NoteView : Node2D
 	public bool IsLineAnchored { get; private set; }
 	public float MissDistancePx { get; private set; }
 
-	public static NoteView Create(Note model, Vector2 sizePx, Color color, bool goldFrame = false)
+	public static NoteView Create(Note model, Vector2 sizePx, Color color, bool goldFrame = false, bool ghost = false)
 	{
-		var view = new NoteView { Model = model, ZIndex = 1 }; // 连接体（ZIndex 0）之上
+		var view = new NoteView { Model = model, ZIndex = 1, _sizePx = sizePx }; // 连接体（ZIndex 0）之上
 		if (TryPaletteFor(model.Type, out var palette))
 		{
 			var vertical = model.Track != Track.Center;
 			var glowExpansion = vertical ? new Vector2(8f, 14f) : new Vector2(14f, 8f);
 			var glowAlpha = GlowAlphaFor(model.Type);
-			if (glowAlpha > 0f)
+			if (glowAlpha > 0f && !ghost)
 			{
 				var glow = FlatPalette(palette.Glow, glowAlpha);
 				AddSurface(view, sizePx + glowExpansion, glow, vertical, 0f, 0);
@@ -180,15 +181,38 @@ public partial class NoteView : Node2D
 		material.SetShaderParameter("bottom_color", palette.Bottom);
 		material.SetShaderParameter("border_color", palette.Border);
 
-		view._surfaceMaterials.Add(material);
-		view.AddChild(new ColorRect
+		var rect = new ColorRect
 		{
 			Color = Colors.White,
 			Size = sizePx,
 			Position = -sizePx / 2f,
 			Material = material,
 			MouseFilter = Control.MouseFilterEnum.Ignore,
-		});
+		};
+		view._surfaces.Add((rect, material, sizePx - view._sizePx));
+		view.AddChild(rect);
+	}
+
+	/// <summary>按路径当前宽度调整头部，保持描边和光晕的像素尺寸。</summary>
+	public void SetSize(Vector2 sizePx)
+	{
+		if (_sizePx == sizePx)
+			return;
+		_sizePx = sizePx;
+		if (_flatRect != null)
+		{
+			_flatRect.Size = sizePx;
+			_flatRect.Position = -sizePx / 2f;
+		}
+		foreach (var (rect, material, expansion) in _surfaces)
+		{
+			var surfaceSize = sizePx + expansion;
+			rect.Size = surfaceSize;
+			rect.Position = -surfaceSize / 2f;
+			material.SetShaderParameter("size_px", surfaceSize);
+			material.SetShaderParameter("cut_px",
+				Mathf.Min(7f, Mathf.Min(surfaceSize.X, surfaceSize.Y) * 0.34f));
+		}
 	}
 
 	/// <summary>命中/错失后的视觉反馈；ttl 为负时保留到调用方显式结束。</summary>
@@ -199,7 +223,7 @@ public partial class NoteView : Node2D
 		IsRecoverableHoldFalling = false;
 		if (_flatRect != null)
 			_flatRect.Color = flash;
-		foreach (var material in _surfaceMaterials)
+		foreach (var (_, material, _) in _surfaces)
 		{
 			material.SetShaderParameter("flash_color", flash);
 			material.SetShaderParameter("flash_mix", 0.68f);
@@ -248,16 +272,6 @@ public partial class NoteView : Node2D
 		ApplyAlpha();
 	}
 
-	/// <summary>断触宽限耗尽：把可恢复下穿转为最终 Miss 下穿。</summary>
-	public void CommitHoldMissFallthrough()
-	{
-		IsLineAnchored = false;
-		IsRecoverableHoldFalling = false;
-		IsMissFalling = true;
-		_ttl = -1f;
-		UpdateMissAlpha();
-	}
-
 	/// <summary>推进下穿距离；最终 Miss 到 64px 后回收，可恢复 Hold 始终保留。</summary>
 	public bool AdvanceMissFallthrough(float distancePx)
 	{
@@ -276,7 +290,7 @@ public partial class NoteView : Node2D
 		ApplyAlpha();
 	}
 
-	/// <summary>Hold/Mixer 判定后的头部残留固定在判定线。</summary>
+	/// <summary>将已判定的端帽锚定到判定线；沿线位置由调用方更新。</summary>
 	public void AnchorToJudgeLine() => IsLineAnchored = true;
 
 	/// <summary>出生区顶部淡入；与命中/过线淡出相乘，避免互相覆盖。</summary>

@@ -60,31 +60,6 @@ code and assets are not licensed under the OFL.
 The Public export policy includes all of the above license and notice files,
 and the final APK gate verifies their SHA-256 values.
 
-## Chart editor audio dependencies
-
-The desktop chart editor under `tools/chart-editor/` redistributes the following
-NuGet libraries. They are editor-only dependencies and are not included in the
-game APK.
-
-- **NAudio 2.2.1** and component packages — Copyright 2008-2026 Mark Heath;
-  MIT; <https://github.com/naudio/NAudio>
-- **NLayer 2.0.1** — Copyright 2018 Mark Heath, Andrew Ward & Contributors;
-  MIT; <https://github.com/naudio/NLayer>
-- **NAudio.Vorbis 1.5.0 / NVorbis 0.10.4** — Copyright Andrew Ward; MIT;
-  <https://github.com/naudio/Vorbis> and <https://github.com/NVorbis/NVorbis>
-- **Concentus.Oggfile 1.0.7** — Copyright 2020 Andrew Ward and Logan Stromberg;
-  MIT; <https://github.com/lostromb/concentus.oggfile>
-- **Concentus 2.2.2** — copyright held by the Opus contributors listed by the
-  package; 3-clause BSD-style Opus license;
-  <https://github.com/lostromb/concentus>
-- **BunLabs.NAudio.Flac 2.0.1** — authorship attributed to Vivelin by the NuGet
-  package; Microsoft Public License (Ms-PL);
-  <https://github.com/BunLabs/NAudio.Flac>
-
-The dependency packages carry their license metadata/text in NuGet. Windows
-Media Foundation is used through the operating system for M4A/AAC and is not
-redistributed by this repository.
-
 ## Research tooling boundary
 
 Files under `tools/` that support behavioral research, inspection or local
@@ -93,3 +68,31 @@ those workflows (for example Apktool, Frida, ffmpeg and ComfyUI) must be
 installed separately under their respective upstream licenses. Their
 executables, signing keys and generated outputs must not be added to this
 repository or a public game package.
+
+## DynaMaker Modified reference
+
+- Optional local research checkout (Git-ignored, not included in a clean clone): `third_party/dynamaker-modified-reference`
+- Fixed source: <https://github.com/dynamaker-tool/dynamaker-modified>
+- Fixed commit: `99a5a6049f5bc3ee69e5c8cd3a72f4d8c1e99a8d`
+- Optional local snapshot manifest: `third_party/dynamaker-modified-reference/ORIGIN.md`
+- Upstream copyright: Copyright (c) 2021 jmakxd
+- License: MIT; [upstream license at the fixed commit](<https://github.com/dynamaker-tool/dynamaker-modified/blob/99a5a6049f5bc3ee69e5c8cd3a72f4d8c1e99a8d/LICENSE>); an optional local copy resides in the snapshot's `LICENSE`.
+
+The source snapshot is an optional, local-only development/reference input. It is
+not committed and may be removed once editor development no longer needs it.
+Neither building, running nor exporting either Godot project requires it.
+DynaMaker UV does not compile, embed, or load upstream JavaScript, HTML, CSS, or JSON.
+When installed, the local copy supports these behavioral reference mappings:
+
+- `app/src/Script/mouse.js` -> native editor canvas input
+- `app/src/Script/keyboard.js` -> native editor shortcut dispatch
+- `app/src/Script/playView.js` -> shared gameplay visual mapping plus editor overlay
+- `app/src/Script/startMenuScene.js` -> package selection page
+- `app/src/Script/settingsForNewMapScene.js` -> new package flow
+- `app/src/Script/function.js` -> replaced by the shared v2 core and writer
+
+Upstream documentation identifies its artwork as borrowed Dynamix material. No
+upstream Dynamix artwork, fonts, sounds, charts, icons, UI files, or other
+assets are imported into `client/` or `editor/`, and none may be added to an
+export. Persisted v2 package behavior is owned by this repository's shared
+chart core.

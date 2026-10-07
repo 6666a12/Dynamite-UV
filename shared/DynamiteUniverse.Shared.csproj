@@ -6,4 +6,7 @@
     <RootNamespace>DynamiteUniverse.Shared</RootNamespace>
     <AssemblyName>DynamiteUniverse.Shared</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ChartEditorTests" />
+  </ItemGroup>
 </Project>

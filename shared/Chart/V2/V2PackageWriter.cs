@@ -12,6 +12,8 @@ public sealed record V2PackageWriteRequest
     public required V2Pack Pack { get; init; }
     /// <summary>Charts keyed by their v2 chartId. Every declared pack entry is required.</summary>
     public required IReadOnlyDictionary<string, V2Chart> Charts { get; init; }
+    /// <summary>Optional external resources to replace at package-relative paths during staging.</summary>
+    public IReadOnlyList<V2ExternalResourceMapping> ExternalResources { get; init; } = [];
     /// <summary>
     /// Optional host decoder used to validate and measure staged audio. Null preserves the built-in
     /// PCM/IEEE-float RIFF/WAVE-only behavior.
@@ -63,11 +65,14 @@ public sealed record V2PackageWriteResult(
 
 /// <summary>
 /// Filesystem writer for local v2 packages. It copies raw package resources to an adjacent staging
-/// directory, verifies the staged files through the strict decoder/validator and only then updates
-/// JSON files. Existing JSON targets are backed up and restored if a later replacement fails.
+/// directory, verifies the staged files through the strict decoder/validator and only then publishes
+/// every staged file. Existing targets are backed up and restored if a later replacement fails.
 /// </summary>
 public static class V2PackageWriter
 {
+    /// <summary>Test-only seam invoked with each package-relative path before it is published.</summary>
+    internal static Action<string>? PublicationInterceptor { get; set; }
+
     public static V2PackageWriteResult Write(V2PackageWriteRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -82,19 +87,16 @@ public static class V2PackageWriter
         try
         {
             CopyDirectory(source, staging);
+            CopyReplacementResources(staging, request.ExternalResources);
             WriteJsonFiles(staging, request.Pack, request.Charts);
             RemoveObsoleteChartFiles(staging, sourcePack, request.Pack);
+            RemoveObsoleteResources(staging, sourcePack, request.Pack);
             var verified = VerifyStaging(staging, request.Pack, request.AudioProbe);
 
             if (SameDirectory(source, destination))
-            {
-                ReplaceJsonFiles(staging, destination, sourcePack, request.Pack);
-                TryDeleteStaging(staging);
-            }
+                PublishOverExisting(staging, destination);
             else
-            {
                 PublishSaveAs(staging, destination);
-            }
 
             return new V2PackageWriteResult(destination, verified);
         }
@@ -200,9 +202,12 @@ public static class V2PackageWriter
             throw new V2DiagnosticException(meta, "/", "staged package differs from requested package identity");
 
         var digests = new Dictionary<string, V2GameplayDigestResult>(StringComparer.Ordinal);
+        var audioBytesByPath = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in resolved)
         {
-            var audio = File.ReadAllBytes(Resolve(staging, item.ResolvedAudio, true));
+            var path = Resolve(staging, item.ResolvedAudio, requireFile: true);
+            if (!audioBytesByPath.TryGetValue(path, out var audio))
+                audioBytesByPath[path] = audio = File.ReadAllBytes(path);
             digests.Add(item.Entry.Id, V2GameplayDigest.Compute(item.Chart, item.Entry, audio));
         }
         return digests;
@@ -219,33 +224,39 @@ public static class V2PackageWriter
         }
     }
 
-    private static void ReplaceJsonFiles(string staging, string destination, V2Pack sourcePack, V2Pack replacementPack)
+    private static void PublishOverExisting(string staging, string destination)
     {
-        var files = JsonFiles(sourcePack).Concat(JsonFiles(replacementPack))
-            .Distinct(StringComparer.Ordinal).ToArray();
+        var desired = new HashSet<string>(Directory
+            .EnumerateFiles(staging, "*", SearchOption.AllDirectories)
+            .Select(file => Path.GetRelativePath(staging, file)), StringComparer.OrdinalIgnoreCase);
         var backups = new List<(string Target, string Backup)>();
         var published = new List<string>();
         try
         {
-            foreach (var relative in files)
+            foreach (var file in Directory.EnumerateFiles(destination, "*", SearchOption.AllDirectories))
             {
+                var relative = Path.GetRelativePath(destination, file);
+                if (desired.Contains(relative))
+                    continue;
+                var backup = file + ".dynamite-universe-backup-" + Guid.NewGuid().ToString("N");
+                File.Move(file, backup);
+                backups.Add((file, backup));
+            }
+            foreach (var relative in desired.OrderBy(path => path, StringComparer.Ordinal))
+            {
+                var replacement = Resolve(staging, relative, requireFile: true);
                 var target = Resolve(destination, relative, requireFile: false);
-                var replacement = Resolve(staging, relative, requireFile: false);
                 if (File.Exists(target))
                 {
                     var backup = target + ".dynamite-universe-backup-" + Guid.NewGuid().ToString("N");
                     File.Move(target, backup);
                     backups.Add((target, backup));
                 }
-                if (File.Exists(replacement))
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                    File.Move(replacement, target);
-                    published.Add(target);
-                }
+                PublicationInterceptor?.Invoke(relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Move(replacement, target);
+                published.Add(target);
             }
-            foreach (var (_, backup) in backups)
-                File.Delete(backup);
         }
         catch
         {
@@ -264,6 +275,35 @@ public static class V2PackageWriter
             }
             throw;
         }
+
+        // Publication has completed successfully. Cleanup is deliberately outside the rollback
+        // boundary: a failed backup/staging delete must leave the newly published package intact.
+        var cleanupFailures = new List<Exception>();
+        foreach (var (_, backup) in backups)
+        {
+            try
+            {
+                // File.Delete is already idempotent for a missing path; calling it directly also
+                // preserves access-denied errors that File.Exists would otherwise hide.
+                File.Delete(backup);
+            }
+            catch (Exception exception)
+            {
+                cleanupFailures.Add(exception);
+            }
+        }
+        try
+        {
+            if (Directory.Exists(staging))
+                Directory.Delete(staging, recursive: true);
+        }
+        catch (Exception exception)
+        {
+            cleanupFailures.Add(exception);
+        }
+        if (cleanupFailures.Count > 0)
+            throw new AggregateException("Package published, but temporary cleanup failed.",
+                cleanupFailures);
     }
 
     private static void PublishSaveAs(string staging, string destination)
@@ -345,11 +385,31 @@ public static class V2PackageWriter
         }
     }
 
-    private static IEnumerable<string> JsonFiles(V2Pack pack)
+    private static void RemoveObsoleteResources(string staging, V2Pack sourcePack, V2Pack replacementPack)
     {
-        yield return "meta.json";
+        var current = new HashSet<string>(ReferencedResources(replacementPack),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var file in ReferencedResources(sourcePack))
+        {
+            if (current.Contains(file))
+                continue;
+            var path = Resolve(staging, file, requireFile: false);
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    private static IEnumerable<string> ReferencedResources(V2Pack pack)
+    {
+        if (pack.Audio is not null)
+            yield return pack.Audio;
+        if (pack.Cover is not null)
+            yield return pack.Cover;
         foreach (var entry in pack.Charts)
-            yield return entry.File;
+        {
+            if (entry.Audio is not null)
+                yield return entry.Audio;
+        }
     }
 
     private static bool SameDirectory(string left, string right) =>
@@ -489,6 +549,25 @@ public static class V2PackageWriter
             var target = Resolve(staging, resource.PackageRelativePath, requireFile: false);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(resource.ExternalSourcePath, target, overwrite: false);
+        }
+    }
+
+    private static void CopyReplacementResources(string staging,
+        IReadOnlyList<V2ExternalResourceMapping> resources)
+    {
+        foreach (var resource in resources)
+        {
+            if (resource is null)
+                throw new V2DiagnosticException("save-request", "/externalResources",
+                    "resource mapping cannot be null");
+            ValidateRelativeDestination(resource.PackageRelativePath, "/externalResources/packageRelativePath");
+            var source = Path.GetFullPath(resource.ExternalSourcePath);
+            if (!File.Exists(source) || (File.GetAttributes(source) & FileAttributes.ReparsePoint) != 0)
+                throw new V2DiagnosticException("save-request", "/externalResources/externalSourcePath",
+                    "external resource source must be a regular file");
+            var destination = Resolve(staging, resource.PackageRelativePath, requireFile: false);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(source, destination, overwrite: true);
         }
     }
 

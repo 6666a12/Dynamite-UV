@@ -13,7 +13,9 @@ internal sealed record GameplayRunContext(
     string SongTitle,
     string? CoverPath,
     string? RulesetId,
-    string? GameplayDigest)
+    string? GameplayDigest,
+    string Artist = "-",
+    string Charter = "-")
 {
     public static GameplayRunContext FromSelection(ChartPack pack, ChartDiff diff,
         LoadedChart loaded) => new(
@@ -26,7 +28,9 @@ internal sealed record GameplayRunContext(
         pack.Title,
         pack.CoverPath,
         loaded.RulesetId,
-        loaded.GameplayDigest);
+        loaded.GameplayDigest,
+        pack.Artist,
+        diff.CharterDisplay);
 
     public static GameplayRunContext InternalFallback { get; } = new(
         "tablear", "giga", "giga", "giga", "giga", 15, "Tablear", null, null, null);

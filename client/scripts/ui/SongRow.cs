@@ -16,6 +16,8 @@ public partial class SongRow : Control
     private float _commitAmount;
     private double _commitElapsed;
     private double _commitDuration;
+    private Vector2[]? _points;
+    private Vector2[]? _closedPoints;
 
     [Signal]
     public delegate void PressedEventHandler();
@@ -42,6 +44,15 @@ public partial class SongRow : Control
         MouseDefaultCursorShape = CursorShape.PointingHand;
         MouseEntered += OnMouseEntered;
         MouseExited += OnMouseExited;
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationResized)
+        {
+            _points = null;
+            _closedPoints = null;
+        }
     }
 
     public override void _Process(double delta)
@@ -114,7 +125,7 @@ public partial class SongRow : Control
         var commit = profile.IsAnimated ? UiEase.Echo(_commitAmount) : 0f;
         var active = Mathf.Max(Mathf.Max(hover, selected), commit);
         const float cut = 10f;
-        Vector2[] pts = UiGeometry.CutCorners(Size, cut);
+        Vector2[] pts = _points ??= UiGeometry.CutCorners(Size, cut);
         var idleFill = new Color(0.06f, 0.08f, 0.16f, 0.35f);
         var hoverFill = new Color(UiFonts.PanelHover, 0.6f);
         var fill = idleFill.Lerp(hoverFill, hover)
@@ -124,7 +135,7 @@ public partial class SongRow : Control
 
         if (active > 0f)
         {
-            var closed = UiGeometry.Close(pts);
+            var closed = _closedPoints ??= UiGeometry.Close(pts);
             var border = UiFonts.Line.Lerp(UiFonts.Cyan, Mathf.Max(selected, commit));
             border.A *= active;
             DrawPolyline(closed, border, 2f, true);

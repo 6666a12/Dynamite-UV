@@ -14,8 +14,10 @@
 **/[Bb]in/
 **/[Oo]bj/
 
-# Godot/Android export output
+# Godot/Android/desktop export output
 /client/build/
+/client/builds/
+/editor/builds/
 /builds/
 *.apk
 *.aab
@@ -37,6 +39,11 @@
 # Development-only test content; never ship this in a public build.
 /client/testdata/
 
+# Local-only design workspace and upstream interaction-reference snapshot.
+# Keep shipped client/editor assets, generators, notices, and other licenses tracked.
+/design/
+/third_party/dynamaker-modified-reference/
+
 # Generated tool assets and Python caches
 /tools/.venv/
 /tools/style_refs.json
@@ -48,13 +55,30 @@
 /gui-test-screenshots/
 /tmp_editor_check/
 /tmp_shots/
+/.tmp/
+/.analysis-literal-probe/
+/analysis_literal_probe/
+/editor-ui-check.png
+/editor-ui-workbench.png
+/editor-gui.log
+/editor-gui.err
+/editor-split.log
+/editor-split.err
 
 # Locally compiled research utility
 /tools/memscan/memscan
+/tmp-authoring*.dll
+/editor-static-check.dll
+/editor-restore.log
+/editor-restore-projectref.log
+/restore2.log
+/godot-editor-smoke.log
+/godot-editor-editor-mode.log
+/tmp_godot_userdata*/
 
 # Local agent/session metadata
 /.zcode/
-AGENTS.md
+# AGENTS.md 必须保持被跟踪：tools/core-tests 的 FindRepositoryRoot 以它为仓库根哨兵。
 
 # Operating system metadata
 .DS_Store

@@ -6,7 +6,7 @@ namespace DynamiteUniverse.Game;
 public static class ChartCatalog
 {
     public static bool IsEditorOrInternal => OS.HasFeature("internal_testdata") ||
-        OS.HasFeature("editor") || OS.HasFeature("editor_runtime");
+        OS.HasFeature("editor");
 
     public static List<ChartPack> ScanAll()
     {

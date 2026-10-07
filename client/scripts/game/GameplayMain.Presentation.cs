@@ -13,12 +13,17 @@ public partial class GameplayMain
 	private void BuildStage()
 	{
 		_stageRoot = new Node2D { Name = "StageVisuals" };
-		_noteRoot = new Node2D { Name = "NoteVisuals" };
 		_hudRoot = new Node2D { Name = "GameplayHud", ZIndex = 20 };
 		AddChild(_stageRoot);
-		AddChild(_noteRoot);
 		AddChild(_hudRoot);
-		_stageRoot.AddChild(new GameplayBackdrop { ZIndex = -2 });
+		var sharedStage = new GameplayStageRenderer { Name = "SharedCommunityStage" };
+		_stageRoot.AddChild(sharedStage);
+		sharedStage.BuildCommunityStageChrome();
+		// Gameplay-owned judgement state still controls spawn/recycle, but its
+		// NoteView and sustain children now live in the shared stage layer.
+		_noteRoot = sharedStage.NoteLayer;
+
+#if false // Stage chrome is now owned by GameplayStageRenderer and shared with DynaMaker UV.
 
 		// 判定线（实机为隐形线，此处用暗色细线示意）：三线构成 ∪ 形——
 		// 底部横线贯通左右，与两侧竖线在两端相接；Mixer 粉条 + 中央光标。
@@ -42,6 +47,7 @@ public partial class GameplayMain
 			MouseFilter = Control.MouseFilterEnum.Ignore,
 		};
 		_stageRoot.AddChild(_mixerBar);
+#endif
 
 		BuildHud();
 		BuildPauseMenu();
@@ -51,13 +57,13 @@ public partial class GameplayMain
 	private void BuildHud()
 	{
 		// 原版风 HUD（2340 直出截图换算到 1440）：顶栏细青线框（中央缺口放暂停钮）、
-		// 底线上的发光进度段、左下曲名+难度、右下分数、顶部 CLEAR、
+		// 底线上的发光进度段、左下曲名+难度、右下分数、顶部 ACC、
 		// 中央偏下 COMBO + 判定字。
 		var frameCol = new Color(UiFonts.Cyan, 0.45f);
 		AddHudLine(new Vector2(53, 64), new Vector2(773, 2), frameCol);
 		AddHudLine(new Vector2(1093, 64), new Vector2(773, 2), frameCol);
 
-		// 顶部中央：六个紧凑 pill；CLEAR 是得分/理论满分，不是 timing accuracy。
+		// 顶部中央：六个紧凑 pill；ACC 是得分/理论满分，不是 timing accuracy。
 		_pillP = MakePill(461, UiFonts.Cyan);
 		_pillGr = MakePill(629, UiFonts.Hard);
 		_pillGo = MakePill(797, UiFonts.Casual);
@@ -143,7 +149,7 @@ public partial class GameplayMain
 			_titleTagStatus.AddThemeFontSizeOverride("font_size", 17);
 			_hudRoot.AddChild(_titleTagStatus);
 
-		// 右下：分数（CLEAR 收进顶部 pill 行）
+		// 右下：分数（ACC 收进顶部 pill 行）
 		_scoreLabel = new Label
 		{
 			Position = new Vector2(1290, 879),
@@ -248,7 +254,7 @@ public partial class GameplayMain
 				? $"{display}   /   LEVEL {level}"
 				: $"{display}   /   UNRATED";
 			_titleTag.Text = _run.SongTitle;
-			_titleTagStatus.Text = _auto ? $"{difficulty}   /   AUTO (F1)" : difficulty;
+			_titleTagStatus.Text = _auto ? $"{difficulty}   /   AUTO · 不计成绩" : difficulty;
 			_titleTagStatus.AddThemeColorOverride("font_color", color);
 			_titleTagAccent.Color = color;
 			_titleTagPanel.Border = new Color(color, 0.56f);
@@ -334,266 +340,9 @@ public partial class GameplayMain
 
 	private void BuildResultLayer()
 	{
-		_resultLayer = new Control
-		{
-			Visible = false,
-			ZIndex = 100,
-			MouseFilter = Control.MouseFilterEnum.Stop,
-		};
-		AddChild(_resultLayer);
-
-		// Keep the fallback first and fully opaque. Presentation motion only targets the
-		// content groups below; the result layer and background are never faded.
-		_resultLayer.AddChild(new ColorRect
-		{
-			Color = new Color(0.018f, 0.026f, 0.060f),
-			Size = new Vector2(1920, 1080),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		});
-
-		_resultLayer.AddChild(new CoverPlaceholder
-		{
-			Size = new Vector2(1920, 1080),
-			Modulate = new Color(0.45f, 0.45f, 0.50f),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		});
-
-		// 封面拉伸铺满 + 压暗（样式稿为模糊，Godot 侧先用压暗近似）。
-		_resultCover = new TextureRect
-		{
-			Position = Vector2.Zero,
-			Size = new Vector2(1920, 1080),
-			ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-			StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
-			Modulate = new Color(0.34f, 0.34f, 0.38f),
-			Visible = false,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		_resultLayer.AddChild(_resultCover);
-		_resultLayer.AddChild(new ColorRect
-		{
-			Color = new Color(0.04f, 0.05f, 0.10f, 0.58f),
-			Size = new Vector2(1920, 1080),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		});
-
-		_presentationResultContent = MakePresentationGroup("ResultContent");
-		_resultLayer.AddChild(_presentationResultContent);
-		_presentationResultPrelock = new ColorRect
-		{
-			Position = new Vector2(380, 240),
-			Size = new Vector2(1160, 600),
-			Color = new Color(0.02f, 0.035f, 0.08f, 0.96f),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			Visible = false,
-			ZIndex = 10,
-		};
-		_presentationResultContent.AddChild(_presentationResultPrelock);
-		_presentationResultContent.AddChild(new CutPanel
-		{
-			Position = new Vector2(380, 240),
-			Size = new Vector2(1160, 600),
-			Fill = new Color(0.078f, 0.106f, 0.20f, 0.78f),
-		});
-		_presentationResultSignalScan = new ColorRect
-		{
-			Position = new Vector2(380, 240),
-			Size = new Vector2(12, 600),
-			Color = new Color(UiFonts.Cyan, 0.72f),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			Visible = false,
-		};
-		_presentationResultContent.AddChild(_presentationResultSignalScan);
-
-			_songLine = new Label
-			{
-				Position = new Vector2(450, 276),
-				Size = new Vector2(1020, 34),
-				TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-			};
-			_songLine.AddThemeFontOverride("font", UiFonts.Cjk);
-			_songLine.AddThemeFontSizeOverride("font_size", 24);
-		_songLine.AddThemeColorOverride("font_color", UiFonts.Dim);
-		_presentationResultContent.AddChild(_songLine);
-
-		_presentationResultGradeGroup = MakePresentationGroup("ResultGrade");
-		_presentationResultScoreGroup = MakePresentationGroup("ResultScore");
-		_presentationResultStatsGroup = MakePresentationGroup("ResultStats");
-		_presentationResultButtonsGroup = MakePresentationGroup("ResultButtons");
-		_presentationResultContent.AddChild(_presentationResultGradeGroup);
-		_presentationResultContent.AddChild(_presentationResultScoreGroup);
-		_presentationResultContent.AddChild(_presentationResultStatsGroup);
-		_presentationResultContent.AddChild(_presentationResultButtonsGroup);
-
-		// Two offset echo layers sit behind the grade and are enabled only by Full motion.
-		_presentationResultGradeEchoPink = new Label
-		{
-			Position = new Vector2(480, 330),
-			Size = new Vector2(220, 180),
-			PivotOffset = new Vector2(110, 90),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		_presentationResultGradeEchoPink.AddThemeFontOverride("font", UiFonts.TechBold);
-		_presentationResultGradeEchoPink.AddThemeFontSizeOverride("font_size", 140);
-		_presentationResultGradeGroup.AddChild(_presentationResultGradeEchoPink);
-
-		_presentationResultGradeEcho = new Label
-		{
-			Position = new Vector2(480, 330),
-			Size = new Vector2(220, 180),
-			PivotOffset = new Vector2(110, 90),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		_presentationResultGradeEcho.AddThemeFontOverride("font", UiFonts.TechBold);
-		_presentationResultGradeEcho.AddThemeFontSizeOverride("font_size", 140);
-		_presentationResultGradeGroup.AddChild(_presentationResultGradeEcho);
-
-		_gradeLabel = new Label
-		{
-			Position = new Vector2(480, 330),
-			Size = new Vector2(220, 180),
-			PivotOffset = new Vector2(110, 90),
-		};
-		_gradeLabel.AddThemeFontOverride("font", UiFonts.TechBold);
-		_gradeLabel.AddThemeFontSizeOverride("font_size", 140);
-		_gradeLabel.AddThemeColorOverride("font_color", UiFonts.Cyan);
-		_presentationResultGradeGroup.AddChild(_gradeLabel);
-
-		_newRecChip = new Control { Position = new Vector2(490, 530), Size = new Vector2(200, 40) };
-		_newRecChip.AddChild(new CutPanel
-		{
-			Size = new Vector2(200, 40),
-			Cut = 8,
-			Fill = UiFonts.Pink,
-			Border = UiFonts.Pink,
-		});
-		var chipText = new Label
-		{
-			Size = new Vector2(200, 40),
-			Text = "NEW RECORD",
-			HorizontalAlignment = HorizontalAlignment.Center,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		chipText.AddThemeFontOverride("font", UiFonts.Tech);
-		chipText.AddThemeFontSizeOverride("font_size", 18);
-		chipText.AddThemeColorOverride("font_color", new Color("1a0510"));
-		_newRecChip.AddChild(chipText);
-		_presentationResultGradeGroup.AddChild(_newRecChip);
-
-		_resultScore = new Label { Position = new Vector2(750, 320), Size = new Vector2(720, 90) };
-		_resultScore.AddThemeFontOverride("font", UiFonts.TechBold);
-		_resultScore.AddThemeFontSizeOverride("font_size", 76);
-		_resultScore.AddThemeColorOverride("font_color", UiFonts.Text);
-		_presentationResultScoreGroup.AddChild(_resultScore);
-
-		_resultAcc = new Label { Position = new Vector2(750, 424), Size = new Vector2(720, 36) };
-		_resultAcc.AddThemeFontOverride("font", UiFonts.Tech);
-		_resultAcc.AddThemeFontSizeOverride("font_size", 26);
-		_resultAcc.AddThemeColorOverride("font_color", UiFonts.Dim);
-		_presentationResultScoreGroup.AddChild(_resultAcc);
-
-		// 判定分布条（4 段彩色，宽度按占比）
-		const float barX = 750, barY = 486, barH = 14;
-		_distP = DistBar(barX, barY, UiFonts.Cyan);
-		_distGr = DistBar(barX, barY, UiFonts.Hard);
-		_distGo = DistBar(barX, barY, UiFonts.Casual);
-		_distM = DistBar(barX, barY, new Color(0.33f, 0.33f, 0.33f));
-
-		_resultCountP = MakeResultStatCell(750, "P", UiFonts.Cyan);
-		_resultCountGr = MakeResultStatCell(930, "GR", UiFonts.Hard);
-		_resultCountGo = MakeResultStatCell(1110, "GD", UiFonts.Casual);
-		_resultCountM = MakeResultStatCell(1290, "M", new Color(0.52f, 0.52f, 0.56f));
-
-		_presentationResultBack = new CutButton
-		{
-			Position = new Vector2(450, 720),
-			Size = new Vector2(280, 72),
-			Text = "返回选曲",
-			FontSize = 26,
-		};
-		_presentationResultBack.Pressed += ExitToSelectFromResult;
-		_presentationResultButtonsGroup.AddChild(_presentationResultBack);
-
-		_presentationResultNext = new CutButton
-		{
-			Position = new Vector2(750, 720),
-			Size = new Vector2(280, 72),
-			Text = "下一首",
-			FontSize = 26,
-		};
-		_presentationResultNext.Pressed += NextSongFromResult;
-		_presentationResultButtonsGroup.AddChild(_presentationResultNext);
-
-		_presentationResultRetry = new CutButton
-		{
-			Position = new Vector2(1050, 720),
-			Size = new Vector2(280, 72),
-			Text = "再来一次",
-			StyleKind = CutButton.ButtonStyle.Solid,
-			FontSize = 26,
-		};
-		_presentationResultRetry.Pressed += RestartFromResult;
-		_presentationResultButtonsGroup.AddChild(_presentationResultRetry);
-
-		ColorRect DistBar(float x, float y, Color color)
-		{
-			var rect = new ColorRect
-			{
-				Color = color,
-				Position = new Vector2(x, y),
-				Size = new Vector2(0, barH),
-				MouseFilter = Control.MouseFilterEnum.Ignore,
-			};
-			_presentationResultStatsGroup.AddChild(rect);
-			return rect;
-		}
+		_resultScreen = new ResultScreen { Name = "ResultV2", Visible = false, ZIndex = 100 };
+		AddChild(_resultScreen);
 	}
-
-	private static Control MakePresentationGroup(string name) => new()
-	{
-		Name = name,
-		Size = new Vector2(1920, 1080),
-		MouseFilter = Control.MouseFilterEnum.Ignore,
-	};
-
-	private Label MakeResultStatCell(float x, string title, Color color)
-	{
-		_presentationResultStatsGroup.AddChild(new CutPanel
-		{
-			Position = new Vector2(x, 520),
-			Size = new Vector2(160, 72),
-			Cut = 10,
-			Fill = new Color(0.025f, 0.04f, 0.09f, 0.84f),
-			Border = new Color(color, 0.48f),
-			BorderWidth = 1.5f,
-		});
-		var tag = new Label
-		{
-			Position = new Vector2(x + 14, 530),
-			Size = new Vector2(42, 48),
-			Text = title,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		tag.AddThemeFontOverride("font", UiFonts.TechBold);
-		tag.AddThemeFontSizeOverride("font_size", 19);
-		tag.AddThemeColorOverride("font_color", color);
-		_presentationResultStatsGroup.AddChild(tag);
-
-		var value = new Label
-		{
-			Position = new Vector2(x + 50, 530),
-			Size = new Vector2(94, 48),
-			HorizontalAlignment = HorizontalAlignment.Right,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		value.AddThemeFontOverride("font", UiFonts.TechBold);
-		value.AddThemeFontSizeOverride("font_size", 24);
-		value.AddThemeColorOverride("font_color", UiFonts.Text);
-		_presentationResultStatsGroup.AddChild(value);
-		return value;
-	}
-
-	private Label _songLine = null!;
 
 	private static UiMotionProfile PresentationMotionProfile() =>
 		UiMotionProfile.For(GameSession.Settings.MotionMode);
@@ -737,7 +486,7 @@ public partial class GameplayMain
 		_activePointers.Clear();
 		_frameTouchSamples.Clear();
 		_ignoredTouchIds.Clear();
-		_inputTimeGroupGate.Reset();
+		_v2InputProtection.Reset();
 	}
 
 		private void Restart()
@@ -791,6 +540,16 @@ public partial class GameplayMain
 	private double _flashTimer;
 	private const double JudgeFlashDuration = 0.45;
 
+	// HUD 刷新缓存：Label.Text 赋值触发全文 reshaping，值不变时跳过写入与插值。
+	private int _hudScore = -1;
+	private int _hudPerfect = -1;
+	private int _hudGreat = -1;
+	private int _hudGood = -1;
+	private int _hudMiss = -1;
+	private int _hudMaxCombo = -1;
+	private int _hudCombo = -1;
+	private double _hudLiveAcc = -1.0;
+
 	private void FlashJudge(string text)
 	{
 		_judgeFlash.Text = text;
@@ -815,21 +574,51 @@ public partial class GameplayMain
 			}
 		}
 
-		_scoreLabel.Text = $"{_engine.NormalizedScore(_plan.TheoreticalMax):N0}";
-		// 实时 CLEAR = 当前得分 / 已判定单元的理论满分（未判定不计入）。
-		var maxSoFar = 0;
-		foreach (var u in _plan.Units)
-			if (u.Judged)
-				maxSoFar += JudgeEngine.ScoreDelta(u.Category, JudgeGrade.Prefect);
-		var liveClear = maxSoFar > 0 ? 100.0 * _engine.Score / maxSoFar : 100.0;
-		_pillP.Text = $"PERFECT {_engine.CountPrefect}";
-		_pillGr.Text = $"GREAT {_engine.CountGreat}";
-		_pillGo.Text = $"GOOD {_engine.CountGood}";
-		_pillM.Text = $"MISS {_engine.CountMiss}";
-		_pillAcc.Text = $"CLEAR {liveClear:F2}%";
-		_pillMc.Text = $"M.COMBO {_engine.MaxCombo}";
-		_comboLabel.Text = _engine.Combo > 1 ? $"{_engine.Combo}" : "";
-		_comboSub.Text = _engine.Combo > 1 ? "COMBO" : "";
+		var score = _engine.NormalizedScore(_plan.TheoreticalMax);
+		if (score != _hudScore)
+		{
+			_hudScore = score;
+			_scoreLabel.Text = $"{score:N0}";
+		}
+		// 实时 ACC = 当前得分 / 已判定单元的理论满分（未判定不计入），并钳制在 0..100%。
+		var liveAcc = _judgedTheoreticalMax > 0
+			? Math.Clamp(100.0 * _engine.Score / _judgedTheoreticalMax, 0.0, 100.0) : 100.0;
+		if (liveAcc != _hudLiveAcc)
+		{
+			_hudLiveAcc = liveAcc;
+			_pillAcc.Text = $"ACC {liveAcc:F2}%";
+		}
+		if (_engine.CountPrefect != _hudPerfect)
+		{
+			_hudPerfect = _engine.CountPrefect;
+			_pillP.Text = $"PERFECT {_hudPerfect}";
+		}
+		if (_engine.CountGreat != _hudGreat)
+		{
+			_hudGreat = _engine.CountGreat;
+			_pillGr.Text = $"GREAT {_hudGreat}";
+		}
+		if (_engine.CountGood != _hudGood)
+		{
+			_hudGood = _engine.CountGood;
+			_pillGo.Text = $"GOOD {_hudGood}";
+		}
+		if (_engine.CountMiss != _hudMiss)
+		{
+			_hudMiss = _engine.CountMiss;
+			_pillM.Text = $"MISS {_hudMiss}";
+		}
+		if (_engine.MaxCombo != _hudMaxCombo)
+		{
+			_hudMaxCombo = _engine.MaxCombo;
+			_pillMc.Text = $"M.COMBO {_hudMaxCombo}";
+		}
+		if (_engine.Combo != _hudCombo)
+		{
+			_hudCombo = _engine.Combo;
+			_comboLabel.Text = _hudCombo > 1 ? $"{_hudCombo}" : "";
+			_comboSub.Text = _hudCombo > 1 ? "COMBO" : "";
+		}
 		// 底线上的进度段：从中央向两侧生长
 		var pw = 933f * Mathf.Clamp((float)(t / Math.Max(0.01, _plan.EndTime)), 0f, 1f);
 		_progressFill.Position = new Vector2(960 - pw / 2f, CenterLineY - 2);
@@ -838,289 +627,53 @@ public partial class GameplayMain
 
 	private void ShowResults()
 	{
+		if (_finished) return;
 		_finished = true;
-		_playback.Pause();
+		_pendingPointerInputs.Clear();
+		// Freeze judging, but let the song tail play beneath the shutter/result.
+		// Navigation still owns stopping playback when leaving or replaying.
 		var pct = _engine.Percent(_plan.TheoreticalMax);
 		var normalizedScore = _engine.NormalizedScore(_plan.TheoreticalMax);
-
-		// 成绩写回（AUTO 演示不计入成绩库）
-		var isNewRecord = false;
 		var grade = ScoreStore.GradeOf(pct);
-		if (!_auto)
+		var hasIdentity = _loaded.TryGetScoreIdentity(out var identity);
+		var previous = hasIdentity ? GameSession.Scores.Get(identity)
+			: GameSession.Scores.Get(_run.PackId, _run.LegacyScoreKey);
+		var previousBest = previous?.Score;
+		var record = new ScoreRecord
 		{
-			var record = new ScoreRecord
-			{
-				Score = normalizedScore,
-				Acc = pct,
-				MaxCombo = _engine.MaxCombo,
-				Grade = grade,
-				Perfect = _engine.CountPrefect,
-				Great = _engine.CountGreat,
-				Good = _engine.CountGood,
-				Miss = _engine.CountMiss,
-			};
-			isNewRecord = _loaded.TryGetScoreIdentity(out var identity)
-				? GameSession.Scores.TryUpdate(identity, record)
-				: GameSession.Scores.TryUpdate(_run.PackId, _run.LegacyScoreKey, record);
-		}
-
-		// 结算面板（样式稿 #result）
-		var resultTexture = CoverTextureCache.Current(_run.CoverPath) ??
-			CoverTextureCache.Load(_run.CoverPath);
-		if (resultTexture is { } tex)
-		{
-			_resultCover.Texture = tex;
-			_resultCover.Visible = true;
-		}
-		else
-		{
-			_resultCover.Texture = null;
-			_resultCover.Visible = false;
-		}
-		var resultDiff = _run.DifficultyLevel is { } level
-				? $"{_run.DifficultyDisplay.ToUpperInvariant()} {level}"
-				: $"{_run.DifficultyDisplay.ToUpperInvariant()} UNRATED";
-
-		_songLine.Text = $"RESULT · {_run.SongTitle} · {resultDiff}" +
-						 (_auto ? " · AUTO（不计成绩）" : "");
-		_gradeLabel.Text = grade;
-		_gradeLabel.AddThemeColorOverride("font_color", UiFonts.GradeColor(grade));
-		_newRecChip.Visible = isNewRecord;
-		_resultScore.Text = $"{normalizedScore:N0}";
-		_resultAcc.Text = $"CLEAR {pct:F2}% · MAX COMBO {_engine.MaxCombo:N0} / {_plan.HeadlineUnitCount:N0}";
-
-		// 判定分布条
-		var total = Math.Max(1, _engine.CountPrefect + _engine.CountGreat +
-			_engine.CountGood + _engine.CountMiss);
-		const float barX = 750, barW = 720;
-		var wP = barW * _engine.CountPrefect / total;
-		var wGr = barW * _engine.CountGreat / total;
-		var wGo = barW * _engine.CountGood / total;
-		var wM = barW - wP - wGr - wGo;
-		_distP.Position = new Vector2(barX, _distP.Position.Y);
-		_distP.Size = new Vector2(wP, _distP.Size.Y);
-		_distGr.Position = new Vector2(barX + wP, _distGr.Position.Y);
-		_distGr.Size = new Vector2(wGr, _distGr.Size.Y);
-		_distGo.Position = new Vector2(barX + wP + wGr, _distGo.Position.Y);
-		_distGo.Size = new Vector2(wGo, _distGo.Size.Y);
-		_distM.Position = new Vector2(barX + wP + wGr + wGo, _distM.Position.Y);
-		_distM.Size = new Vector2(wM, _distM.Size.Y);
-
-		_resultCountP.Text = $"{_engine.CountPrefect:N0}";
-		_resultCountGr.Text = $"{_engine.CountGreat:N0}";
-		_resultCountGo.Text = $"{_engine.CountGood:N0}";
-		_resultCountM.Text = $"{_engine.CountMiss:N0}";
-
-		_stageRoot.Visible = false;
-		_noteRoot.Visible = false;
-		_hudRoot.Visible = false;
+			Score = normalizedScore, Acc = pct, MaxCombo = _engine.MaxCombo, Grade = grade,
+			Perfect = _engine.CountPrefect, Great = _engine.CountGreat,
+			Good = _engine.CountGood, Miss = _engine.CountMiss,
+		};
+		// Snapshot the previous best before saving; AUTO must never write scores.
+		var isNewRecord = !_auto && (hasIdentity
+			? GameSession.Scores.TryUpdate(identity, record)
+			: GameSession.Scores.TryUpdate(_run.PackId, _run.LegacyScoreKey, record));
+		var texture = CoverTextureCache.Current(_run.CoverPath) ?? CoverTextureCache.Load(_run.CoverPath);
 		_presentationPauseTween?.Kill();
 		_presentationPauseTween = null;
 		_presentationPauseMotionInFlight = false;
 		_pauseLayer.Visible = false;
-		_resultLayer.Visible = true;
-		PlayResultPresentation(PresentationMotionProfile());
+		var selection = GameSession.CurrentSelection;
+		var packs = GameSession.Packs;
+		var canNext = selection != null && packs.Count > 0 &&
+			packs[(packs.IndexOf(selection.Pack) + 1) % packs.Count].Charts.Count > 0;
+		_resultScreen.Present(new ResultScreenData(_run, record, _plan.HeadlineUnitCount,
+			previousBest, isNewRecord, _auto,
+			GameSession.Settings.GameplayMode == GameplayMode.Hardcore,
+			GameSession.Settings.BleedEffective, GameSession.Settings.MirrorEnabled, texture),
+			PresentationMotionProfile(), () =>
+			{
+				_stageRoot.Visible = false;
+				_noteRoot.Visible = false;
+				_hudRoot.Visible = false;
+			}, ExitToSelect, NextSong, Restart,
+			canNext);
 
 		GD.Print($"=== RESULT === {_run.SongTitle} [{_run.LegacyScoreKey} Lv{_run.DifficultyLevel}] " +
-				 $"score={normalizedScore} rawScore={_engine.Score} clear={pct:F2}% grade={grade} " +
-				 $"P={_engine.CountPrefect} Gr={_engine.CountGreat} " +
-				 $"Gd={_engine.CountGood} M={_engine.CountMiss} " +
-				 $"maxCombo={_engine.MaxCombo} newRecord={isNewRecord}");
-	}
-
-	private void PlayResultPresentation(UiMotionProfile motion)
-	{
-		_presentationResultTween?.Kill();
-		_presentationResultTween = null;
-		_presentationResultMotionInFlight = motion.IsAnimated;
-		SetResultActionsEnabled(!motion.IsAnimated);
-		ResetResultPresentation(motion);
-
-		if (!motion.IsAnimated)
-		{
-			FinishResultPresentation();
-			return;
-		}
-
-		var duration = motion.ResultDuration;
-		var stagger = motion.AllowStagger ? motion.Stagger : 0.0;
-		var scoreDelay = stagger;
-		var statsDelay = stagger * 2.0;
-		var buttonsDelay = stagger * 3.0;
-		var itemDuration = Math.Max(0.01, duration - buttonsDelay);
-		var prelockDuration = motion.Mode == UiMotionMode.Reduced
-			? Math.Min(0.08, duration * 0.30)
-			: Math.Min(0.16, duration * 0.18);
-		_presentationResultPrelock.Visible = true;
-		_presentationResultPrelock.Modulate = Colors.White;
-		_presentationResultTween = CreateTween()
-			.SetParallel()
-			.SetTrans(Tween.TransitionType.Expo)
-			.SetEase(Tween.EaseType.Out);
-		TweenResultGroup(_presentationResultGradeGroup, 0.0, itemDuration);
-		TweenResultGroup(_presentationResultScoreGroup, scoreDelay, itemDuration);
-		TweenResultGroup(_presentationResultStatsGroup, statsDelay, itemDuration);
-		TweenResultGroup(_presentationResultButtonsGroup, buttonsDelay, itemDuration);
-		_presentationResultTween.TweenProperty(
-			_presentationResultPrelock, "modulate:a", 0f, prelockDuration);
-
-		if (motion.AllowDirectionalMotion)
-		{
-			_presentationResultSignalScan.Visible = true;
-			_presentationResultSignalScan.Position = new Vector2(380, 240);
-			_presentationResultSignalScan.Modulate = Colors.White;
-			_presentationResultTween.TweenProperty(
-				_presentationResultSignalScan, "position:x", 1528f, duration * 0.46);
-			_presentationResultTween.TweenProperty(
-				_presentationResultSignalScan, "modulate:a", 0f, duration * 0.46);
-		}
-
-		if (motion.AllowEcho)
-		{
-			_presentationResultGradeEcho.AddThemeColorOverride(
-				"font_color", new Color(UiFonts.Cyan, 0.44f));
-			_presentationResultGradeEchoPink.AddThemeColorOverride(
-				"font_color", new Color(UiFonts.Pink, 0.36f));
-			var echoDelay = Math.Min(0.10, duration * 0.12);
-			_presentationResultTween.TweenProperty(
-				_presentationResultGradeEcho, "modulate:a", 0f, itemDuration)
-				.SetDelay(echoDelay);
-			_presentationResultTween.TweenProperty(
-				_presentationResultGradeEcho, "scale", new Vector2(1.24f, 1.24f), itemDuration)
-				.SetDelay(echoDelay);
-			_presentationResultTween.TweenProperty(
-				_presentationResultGradeEchoPink, "modulate:a", 0f, itemDuration)
-				.SetDelay(echoDelay + 0.04);
-			_presentationResultTween.TweenProperty(
-				_presentationResultGradeEchoPink, "scale", new Vector2(1.34f, 1.34f), itemDuration)
-				.SetDelay(echoDelay + 0.04);
-			_presentationResultTween.TweenProperty(
-				_gradeLabel, "scale", new Vector2(1.08f, 1.08f), itemDuration * 0.34);
-			_presentationResultTween.TweenProperty(
-				_gradeLabel, "scale", Vector2.One, itemDuration * 0.66)
-				.SetDelay(itemDuration * 0.34);
-		}
-
-		// With parallel mode the chain begins after the longest delayed branch.
-		_presentationResultTween.Chain().TweenCallback(
-			Callable.From(FinishResultPresentation));
-
-		void TweenResultGroup(Control group, double delay, double tweenDuration)
-		{
-			_presentationResultTween.TweenProperty(group, "modulate:a", 1f, tweenDuration)
-				.SetDelay(delay);
-			_presentationResultTween.TweenProperty(group, "position", Vector2.Zero, tweenDuration)
-				.SetDelay(delay);
-		}
-	}
-
-	private void ResetResultPresentation(UiMotionProfile motion)
-	{
-		_presentationResultContent.Modulate = Colors.White;
-		_presentationResultContent.Position = Vector2.Zero;
-		var shift = motion.AllowDirectionalMotion ? motion.RelayShift : 0f;
-		ResetResultGroup(_presentationResultGradeGroup, shift > 0f ? new Vector2(-shift, 0f) : Vector2.Zero);
-		ResetResultGroup(_presentationResultScoreGroup, shift > 0f ? new Vector2(shift, 0f) : Vector2.Zero);
-		ResetResultGroup(_presentationResultStatsGroup, shift > 0f ? new Vector2(0f, shift) : Vector2.Zero);
-		ResetResultGroup(_presentationResultButtonsGroup, shift > 0f ? new Vector2(0f, shift) : Vector2.Zero);
-
-		_presentationResultGradeEcho.Text = _gradeLabel.Text;
-		_presentationResultGradeEcho.Visible = motion.AllowEcho;
-		_presentationResultGradeEcho.Modulate = motion.AllowEcho
-			? Colors.White
-			: new Color(1f, 1f, 1f, 0f);
-		_presentationResultGradeEcho.Scale = motion.AllowEcho
-			? new Vector2(0.88f, 0.88f)
-			: Vector2.One;
-		_presentationResultGradeEchoPink.Text = _gradeLabel.Text;
-		_presentationResultGradeEchoPink.Visible = motion.AllowEcho;
-		_presentationResultGradeEchoPink.Modulate = motion.AllowEcho
-			? Colors.White
-			: new Color(1f, 1f, 1f, 0f);
-		_presentationResultGradeEchoPink.Scale = motion.AllowEcho
-			? new Vector2(0.82f, 0.82f)
-			: Vector2.One;
-		_presentationResultPrelock.Visible = motion.IsAnimated;
-		_presentationResultPrelock.Modulate = Colors.White;
-		_presentationResultSignalScan.Visible = false;
-		_presentationResultSignalScan.Position = new Vector2(380, 240);
-		_presentationResultSignalScan.Modulate = Colors.White;
-		_gradeLabel.Scale = motion.AllowEcho ? new Vector2(0.72f, 0.72f) : Vector2.One;
-
-		void ResetResultGroup(Control group, Vector2 position)
-		{
-			group.Position = position;
-			group.Modulate = motion.IsAnimated
-				? new Color(1f, 1f, 1f, 0f)
-				: Colors.White;
-		}
-	}
-
-	private void FinishResultPresentation()
-	{
-		_presentationResultTween = null;
-		_presentationResultGradeGroup.Position = Vector2.Zero;
-		_presentationResultScoreGroup.Position = Vector2.Zero;
-		_presentationResultStatsGroup.Position = Vector2.Zero;
-		_presentationResultButtonsGroup.Position = Vector2.Zero;
-		_presentationResultGradeGroup.Modulate = Colors.White;
-		_presentationResultScoreGroup.Modulate = Colors.White;
-		_presentationResultStatsGroup.Modulate = Colors.White;
-		_presentationResultButtonsGroup.Modulate = Colors.White;
-		_presentationResultGradeEcho.Modulate = new Color(1f, 1f, 1f, 0f);
-		_presentationResultGradeEchoPink.Modulate = new Color(1f, 1f, 1f, 0f);
-		_presentationResultPrelock.Visible = false;
-		_presentationResultSignalScan.Visible = false;
-		_gradeLabel.Scale = Vector2.One;
-		_presentationResultMotionInFlight = false;
-		SetResultActionsEnabled(true);
-	}
-
-	private void SetResultActionsEnabled(bool enabled)
-	{
-		_presentationResultBack.Disabled = !enabled;
-		_presentationResultNext.Disabled = !enabled || GameSession.CurrentSelection is null;
-		_presentationResultRetry.Disabled = !enabled;
-	}
-
-	// Result confirmation is cosmetic; the action still owns all navigation and business state.
-	private void ExitToSelectFromResult()
-	{
-		if (!_presentationResultMotionInFlight)
-			ConfirmResultAction(_presentationResultBack, ExitToSelect);
-	}
-
-	private void NextSongFromResult()
-	{
-		if (!_presentationResultMotionInFlight)
-			ConfirmResultAction(_presentationResultNext, NextSong);
-	}
-
-	private void RestartFromResult()
-	{
-		if (!_presentationResultMotionInFlight)
-			ConfirmResultAction(_presentationResultRetry, Restart);
-	}
-
-	private void ConfirmResultAction(CutButton button, Action action)
-	{
-		var motion = PresentationMotionProfile();
-		if (!motion.IsAnimated)
-		{
-			action();
-			return;
-		}
-
-		_presentationResultMotionInFlight = true;
-		SetResultActionsEnabled(false);
-		button.CommitPulse(motion.FocusDuration);
-		GetTree().CreateTimer(motion.FocusDuration).Timeout += () =>
-		{
-			if (!IsInsideTree())
-				return;
-			_presentationResultMotionInFlight = false;
-			action();
-		};
+			$"score={normalizedScore} rawScore={_engine.Score} clear={pct:F2}% grade={grade} " +
+			$"P={_engine.CountPrefect} Gr={_engine.CountGreat} Gd={_engine.CountGood} M={_engine.CountMiss} " +
+			$"maxCombo={_engine.MaxCombo} newRecord={isNewRecord}");
 	}
 
 	private void AddLine(Vector2 pos, Vector2 size, Color? color = null)

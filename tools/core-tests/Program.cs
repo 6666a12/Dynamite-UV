@@ -41,13 +41,16 @@ public static class Program
             TestBarTimeConversion(chart!);
             TestDropSpeedVisualModel(chart!);
             TestConstantBpmVisualSpeed(chart!);
+            TestGameplayStageGeometry();
+            TestGameplayMirrorMapping();
             TestAutoFullCombo(chart!);
             if (devTestdataDirectory is not null)
                 TestHeadlineCountsAcrossDevPacks(devTestdataDirectory);
             TestWindowOffsets();
             TestMine();
             TestNormalizedScore();
-            TestInputTimeGroupGate();
+            TestV2InputTimeLock();
+            TestExTapBinaryJudgement();
             TestInputJudgeRules();
             TestDerivedSustainJudgements();
             TestHoldFailureSettlement();
@@ -58,7 +61,9 @@ public static class Program
             TestV2GeometryJudgementAndSync();
             TestV2CurvesMixerAndDigest();
             TestD4CFrozenGrace();
+            TestHoldReleaseFreezesGrace();
             TestScoreStoreMigrationAndIdentity();
+            ResultRevealTests.Run(Check);
         }
         catch (Exception ex)
         {
@@ -244,6 +249,122 @@ public static class Program
             "fallthrough keeps moving outward at the absolute scroll speed");
     }
 
+    private static void TestGameplayStageGeometry()
+    {
+        Console.WriteLine(nameof(TestGameplayStageGeometry));
+        var center = GameplayStageGeometry.PositionAt(Track.Center, 2.5, 100);
+        var left = GameplayStageGeometry.PositionAt(Track.Left, 2.5, 100);
+        var right = GameplayStageGeometry.PositionAt(Track.Right, 2.5, 100);
+        Check(Math.Abs(center.X - 963f) < .001f && Math.Abs(center.Y - 761f) < .001f,
+            "shared stage center mapping preserves fixed gameplay geometry");
+        Check(Math.Abs(left.X - 259f) < .001f && Math.Abs(right.X - 1661f) < .001f &&
+              Math.Abs(left.Y - right.Y) < .001f,
+            "shared stage side mappings are symmetric");
+        Check(Math.Abs(GameplayStageGeometry.CenterWidthPx(1) - 259.54f) < .001f &&
+              Math.Abs(GameplayStageGeometry.StageXToCenter(GameplayStageGeometry.CenterToStageX(2.5)) - 2.5) < .00001,
+            "shared stage center width and inverse mapping remain deterministic");
+        Check(Math.Abs(GameplayStageGeometry.PreviewDistanceForBars(Track.Center, 8) - 790f) < .001f &&
+              Math.Abs(GameplayStageGeometry.PreviewDistanceForBars(Track.Left, 8) *
+                  GameplayStageGeometry.SideDistanceScale - 691f) < .001f &&
+              Math.Abs(GameplayStageGeometry.PreviewDistanceForBars(Track.Right, 8) -
+                  GameplayStageGeometry.PreviewDistanceForBars(Track.Left, 8)) < .001f,
+            "shared editor preview keeps gameplay center and side travel scales");
+        Check(Math.Abs(GameplayStageGeometry.PreviewBarAtStagePoint(Track.Left,
+                  GameplayStageGeometry.LeftLineX + GameplayStageGeometry.SidePreviewTravelPx,
+                  GameplayStageGeometry.SideY0, 3) - 11d) < .00001 &&
+              Math.Abs(GameplayStageGeometry.PreviewBarAtStagePoint(Track.Right,
+                  GameplayStageGeometry.RightLineX - GameplayStageGeometry.SidePreviewTravelPx,
+                  GameplayStageGeometry.SideY0, 3) - 11d) < .00001 &&
+              Math.Abs(GameplayStageGeometry.CenterAtStagePoint(Track.Left,
+                  GameplayStageGeometry.LeftLineX, GameplayStageGeometry.SideY0 - 2.5f * GameplayStageGeometry.SideUnitPx) - 2.5d) < .00001 &&
+              Math.Abs(GameplayStageGeometry.WidthAtStageDrag(Track.Right, 0, 100, 0, 330) - 2d) < .00001,
+            "shared editor placement maps both side rails to time center and vertical width");
+    }
+
+    // 2b. MIRROR 开关的纯几何不变量：直接打 shared 里的映射本体
+    // （GameplayStageGeometry.MirroredDisplay / MirroredTrack，客户端 GameplayMirror 只是读设置）。
+    // 侧轨 Left↔Right 互换且沿判定线坐标不动（关于屏幕中轴的横向反射）；
+    // Center 水平坐标关于**面板中轴**反射、宽度不变；映射自反
+    // （屏幕 → 谱面的输入反查复用同一函数，不自反则输入归属与 note 视觉分叉）。
+    private static void TestGameplayMirrorMapping()
+    {
+        Console.WriteLine(nameof(TestGameplayMirrorMapping));
+        var axisX = GameplayStageGeometry.CenterX0 +
+                    (float)GameplayStageGeometry.MirrorAxis * GameplayStageGeometry.CenterUnitPx;
+
+        // 面板中轴必须是 2.5（屏幕 x=963），不是 [0,4] 左缘带的中点 2.0（x=826.4）：
+        // 后者会把整个中轨镜像整体左移 136.6px。全部发行谱面的 note 中心都落在 [0,5]。
+        Check(Math.Abs(GameplayStageGeometry.MirrorAxis - 2.5) < .00001 &&
+              Math.Abs(axisX - 963f) < .001f &&
+              Math.Abs(GameplayStageGeometry.MirroredDisplay(Track.Center, 0d, true).Center - 5d) < .00001,
+            "center mirror axis is the panel midpoint 2.5 (screen x=963), mapping center 0 onto 5");
+
+        var offCenter = GameplayStageGeometry.PositionAt(Track.Center, 2.5, 100);
+        var mappedCenter = GameplayStageGeometry.MirroredDisplay(Track.Center, 2.5, true);
+        var mirroredCenter = GameplayStageGeometry.PositionAt(mappedCenter.Track, mappedCenter.Center, 100);
+        Check(Math.Abs(mirroredCenter.X - (2f * axisX - offCenter.X)) < .001f &&
+              Math.Abs(mirroredCenter.Y - offCenter.Y) < .001f,
+            "mirrored center note reflects about the panel axis and keeps its distance to the judge line");
+        Check(Math.Abs(GameplayStageGeometry.MirroredDisplay(Track.Center, mappedCenter.Center, true)
+                  .Center - 2.5) < .00001 &&
+              Math.Abs(GameplayStageGeometry.CenterWidthPx(1) - 259.54f) < .001f,
+            "center mirror is self-inverse and leaves note width untouched");
+
+        // 对称用例：中心 ±2.0、宽 3.0 的两条互为镜像。Position 是左缘，所以对应
+        // 中心 4.5 / 0.5 → 跨度 [3,6] 与 [-1,2]；镜像后右缘 6 → 左缘 -1（端点对调），
+        // 两者的 screenX 相加必须正好等于 2·963。
+        const double halfWidth = 1.5;
+        var upper = 2.5 + 2.0;
+        var lower = 2.5 - 2.0;
+        Check(Math.Abs(GameplayStageGeometry.MirroredDisplay(Track.Center, upper, true).Center - lower)
+                  < .00001 &&
+              Math.Abs(2d * GameplayStageGeometry.MirrorAxis - (upper + halfWidth) -
+                       (lower - halfWidth)) < .00001 &&
+              Math.Abs(GameplayStageGeometry.CenterToStageX(upper) +
+                       GameplayStageGeometry.CenterToStageX(lower) - 2f * axisX) < .001f,
+            "center error +2.0/-2.0 with width 3.0 map onto each other symmetric about the panel axis");
+
+        // 输入逆映射：触点在**显示坐标**上 → 判定侧用同一函数反查谱面坐标 → 必须落进 note 跨度。
+        // 这也是"镜像开了但点在镜像后位置不判"的根因断言：判定只认谱面坐标，
+        // 若在别处再镜像一次（两次施加互相抵消），反查值就会跑回显示坐标、落在跨度之外。
+        const double noteP = 3.0;
+        const double noteW = 3.0;                            // 谱面跨度 [3, 6]，中心 4.5
+        var noteDisplayCenter = GameplayStageGeometry.MirroredDisplay(
+            Track.Center, noteP + noteW / 2, true).Center;   // 显示中心 0.5
+        var hitChart = GameplayStageGeometry.MirroredDisplay(
+            Track.Center, noteDisplayCenter, true).Center;    // 反查回 4.5
+        var originalChart = GameplayStageGeometry.MirroredDisplay(
+            Track.Center, noteP + noteW / 2, true).Center;    // 点在原位置反查得到 0.5
+        Check(hitChart >= noteP && hitChart <= noteP + noteW,
+            "mirrored touch at the displayed center maps back inside the chart note bounds");
+        Check(!(originalChart >= noteP && originalChart <= noteP + noteW),
+            "touch at the un-mirrored position maps outside the chart note bounds with mirror on");
+
+        // 侧轨：显示在右轨的触点必须反查成谱面 Left，且沿判定线坐标不变。
+        var sideTouch = GameplayStageGeometry.MirroredDisplay(Track.Right, 2.5, true);
+        Check(sideTouch.Track == Track.Left && Math.Abs(sideTouch.Center - 2.5) < .00001 &&
+              GameplayStageGeometry.MirroredDisplay(Track.Left, 2.5, false).Track == Track.Left,
+            "touch on the displayed right rail maps back to the chart Left track");
+
+        var mappedLeft = GameplayStageGeometry.MirroredDisplay(Track.Left, 2.5, true);
+        var mappedRight = GameplayStageGeometry.MirroredDisplay(Track.Right, 2.5, true);
+        var mirroredLeft = GameplayStageGeometry.PositionAt(mappedLeft.Track, mappedLeft.Center, 100);
+        var mirroredRight = GameplayStageGeometry.PositionAt(mappedRight.Track, mappedRight.Center, 100);
+        Check(mappedLeft.Track == Track.Right && mappedRight.Track == Track.Left &&
+              Math.Abs(mappedLeft.Center - 2.5) < .00001 && Math.Abs(mappedRight.Center - 2.5) < .00001,
+            "side mirror swaps rails and leaves the along-rail coordinate untouched");
+        Check(Math.Abs(mirroredLeft.X - 1661f) < .001f && Math.Abs(mirroredRight.X - 259f) < .001f &&
+              Math.Abs(mirroredLeft.Y - 552.5f) < .001f && Math.Abs(mirroredRight.Y - 552.5f) < .001f &&
+              GameplayStageGeometry.MirroredTrack(GameplayStageGeometry.MirroredTrack(Track.Left, true),
+                  true) == Track.Left,
+            "mirrored side notes land on the opposite rail at the same height and the swap is self-inverse");
+        Check(GameplayStageGeometry.MirroredDisplay(Track.Left, 2.5, false).Track == Track.Left &&
+              Math.Abs(GameplayStageGeometry.MirroredDisplay(Track.Left, 2.5, false).Center - 2.5) < .00001 &&
+              Math.Abs(GameplayStageGeometry.LeftLineX + GameplayStageGeometry.RightLineX -
+                  GameplayStageGeometry.DesignWidth) < .001f,
+            "mirror off is the identity and the two rails are symmetric about the screen axis");
+    }
+
     // 3. Auto-FC：fixture 的 15 个主判定精确命中。
     private static void TestAutoFullCombo(Chart chart)
     {
@@ -404,14 +525,15 @@ public static class Program
         Check(hard.InWindow(t, t + 0.250), "250ms 在 Miss 窗口内");
         Check(!hard.InWindow(t, t + 0.251), "251ms 超出 Miss 窗口");
 
-        // EX-Tap 宽窗口（JudgePlan.ExTapWindowScale = 1.5，用户拍板"判定更宽松"）
+        // EX-Tap 与原版一致：窗口倍率 1.0（与 Tap 同窗），级差由二值判定覆盖（见 [7b]）
         const double ex = JudgePlan.ExTapWindowScale;
-        Check(hard.Judge(t, t + 0.200, ex).Grade == JudgeGrade.Good,
-            "EX-Tap ±200ms -> Good（Good 窗 162.5×1.5=243.75ms）");
-        Check(hard.Judge(t, t + 0.300, ex).Grade == JudgeGrade.Miss,
-            "EX-Tap ±300ms -> Miss（超 Good 窗）");
-        Check(hard.InWindow(t, t + 0.350, ex), "EX-Tap 350ms 仍在 Miss 窗内（250×1.5=375ms）");
-        Check(!hard.InWindow(t, t + 0.380, ex), "EX-Tap 380ms 超出 Miss 窗");
+        Check(Math.Abs(ex - 1.0) < 1e-12, "EX-Tap 窗口倍率 = 1.0（与 Tap 同窗）");
+        Check(hard.Judge(t, t + 0.150, ex).Grade == JudgeGrade.Good,
+            "EX-Tap ±150ms -> Good（同 Tap Good 窗）");
+        Check(hard.Judge(t, t + 0.200, ex).Grade == JudgeGrade.Miss,
+            "EX-Tap ±200ms -> Miss（超 Good 窗）");
+        Check(hard.InWindow(t, t + 0.250, ex), "EX-Tap 250ms 仍在 Miss 窗内");
+        Check(!hard.InWindow(t, t + 0.251, ex), "EX-Tap 251ms 超出 Miss 窗");
 
         // 窗口换算值本身（bar * 240/StandardBPM=150，规格书 §6.3）
         var s = hard.Settings;
@@ -428,6 +550,52 @@ public static class Program
         var sn = normal.Settings;
         Check(Math.Abs(sn.GreatSec - 0.150) < 1e-12, "Normal Great 窗 = ±150ms");
         Check(Math.Abs(sn.GoodSec - 0.200) < 1e-12, "Normal Good 窗 = ±200ms");
+
+        // 原版 4 个 JudgeSettings 实例的精确换算（barTime × 240 / StandardBPM 150 = ×1.6）
+        var casual = JudgeSettings.ForPreset(JudgePreset.Casual);
+        var tutorial = JudgeSettings.ForPreset(JudgePreset.Tutorial);
+        Check(Math.Abs(casual.PrefectSec - 0.100) < 1e-12, "Casual Prefect 窗 = ±100ms");
+        Check(Math.Abs(casual.GreatSec - 0.150) < 1e-12, "Casual Great 窗 = ±150ms");
+        Check(Math.Abs(casual.GoodSec - 0.200) < 1e-12, "Casual Good 窗 = ±200ms");
+        Check(Math.Abs(casual.MissSec - 0.250) < 1e-12, "Casual Miss 窗 = ±250ms");
+        Check(Math.Abs(tutorial.PrefectSec - casual.PrefectSec) < 1e-12 &&
+              Math.Abs(tutorial.GreatSec - casual.GreatSec) < 1e-12 &&
+              Math.Abs(tutorial.GoodSec - casual.GoodSec) < 1e-12 &&
+              Math.Abs(tutorial.MissSec - casual.MissSec) < 1e-12,
+            "Tutorial 实例 = Casual 数值");
+
+        // 难度键 -> 原版实例（hard 及以上含 mega/giga/tech/自定义一律 Hard）
+        Check(JudgeSettings.PresetForDifficulty("casual") == JudgePreset.Casual, "casual -> Casual");
+        Check(JudgeSettings.PresetForDifficulty("normal") == JudgePreset.Normal, "normal -> Normal");
+        Check(JudgeSettings.PresetForDifficulty("tutorial") == JudgePreset.Tutorial,
+            "tutorial -> Tutorial（数值等同 Casual）");
+        foreach (var key in new[] { "hard", "mega", "giga", "tech", "extra", "unknown", "GIGA" })
+            Check(JudgeSettings.PresetForDifficulty(key) == JudgePreset.Hard, $"{key} -> Hard");
+
+        // Hardcore 实例 = Hard × 0.5（31.25 / 56.25 / 81.25 / 125 ms）
+        var hc = JudgeSettings.ForPreset(JudgePreset.Hardcore);
+        Check(Math.Abs(hc.PrefectSec - 0.03125) < 1e-12, "Hardcore Prefect 窗 = ±31.25ms");
+        Check(Math.Abs(hc.GreatSec - 0.05625) < 1e-12, "Hardcore Great 窗 = ±56.25ms");
+        Check(Math.Abs(hc.GoodSec - 0.08125) < 1e-12, "Hardcore Good 窗 = ±81.25ms");
+        Check(Math.Abs(hc.MissSec - 0.125) < 1e-12, "Hardcore Miss 窗 = ±125ms");
+        var hcEngine = new JudgeEngine(JudgePreset.Hardcore);
+        Check(hcEngine.Judge(t, t + 0.030).Grade == JudgeGrade.Prefect, "Hardcore ±30ms -> Prefect");
+        Check(hcEngine.Judge(t, t + 0.050).Grade == JudgeGrade.Great, "Hardcore ±50ms -> Great");
+        Check(hcEngine.Judge(t, t + 0.080).Grade == JudgeGrade.Good, "Hardcore ±80ms -> Good");
+        Check(hcEngine.Judge(t, t + 0.100).Grade == JudgeGrade.Miss, "Hardcore ±100ms -> Miss");
+        Check(hcEngine.InWindow(t, t + 0.125) && !hcEngine.InWindow(t, t + 0.126),
+            "Hardcore Miss 窗 = ±125ms");
+
+        // 模式覆盖：Hardcore 对任何难度强制 Hardcore 实例；Standard/Bleed 走难度映射
+        foreach (var key in new[] { "casual", "normal", "hard", "giga", "tech", "unknown" })
+            Check(JudgeSettings.ResolvePreset(key, GameplayMode.Hardcore) == JudgePreset.Hardcore,
+                $"Hardcore 模式强制 {key} -> Hardcore");
+        Check(JudgeSettings.ResolvePreset("casual", GameplayMode.Standard) == JudgePreset.Casual,
+            "Standard 模式 casual -> Casual");
+        Check(JudgeSettings.ResolvePreset("giga", GameplayMode.Standard) == JudgePreset.Hard,
+            "Standard 模式 giga -> Hard");
+        Check(JudgeSettings.ResolvePreset("normal", GameplayMode.Bleed) == JudgePreset.Normal,
+            "Bleed 预留：暂等同 Standard（normal -> Normal）");
     }
 
     // 5. Mine：不碰给分（Prefect），危险窗内接触为 Miss。
@@ -466,27 +634,137 @@ public static class Program
         Check(perfect.NormalizedScore(0) == 0, "空谱理论满分 0 -> 分数 0");
     }
 
-	// 7. 同一输入批次只接受同一 float32 目标时刻；同刻多押继续放行。
-	private static void TestInputTimeGroupGate()
+	// 7. 同帧目标时间锁（原版 JudgeState 语义）：只锁早侧、同刻放行、晚侧放行、EX 豁免。
+	private static void TestV2InputTimeLock()
 	{
-		Console.WriteLine("[7] Input timestamp group gate");
-		var gate = new InputTimeGroupGate();
+		Console.WriteLine("[7] V2 input time lock (early side only)");
+		var gate = new V2InputProtection();
 
-		Check(!gate.IsLocked, "新门控器未锁定");
-		Check(gate.TryLock(10.0), "首个目标时刻成功锁定");
-		Check(gate.IsLocked, "锁定后 IsLocked = true");
-		Check(gate.Matches(10.0), "完全同刻允许多押");
-		Check(gate.Matches(10.0 + 1e-10), "转换为同一 float32 的时间属于同组");
-		Check(gate.TryLock(10.0 + 1e-10), "同一 float32 时间可重复通过");
-		Check(!gate.Matches(10.001), "不同目标时刻不匹配");
-		Check(!gate.TryLock(10.001), "锁定后拒绝异时目标");
-		Check(!gate.Allows(10.001, 10.0), "异时 early 目标受共享时间锁约束");
-		Check(gate.Allows(9.999, 10.0), "late 输入不受共享 early 时间锁约束");
-
+		// 未武装时早侧任意目标可判定。
 		gate.Reset();
-		Check(!gate.IsLocked, "Reset 清除锁定");
-		Check(gate.TryLock(10.001) && gate.Matches(10.001),
-			"Reset 后可以锁定新的目标时刻");
+		Check(gate.CanUse(84_231, 83_981), "未武装时未来 Note 可判定");
+		Check(gate.CanUse(84_231, 84_231), "未武装时同刻可判定");
+
+		// 早侧命中武装锁，取本批最早目标；完全同刻继续放行。
+		gate.CommitResolved(84_231, 83_981);
+		Check(gate.Xm == 84_231, "早侧命中武装 Xm");
+		Check(gate.CanUse(84_231, 83_981), "同刻多押放行");
+		Check(gate.CanUse(84_231, 84_231), "同刻（Exact）多押放行");
+		Check(!gate.CanUse(84_350, 83_981), "异时早侧目标被锁拦截");
+		Check(gate.CanUse(84_231, 84_231, enforceProbability: false), "关闭概率保护后同刻仍放行");
+
+		// H1 回归：晚侧候选既不检查锁，也被放行。
+		Check(gate.CanUse(83_900, 84_000), "晚侧候选不检查锁（H1）");
+		Check(gate.CanUse(500, 84_000), "远晚于输入的目标仍然放行");
+
+		// 晚侧命中不武装锁。
+		gate.Reset();
+		gate.CommitResolved(83_900, 84_000);
+		Check(gate.Xm == V2InputProtection.Infinity, "晚侧命中不武装时间锁");
+		Check(gate.CanUse(84_231, 83_981), "晚侧结算后早侧目标不被锁（无武装）");
+
+		// 武装值取最早目标，与事件到达顺序无关。
+		gate.Reset();
+		gate.CommitResolved(84_500, 83_981);
+		gate.CommitResolved(84_231, 83_981);
+		gate.CommitResolved(84_400, 83_981);
+		Check(gate.Xm == 84_231, "本批锁 = 最早已结算目标（与顺序无关）");
+		Check(!gate.CanUse(84_400, 83_981), "异时早侧仍被拦截");
+		Check(gate.CanUse(83_500, 84_000), "晚侧不受最早目标影响");
+
+		// 早侧 Miss 保护：被保护的未来目标可在同批继续使用，超出上限的早侧目标被拒。
+		gate.Reset();
+		gate.ProtectEarlyMiss(84_231, 83_981);
+		Check(gate.ProbXm == 84_231, "早侧 Miss 记录保护上限");
+		Check(gate.CanUse(84_231, 83_981), "受保护上限内的早侧目标可判定");
+		Check(!gate.CanUse(84_400, 83_981), "超出保护上限的早侧目标被拒");
+		Check(gate.CanUse(83_900, 84_000), "保护上限不影响晚侧候选");
+
+		// EX-Tap（Burst）与 Tap 逐指令一致：同样参与时间锁（检查 + 命中武装）。
+		gate.Reset();
+		gate.CommitResolved(84_231, 83_981);
+		Check(!gate.CanUse(84_900, 83_981), "EX 异时早侧目标被锁拦截");
+		Check(gate.CanUse(84_231, 83_981), "EX 与已武装时刻同刻放行");
+		Check(gate.Xm == 84_231, "EX 早侧命中武装锁");
+		Check(gate.CanUse(83_900, 84_000), "EX 晚侧候选仍不受锁限制");
+
+		// 毫秒换算保持原值的四舍五入语义。
+		Check(V2InputProtection.ToMilliseconds(83.981) == 83_981, "秒 -> 毫秒换算");
+	}
+
+	// 7b. EX-Tap 二值判定（原版 Burst：窗内恒 Prefect，出窗即输入 Miss）。
+	private static void TestExTapBinaryJudgement()
+	{
+		Console.WriteLine("[7b] EX-Tap binary judgement");
+		var engine = new JudgeEngine(JudgePreset.Hard);
+		var settings = engine.Settings;
+		const double ex = JudgePlan.ExTapWindowScale;   // 与原版一致：1.0（同 Tap 窗）
+		const double t = 10.0;
+		var good = settings.GoodSec * ex;   // Hard: 0.1625
+		var miss = settings.MissSec * ex;   // Hard: 0.25
+
+		// 窗内（含 Great/Good 档位区间）一律 grade 5 = Prefect。
+		foreach (var offset in new[] { 0.0, 0.05, -0.05, 0.10, -0.10, 0.16, -0.16 })
+		{
+			var r = engine.JudgePress(t, t + offset, ex, binaryExTap: true);
+			Check(r.Grade == JudgeGrade.Prefect && r.Resolution == JudgeResolution.Prefect,
+				$"EX 窗内 {offset:+0.00;-0.00}s -> Prefect（无 GR/GD 档）");
+		}
+
+		// 出窗（早侧或晚侧）在输入窗内 -> grade 2 = 输入 Miss，不留 Pending。
+		foreach (var offset in new[] { good + 0.01, -(good + 0.01), 0.20, -0.20, miss - 0.001, -(miss - 0.001) })
+		{
+			var r = engine.JudgePress(t, t + offset, ex, binaryExTap: true);
+			Check(r.Grade == JudgeGrade.Miss && r.Resolution == JudgeResolution.InputMiss,
+				$"EX 出窗 {offset:+0.000;-0.000}s -> 输入 Miss");
+		}
+		Check(engine.JudgePress(t, t + 0.20, ex, binaryExTap: true).Resolution != JudgeResolution.Pending,
+			"EX 晚侧出窗不再保持 Pending");
+		Check(engine.JudgePress(t, t + 0.20, ex, binaryExTap: true).Timing == HitTiming.Late,
+			"EX 晚侧出窗标记 Late");
+		Check(engine.JudgePress(t, t - 0.20, ex, binaryExTap: true).Timing == HitTiming.Early,
+			"EX 早侧出窗标记 Early");
+
+		// 超时（无触点）走 AutoMiss = grade 1：Miss + AutoMiss 结算。
+		var timeout = new JudgeEngine(JudgePreset.Hard);
+		timeout.Apply(ScoreCategory.Tap, JudgeGrade.Miss, resolution: JudgeResolution.AutoMiss);
+		Check(timeout.CountAutoMiss == 1 && timeout.CountMiss == 1, "超时 -> grade 1（AutoMiss）");
+
+		// Tap 等其他类型分级不变（窗口倍率 1.0）。
+		Check(engine.JudgePress(t, t + 0.05).Grade == JudgeGrade.Prefect,
+			"非二值路径 ±50ms 仍为 Prefect");
+		Check(engine.JudgePress(t, t + 0.10).Grade == JudgeGrade.Great,
+			"非二值路径 ±100ms 仍为 Great（GR 档未被二值化）");
+		Check(engine.JudgePress(t, t + 0.15).Grade == JudgeGrade.Good,
+			"非二值路径 ±150ms 仍为 Good（GD 档未被二值化）");
+		Check(engine.JudgePress(t, t - 0.20).Grade == JudgeGrade.Miss &&
+			engine.JudgePress(t, t - 0.20).Resolution == JudgeResolution.InputMiss,
+			"非二值路径早侧超 Good 为输入 Miss");
+		Check(engine.JudgePress(t, t + 0.20).Resolution == JudgeResolution.Pending,
+			"非二值路径晚侧超 Good 仍保持 Pending");
+
+		// T5 单元带显式 IsExTap 标志（不用 WindowScale 浮点相等判断）。
+		var chart = new Chart
+		{
+			Name = "ex-binary",
+			Title = "ex-binary",
+			Difficulty = 3,
+			TotalMainNote = 0,
+			Sections = new[] { new BarSection { Bpm = 120, BarTime = 0.0, Seconds = 0.0 } },
+			NotesLeft = Array.Empty<Note>(),
+			NotesCenter = new[]
+			{
+				TestNote(10, 0, NoteType.ExTap, 1.0, 0.0, 1.0, 10.0),
+				TestNote(11, 0, NoteType.Tap, 1.5, 0.0, 1.0, 10.5),
+			},
+			NotesRight = Array.Empty<Note>(),
+		};
+		var plan = JudgePlan.Build(chart, settings);
+		var exUnit = plan.Units.Single(u => u.NoteId == 10);
+		var tapUnit = plan.Units.Single(u => u.NoteId == 11);
+		Check(exUnit.IsExTap, "T5 单元带 IsExTap 标志");
+		Check(Math.Abs(exUnit.WindowScale - 1.0) < 1e-12, "T5 单元窗口倍率 = 1.0（与原版同窗）");
+		Check(!tapUnit.IsExTap && Math.Abs(tapUnit.WindowScale - 1.0) < 1e-12, "Tap 单元不带 EX 标志");
 	}
 
 	// 8. 逐触点空间、重叠复用和 phase 规则。
@@ -530,6 +808,28 @@ public static class Program
 			"touch expansion applies per candidate and never expands mines");
 
 		const double noteTime = 10.0;
+		var lowerLeftMask = InputJudgeRules.ProjectedTrackMask(
+			184, 800, 771, 400, 1520);
+		Check(lowerLeftMask == (TouchTrackMask.Center | TouchTrackMask.Left),
+			nameof(lowerLeftMask));
+		Check(InputJudgeRules.ProjectedTrackMask(184, 700, 771, 400, 1520) ==
+			TouchTrackMask.Left, nameof(TouchTrackMask.Left));
+		Check(InputJudgeRules.ProjectedTrackMask(960, 700, 771, 400, 1520) ==
+			TouchTrackMask.Center, nameof(TouchTrackMask.Center));
+		var lowerRightMask = InputJudgeRules.ProjectedTrackMask(
+			1736, 800, 771, 400, 1520);
+		Check(lowerRightMask == (TouchTrackMask.Center | TouchTrackMask.Right),
+			nameof(lowerRightMask));
+		Check(InputJudgeRules.ProjectedTrackMask(960, 800, 771, 400, 1520) ==
+			TouchTrackMask.Center, nameof(TouchTrackMask.Center));
+		var projectedSamples = new Dictionary<(int Id, Track Track), TouchSample>
+		{
+			[(7, Track.Center)] = new TouchSample(7, Track.Center, 1.0, ContactPhase.Began),
+			[(7, Track.Left)] = new TouchSample(7, Track.Left, 0.5, ContactPhase.Began),
+		};
+		Check(projectedSamples.Count == 2 &&
+			projectedSamples.ContainsKey((7, Track.Center)) &&
+			projectedSamples.ContainsKey((7, Track.Left)), nameof(projectedSamples));
 		const double prefect = 0.1;
 		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 9.925, prefect,
 			ContactPhase.Began), "Drag 早侧外半窗接受 phase 1");
@@ -816,6 +1116,17 @@ public static class Program
 		Check(convertedHold.Center == 1.5 && convertedHold.Width == 7.0 &&
 			convertedHold.Nodes[0].Center == 3.0 && convertedHold.Nodes[0].Width == 8.0,
 			"legacy Position to center retains overscan without clamping");
+
+		// 回归：Hardcore 预设曾命中 "Tutorial cannot be converted to v2" 的 ArgumentException，
+		// 导致 Hardcore 模式下全部 legacy 谱面加载失败。Hardcore 按 Hard 归档、Tutorial 按 Casual。
+		var hcLoaded = V2Integration.ConvertLegacyPackageChart(legacy,
+			"legacy.pack", "legacy-chart", JudgePreset.Hardcore);
+		Check(hcLoaded.SemanticPack.Charts[0].Difficulty == V2Difficulty.Hard,
+			"Hardcore 预设 legacy->v2 转换按 Hard 难度归档");
+		var tutorialLoaded = V2Integration.ConvertLegacyPackageChart(legacy,
+			"legacy.pack", "legacy-chart", JudgePreset.Tutorial);
+		Check(tutorialLoaded.SemanticPack.Charts[0].Difficulty == V2Difficulty.Casual,
+			"Tutorial 预设 legacy->v2 转换按 Casual 难度归档");
 	}
 
 	private static void TestV2GeometryJudgementAndSync()
@@ -1010,6 +1321,34 @@ public static class Program
 		var fast = SustainJudgementRules.BeginHoldContactLoss(20.0, 240.0, settings);
 		Check(Math.Abs(fast.GraceDuration - 0.15) < 1e-12,
 			"loss BPM clamps to 200 and freezes a 150ms deadline");
+	}
+
+	private static void TestHoldReleaseFreezesGrace()
+	{
+		Console.WriteLine("[15b] Hold release freezes grace at first contact loss");
+		var settings = JudgeSettings.ForPreset(JudgePreset.Hard);
+
+		// A judged Hold head starts in steady contact.
+		var contact = HoldContactState.Contact;
+		Check(!contact.HasLoss, "successful Hold head starts with steady contact");
+
+		// Releasing while overlapping before the tail must freeze the deadline.
+		var released = contact.BeginLoss(10.0, 90.0, settings);
+		Check(released.HasLoss && released.ContactLostAt == 10.0 &&
+			released.GraceDeadline is { } deadline && Math.Abs(deadline - 10.25) < 1e-12,
+			"hold release records the frozen grace deadline");
+
+		// Later losses or BPM changes must not move the original deadline.
+		var repeated = released.BeginLoss(11.0, 240.0, settings);
+		Check(repeated == released, "later losses or BPM changes keep the original deadline");
+
+		// Advancing beyond the frozen grace must break the Hold before its tail.
+		var loss = new SustainJudgementRules.HoldContactLoss(released.ContactLostAt!.Value,
+			released.GraceDeadline!.Value - released.ContactLostAt!.Value,
+			released.GraceDeadline!.Value);
+		Check(!SustainJudgementRules.ShouldBreakHold(10.24, 12.0, loss) &&
+			SustainJudgementRules.ShouldBreakHold(10.25, 12.0, loss),
+			"released Hold breaks at the frozen grace deadline");
 	}
 
 	private static void TestScoreStoreMigrationAndIdentity()

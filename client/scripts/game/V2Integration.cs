@@ -21,14 +21,14 @@ internal static class V2Integration
             return LoadLegacyDirect(pack, diff);
         }
         if (pack.IsV2)
-            return AdaptShared(LoadStrictV2(pack, diff));
+            return AdaptShared(LoadStrictV2(pack, diff), PresetFor(diff.Difficulty));
 
         // Normal legacy playback now converts in memory through the shared canonical semantic model.
         // Empty-timeline legacy charts cannot be represented in v2 and retain their established direct
         // path; explicit v2 packages never use this fallback.
         try
         {
-            return AdaptShared(LoadLegacyAsV2(pack, diff));
+            return AdaptShared(LoadLegacyAsV2(pack, diff), PresetFor(diff.Difficulty));
         }
         catch (InvalidDataException) when (mode == ChartLoadMode.Default)
         {
@@ -75,7 +75,9 @@ internal static class V2Integration
             PresetFor(diff.Difficulty), audioPath);
     }
 
-    private static LoadedChart AdaptShared(V2LoadedPackageChart shared)
+    // preset 由调用方按难度 + 游玩模式（Hardcore 等）解析后传入；shared 侧的 entry.JudgePreset
+    // 只反映语义难度，不知道运行时模式，不能直接用作判定预设。
+    private static LoadedChart AdaptShared(V2LoadedPackageChart shared, JudgePreset preset)
     {
         var metadata = shared.RuntimeChart.V2Metadata ??
             throw new InvalidDataException("shared v2 adapter omitted runtime metadata");
@@ -93,7 +95,7 @@ internal static class V2Integration
             ResolvedAudioPath = shared.ResolvedAudioPath,
             NoteCount = shared.NoteCount,
             DurationSec = DerivedMainDuration(shared.SemanticChart, metadata.BpmTimeline) + 2.0,
-            Preset = shared.Preset,
+            Preset = preset,
             SyncAccentRuntimeIds = shared.SyncAccentRuntimeIds,
             SourceIdsByRuntimeId = shared.SourceIdsByRuntimeId,
             ExactTimesByRuntimeId = exactTimes,
@@ -161,11 +163,8 @@ internal static class V2Integration
         return latest;
     }
 
-    internal static JudgePreset PresetFor(string difficulty) => difficulty.ToLowerInvariant() switch
-    {
-        "tutorial" => JudgePreset.Tutorial,
-        "casual" => JudgePreset.Casual,
-        "normal" => JudgePreset.Normal,
-        _ => JudgePreset.Hard,
-    };
+    // 难度 -> 原版实例的映射集中在 shared（JudgeSettings.ResolvePreset）：
+    // Hardcore 模式对任何难度强制 Hardcore 实例，其余走难度映射。
+    internal static JudgePreset PresetFor(string difficulty) =>
+        JudgeSettings.ResolvePreset(difficulty, GameSession.Settings.GameplayMode);
 }

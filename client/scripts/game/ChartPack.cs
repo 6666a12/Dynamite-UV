@@ -115,10 +115,10 @@ public sealed class ChartPack
     public string Charter => Charts.SelectMany(chart => chart.Charters).Distinct()
         .DefaultIfEmpty("-").Aggregate((a, b) => $"{a}, {b}");
 
-    public string ChartPathFor(ChartDiff diff) => ResolvePath(diff.File);
-    public string AudioPathFor(ChartDiff diff) => ResolvePath(
+    public string ChartPathFor(ChartDiff diff) => ResolveLegacyRegularFile(diff.File, "chart");
+    public string AudioPathFor(ChartDiff diff) => ResolveLegacyRegularFile(
         diff.Audio ?? Audio ?? throw new InvalidDataException(
-            $"Package '{Id}' chart '{diff.ChartId}' has no resolved audio."));
+            $"Package '{Id}' chart '{diff.ChartId}' has no resolved audio."), "audio");
     public string? CoverPath => Cover.Length > 0 ? ResolvePath(Cover) : null;
     public ChartPreview? PreviewFor(ChartDiff diff) => diff.Preview ?? Preview;
 
@@ -211,12 +211,13 @@ public sealed class ChartPack
 
             var legacyCover = LegacyChartMetadata.OptionalString(root, "cover") ?? "";
             if (legacyCover.Length > 0 &&
-                !IsSafeLegacyCoverPath(dirPath, legacyCover, out var coverReason))
+                !IsSafeLegacyPackagePath(dirPath, legacyCover, out var coverReason))
             {
                 GD.PushWarning(
                     $"ChartPack: ignoring unsafe optional legacy cover in {metaPath}: {coverReason}");
                 legacyCover = "";
             }
+            ValidateLegacyResourcePaths(dirPath, packAudio, charts);
 
             return new ChartPack
             {
@@ -247,10 +248,121 @@ public sealed class ChartPack
     {
         if (string.IsNullOrWhiteSpace(relative))
             throw new InvalidDataException($"Package '{Id}' contains an empty path.");
+        if (PackageFormat == ChartPackageFormat.Legacy &&
+            !IsSafeLegacyPackagePath(DirPath, relative, out var reason))
+        {
+            throw new InvalidDataException(
+                $"Package '{Id}' contains an unsafe path '{relative}': {reason}");
+        }
         return JoinPath(DirPath, relative);
     }
 
-    private static bool IsSafeLegacyCoverPath(string packageDirectory, string path,
+    private string ResolveLegacyRegularFile(string relative, string label)
+    {
+        var path = ResolvePath(relative);
+        if (PackageFormat == ChartPackageFormat.Legacy &&
+            !IsLegacyRegularFile(DirPath, path, out var reason))
+        {
+            throw new InvalidDataException(
+                $"Package '{Id}' {label} path '{relative}' is not a regular file: {reason}");
+        }
+        return path;
+    }
+
+    private static void ValidateLegacyResourcePaths(string packageDirectory, string? packAudio,
+        IReadOnlyList<ChartDiff> charts)
+    {
+        if (packAudio is { } audioPath &&
+            !IsSafeLegacyPackagePath(packageDirectory, audioPath, out var audioReason))
+        {
+            throw new InvalidDataException($"package audio path is unsafe: {audioReason}");
+        }
+        foreach (var chart in charts)
+        {
+            if (!IsSafeLegacyPackagePath(packageDirectory, chart.File, out var fileReason))
+                throw new InvalidDataException(
+                    $"chart '{chart.ChartId}' file path is unsafe: {fileReason}");
+            if (chart.Audio is { } chartAudio &&
+                !IsSafeLegacyPackagePath(packageDirectory, chartAudio, out var chartAudioReason))
+            {
+                throw new InvalidDataException(
+                    $"chart '{chart.ChartId}' audio path is unsafe: {chartAudioReason}");
+            }
+        }
+    }
+
+    private static bool IsLegacyRegularFile(string packageDirectory, string path,
+        out string reason)
+    {
+        var global = ProjectSettings.GlobalizePath(path);
+        if (!ValidateLegacyDirectoryChain(ProjectSettings.GlobalizePath(packageDirectory), global, out reason))
+            return false;
+        if (!Godot.FileAccess.FileExists(path))
+        {
+            reason = "file does not exist";
+            return false;
+        }
+        if (System.IO.File.Exists(global))
+        {
+            var info = new System.IO.FileInfo(global);
+            if ((info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null)
+            {
+                reason = "file is a reparse point";
+                return false;
+            }
+        }
+        reason = string.Empty;
+        return true;
+    }
+
+    /// <summary>
+    /// Rejects a legacy resource when its package root or any existing parent directory is a
+    /// junction/symlink. Checking only the leaf file still allows a regular file reached through
+    /// an unsafe parent link to escape the package directory.
+    /// </summary>
+    private static bool ValidateLegacyDirectoryChain(string packageDirectory, string candidate,
+        out string reason)
+    {
+        var root = Path.GetFullPath(packageDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var parentPath = Path.GetDirectoryName(Path.GetFullPath(candidate));
+        if (parentPath is null)
+        {
+            reason = "resource has no parent directory";
+            return false;
+        }
+
+        var current = new DirectoryInfo(parentPath);
+        while (current is not null)
+        {
+            var currentPath = current.FullName.TrimEnd(Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar);
+            if (!currentPath.StartsWith(root + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(currentPath, root, StringComparison.OrdinalIgnoreCase))
+            {
+                reason = "resolved path escapes the package root";
+                return false;
+            }
+            if (current.LinkTarget is not null ||
+                (current.Exists && (current.Attributes & FileAttributes.ReparsePoint) != 0))
+            {
+                reason = $"parent directory is a reparse point: {current.Name}";
+                return false;
+            }
+            if (string.Equals(currentPath, root, StringComparison.OrdinalIgnoreCase))
+            {
+                reason = string.Empty;
+                return true;
+            }
+            current = current.Parent;
+        }
+
+        reason = "package root could not be reached";
+        return false;
+    }
+
+    private static bool IsSafeLegacyPackagePath(string packageDirectory, string path,
         out string reason)
     {
         if (string.IsNullOrEmpty(path))
@@ -294,6 +406,9 @@ public sealed class ChartPack
             reason = "resolved path escapes the package root";
             return false;
         }
+
+        if (!ValidateLegacyDirectoryChain(root, candidate, out reason))
+            return false;
 
         reason = string.Empty;
         return true;

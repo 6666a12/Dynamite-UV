@@ -13,7 +13,7 @@ public enum EditorSelectionKind
     Scroll,
 }
 
-public sealed record EditorSelection(EditorSelectionKind Kind, string? Id)
+public sealed record EditorSelection(EditorSelectionKind Kind, string? Id, EditorEntityKey? Key = null)
 {
     public static EditorSelection None { get; } = new(EditorSelectionKind.None, null);
 }
@@ -25,20 +25,30 @@ public enum EditorTrack
     Right,
 }
 
+/// <summary>Non-serialized identity used by editor selection and history; unlike v2 IDs it never changes on rename.</summary>
+public readonly record struct EditorEntityKey(Guid Value)
+{
+    public static EditorEntityKey New() => new(Guid.NewGuid());
+    public override string ToString() => Value.ToString("N");
+}
+
 public sealed class EditableBpm
 {
+    public EditorEntityKey Key { get; internal set; } = EditorEntityKey.New();
     public required ExactBarTime Time { get; set; }
     public required double Bpm { get; set; }
 }
 
 public sealed class EditableScroll
 {
+    public EditorEntityKey Key { get; internal set; } = EditorEntityKey.New();
     public required ExactBarTime Time { get; set; }
     public required double Value { get; set; }
     public V2ScrollCurve? CurveToNext { get; set; }
 
     public EditableScroll Clone() => new()
     {
+        Key = Key,
         Time = Time,
         Value = Value,
         CurveToNext = CurveToNext,
@@ -47,6 +57,7 @@ public sealed class EditableScroll
 
 public sealed class EditablePathNode
 {
+    public EditorEntityKey Key { get; internal set; } = EditorEntityKey.New();
     public required string Id { get; set; }
     public required ExactBarTime Time { get; set; }
     public required double Center { get; set; }
@@ -57,6 +68,7 @@ public sealed class EditablePathNode
 
 public sealed class EditableNote
 {
+    public EditorEntityKey Key { get; internal set; } = EditorEntityKey.New();
     public required string Id { get; set; }
     public required V2NoteType Type { get; set; }
     public required EditorTrack Track { get; set; }
@@ -70,6 +82,7 @@ public sealed class EditableNote
     {
         var clone = new EditableNote
         {
+            Key = Key,
             Id = Id,
             Type = Type,
             Track = Track,
@@ -82,6 +95,7 @@ public sealed class EditableNote
         {
             clone.Nodes.Add(new EditablePathNode
             {
+                Key = node.Key,
                 Id = node.Id,
                 Time = node.Time,
                 Center = node.Center,
@@ -96,6 +110,7 @@ public sealed class EditableNote
 
 public sealed class EditableChart
 {
+    public EditorEntityKey Key { get; internal set; } = EditorEntityKey.New();
     public required string Id { get; set; }
     public required V2Difficulty Difficulty { get; set; }
     public string? DifficultyKey { get; set; }
@@ -109,6 +124,22 @@ public sealed class EditableChart
     public List<EditableBpm> Bpms { get; } = [];
     public List<EditableScroll> ScrollSpeeds { get; } = [];
     public List<EditableNote> Notes { get; } = [];
+
+    public EditableChart Clone()
+    {
+        var clone = new EditableChart
+        {
+            Key = Key,
+            Id = Id, Difficulty = Difficulty, DifficultyKey = DifficultyKey, Level = Level,
+            Unrated = Unrated, File = File, Audio = Audio, Preview = Preview,
+            AudioOffsetSec = AudioOffsetSec,
+        };
+        clone.Charters.AddRange(Charters);
+        clone.Bpms.AddRange(Bpms.Select(item => new EditableBpm { Key = item.Key, Time = item.Time, Bpm = item.Bpm }));
+        clone.ScrollSpeeds.AddRange(ScrollSpeeds.Select(item => item.Clone()));
+        clone.Notes.AddRange(Notes.Select(item => item.Clone()));
+        return clone;
+    }
 }
 
 public sealed class EditorDocument
@@ -118,6 +149,9 @@ public sealed class EditorDocument
     private int _historyPosition;
     private int _savedHistoryPosition;
     private int _nextId = 1;
+    // Lazily rebuilt note/node ID cache. Every mutation entry point (Execute/Undo/Redo and
+    // InsertChart/RemoveChart) invalidates it; never mutate note/node IDs outside those paths.
+    private HashSet<string>? _allIds;
 
     public string? PackageDirectory { get; private set; }
     public required string PackId { get; set; }
@@ -128,6 +162,7 @@ public sealed class EditorDocument
     public string? Cover { get; set; }
     public V2Preview? Preview { get; set; }
     public List<EditableChart> Charts { get; } = [];
+    private readonly Dictionary<string, string> _pendingResourceReplacements = new(StringComparer.OrdinalIgnoreCase);
     public string SelectedChartId { get; private set; } = string.Empty;
     public EditorSelection Selection { get; private set; } = EditorSelection.None;
     public int GridDivisor { get; set; } = 16;
@@ -135,6 +170,8 @@ public sealed class EditorDocument
     public bool IsUnpersisted { get; private set; }
     public bool HasUnsavedChanges { get; private set; }
     public bool IsDirty => HasUnsavedChanges;
+    public IReadOnlyList<V2ExternalResourceMapping> PendingResourceReplacements =>
+        _pendingResourceReplacements.Select(item => new V2ExternalResourceMapping(item.Value, item.Key)).ToArray();
 
     public EditableChart SelectedChart => Charts.Single(chart => chart.Id == SelectedChartId);
     public bool CanUndo => _undo.Count > 0;
@@ -202,7 +239,83 @@ public sealed class EditorDocument
         Selection = EditorSelection.None;
     }
 
-    public void Select(EditorSelection selection) => Selection = selection;
+    /// <summary>Normalizes legacy serialized IDs to stable keys at the document boundary.</summary>
+    public void Select(EditorSelection selection)
+    {
+        if (selection.Kind == EditorSelectionKind.None || selection.Key is not null)
+        {
+            Selection = selection;
+            return;
+        }
+        var key = selection.Kind switch
+        {
+            EditorSelectionKind.Note => SelectedChart.Notes.SingleOrDefault(item => item.Id == selection.Id)?.Key,
+            EditorSelectionKind.PathNode => SelectedChart.Notes.SelectMany(item => item.Nodes)
+                .SingleOrDefault(item => item.Id == selection.Id)?.Key,
+            EditorSelectionKind.Bpm => ExactBarTimeText.TryParse(selection.Id ?? string.Empty, out var bpmTime)
+                ? SelectedChart.Bpms.SingleOrDefault(item => item.Time == bpmTime)?.Key : null,
+            EditorSelectionKind.Scroll => ExactBarTimeText.TryParse(selection.Id ?? string.Empty, out var scrollTime)
+                ? SelectedChart.ScrollSpeeds.SingleOrDefault(item => item.Time == scrollTime)?.Key : null,
+            _ => null,
+        };
+        Selection = selection with { Key = key };
+    }
+
+    internal void SetPendingResource(string packageRelativePath, string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(packageRelativePath) || string.IsNullOrWhiteSpace(sourcePath))
+            throw new ArgumentException("Resource paths cannot be empty.");
+        _pendingResourceReplacements[packageRelativePath] = Path.GetFullPath(sourcePath);
+    }
+
+    internal void RemovePendingResource(string packageRelativePath) =>
+        _pendingResourceReplacements.Remove(packageRelativePath);
+
+    internal string? GetPendingResource(string packageRelativePath) =>
+        _pendingResourceReplacements.TryGetValue(packageRelativePath, out var source) ? source : null;
+
+    internal void InsertChart(int index, EditableChart chart)
+    {
+        ArgumentNullException.ThrowIfNull(chart);
+        if (index < 0 || index > Charts.Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        if (Charts.Any(item => string.Equals(item.Id, chart.Id, StringComparison.Ordinal)))
+            throw new InvalidOperationException($"Chart ID '{chart.Id}' already exists.");
+        if (Charts.Any(item => string.Equals(item.File, chart.File, StringComparison.Ordinal)))
+            throw new InvalidOperationException($"Chart file '{chart.File}' is already used.");
+        Charts.Insert(index, chart.Clone());
+        _allIds = null;
+    }
+
+    internal (EditableChart Chart, int Index) RemoveChart(string id)
+    {
+        if (Charts.Count <= 1)
+            throw new InvalidOperationException("A package must contain at least one Chart.");
+        var index = Charts.FindIndex(item => string.Equals(item.Id, id, StringComparison.Ordinal));
+        if (index < 0)
+            throw new KeyNotFoundException($"Chart '{id}' is not open.");
+        var removed = Charts[index].Clone();
+        Charts.RemoveAt(index);
+        _allIds = null;
+        if (SelectedChartId == id)
+            SelectChart(Charts[Math.Min(index, Charts.Count - 1)].Id);
+        return (removed, index);
+    }
+
+    internal int MoveChart(string id, int destinationIndex)
+    {
+        var currentIndex = Charts.FindIndex(item => string.Equals(item.Id, id, StringComparison.Ordinal));
+        if (currentIndex < 0)
+            throw new KeyNotFoundException($"Chart '{id}' is not open.");
+        if (destinationIndex < 0 || destinationIndex >= Charts.Count)
+            throw new ArgumentOutOfRangeException(nameof(destinationIndex));
+        if (currentIndex == destinationIndex)
+            return currentIndex;
+        var chart = Charts[currentIndex];
+        Charts.RemoveAt(currentIndex);
+        Charts.Insert(destinationIndex, chart);
+        return currentIndex;
+    }
 
     public ExactBarTime Snap(ExactBarTime time)
     {
@@ -218,10 +331,11 @@ public sealed class EditorDocument
 
     public string AllocateId(string prefix)
     {
+        _allIds ??= new HashSet<string>(AllIds(), StringComparer.Ordinal);
         while (true)
         {
             var id = $"{prefix}-{_nextId++:D4}";
-            if (!AllIds().Contains(id, StringComparer.Ordinal))
+            if (!_allIds.Contains(id))
                 return id;
         }
     }
@@ -230,7 +344,14 @@ public sealed class EditorDocument
     {
         ArgumentNullException.ThrowIfNull(command);
         var chartId = SelectedChartId;
-        command.Execute(this);
+        try
+        {
+            command.Execute(this);
+        }
+        finally
+        {
+            _allIds = null;
+        }
         _undo.Push(new EditorHistoryEntry(command, chartId));
         if (_redo.Count > 0 && _savedHistoryPosition > _historyPosition)
             _savedHistoryPosition = -1;
@@ -244,8 +365,16 @@ public sealed class EditorDocument
         if (_undo.Count == 0)
             return;
         var entry = _undo.Pop();
-        SelectChart(entry.ChartId);
-        entry.Command.Undo(this);
+        if (Charts.Any(chart => chart.Id == entry.ChartId))
+            SelectChart(entry.ChartId);
+        try
+        {
+            entry.Command.Undo(this);
+        }
+        finally
+        {
+            _allIds = null;
+        }
         _redo.Push(entry);
         _historyPosition--;
         UpdateDirtyState();
@@ -256,8 +385,16 @@ public sealed class EditorDocument
         if (_redo.Count == 0)
             return;
         var entry = _redo.Pop();
-        SelectChart(entry.ChartId);
-        entry.Command.Execute(this);
+        if (Charts.Any(chart => chart.Id == entry.ChartId))
+            SelectChart(entry.ChartId);
+        try
+        {
+            entry.Command.Execute(this);
+        }
+        finally
+        {
+            _allIds = null;
+        }
         _undo.Push(entry);
         _historyPosition++;
         UpdateDirtyState();

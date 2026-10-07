@@ -123,10 +123,12 @@ public partial class Main : Node2D
 			Position = new Vector2(188, 752),
 			Size = new Vector2(325, 142),
 			Text = "谱面工坊",
-			SubText = "WORKSHOP  /  OFFLINE",
+			SubText = "WORKSHOP  /  SERVER LIBRARY",
 			FontSize = 28,
 			TechFont = true,
 			AlignLeft = true,
+			// The game shell reserves this route for a future server chart library.
+			// Local authoring belongs to the separate DynaMaker UV project.
 			Disabled = true,
 		};
 		AddChild(workshop);
@@ -225,7 +227,7 @@ public partial class Main : Node2D
 			return "v0.1.2 · INTERNAL TESTDATA · DO NOT DISTRIBUTE";
 		if (OS.HasFeature("public_release"))
 			return "v0.1.2 · clean-room public build · no bundled charts";
-		if (OS.HasFeature("editor") || OS.HasFeature("editor_runtime"))
+		if (OS.HasFeature("editor"))
 			return "v0.1.2-dev · editor/development build";
 		return "v0.1.2 · UNCLASSIFIED EXPORT · DO NOT DISTRIBUTE";
 	}

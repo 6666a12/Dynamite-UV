@@ -19,6 +19,10 @@ public enum TransitionKind
 public partial class TransitionDirector : Node
 {
     private const double SceneReadyTimeoutSeconds = 15.0;
+    /// <summary>Track Handoff 锁定相位的静默保持：READY 到达后再等这么久才放行揭示。</summary>
+    private const double HandoffLockHoldSeconds = 0.20;
+    /// <summary>锁定保持的硬上限，避免任何情况下把转场拖长。</summary>
+    private const double HandoffLockHoldCapSeconds = 0.30;
 
     private enum TransitionPhase
     {
@@ -50,6 +54,7 @@ public partial class TransitionDirector : Node
     private bool _sceneReady;
     private bool _readyTimeoutReported;
     private int _opaqueFrames;
+    private double _lockElapsed;
 
     public override void _EnterTree()
     {
@@ -197,6 +202,7 @@ public partial class TransitionDirector : Node
         _sceneReady = false;
         _readyTimeoutReported = false;
         _opaqueFrames = 0;
+        _lockElapsed = 0.0;
         _phaseElapsed = 0.0;
         _phaseDuration = CoverDuration(_profile);
         _treeWasPaused = GetTree().Paused;
@@ -288,17 +294,23 @@ public partial class TransitionDirector : Node
             return;
         if (_phaseElapsed < ContextHoldDuration())
             return;
+        if (_lockElapsed < HandoffLockHoldDuration())
+            return;
         BeginReveal();
     }
 
     private void AdvanceWait(double delta)
     {
         _phaseElapsed += delta;
+        if (_sceneReady)
+            _lockElapsed += delta;
         _overlay.AdvanceWaitingScan(delta);
+        _overlay.AdvanceHandoff(delta);
 
         if (_sceneReady)
         {
-            if (_phaseElapsed >= ContextHoldDuration())
+            if (_phaseElapsed >= ContextHoldDuration() &&
+                _lockElapsed >= HandoffLockHoldDuration())
                 BeginReveal();
             return;
         }
@@ -310,8 +322,22 @@ public partial class TransitionDirector : Node
         GD.PushError($"TransitionDirector: scene '{_route}' did not report ready within " +
                      $"{SceneReadyTimeoutSeconds:F0} seconds; returning to a safe route.");
         _overlay.MarkFailed();
+        if (_route == UiRoutes.SongSelect)
+        {
+            // 恢复路由自身也未就绪：重试同一路由没有意义，直接解除锁定，避免永久软锁。
+            GD.PushError("TransitionDirector: recovery route also timed out; releasing lock.");
+            _sceneReady = true;
+            _revealProgress = null;
+            _revealCompleted = null;
+            BeginReveal();
+            return;
+        }
+
         _route = UiRoutes.SongSelect;
         _phaseElapsed = 0.0;
+        // 恢复路由同样进入 AwaitingSceneReady：必须允许它对同一类故障再次超时，
+        // 否则恢复失败时 Paused 永不恢复、输入被持续吞掉，形成软锁。
+        _readyTimeoutReported = false;
         var error = GetTree().ChangeSceneToFile(_route);
         if (error == Error.Ok)
             return;
@@ -327,6 +353,10 @@ public partial class TransitionDirector : Node
     {
         if (_phase != TransitionPhase.AwaitingSceneReady)
             return;
+
+        // Track Handoff：先切到锁定/放电相位，再启动揭示，于是放电与分层揭示重叠播放。
+        if (IsTrackHandoff)
+            _overlay.BeginHandoffReveal(_profile.AllowDirectionalMotion);
 
         if (!_profile.IsAnimated)
         {
@@ -364,14 +394,24 @@ public partial class TransitionDirector : Node
     private void AdvanceReveal(double delta)
     {
         _phaseElapsed += delta;
+        _overlay.AdvanceHandoff(delta);
         var raw = NormalizedPhaseProgress();
         _overlay.Coverage = 1f - UiEase.Signal(raw);
         InvokeSafely(_revealProgress, raw, "reveal-progress callback");
-        if (_phaseElapsed < _phaseDuration)
+
+        // 揭示与放电重叠：overlay 要活到放电收尾（max(揭示, 放电)），这段尾巴在不透明
+        // 覆盖之下完成，因此不会露出任何半成品场景。
+        if (_phaseElapsed < RevealHoldDuration())
             return;
 
         CompleteTransition();
     }
+
+    /// <summary>揭示阶段的驻留时长：只有真正播放放电的档位（Full）才覆盖放电尾巴。</summary>
+    private double RevealHoldDuration() =>
+        IsTrackHandoff && _profile.AllowDirectionalMotion
+            ? Math.Max(_phaseDuration, TransitionOverlay.DischargeSeconds)
+            : _phaseDuration;
 
     private void RecoverToCurrentScene()
     {
@@ -416,9 +456,17 @@ public partial class TransitionDirector : Node
         ? 1f
         : Mathf.Clamp((float)(_phaseElapsed / _phaseDuration), 0f, 1f);
 
-    private double ContextHoldDuration() => _kind is TransitionKind.Gameplay or TransitionKind.Restart
+    private double ContextHoldDuration() => IsTrackHandoff
         ? _profile.TrackContextHoldDuration
         : 0.0;
+
+    private bool IsTrackHandoff => _kind is TransitionKind.Gameplay or TransitionKind.Restart;
+
+    /// <summary>锁定保持按档位降级：Full 200ms（封顶 300ms），Reduced/Off 不额外延迟。</summary>
+    private double HandoffLockHoldDuration() =>
+        IsTrackHandoff && _profile.AllowDirectionalMotion
+            ? Math.Min(HandoffLockHoldSeconds, HandoffLockHoldCapSeconds)
+            : 0.0;
 
     private static double CoverDuration(UiMotionProfile profile) =>
         Math.Max(0.0, profile.SceneDuration * 0.5);

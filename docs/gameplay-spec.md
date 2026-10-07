@@ -6,6 +6,8 @@
 > 原版方法体证据见
 > `original-judgement-analysis.md`，几何测量见 `video-geometry-analysis.md`。
 > 文中不包含任何原版素材或可发布原版谱面。
+> 2026-10-07 静态同步当前实现；本轮没有重跑构建/测试。历史原文见 [整理前快照](<archive/2026-10-07-cleanup/gameplay-spec.before.md>)。
+> **已知规范偏差**：当前 EX-Tap 倍率 1.0 且二值判定，冻结 v2 §12.1 仍写 1.5；本文描述代码，不据此宣布完全符合冻结规则集，也不静默修改合同。
 
 ## 1. 当前 Legacy 谱面数据
 
@@ -59,11 +61,12 @@ Testdata 构建先扫描 `res://testdata/packs`，再扫描 `user://charts`，�
 `dynamite-uv-chart`、精确有理 BarTime、`center+width`、内嵌 Hold/Mixer nodes、Hold `judge`、
 严格正向 Scroll 和 Gameplay Digest。v2 为无损迁移既有谱面允许三轨 Mixer 和超出推荐 `[0,5]`
 安全区的有限 center/正 width；消费者不得擅自 clamp。同步 Tap 金框由精确时间与异轨按下型
-父 Note 派生，不保存 `Baked_SyncNote`。当前 loader 仍使用本节的 float BarTime、左缘 Position、
-`SubNoteId` 与烘焙兼容字段；不得把下面的当前实现描述为已经支持 v2。
+父 Note 派生，不保存 `Baked_SyncNote`。本节的 float BarTime、左缘 Position、`SubNoteId` 与烘焙字段只描述 legacy-direct 输入。
+当前客户端已支持 strict v2，并默认尝试 legacy→v2 转换；适配器在内部保留兼容 Note 图，同时携带精确时间、路径 evaluator 和判定元数据。
 
-v2 同时冻结了 D4-C Hold grace 与 D5-A Mixer 语义。当前运行时的逐帧 Hold grace、所有 legacy
-Hold 节点均判定、Mixer 后续点四档计分和成绩键 `packId:diff` 都属于待迁移实现。
+D4-C 首次失联冻结 grace deadline 与 D5-A 四档 Mixer 头/后续 Prefect-Miss tick 已接入。
+v2 Hold 的 `judge:false` 节点只塑形，legacy 路径节点保留兼容主判定口径。成绩身份见 §10，不再统一为旧键。
+格式已支持不等于所有规则完全符合；EX-Tap 合同偏差须单独处理。
 
 ## 2. 时间、BPM 与变速
 
@@ -114,7 +117,7 @@ bar = sections[i].BarTime + (sec - sections[i].Seconds) * sections[i].BPM / 240
 | 2 | Drag | 接触判定，按住经过即可 | 绿色切角渐变和方向纹 |
 | 3 | HoldHead | Hold 起点输入 | 琥珀切角渐变头、半透明连接体和亮侧边 |
 | 4 | HoldNode | Hold 路径节点/尾 | 中间控制节点隐藏；尾节点保留琥珀材质 |
-| 5 | ExTap | 普通输入，所有窗口 1.5× | 冰蓝切角渐变和虚线芯 |
+| 5 | ExTap | 当前窗口倍率 1.0，Good 窗内 Prefect，否则输入 Miss | 冰蓝切角渐变和虚线芯 |
 | 6 | MixerHead | Mixer 起点输入 | 粉色纹理头；接上后在线上显示动态头 |
 | 7 | MixerNode | Mixer 路径节点/尾 | 控制节点隐藏，只显示节点间细连线 |
 | 8 | Mine | 危险窗内触碰为 Miss，未触碰为 Prefect | 暗红危险斜纹 |
@@ -148,7 +151,40 @@ T3/T4 和 T6/T7 通过 `SubNoteId` 组成同轨路径。构建路径时按 id �
 | Good | ±200ms | ±200ms | ±162.5ms |
 | Miss 候选范围 | ±250ms | ±250ms | ±250ms |
 
-EX-Tap 对上述窗口统一乘 1.5。
+当前 EX-Tap 窗口倍率 `1.0`（与 Tap 同窗），判定为二值 —— `|Δ| ≤ Good` 一律
+Prefect，落在输入窗内但超出 Good 窗（早侧或晚侧）立即按输入 Miss 结算，无触点直到超时才
+是 AutoMiss；该类型与其他类型一样参与同帧时间锁。
+
+### 4.3 游玩模式
+
+| 模式 | 判定预设 | 说明 |
+| --- | --- | --- |
+| Standard（缺省） | 按难度映射（§4.1） | 与既有行为一致 |
+| Hardcore | 强制 Hardcore 实例 | Hard 窗口 ×0.5：Prefect ±31.25ms / Great ±56.25ms / Good ±81.25ms / Miss ±125ms（`barTime` = Hard × 0.5，×240/150 换算）。对**任何难度**生效；Holding 断触宽限沿用 Hard 值 0.125 bar |
+
+模式持久化在 `user://settings.json` 的 `gameplayMode` 字段，缺省 `standard`。
+选曲页 QUICK SETTINGS 的 MODE 只在这两档之间二选一（互斥），不再有平级的 Bleed 档。
+
+`GameSettings.BleedEnabled`（`bleedEnabled`，默认 false，选曲页的 `BLEED` 开关）是**游玩修饰
+而非档位**：Standard 下自由开关，Hardcore 下强制开启并锁定（开关压暗、方块停右侧 60%、挂锁、
+副文案 `HARDCORE 下强制开启`）；锁定期**不改写**持久化值，切回 Standard 恢复用户此前的选择。
+机制本身仍是预留——该开关只持久化，没有任何判定运行逻辑。
+
+`GameSettings.MirrorEnabled`（`mirrorEnabled`，默认 false，选曲页的 `MIRROR` 开关）开启后游玩
+画面左右镜像。它只改**屏幕映射**，判定窗口、Position、Note 数据一律不变：侧轨 Left↔Right 互换
+（含输入触点归属、判定线侧轨、note 视觉与粒子朝向），中轨水平坐标关于**面板中轴 2.5** 反射、
+宽度不变。中轨 note 中心的实际范围是 `[0,5]`（全部发行谱面实测），故中轴 `x=963` 而不取
+`[0,4]` 左缘带的中点 2.0（`x=826.4`，会让中轨镜像整体左移 136.6px）。映射本体是 shared 的
+`GameplayStageGeometry.MirroredDisplay` / `MirroredTrack`，自反，
+因此屏幕 → 谱面的输入触点反查复用同一函数（`client/scripts/game/GameplayMirror` 只负责读设置）。
+判定侧的逆映射有且只有一个入口：`GameplayMain.ChartTouchOf` / `ChartPointOf`——先
+`DisplayPositionOf`（屏幕 → 显示空间，不镜像）再 `GameplayMirror.Display`（显示 → 谱面）镜像
+一次；在别处再镜像一次会因自反抵消，触点会退回显示坐标而判不上镜像后的 note。
+
+所有窗口都从当前难度的 JudgeSettings 实例读取，客户端不再硬编码扫描窗或接触窗。
+判定预设统一由客户端在加载时按「难度 + 游玩模式」解析（`V2Integration.PresetFor`），
+v2 包/转换产物里的 `entry.JudgePreset` 只反映语义难度、不含运行时模式；legacy→v2 转换时
+Hardcore 按 Hard、Tutorial 按 Casual 归档（score identity 与模式无关）。
 
 Hold 的断触宽限为：
 
@@ -156,8 +192,8 @@ Hold 的断触宽限为：
 0.125 * 240 / clamp(currentBpm, 120, 200)
 ```
 
-因此 BPM≤120 时为 250ms，BPM=150 时为 200ms，BPM≥200 时为 150ms。该数值只用于
-确认 Hold 断触，不生成 Hold 判定点。Mixer 判定网格见 6.3 节。
+因此 BPM≤120 时为 250ms，BPM=150 时为 200ms，BPM≥200 时为 150ms。首次失去全部覆盖时计算一次并冻结 deadline；此后 BPM 改变不移动 deadline，接回清除此状态。
+该数值只用于确认 Hold 断触，不生成 Hold 判定点。Mixer 判定网格见 §6.3。
 
 ## 5. 输入与候选选择
 
@@ -166,13 +202,13 @@ Hold 的断触宽限为：
 在 1920×1080 设计坐标中：
 
 ```text
-y > 771       -> Center
-y <= 771 且 x < 400  -> Left
-y <= 771 且 x > 1520 -> Right
-其余上部区域          -> Center
+y > 771  -> 包含 Center
+x < 400  -> 包含 Left
+x > 1520 -> 包含 Right
+均不命中 -> 回退 Center
 ```
 
-屏幕坐标转换为谱面 Position：
+同一触点可以投影到多个轨道，不是互斥分区。屏幕坐标转换为显示空间 Position（镜像时再经唯一逆映射）：
 
 ```text
 Center: (x - 280) / 273.2
@@ -193,9 +229,10 @@ Side:   (840 - y) / 115
 - `Stationary=3`
 
 一帧内先形成包含全部触点 id 的完整快照，再从普通输入、Drag 和 Mine 候选中寻找最早
-可判定时刻。`InputTimeGroupGate` 只把 Early/Exact 分支锁到一个 float32 目标时间；
-完全同刻多押继续放行，不同的未来目标时刻等待下一批输入。已经过点的 Late 候选逐触点
-扫描，不参与该时间锁，也不被它拦截。
+可判定时刻。`V2InputProtection` 只把 Early/Exact 分支锁到一个目标时刻（本批已结算
+目标里的最早毫秒整数值，与事件到达顺序无关）；同组多押继续放行，异组早侧目标等待下一批
+输入。已经过点的 Late 候选逐触点扫描，既不检查锁也不武装锁。EX-Tap（Type 5）与 Tap
+逐指令一致，同样参与该锁（检查 + 命中武装）。
 
 ### 5.3 空间重叠
 
@@ -213,10 +250,8 @@ Side:   (840 - y) / 115
 
 ### 6.1 路径
 
-`SustainPath.BoundsAt(time)` 分别对相邻节点的左缘 `Position` 和右缘
-`Position+Width` 做线性插值。Hold 判定严格来自实际路径节点；Mixer 判定从头部相位
-开始按 `1/8 chart bar` 派生。空 BPM 时间线时，Mixer 派生点使用相邻路径节点的
-BarTime 与烘焙秒做局部插值回退。
+legacy-direct 的 `SustainPath.BoundsAt(time)` 对相邻节点左右缘做线性插值；v2 使用自身路径 evaluator 和精确元数据，保留 curve 与 `judge:false` 塑形节点。
+Hold 判定来自实际判定节点，Mixer 从头部相位按 `1/8 chart bar` 派生。空 BPM legacy 时间线使用路径 BarTime/烘焙秒做局部插值回退。
 
 ### 6.2 Hold
 
@@ -224,26 +259,31 @@ BarTime 与烘焙秒做局部插值回退。
 - Hold 的判定与 Body 裁剪相互独立：头时刻过后但仍在有效 Late 窗口内时，玩家仍可按
   实际时间差正常判定并接起；Body 过判定线的部分始终裁掉，未判定头部按 §9.1 下穿。
 - 成功判定无论 Early、Exact 或 Late，Hold 头、瞬时爆发和持续接触效果都锚定判定线。
+  已接起的头部沿线位置和宽度每帧随当前路径插值更新，不再使用起点的固定几何。
   Early 接起时，第一段 Body 的近端提前连接到判定线，直到谱面头实际到线后再恢复常规
   连续裁剪。
 - 每帧按当前插值范围寻找同轨有效触点。
-- 断触宽限使用当前 BPM 对应的动态 Holding 间隔。
-- 父 Note 头部和每个实际路径节点均为完整主判定，最后一个节点天然是 Hold 尾。
+- 首次失去全部覆盖时按当时 BPM 冻结宽限 deadline，之后不逐帧重算；恢复覆盖清除本次失联状态。
+- legacy 头部和每个实际路径节点为主判定；v2 只对头和 `judge:true` 节点判定，其他节点仍塑形，尾必须判定。
 - 头部 Miss 时，全部未结算节点在同一帧批量 Miss；之后不能重新接回，也不会在未来
-  到线时重复结算。
+  到线时重复结算。整条 Hold 的头、Body、描边和尾在退场期间继续下落，Body 继续按判定线裁剪，从各自当前透明度
+  开始在 180ms 内同步渐淡后回收；暂停时渐淡也冻结，尚未入场的后续节点不再生成。
 - 抬手会记录实际 release 时刻。若另一根同轨触点仍覆盖当前条体，下一次 Hold 更新会继续
-  视为接触；若在动态断触宽限内重新覆盖，也会清除本次断触。
+  视为接触；若在冻结 deadline 前重新覆盖，也会清除本次断触。
 - 确认提前断开时，尚未结算的中间节点判 Miss，Hold 尾按
   `Judge(tailTime, releaseTime)` 的普通窗口评级，而不是按宽限耗尽时刻评级。
+  确认断开后同样将整条渐淡后回收；宽限内的暂时断触仍保留恢复机会。
 - 持有到尾为 Prefect；尾时刻之后才到达的 release 事件钳到尾时刻，因此不会把已经完整
   持有的 Hold 误判为 Late/Miss。
 
 ### 6.3 Mixer
 
 - Mixer Body 始终按路径正常渲染；中间节点和尾节点不渲染实体。
+- 静态头只作到线前的入场提示，到线或提前判定后立即回收，之后仅由连接状态控制动态头。
 - 从头时刻到尾时刻，每帧在当前插值范围内寻找同轨有效触点；Began、Moved、Stationary
-  都能建立或恢复连接。
-- 有有效触点时，虚拟滑块跟随该触点并钳制在条体边界；判定线上显示一个动态 Mixer 头。
+  都能建立或恢复连接；提前判定头部后也立即更新连接状态。
+- 有有效触点时，虚拟滑块跟随该触点并钳制在条体边界；判定线上显示一个动态 Mixer 头，
+  宽度随当前路径插值更新。
 - 没有有效触点时立即视为断开并隐藏动态头。Mixer 不存在超时或永久 Miss 状态，之后
   任意时刻重新进入条体范围都能恢复连接；漏掉 MixerStart 也不阻止 Body 接入。
 - Mixer 不使用普通 Note 的 Miss 下穿：头判 Miss 时静默回收静态头，不生成下穿或打击
@@ -258,7 +298,7 @@ BarTime 与烘焙秒做局部插值回退。
 `JudgePlan` 将谱面展开为按时间排序的最小判定单元：
 
 - Tap、Drag、EX-Tap、Mine 各一个主判定。
-- Hold 包含头和每个实际路径节点，最后一个节点是尾。
+- Hold 包含头和实际判定节点（legacy 全部路径节点、v2 resolved `judge:true` 节点），尾必判。
 - Mixer 从头开始每 `1/8 chart bar` 产生一个主判定，非网格尾不补判。
 - BarLine 不生成判定单元。
 
@@ -289,7 +329,7 @@ round(RawScore / TheoreticalMax * 1,000,000)
 
 ### 8.2 CLEAR 与评级
 
-- HUD 实时 CLEAR = 当前 RawScore / 已判定单元的理论满分。
+- HUD 实时 ACC = 当前 RawScore / 已判定单元的理论满分，显示值钳制在 0..100%。
 - 结算 CLEAR = 最终 RawScore / 全谱 TheoreticalMax。
 - 评级：Ω≥98、S≥95、A≥90、B≥80，否则 C。
 - 存档字段 `acc` 为兼容旧格式保留，实际内容是结算 CLEAR。
@@ -325,17 +365,16 @@ Godot viewport 固定 1920×1080，stretch mode 为 `canvas_items`，比例不�
 连接体作为刚性形状整体下落，过判定线部分被连续裁剪。远端允许出屏，不钳制；侧轨
 Hold 不做远端缩窄，只按接近判定线的距离提高填充和描边 alpha。
 
-HUD、背景和命中辉光均为程序化 UI。结算前必须隐藏舞台、音符和 HUD，并先显示不透明
-结果背景，避免封面缺失或加载失败时透出游玩层。
+HUD、背景和命中辉光均为程序化 UI。Full 结算先合拢不透明屏风，完全遮住后才隐藏舞台/音符/HUD，并在屏风背后铺结果背景；Reduced/Off 直接不透明接管。不能在屏风未闭合时先隐藏游玩层造成跳变，详见 [结算 v2](<result-v2-design.md>)。
 
 ### 9.1 Note 材质与判定反馈
 
 - 所有可见 Note 类型统一使用 `note_surface.gdshader` 的切角渐变材质，并用虚线、方向纹、
   危险斜纹或扫描线区分类型；左右侧轨旋转同一套参数，亮度一致。
 - 成功判定按 Note 类型生成 12 帧式程序化爆发，并按 Note 宽度和轨道方向适配；统一亮度
-  系数为 1.30。
+  系数为 1.55，并叠加 GPU 火花/余烬层，参数见 [动效规格 §9.5](<ui-motion.md#95-已接入游戏的打击粒子规格编辑器复用目标>)。
 - Hold 与侧轨 Mixer 接通时使用 12 帧循环接触效果。亮度仅在接通后的 0.28 秒内从零爬升
-  到满亮，随后保持不变，只有内部纹理继续循环；松开后立即消失。中心轨 Mixer 不显示
+  到亮度系数 0.72，随后保持不变，只有内部纹理继续循环；松开后立即消失。中心轨 Mixer 不显示
   这层侧面接触效果。
 
 视觉运动与逻辑判定窗口相互独立，当前生命周期如下：
@@ -343,8 +382,8 @@ HUD、背景和命中辉光均为程序化 UI。结算前必须隐藏舞台、�
 | 类型 | 到线及越线 | 判定反馈 |
 | --- | --- | --- |
 | Tap / EX-Tap / Drag | 未判定时立即连续越线；0–24px 满亮，随后 40px 淡出，累计 64px 回收；完整 Late 窗仍有效 | 命中立即回收本体，只在线上生成爆发；最终 Miss 不回线、不重启动画 |
-| Hold | 未判定头部沿用普通下穿；Body 线外部分持续裁剪，Late 窗仍可接起 | Early/Exact/Late 命中后头部保留在线上；暂时断触时头部可恢复地下穿并淡出，宽限内接回则立即恢复在线渲染，宽限耗尽才提交 Miss；提前结算的尾节点等实际到线后再处理 |
-| Mixer | Body 正常渲染，不使用普通下穿 | 命中可保留线头；Miss 静默回收静态头，不生成爆发，不影响 Body 和随时重接 |
+| Hold | 未判定头部沿用普通下穿；Body 线外部分持续裁剪，Late 窗仍可接起 | Early/Exact/Late 命中后头部沿线跟随当前路径的位置和宽度；暂时断触时可恢复地下穿并淡出，宽限内接回则立即回线；正式 Miss / 确认断开后继续下落和裁剪，同时在 180ms 内渐淡回收，后续节点不再入场 |
+| Mixer | Body 正常渲染，不使用普通下穿 | 静态头到线或提前判定后移除；当前接上才显示动态头，位置随滑块、宽度随路径更新，断开隐藏、重接恢复；Miss 不生成爆发，不影响 Body 和随时重接 |
 | Mine | 不使用普通下穿 | 危险窗内触发时生成红色爆发并回收；安全到线直接回收，无爆发和残留 |
 | BarLine | 到线立即回收，不下穿、不停留 | 无判定 |
 
@@ -367,6 +406,9 @@ player.GetPlaybackPosition()
 
 headless 模式改用系统计时器。暂停会记录当前位置并停止流，恢复时从记录位置重新播放。
 
+成绩写 `user://scores.json`：strict v2/成功转换路径使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy-direct 保留 `packId:diff`。Auto 不写成绩；当前没有独立 Standard/Hardcore 运行模式维度，不能称分模式隔离已完成。
+Music/Hit/UI 音量总线已接，但完整 Hit/UI 资产链路仍未完成。
+
 ## 11. 仍未确认的边界
 
 以下项目不阻塞当前主体玩法，但不得写成原版定论：
@@ -375,13 +417,13 @@ headless 模式改用系统计时器。暂停会记录当前位置并停止流�
 - 同帧多个触点各自扫描候选 Note；同一触点可独立命中多颗同刻空间重叠 Note，不存在全局消费顺序。
 - 真机三指以上同时输入时，Godot/OS 触点 id 的稳定性与事件完整性。
 - OS 焦点丢失或设备取消触摸时的专门清理通知；暂停入口已经清理，但这两类事件尚未覆盖。
-- BPM 切段瞬间 Hold 断触宽限的更新边界。
+- 原版 BPM 切段同帧调度仍有研究未知；社区宽限固定为首次断触冻结，不是当前未实现项。
 - 模式/角色提供的真实 MaxHealth。
 - 当前版本序列化 Type 到内部 judge dispatch 的最终映射。
 - Buff/EX Boost 来源、持续时间、等级和叠加规则。
 - 空 BPM 时间线正式谱的原始 BPM；当前 loader 依靠 `Baked_Second` 可正常游玩。
 
-## 12. 验证
+## 12. 复验入口（非本次通过声明）
 
 ```powershell
 cd client
@@ -392,7 +434,7 @@ dotnet build
 dotnet run --project tools/core-tests/CoreTests.csproj
 ```
 
-核心测试覆盖谱面加载、BarTime 换算、Auto 全 Prefect、主判定计数、窗口边界、EX-Tap、
+现有核心测试代码包含谱面加载、BarTime 换算、Auto 全 Prefect、主判定计数、窗口边界、EX-Tap、
 Mine、百万分、Early 时间组锁与 Late 放行、触摸范围与 phase、Hold 节点、Mixer 八分点、
 Hold 批量 Miss、按 release 时刻结算尾判、尾后 release 钳制、sustain 插值、Miss 分源、
 Health/Boost 缩放和原版数学策略。

@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/StandaloneEditorMain.cs" id="1_main"]
+[ext_resource type="Script" path="res://scripts/AuthoringCanvas.cs" id="2_canvas"]
+[ext_resource type="Script" path="res://scripts/game/GameplayStageRenderer.cs" id="3_stage"]
+
+[node name="DynaMakerUv" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="ChartCanvas" type="Control" parent="."]
+layout_mode = 0
+offset_right = 1920.0
+offset_bottom = 1080.0
+mouse_filter = 1
+script = ExtResource("2_canvas")
+
+[node name="SharedGameplayStage" type="Node2D" parent="ChartCanvas"]
+z_index = 0
+script = ExtResource("3_stage")

@@ -9,11 +9,32 @@ public partial class CutPanel : Control
     private Color _fill = UiFonts.Panel;
     private Color _border = UiFonts.Line;
     private float _borderWidth = 2f;
+    private Vector2[]? _points;
+    private Vector2[]? _closedPoints;
 
-    public float Cut { get => _cut; set { _cut = value; Refresh(); } }
+    public float Cut
+    {
+        get => _cut;
+        set
+        {
+            _cut = value;
+            _points = null;
+            _closedPoints = null;
+            Refresh();
+        }
+    }
     public Color Fill { get => _fill; set { _fill = value; Refresh(); } }
     public Color Border { get => _border; set { _border = value; Refresh(); } }
     public float BorderWidth { get => _borderWidth; set { _borderWidth = value; Refresh(); } }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationResized)
+        {
+            _points = null;
+            _closedPoints = null;
+        }
+    }
 
     public void Refresh()
     {
@@ -24,11 +45,11 @@ public partial class CutPanel : Control
     public override void _Draw()
     {
         var c = Mathf.Min(_cut, Mathf.Min(Size.X, Size.Y) * 0.5f);
-        Vector2[] pts = UiGeometry.CutCorners(Size, c);
+        Vector2[] pts = _points ??= UiGeometry.CutCorners(Size, c);
         DrawColoredPolygon(pts, _fill);
         if (_borderWidth > 0f)
         {
-            var closed = UiGeometry.Close(pts);
+            var closed = _closedPoints ??= UiGeometry.Close(pts);
             DrawPolyline(closed, _border, _borderWidth, true);
         }
     }

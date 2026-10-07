@@ -19,12 +19,15 @@ public partial class CutButton : Control
 	private bool _disabled;
 	private bool _alignLeft;
 	private int _fontSize = 28;
+	private float _cut = 14f;
 	private bool _hover;
 	private float _hoverAmount;
 	private float _pressAmount;
 	private float _commitAmount;
 	private double _commitElapsed;
 	private double _commitDuration;
+	private Vector2[]? _points;
+	private Vector2[]? _closedPoints;
 
 	[Signal]
 	public delegate void PressedEventHandler();
@@ -47,12 +50,34 @@ public partial class CutButton : Control
 	public bool AlignLeft { get => _alignLeft; set { _alignLeft = value; Refresh(); } }
 	public int FontSize { get => _fontSize; set { _fontSize = value; Refresh(); } }
 
+	/// <summary>切角尺寸：样式稿默认 14px，96px 触控键用 18px。</summary>
+	public float Cut
+	{
+		get => _cut;
+		set
+		{
+			_cut = value;
+			_points = null;
+			_closedPoints = null;
+			Refresh();
+		}
+	}
+
 	public override void _Ready()
 	{
 		_hoverAmount = HoverTarget;
 		MouseDefaultCursorShape = CursorShape.PointingHand;
 		MouseEntered += OnMouseEntered;
 		MouseExited += OnMouseExited;
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationResized)
+		{
+			_points = null;
+			_closedPoints = null;
+		}
 	}
 
 	public override void _Process(double delta)
@@ -126,8 +151,8 @@ public partial class CutButton : Control
 		var hover = UiEase.Standard(profile.IsAnimated ? _hoverAmount : HoverTarget);
 		var press = !_disabled && profile.IsAnimated ? UiEase.Standard(_pressAmount) : 0f;
 		var commit = profile.IsAnimated ? UiEase.Echo(_commitAmount) : 0f;
-		var cut = Mathf.Min(14f, Mathf.Min(Size.X, Size.Y) * 0.4f);
-		Vector2[] pts = UiGeometry.CutCorners(Size, cut);
+		var cut = Mathf.Min(_cut, Mathf.Min(Size.X, Size.Y) * 0.4f);
+		Vector2[] pts = _points ??= UiGeometry.CutCorners(Size, cut);
 
 		Color fill, border, fg;
 		if (_disabled)
@@ -168,7 +193,7 @@ public partial class CutButton : Control
 				locatorColor);
 		}
 
-		var closed = UiGeometry.Close(pts);
+		var closed = _closedPoints ??= UiGeometry.Close(pts);
 		DrawPolyline(closed, border, 2f, true);
 		if (profile.AllowDirectionalMotion && (press > 0f || commit > 0f))
 		{

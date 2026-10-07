@@ -1,4 +1,5 @@
 using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.Shared.Chart;
 using DynamiteUniverse.Shared.Chart.V2;
 
 internal static class Program
@@ -8,7 +9,9 @@ internal static class Program
         try
         {
             TestExactSnap();
+            TestSideTrackStagePlacement();
             TestExactBarTimeText();
+            TestPropertyCatalog();
             TestDraftCreationAndValidation();
             TestDraftPersistenceState();
             TestCommandsAndSnapshots();
@@ -16,11 +19,18 @@ internal static class Program
             TestPathEditingCommands();
             TestScrollEditingCommands();
             TestUndoFollowsOwningChart();
+            TestChartLifecycleCommands();
             TestBpmCollisionIsRejected();
             TestDirectEditingCommands();
+            TestCanvasAuthoringController();
+            TestCanvasDragAnchor();
+            TestEditorTimeConversion();
             TestGoldenRoundTrip();
             TestStrictPackageOpen();
             TestPackageWriter();
+            TestSameDirectoryResourceReplacement();
+            TestSameDirectoryPublicationRollback();
+            TestSameDirectoryCleanupFailure();
             TestFirstPackageCreation();
             Console.WriteLine("EDITOR TESTS PASS");
             return 0;
@@ -37,6 +47,53 @@ internal static class Program
         var input = ExactBarTime.FromJsonComponents(2, 1, 7);
         var snapped = EditorGeometry.Snap(input, 16);
         Check(snapped == ExactBarTime.FromJsonComponents(2, 1, 8), "exact arbitrary-denominator snap");
+    }
+
+    private static void TestSideTrackStagePlacement()
+    {
+        const double previewBar = 3d;
+        const double visibleBars = 8d;
+        var leftTime = EditorStagePlacement.TimeAt(EditorTrack.Left,
+            GameplayStageGeometry.LeftLineX + GameplayStageGeometry.SidePreviewTravelPx / 2d,
+            GameplayStageGeometry.SideY0, previewBar, visibleBars, 16, true);
+        var rightTime = EditorStagePlacement.TimeAt(EditorTrack.Right,
+            GameplayStageGeometry.RightLineX - GameplayStageGeometry.SidePreviewTravelPx / 2d,
+            GameplayStageGeometry.SideY0, previewBar, visibleBars, 16, true);
+        Check(leftTime == ExactBarTime.FromFraction(7, 1) && rightTime == leftTime,
+            "left/right canvas placement maps horizontal travel to the same snapped time");
+
+        var leftCenter = EditorStagePlacement.CenterAt(EditorTrack.Left,
+            GameplayStageGeometry.LeftLineX, GameplayStageGeometry.SideY0 - 2.5d * GameplayStageGeometry.SideUnitPx);
+        var rightCenter = EditorStagePlacement.CenterAt(EditorTrack.Right,
+            GameplayStageGeometry.RightLineX, GameplayStageGeometry.SideY0 - 2.5d * GameplayStageGeometry.SideUnitPx);
+        var sideWidth = EditorStagePlacement.WidthFromDrag(EditorTrack.Right, 0, 120, 0, 350);
+        Check(Math.Abs(leftCenter - 2.5d) < .00001 && Math.Abs(rightCenter - 2.5d) < .00001 &&
+              Math.Abs(sideWidth - 2d) < .00001,
+            "left/right canvas placement maps vertical position and drag span to center and width");
+
+        var centerResize = EditorStagePlacement.ResizeFromEdge(2.5d, 2d, .5d, true);
+        var sideResize = EditorStagePlacement.ResizeFromEdge(2.5d, 2d, 4.5d, false);
+        var minimumResize = EditorStagePlacement.ResizeFromEdge(2.5d, 2d, 3.4d, true);
+        Check(Math.Abs(centerResize.Center - 2d) < .00001 && Math.Abs(centerResize.Width - 3d) < .00001 &&
+              Math.Abs(sideResize.Center - 3d) < .00001 && Math.Abs(sideResize.Width - 3d) < .00001 &&
+              Math.Abs(minimumResize.Center - 3.375d) < .00001 && Math.Abs(minimumResize.Width - .25d) < .00001,
+            "width handles keep the opposite geometry edge fixed and enforce the minimum width");
+
+        var document = CreateCleanDocument("editor.side-placement", "hard", "Side placement", "Community");
+        document.Execute(new AddNoteCommand(new EditableNote
+        {
+            Id = "left-stage-note", Type = V2NoteType.Tap, Track = EditorTrack.Left,
+            Time = leftTime, Center = leftCenter, Width = sideWidth,
+        }));
+        document.Execute(new AddNoteCommand(new EditableNote
+        {
+            Id = "right-stage-note", Type = V2NoteType.Drag, Track = EditorTrack.Right,
+            Time = rightTime, Center = rightCenter, Width = sideWidth,
+        }));
+        var snapshot = document.BuildChartSnapshot("hard");
+        Check(snapshot.NotesLeft.Single().Id == "left-stage-note" &&
+              snapshot.NotesRight.Single().Id == "right-stage-note",
+            "side-track placements serialize to notesLeft and notesRight rather than center");
     }
 
     private static void TestExactBarTimeText()
@@ -64,6 +121,35 @@ internal static class Program
               !ExactBarTimeText.TryParse("Infinity", out _) &&
               !ExactBarTimeText.TryParse("9007199254740992", out _),
             "exact time rejects negative non-finite and non-v2-safe text");
+    }
+
+    private static void TestPropertyCatalog()
+    {
+        EditorPropertyCatalog.Validate();
+        var expected = new[]
+        {
+            "pack.format", "pack.formatVersion", "pack.id", "pack.revision", "pack.title",
+            "pack.artist", "pack.audio", "pack.cover", "pack.preview.startSec",
+            "pack.preview.durationSec", "pack.charts[]", "charts[].id", "charts[].difficulty",
+            "charts[].difficultyKey", "charts[].level", "charts[].unrated", "charts[].charters[]",
+            "charts[].file", "charts[].audio", "charts[].preview.startSec",
+            "charts[].preview.durationSec", "chart.format", "chart.formatVersion", "chart.chartId",
+            "chart.audioOffsetSec", "chart.bpms[].time", "chart.bpms[].bpm",
+            "chart.scrollSpeeds[].time", "chart.scrollSpeeds[].value", "chart.scrollSpeeds[].curveToNext",
+            "chart.notesLeft[]", "chart.notesCenter[]", "chart.notesRight[]", "chart.notes[].id",
+            "chart.notes[].type", "chart.notes[].time", "chart.notes[].center", "chart.notes[].width",
+            "chart.notes[].curveToNext", "chart.notes[].nodes[]", "chart.notes[].nodes[].id",
+            "chart.notes[].nodes[].time", "chart.notes[].nodes[].center", "chart.notes[].nodes[].width",
+            "chart.notes[].nodes[].curveToNext", "chart.notes[].nodes[].judge",
+            "chart.notes[].nodes[].judgeWasExplicit",
+        };
+        Check(EditorPropertyCatalog.All.Select(item => item.FieldPath).Order(StringComparer.Ordinal)
+                .SequenceEqual(expected.Order(StringComparer.Ordinal)),
+            "property catalog covers every v2 persisted and derived editor field");
+        Check(EditorPropertyCatalog.Require("pack.format").ReadOnlyReason is not null &&
+              EditorPropertyCatalog.Require("chart.audioOffsetSec").EditRoute == EditorPropertyEditRoute.EditorCommand &&
+              EditorPropertyCatalog.Require("pack.audio").EditRoute == EditorPropertyEditRoute.PackageResourceTransaction,
+            "property catalog distinguishes fixed, command, and transactional fields");
     }
 
     private static void TestAllSevenNoteTypes()
@@ -166,8 +252,16 @@ internal static class Program
         Check(document.RequireTestNote(hold.Id).Nodes.Select(node => node.Id)
                 .SequenceEqual(["hold-mid", "hold-tail"]),
             "add path node inserts in strict time order");
-        Check(document.Selection == new EditorSelection(EditorSelectionKind.PathNode, "hold-mid"),
+        Check(document.Selection.Kind == EditorSelectionKind.PathNode && document.Selection.Id == "hold-mid" &&
+              document.Selection.Key == document.RequireTestNote(hold.Id).Nodes.Single(node => node.Id == "hold-mid").Key,
             "path node selection uses stable ID");
+        var nodeKey = document.RequireTestNote(hold.Id).Nodes.Single(node => node.Id == "hold-mid").Key;
+        document.Execute(new RenamePathNodeCommand(hold.Id, "hold-mid", "hold-control"));
+        Check(document.RequireTestNote(hold.Id).Nodes.Single(node => node.Id == "hold-control").Key == nodeKey,
+            "path node identity command preserves stable key");
+        document.Undo();
+        document.Redo();
+        document.Undo();
 
         document.Execute(new EditPathNodeCommand(hold.Id, "hold-mid",
             ExactBarTime.FromFraction(3, 2), 2.75, .9));
@@ -417,6 +511,26 @@ internal static class Program
         };
         document.Execute(new AddNoteCommand(note));
         Check(document.SelectedChart.Notes.Count == 1 && document.CanUndo, "add note command");
+        Check(document.Selection.Key == document.SelectedChart.Notes.Single().Key,
+            "note selection resolves stable internal key");
+        var noteKey = document.SelectedChart.Notes.Single().Key;
+        document.Execute(new RenameNoteCommand(note.Id, "renamed-note"));
+        Check(document.SelectedChart.Notes.Single().Id == "renamed-note" &&
+              document.SelectedChart.Notes.Single().Key == noteKey,
+            "note identity command preserves stable key");
+        document.Undo();
+        Check(document.SelectedChart.Notes.Single().Id == note.Id && document.SelectedChart.Notes.Single().Key == noteKey,
+            "undo note identity restores serialized id");
+        document.Redo();
+        document.Execute(new SetNoteTrackCommand("renamed-note", EditorTrack.Left));
+        Check(document.SelectedChart.Notes.Single().Track == EditorTrack.Left,
+            "note track command edits owning track");
+        document.Undo();
+        Check(document.SelectedChart.Notes.Single().Track == EditorTrack.Center,
+            "undo note track restores owning track");
+        document.Redo();
+        document.Undo();
+        document.Undo();
         document.Execute(new MoveNoteCommand(note.Id, ExactBarTime.FromJsonComponents(1, 1, 7), 5.1, .6));
         Check(document.SelectedChart.Notes[0].Center == 5.1, "move command");
         document.Undo();
@@ -484,10 +598,152 @@ internal static class Program
         throw new InvalidOperationException("BPM collision was accepted");
     }
 
+    private static void TestChartLifecycleCommands()
+    {
+        var document = CreateCleanDocument("editor.charts", "hard", "Charts", "Community");
+        document.Execute(new AddNoteCommand(new EditableNote
+        {
+            Id = "hard-tap", Type = V2NoteType.Tap, Track = EditorTrack.Center,
+            Time = ExactBarTime.Zero, Center = 2.5, Width = 1,
+        }));
+        document.Execute(new EditChartDetailsCommand("hard", V2Difficulty.Mega, null, 15, false,
+            ["Lead Charter", "Co-Charter"]));
+        Check(document.SelectedChart.Difficulty == V2Difficulty.Mega && document.SelectedChart.Level == 15 &&
+              !document.SelectedChart.Unrated && document.SelectedChart.Charters.Count == 2,
+            "chart metadata command edits difficulty level and credits");
+        document.Undo();
+        Check(document.SelectedChart.Difficulty == V2Difficulty.Hard && document.SelectedChart.Unrated &&
+              document.SelectedChart.Charters.SequenceEqual(["Unknown"]),
+            "undo chart metadata restores entry details");
+        document.Redo();
+        ExpectException<V2DiagnosticException>(() => document.Execute(
+            new EditChartDetailsCommand("hard", V2Difficulty.Custom, null, 15, false, ["Community"])),
+            "chart metadata rejects custom difficulty without key");
+        Check(document.SelectedChart.Difficulty == V2Difficulty.Mega && document.SelectedChart.Level == 15,
+            "invalid chart metadata restores prior entry details");
+        document.Execute(new RenameChartCommand("hard", "mega-chart", "charts/mega-chart.json"));
+        var renamedKey = document.SelectedChart.Key;
+        Check(document.SelectedChartId == "mega-chart" && document.SelectedChart.Id == "mega-chart" &&
+              document.SelectedChart.File == "charts/mega-chart.json",
+            "chart identity command edits id and storage path");
+        document.Undo();
+        Check(document.SelectedChartId == "hard" && document.SelectedChart.File == "charts/hard.json" &&
+              document.SelectedChart.Key == renamedKey,
+            "undo chart identity restores id and storage path");
+        document.Redo();
+        Check(document.SelectedChartId == "mega-chart" && document.SelectedChart.File == "charts/mega-chart.json" &&
+              document.SelectedChart.Key == renamedKey,
+            "redo chart identity restores renamed chart");
+        document.Undo();
+        WithExternalResources((root, audio, cover) =>
+        {
+            document.Execute(new ReplaceChartResourceCommand("hard", true, false, "audio/replaced.wav", audio));
+            Check(document.Audio == "audio/replaced.wav" &&
+                  document.PendingResourceReplacements.Any(item => item.PackageRelativePath == "audio/replaced.wav"),
+                "resource replacement stages pack audio");
+            document.Undo();
+            Check(document.Audio == "audio.wav" && document.PendingResourceReplacements.Count == 0,
+                "undo resource replacement restores pack audio");
+            document.Redo();
+            Check(document.Audio == "audio/replaced.wav",
+                "redo resource replacement restores staged audio");
+            document.Undo();
+        });
+        var normal = new EditableChart
+        {
+            Id = "normal", Difficulty = V2Difficulty.Normal, Unrated = true,
+            File = "charts/normal.json", AudioOffsetSec = 0,
+        };
+        normal.Charters.Add("Community");
+        normal.Bpms.Add(new EditableBpm { Time = ExactBarTime.Zero, Bpm = 150 });
+        document.Execute(new AddChartCommand(normal));
+        Check(document.Charts.Select(chart => chart.Id).SequenceEqual(["hard", "normal"]) &&
+              document.SelectedChartId == "normal", "add chart command selects new chart");
+        document.Undo();
+        Check(document.Charts.Count == 1 && document.SelectedChartId == "hard",
+            "undo add chart restores prior selection");
+        document.Redo();
+        Check(document.Charts.Count == 2 && document.SelectedChartId == "normal",
+            "redo add chart restores new chart");
+
+        document.Execute(new AddNoteCommand(new EditableNote
+        {
+            Id = "normal-tap", Type = V2NoteType.Tap, Track = EditorTrack.Center,
+            Time = ExactBarTime.Zero, Center = 2.5, Width = 1,
+        }));
+        document.Execute(new CopyChartCommand("normal", "mega", "charts/mega.json"));
+        var copy = document.Charts.Single(chart => chart.Id == "mega");
+        Check(copy.Notes.Single().Id == "normal-tap" && document.SelectedChartId == "mega",
+            "copy chart preserves authored data in a separate chart");
+        document.Undo();
+        Check(!document.Charts.Any(chart => chart.Id == "mega") && document.SelectedChartId == "normal",
+            "undo copied chart restores source selection");
+        document.Redo();
+        Check(document.Charts.Any(chart => chart.Id == "mega") && document.SelectedChartId == "mega",
+            "redo copied chart restores copied chart selection");
+        document.Execute(new MoveChartCommand("mega", 0));
+        Check(document.Charts[0].Id == "mega", "move chart command reorders metadata");
+        document.Undo();
+        Check(document.Charts.Select(chart => chart.Id).SequenceEqual(["hard", "normal", "mega"]),
+            "undo chart reorder restores original order");
+        document.Execute(new DeleteChartCommand("normal"));
+        Check(!document.Charts.Any(chart => chart.Id == "normal") && document.Charts.Count == 2,
+            "delete chart command removes selected chart");
+        document.Undo();
+        Check(document.Charts.Select(chart => chart.Id).SequenceEqual(["hard", "normal", "mega"]),
+            "undo delete chart restores chart and order");
+        ExpectException<InvalidOperationException>(() =>
+        {
+            var only = CreateCleanDocument("editor.only", "hard", "Only", "Community");
+            only.Execute(new DeleteChartCommand("hard"));
+        }, "cannot delete last chart");
+        V2SemanticValidator.ValidatePack(document.BuildPackSnapshot());
+        foreach (var chart in document.Charts)
+            V2SemanticValidator.ValidateChart(document.BuildChartSnapshot(chart.Id), chart.File);
+        Check(true, "chart lifecycle snapshots remain strict");
+    }
+
     private static void TestDirectEditingCommands()
     {
         var document = CreateCleanDocument(
             "editor.direct", "hard", "Direct Edit", "Community");
+        document.Execute(new EditPackMetadataCommand("editor.renamed", "Renamed", "New Artist"));
+        document.Execute(new EditPreviewCommand(true, null, 1.5, 8));
+        Check(document.Preview is { StartSec: 1.5, DurationSec: 8 },
+            "pack preview command edits interval");
+        document.Undo();
+        Check(document.Preview is null, "undo pack preview restores absent interval");
+        document.Redo();
+        ExpectException<V2DiagnosticException>(() => document.Execute(
+            new EditPreviewCommand(true, null, -1, 8)),
+            "preview command rejects negative start");
+        Check(document.Preview is { StartSec: 1.5, DurationSec: 8 },
+            "invalid preview edit restores prior interval");
+        document.Undo();
+        document.SelectedChart.Audio = "audio/override.wav";
+        document.SelectedChart.Preview = new V2Preview(2, 3);
+        document.Execute(new ClearChartOverridesCommand(document.SelectedChartId, true, true));
+        Check(document.SelectedChart.Audio is null && document.SelectedChart.Preview is null,
+            "clear chart overrides restores Pack inheritance");
+        document.Undo();
+        Check(document.SelectedChart.Audio == "audio/override.wav" &&
+              document.SelectedChart.Preview is { StartSec: 2, DurationSec: 3 },
+            "undo clear chart overrides restores explicit media");
+        Check(document.PackId == "editor.renamed" && document.Title == "Renamed" &&
+              document.Artist == "New Artist",
+            "pack metadata command edits v2 metadata");
+        document.Undo();
+        Check(document.PackId == "editor.direct" && document.Title == "Direct Edit" &&
+              document.Artist == "Community",
+            "pack metadata undo restores v2 metadata");
+        document.Redo();
+        Check(document.PackId == "editor.renamed",
+            "pack metadata redo restores edited identity");
+        ExpectException<V2DiagnosticException>(() => document.Execute(
+                new EditPackMetadataCommand("invalid pack id", "Broken", "Broken")),
+            "pack metadata command rejects invalid v2 identity");
+        Check(document.PackId == "editor.renamed" && document.Title == "Renamed",
+            "invalid pack metadata edit restores prior document state");
         var hold = new EditableNote
         {
             Id = document.AllocateId("hold"),
@@ -566,6 +822,134 @@ internal static class Program
             return;
         }
         throw new InvalidOperationException("base BPM deletion was accepted");
+    }
+
+    private static void TestCanvasAuthoringController()
+    {
+        var document = CreateCleanDocument("editor.canvas-adapter", "hard", "Adapter", "Community");
+        var controller = new CanvasAuthoringController(document);
+
+        var tapId = controller.AddNote(V2NoteType.Tap, EditorTrack.Center,
+            ExactBarTime.FromFraction(1, 1), 2.5, 1);
+        Check(document.SelectedChart.Notes.Count == 1 && document.IsDirty && document.CanUndo,
+            "canvas add executes an undoable document command");
+
+        controller.MoveNote(tapId, ExactBarTime.FromFraction(2, 1), 3.0, 2.0);
+        var moved = document.SelectedChart.Notes.Single(note => note.Id == tapId);
+        Check(moved.Time == ExactBarTime.FromFraction(2, 1) &&
+              Math.Abs(moved.Center - 3.0) < 1e-12 && Math.Abs(moved.Width - 2.0) < 1e-12,
+            "canvas move/resize updates the document note");
+
+        var holdId = controller.AddNote(V2NoteType.Hold, EditorTrack.Left,
+            ExactBarTime.FromFraction(3, 1), 1.0, 1.0, ExactBarTime.FromFraction(4, 1));
+        var hold = document.SelectedChart.Notes.Single(note => note.Id == holdId);
+        Check(hold.Nodes.Count == 1 && hold.Nodes[0].Time == ExactBarTime.FromFraction(4, 1) &&
+              hold.Nodes[0].Judge == true,
+            "canvas hold add creates a judged tail node");
+
+        controller.EditPathNode(holdId, hold.Nodes[0].Id, ExactBarTime.FromFraction(4, 1), 2.0, 1.5);
+        var resized = document.SelectedChart.Notes.Single(note => note.Id == holdId);
+        Check(Math.Abs(resized.Nodes[0].Center - 2.0) < 1e-12 &&
+              Math.Abs(resized.Nodes[0].Width - 1.5) < 1e-12,
+            "canvas path resize updates the document tail node");
+
+        controller.MoveNote(holdId, ExactBarTime.FromFraction(7, 1), 2.5, 1.5);
+        var movedHold = document.SelectedChart.Notes.Single(note => note.Id == holdId);
+        Check(movedHold.Time == ExactBarTime.FromFraction(7, 1) &&
+              movedHold.Nodes[0].Time == ExactBarTime.FromFraction(8, 1),
+            "canvas path move shifts the head and tail by the same exact delta");
+
+        controller.AddBpm(ExactBarTime.FromFraction(5, 1), 180);
+        controller.EditBpm(ExactBarTime.FromFraction(5, 1), ExactBarTime.FromFraction(6, 1), 200);
+        Check(document.SelectedChart.Bpms.Any(item =>
+                  item.Time == ExactBarTime.FromFraction(6, 1) && Math.Abs(item.Bpm - 200) < 1e-12),
+            "canvas BPM add/edit flows through document commands");
+
+        var snapshot = document.BuildChartSnapshot("hard");
+        Check(snapshot.NotesCenter.Any(note => note.Id == tapId) &&
+              snapshot.NotesLeft.Any(note => note.Id == holdId) &&
+              snapshot.Bpms.Any(item => item.Time == ExactBarTime.FromFraction(6, 1) &&
+                  Math.Abs(item.Bpm - 200) < 1e-12),
+            "canvas edits feed BuildChartSnapshot serialization");
+
+        controller.DeleteNotes([tapId]);
+        Check(document.SelectedChart.Notes.All(note => note.Id != tapId),
+            "canvas delete removes the document note");
+        controller.Undo();
+        Check(document.SelectedChart.Notes.Any(note => note.Id == tapId),
+            "canvas undo restores the deleted note");
+        controller.Redo();
+        Check(document.SelectedChart.Notes.All(note => note.Id != tapId),
+            "canvas redo removes the note again");
+    }
+
+    private static void TestCanvasDragAnchor()
+    {
+        var document = CreateCleanDocument("editor.drag", "hard", "Drag", "Community");
+        var controller = new CanvasAuthoringController(document);
+        var original = ExactBarTime.FromFraction(1, 3);
+        var bpms = document.SelectedChart.Bpms;
+        var seconds = EditorTime.BarToSeconds(original, bpms);
+        var id = controller.AddNote(V2NoteType.Tap, EditorTrack.Center, original, 2.5, 1);
+        var note = document.SelectedChart.Notes.Single(item => item.Id == id);
+        document.MarkSaved(Path.Combine(Path.GetTempPath(), "editor-drag-test"));
+        // The pointer may grab anywhere inside the object rather than at its exact center/time.
+        var anchor = new CanvasDragAnchor(original, seconds, 2.5, seconds + .01, 2.7);
+        foreach (var snap in new[] { true, false })
+        {
+            var unchanged = anchor.TimeAt(seconds + .01, bpms, 32, snap, .001);
+            controller.MoveNote(id, unchanged, anchor.CenterAt(2.7), 1);
+            Check(note.Time == original && !document.IsDirty,
+                $"canvas click preserves exact 1/3 and clean history with snap {snap}");
+        }
+        controller.MoveNote(id, anchor.TimeAt(seconds + .01, bpms, 32, true, .001),
+            anchor.CenterAt(3.2), 1);
+        Check(note.Time == original && Math.Abs(note.Center - 3.0) < 1e-12,
+            "spatial drag preserves the original exact time and grab offset");
+        controller.Undo();
+        Check(!document.IsDirty && note.Center == 2.5,
+            "one undo after spatial drag returns to the saved note");
+
+        var holdId = controller.AddNote(V2NoteType.Hold, EditorTrack.Left,
+            ExactBarTime.Zero, 1, 1, original);
+        var tail = document.SelectedChart.Notes.Single(item => item.Id == holdId).Nodes[0];
+        var tailAnchor = new CanvasDragAnchor(tail.Time, seconds, tail.Center, seconds + .02, 1.1);
+        document.MarkSaved(Path.Combine(Path.GetTempPath(), "editor-drag-test"));
+        controller.EditPathNode(holdId, tail.Id,
+            tailAnchor.TimeAt(seconds + .02, bpms, 32, true, .001), tail.Center, tail.Width);
+        Check(!document.IsDirty && tail.Time == original,
+            "path-node click preserves its own exact time and clean history");
+        controller.EditPathNode(holdId, tail.Id,
+            tailAnchor.TimeAt(seconds + .42, bpms, 32, true, .001),
+            tailAnchor.CenterAt(1.6), tail.Width);
+        Check(tail.Time == ExactBarTime.FromFraction(19, 32) &&
+              Math.Abs(tail.Center - 1.5) < 1e-12,
+            "path-node drag applies pointer displacement to the node rather than the head");
+    }
+
+    private static void TestEditorTimeConversion()
+    {
+        var bpms = new List<EditableBpm>
+        {
+            new() { Time = ExactBarTime.Zero, Bpm = 150 },
+            new() { Time = ExactBarTime.FromFraction(4, 1), Bpm = 300 },
+        };
+        Check(Math.Abs(EditorTime.BarToSeconds(ExactBarTime.FromFraction(2, 1), bpms) - 3.2) < 1e-12,
+            "editor time converts bars to seconds before a BPM change");
+        Check(Math.Abs(EditorTime.BarToSeconds(ExactBarTime.FromFraction(5, 1), bpms) - 7.2) < 1e-12,
+            "editor time converts bars to seconds after a BPM change");
+        Check(EditorTime.SecondsToBar(3.2, bpms) == ExactBarTime.FromFraction(2, 1),
+            "editor time inverts seconds to an exact bar");
+        Check(EditorTime.SnapSeconds(3.2, bpms, 32, true) == ExactBarTime.FromFraction(2, 1),
+            "editor time snaps display seconds to the exact grid");
+
+        var fastBpms = new List<EditableBpm>
+        {
+            new() { Time = ExactBarTime.Zero, Bpm = 300 },
+        };
+        Check(EditorTime.SnapSeconds(.026, fastBpms, 32, true) ==
+              ExactBarTime.FromFraction(1, 32),
+            "editor time uses the active BPM when snapping display seconds");
     }
 
     private static void TestGoldenRoundTrip()
@@ -711,6 +1095,177 @@ internal static class Program
             if (Directory.Exists(root))
                 Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static void TestSameDirectoryResourceReplacement()
+    {
+        var root = Path.Combine(Path.GetTempPath(),
+            "dynamite-universe-editor-replace-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var source = Path.Combine(root, "source");
+            CopyDirectory(Path.Combine(AppContext.BaseDirectory, "Fixtures", "golden-pack"), source);
+            var document = LoadDocument(source);
+            AddDirtyNote(document);
+            var originalAudio = File.ReadAllBytes(Path.Combine(source, "audio.wav"));
+            var replacementAudio = Path.Combine(root, "replacement.wav");
+            File.WriteAllBytes(replacementAudio, MutateWave(originalAudio));
+
+            V2PackageWriter.Write(new V2PackageWriteRequest
+            {
+                SourceDirectory = source,
+                DestinationDirectory = source,
+                Pack = document.BuildPackSnapshot(),
+                Charts = document.BuildAllChartSnapshots(),
+                ExternalResources = [new V2ExternalResourceMapping(replacementAudio, "audio.wav")],
+            });
+            Check(!File.ReadAllBytes(Path.Combine(source, "audio.wav")).SequenceEqual(originalAudio),
+                "same-directory save replaces an existing resource in place");
+
+            var movedSource = Path.Combine(root, "moved-source");
+            CopyDirectory(Path.Combine(AppContext.BaseDirectory, "Fixtures", "golden-pack"), movedSource);
+            var movedDocument = LoadDocument(movedSource);
+            AddDirtyNote(movedDocument);
+            var movedAudio = Path.Combine(root, "moved.wav");
+            File.WriteAllBytes(movedAudio, MutateWave(originalAudio));
+            var movedPack = movedDocument.BuildPackSnapshot() with { Audio = "audio/moved.wav" };
+            V2PackageWriter.Write(new V2PackageWriteRequest
+            {
+                SourceDirectory = movedSource,
+                DestinationDirectory = movedSource,
+                Pack = movedPack,
+                Charts = movedDocument.BuildAllChartSnapshots(),
+                ExternalResources = [new V2ExternalResourceMapping(movedAudio, "audio/moved.wav")],
+            });
+            Check(File.Exists(Path.Combine(movedSource, "audio", "moved.wav")) &&
+                  !File.Exists(Path.Combine(movedSource, "audio.wav")),
+                "same-directory save publishes a new resource path and removes the obsolete resource");
+            var reopened = EditorPackageRepository.Open(movedSource);
+            Check(reopened.SelectedChart.Notes.Count == movedDocument.SelectedChart.Notes.Count &&
+                  reopened.SelectedChart.Notes.Any(note => note.Type == V2NoteType.Tap),
+                "same-directory save with a new resource path strictly reopens");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static void TestSameDirectoryPublicationRollback()
+    {
+        var root = Path.Combine(Path.GetTempPath(),
+            "dynamite-universe-editor-rollback-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var source = Path.Combine(root, "source");
+            CopyDirectory(Path.Combine(AppContext.BaseDirectory, "Fixtures", "golden-pack"), source);
+            var document = LoadDocument(source);
+            AddDirtyNote(document);
+            var originalAudio = File.ReadAllBytes(Path.Combine(source, "audio.wav"));
+            var originalMeta = File.ReadAllBytes(Path.Combine(source, "meta.json"));
+            var originalChart = File.ReadAllBytes(Path.Combine(source, "chart_hard.json"));
+            var replacementAudio = Path.Combine(root, "replacement.wav");
+            File.WriteAllBytes(replacementAudio, MutateWave(originalAudio));
+            var cover = Path.Combine(root, "cover.png");
+            File.WriteAllBytes(cover, [137, 80, 78, 71, 13, 10, 26, 10]);
+            var pack = document.BuildPackSnapshot() with { Cover = "zz-cover.png" };
+
+            V2PackageWriter.PublicationInterceptor = relative =>
+            {
+                if (relative == "zz-cover.png")
+                    throw new IOException("forced publication failure");
+            };
+            try
+            {
+                ExpectException<IOException>(() => V2PackageWriter.Write(new V2PackageWriteRequest
+                {
+                    SourceDirectory = source,
+                    DestinationDirectory = source,
+                    Pack = pack,
+                    Charts = document.BuildAllChartSnapshots(),
+                    ExternalResources =
+                    [
+                        new V2ExternalResourceMapping(replacementAudio, "audio.wav"),
+                        new V2ExternalResourceMapping(cover, "zz-cover.png"),
+                    ],
+                }), "forced same-directory publication failure");
+            }
+            finally
+            {
+                V2PackageWriter.PublicationInterceptor = null;
+            }
+
+            Check(originalAudio.SequenceEqual(File.ReadAllBytes(Path.Combine(source, "audio.wav"))) &&
+                  originalMeta.SequenceEqual(File.ReadAllBytes(Path.Combine(source, "meta.json"))) &&
+                  originalChart.SequenceEqual(File.ReadAllBytes(Path.Combine(source, "chart_hard.json"))),
+                "failed same-directory publication restores JSON and resources");
+            Check(!FindStagingDirectories(root).Any(),
+                "failed same-directory publication leaves no staging directory");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static void TestSameDirectoryCleanupFailure()
+    {
+        // Windows refuses to delete a read-only backup; Unix file deletion ignores this bit.
+        if (!OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(Path.GetTempPath(), "dynamite-universe-cleanup-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string? protectedBackup = null;
+        try
+        {
+            var source = Path.Combine(root, "source");
+            CopyDirectory(Path.Combine(AppContext.BaseDirectory, "Fixtures", "golden-pack"), source);
+            var document = LoadDocument(source);
+            AddDirtyNote(document);
+            var replacementAudio = Path.Combine(root, "replacement.wav");
+            var expectedAudio = MutateWave(File.ReadAllBytes(Path.Combine(source, "audio.wav")));
+            File.WriteAllBytes(replacementAudio, expectedAudio);
+            var pack = document.BuildPackSnapshot() with { Title = "Saved before cleanup failed" };
+            var charts = document.BuildAllChartSnapshots();
+            V2PackageWriter.PublicationInterceptor = relative =>
+            {
+                if (relative != "meta.json") return;
+                protectedBackup = Directory.EnumerateFiles(source,
+                    "chart_hard.json.dynamite-universe-backup-*").Single();
+                File.SetAttributes(protectedBackup, FileAttributes.ReadOnly);
+            };
+            ExpectException<AggregateException>(() => V2PackageWriter.Write(new V2PackageWriteRequest
+            {
+                SourceDirectory = source, DestinationDirectory = source, Pack = pack, Charts = charts,
+                ExternalResources = [new V2ExternalResourceMapping(replacementAudio, "audio.wav")],
+            }), "backup cleanup failure is reported after publication");
+            Check(File.ReadAllBytes(Path.Combine(source, "audio.wav")).SequenceEqual(expectedAudio) &&
+                  File.ReadAllBytes(Path.Combine(source, "meta.json")).SequenceEqual(V2JsonEncoder.EncodePack(pack)) &&
+                  pack.Charts.All(entry => File.ReadAllBytes(Path.Combine(source, entry.File))
+                      .SequenceEqual(V2JsonEncoder.EncodeChart(charts[entry.Id]))),
+                "cleanup failure preserves all published JSON and resource bytes");
+            Check(EditorPackageRepository.Open(source).Title == pack.Title,
+                "published package strictly reopens despite a leftover backup");
+            Check(!FindStagingDirectories(root).Any(),
+                "cleanup continues with staging after a backup delete fails");
+        }
+        finally
+        {
+            V2PackageWriter.PublicationInterceptor = null;
+            if (protectedBackup is not null && File.Exists(protectedBackup))
+                File.SetAttributes(protectedBackup, FileAttributes.Normal);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static byte[] MutateWave(byte[] original)
+    {
+        var mutated = (byte[])original.Clone();
+        mutated[^1] ^= 0x5A;
+        return mutated;
     }
 
     private static void TestFirstPackageCreation()

@@ -57,6 +57,8 @@ def main():
     if not files:
         sys.exit(f"no chart files in {charts_dir}")
 
+    parsed = {}  # fp.name -> chart JSON, parsed once and reused by every pass below
+
     # ---- 聚合容器 ----
     diff_code_map = Counter()          # (code, name) 组合
     diff_code_to_names = defaultdict(Counter)
@@ -98,7 +100,7 @@ def main():
         diff_code_to_names[diff_code][diff_name] += 1
         diff_label = f"{diff_code}={diff_name}"
 
-        data = load_chart(fp)
+        data = parsed[fp.name] = load_chart(fp)
 
         # TimeEnd
         te = data.get("TimeEnd", 0.0)
@@ -266,7 +268,7 @@ def main():
 
     sample_notes_dump = []
     for fname, total, lbl in samples:
-        data = load_chart(charts_dir / fname)
+        data = parsed[fname]
         per_track = []
         for track in TRACK_KEYS:
             notes = (data.get(track) or [])[:3]
@@ -296,7 +298,7 @@ def main():
         return float(seg["Seconds"]) + (bt - float(seg["BarTime"])) * 240.0 / float(seg["BPM"])
 
     for fp in files:
-        data = load_chart(fp)
+        data = parsed[fp.name]
         sections = (data.get("TimeLine") or {}).get("BakedBarSections") or []
         if not sections:
             continue

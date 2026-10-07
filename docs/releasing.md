@@ -18,6 +18,10 @@ Release、网盘、应用商店或公开聊天群**。
   文件被 Git 忽略，且不得进入 Public APK。
 - Internal APK 含官方测试数据是当前制谱器完成前的预期行为，不是缺陷。
 - Public APK 对 `testdata` 的源文件和 Godot `.godot/imported` 派生产物均零容忍。
+- DynaMaker UV 是独立的 `editor/` Godot Windows 项目，不是 Android 游戏工程的一部分。
+  Public preset 保留对历史 `client` 编辑器路径的排除，并用资源白名单阻止任何非游戏资源；
+  Internal preset 同样不包含 DynaMaker UV。编辑器导出只使用 `editor/export_presets.cfg`
+  的 `DynaMaker UV Windows` preset。
 - 社区曲绘由谱师随谱面包提供。公开客户端不内置 AI 生成曲绘。
 - Public 禁止 C# 源码内容和 PDB 调试符号；Internal 可保留 PDB 供诊断；
 - `tools/` 下研究/逆向工具、反编译输出、原版 APK、外部 JAR、调试 keystore 和生成缓存

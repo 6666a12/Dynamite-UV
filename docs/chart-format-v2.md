@@ -4,8 +4,9 @@
 >
 > 发布日期：2026-08-14。
 >
-> 当前 Godot 客户端已支持 strict v2 目录包加载、validator、legacy→v2 运行时适配、
-> Gameplay Digest 成绩 identity 与独立 Avalonia 制谱器；legacy 仍是兼容输入。
+> 当前 Godot 客户端已接 strict v2 目录包加载、validator、legacy→v2 适配与 Gameplay Digest 成绩身份；legacy 仍是兼容输入。
+> 原生 DynaMaker UV 已接包打开与基础编辑，保存/导出等尚未接入；当前能力见 [制谱器说明](<dyna-maker-uv.md>)，不能把本文最低要求当成 UI 完成证明。
+> **实现偏差提醒（2026-10-07 静态核对）**：现有 EX-Tap 倍率为 1.0 且采用二值判定，而冻结 §12.1 保留 1.5 边界。文档整理未修改该冻结条款；需单独决定规则集/兼容策略，不能据“已接入”宣布全项符合。
 > “正式”表示本文的数据合同与玩法语义已经冻结，客户端和工具必须按此 fail closed。
 
 本文是 Dynamite Universe 社区谱面包 v2 的权威规范。机器可读约束见

@@ -65,7 +65,7 @@ main.tscn ── PLAY ──> song_select.tscn ── START ──> gameplay.tsc
 9. 刷新 HUD 并写 Internal verification trace；
 10. 判断结束并展示结算。
 
-`JudgePlan`、`JudgeEngine`、`InputJudgeRules`、`InputTimeGroupGate`、
+`JudgePlan`、`JudgeEngine`、`InputJudgeRules`、`V2InputProtection`、
 `SustainJudgementRules`、`VisualScrollMath` 和 `DropSpeedMap` 是 shared 权威规则，客户端
 只编排它们，不复制规则。
 
@@ -79,14 +79,25 @@ main.tscn ── PLAY ──> song_select.tscn ── START ──> gameplay.tsc
 ## 5. 展示、成绩与发布不变量
 
 - `GameplayStageView`、HUD、Pause 和 Result 是展示层；成绩计算/写入仍由 gameplay 在显示
-  Result 前执行。结果层的顺序必须是：不透明 fallback → clean-room placeholder → 可选 cover
-  → dim → statistics，不能让游玩层透出。
+  Result 前执行。Result v2 用两扇不透明屏风合拢后才隐藏舞台，屏风背后先铺不透明
+  结算背景，再拉开、播放评级帧、浮现各组信息。封面只在顶部小图中显示，缺图使用
+  clean-room placeholder。Reduced/Off 同样先接管不透明背景，不能让游玩层透出。
+  `ResultScreen` 只展示数据，`ResultRevealTimeline` 管理时序/加载等待/跳过，
+  `GameplayMain.ShowResults` 继续拥有成绩快照与保存职责。
 - AUTO 演示绝不写成绩。v2 使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy 仍使用
   历史 `packId:diff` 兼容键。两者不能合并或删除。
 - 玩法坐标固定为 1920×1080。不能引入自适应游玩布局，且改布局数值前必须先更新相应测量依据。
 - Public APK 绝不扫描、加载或打包 `client/testdata/`，也不得包含任何非 clean-room 素材或谱面。
 
-## 6. 回归层级
+## 6. 当前编辑器适配边界
+
+- 独立 Godot shell 的 Start/Pack/Create/Edit 负责页面和手势；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。
+- `AuthoringCanvas` 绑定 `EditorDocument` / `CanvasAuthoringController`，只投影数据；修改通过可撤销命令进入文档。
+- shared 的 `V2PackageWriter.Write/Create` 是已存在的事务发布能力，但当前 shell 未调用；新建草稿的外部资源映射也未接续到发布。
+- 视觉计时预览不等同 `SongClock` 音频预览；Settings/Storyboard、完整属性/类型 UI 尚未实现。
+- 能力范围与启动操作统一见 [DynaMaker UV](<dyna-maker-uv.md>)，历史完整 UI 记录不能跨阶段套用。
+
+## 7. 回归层级
 
 - **构建层**：`cd client && dotnet build` 必须 0 error。
 - **shared 行为层**：`tools/core-tests` 覆盖 timing、input、sustain、score、legacy/v2 语义。

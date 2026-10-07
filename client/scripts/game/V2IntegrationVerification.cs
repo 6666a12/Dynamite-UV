@@ -133,19 +133,21 @@ internal sealed class V2IntegrationVerification
 /// <summary>Stable one-object-per-frame JSONL trace used by legacy/v2 A/B comparisons.</summary>
 internal sealed class V2IntegrationTrace : IDisposable
 {
-    private readonly string _path;
     private readonly LoadedChart _loaded;
+    private readonly StreamWriter _writer;
     private ulong _frame;
 
     public V2IntegrationTrace(string path, LoadedChart loaded)
     {
-        _path = ResolveLocalPath(path);
         _loaded = loaded;
-        var directory = Path.GetDirectoryName(_path);
+        var resolved = ResolveLocalPath(path);
+        var directory = Path.GetDirectoryName(resolved);
         if (!string.IsNullOrWhiteSpace(directory))
             Directory.CreateDirectory(directory);
-        using var truncate = new FileStream(_path, FileMode.Create,
-            System.IO.FileAccess.Write, FileShare.Read);
+        // 常驻 writer（UTF-8 no BOM，截断模式）：Write 只写缓冲，退出时 Dispose 冲刷，
+        // 取代每帧 File.AppendAllText 的完整 open/seek/write/close。
+        _writer = new StreamWriter(resolved, append: false,
+            new System.Text.UTF8Encoding(false));
     }
 
     public void Write(double time, double bar, IEnumerable<NoteView> activeViews,
@@ -191,12 +193,14 @@ internal sealed class V2IntegrationTrace : IDisposable
                 normalized = engine.NormalizedScore(plan.TheoreticalMax),
             },
         };
-        System.IO.File.AppendAllText(_path,
-            JsonSerializer.Serialize(value) + "\n", new System.Text.UTF8Encoding(false));
+        _writer.Write(JsonSerializer.Serialize(value));
+        _writer.Write('\n');
     }
 
     public void Dispose()
     {
+        _writer.Flush();
+        _writer.Dispose();
     }
 
     private string LegacyComparableId(Note note)

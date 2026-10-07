@@ -1,0 +1,18 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DynamiteUniverse.Editor</RootNamespace>
+    <AssemblyName>DynaMakerUv.Editor</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../shared/DynamiteUniverse.Shared.csproj" />
+    <Compile Include="../tools/chart-editor-core/*.cs" Link="Core/%(Filename)%(Extension)" />
+    <Compile Include="../client/scripts/ui/UiFonts.cs" Link="GameUi/UiFonts.cs" />
+    <Compile Include="../client/scripts/ui/UiGeometry.cs" Link="GameUi/UiGeometry.cs" />
+    <Compile Include="../client/scripts/ui/CutPanel.cs" Link="GameUi/CutPanel.cs" />
+  </ItemGroup>
+</Project>

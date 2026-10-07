@@ -22,10 +22,18 @@ public sealed record V2LoadedPackageChart
     public required V2Chart SemanticChart { get; init; }
     public required V2GameplayDigestResult DigestResult { get; init; }
     public int NoteCount => RuntimeChart.TotalMainNote;
+
+    // Memoized per RuntimeChart instance so `with` copies stay correct: replacing RuntimeChart
+    // invalidates the guard, while an unchanged reference reuses the cached value.
+    private Chart? _durationCacheChart;
+    private double _durationCacheSec;
+
     public double DurationSec
     {
         get
         {
+            if (ReferenceEquals(_durationCacheChart, RuntimeChart))
+                return _durationCacheSec;
             var unitEnd = RuntimeChart.AllNotes
                 .Where(note => note.Type != NoteType.BarLine)
                 .Select(note => note.Second)
@@ -37,7 +45,9 @@ public sealed record V2LoadedPackageChart
                 .Select(note => note.Second)
                 .DefaultIfEmpty(0.0)
                 .Max();
-            return Math.Max(unitEnd, sustainEnd);
+            _durationCacheSec = Math.Max(unitEnd, sustainEnd);
+            _durationCacheChart = RuntimeChart;
+            return _durationCacheSec;
         }
     }
 }
@@ -132,7 +142,11 @@ public static class V2Integration
             JudgePreset.Casual => V2Difficulty.Casual,
             JudgePreset.Normal => V2Difficulty.Normal,
             JudgePreset.Hard => V2Difficulty.Hard,
-            _ => throw new ArgumentException("Tutorial cannot be converted to v2.", nameof(preset)),
+            // Tutorial 取 Casual 数值；Hardcore 是 Hard 的窗口变体，语义难度按 Hard 归档。
+            JudgePreset.Tutorial => V2Difficulty.Casual,
+            JudgePreset.Hardcore => V2Difficulty.Hard,
+            _ => throw new ArgumentException(
+                $"Unsupported legacy-to-v2 conversion preset '{preset}'.", nameof(preset)),
         };
         var entry = new V2ChartEntry
         {

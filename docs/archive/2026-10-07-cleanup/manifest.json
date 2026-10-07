@@ -1,0 +1,93 @@
+{
+  "cleanupDate": "2026-10-07",
+  "scope": "documentation-only; no builds or runtime tests",
+  "snapshots": [
+    {
+      "originalPath": "README.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/README.before.md",
+      "sha256": "2a55ed646ccd719b923f990d163da62e75aa26f81af938d895768b9e8a78e3ac"
+    },
+    {
+      "originalPath": "docs/handoff.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/handoff.before.md",
+      "sha256": "183f5cf0429e296bad5fc3e8925fd4cc4e19aa8c27baaaa46d69846af729e2ca"
+    },
+    {
+      "originalPath": "docs/dyna-maker-uv.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/dyna-maker-uv.before.md",
+      "sha256": "a3a0c86700caf8468abfcfe65981667eba7e437c673bd97b48296810b745f6cc"
+    },
+    {
+      "originalPath": "editor/README.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/editor-README.before.md",
+      "sha256": "699f359355f00cc8e3c5a4affd50dbbb066641b84e6c4f8994b6fe2a4c9343df"
+    },
+    {
+      "originalPath": "docs/editor-ui-design.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/editor-ui-design.before.md",
+      "sha256": "475f05fc59a30cdaa17d5c3a5d3a967316c972b7f841c3f60777bc45c7c88aac"
+    },
+    {
+      "originalPath": "docs/blender-pipeline.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/blender-pipeline.before.md",
+      "sha256": "b57be1e34cf6ecd69b61ad7aecbf4fca85b717cddcb8f2dc4437563d8f3864f7"
+    },
+    {
+      "originalPath": "docs/ui-motion.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/ui-motion.before.md",
+      "sha256": "b460ae9791dfd7793a501f9d06bb7eade057e5fc13913e9326ec81052416d0d7"
+    },
+    {
+      "originalPath": "docs/result-v2-design.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/result-v2-design.before.md",
+      "sha256": "c30fb21586626cc9c051f117c5a873c500ab89c300fee3b5e48ba5ce1c24179a"
+    },
+    {
+      "originalPath": "docs/storyboard-editor-proposal.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/storyboard-editor-proposal.before.md",
+      "sha256": "eea0118937a21fe4ce249c5ba065a109a6a6c6070d772d3cc641e2f341df2f05"
+    },
+    {
+      "originalPath": "AGENTS.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/AGENTS.before.md",
+      "sha256": "77a37fedfef2ff7ed2760e4825cdc55546f16242f92175805bd3186defb931e8"
+    },
+    {
+      "originalPath": "docs/original-judgement-analysis.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/original-judgement-analysis.before.md",
+      "sha256": "8c4a24080fa16410a2a5260446b65010873b54bd56e4d11755bdfce587e484a1"
+    },
+    {
+      "originalPath": "docs/runtime-architecture.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/runtime-architecture.before.md",
+      "sha256": "88ad8c2a484f3cab80b88c89f96f2a61478658d406921636c5cd7a722d1c64b6"
+    },
+    {
+      "originalPath": "docs/gameplay-spec.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/gameplay-spec.before.md",
+      "sha256": "96de69f662a28cb7a229a138c5d512159501c3f23e18efa5fe728d06103230dd"
+    },
+    {
+      "originalPath": "docs/chart-format-v2.md",
+      "archivePath": "docs/archive/2026-10-07-cleanup/chart-format-v2.before.md",
+      "sha256": "5aba65fecd939961cbbb0a3c9a1128a7a00814c6352cb28b819f58fa6bbdfc87"
+    }
+  ],
+  "reports": [
+    {
+      "originalPath": "docs/judgement-implementation-audit.md",
+      "archivePath": "docs/archive/reports/2026-08-13-judgement-implementation-audit.md",
+      "sourceSha256": "9eac492fac2837d8978a359d7cafe9326e5cd31a69ba848a0c91ec29b87e61c2"
+    },
+    {
+      "originalPath": "docs/code-review-fix-handoff.md",
+      "archivePath": "docs/archive/reports/2026-09-09-code-review-fixes.md",
+      "sourceSha256": "cdf9cc2cb142bcac853c162f9e3bff8f5b1c8dfc6d8730dddcff03efe5fde023"
+    },
+    {
+      "originalPath": "docs/handoff-editor-rebuild.md",
+      "archivePath": "docs/archive/checkpoints/2026-08-24-editor-rebuild.md",
+      "sourceSha256": "3beb1a8383f5f46ba11b180e0288f5357b9dd06f2cd0d5b0f13c0b960bcb9547"
+    }
+  ]
+}

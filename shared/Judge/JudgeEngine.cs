@@ -68,6 +68,10 @@ public sealed class JudgeUnit
     public int? SustainHeadId { get; init; }
     /// <summary>判定窗口倍率（EX-Tap &gt; 1，其余 1）。</summary>
     public double WindowScale { get; init; } = 1.0;
+    /// <summary>
+    /// EX-Tap（T5）二值判定：窗内一律 Prefect，出窗即输入 Miss（原版 Burst 无 GR/GD 档）。
+    /// </summary>
+    public bool IsExTap { get; init; }
     /// <summary>是否改变 Combo。</summary>
     public bool AffectsCombo { get; init; } = true;
     /// <summary>是否计入 P/Great/Good/Miss。</summary>
@@ -108,7 +112,7 @@ public static class SustainJudgementRules
 
     /// <summary>
     /// Hold 头 Miss 后，立即将该 Hold 的所有剩余节点判为 Miss。
-    /// 返回本次新结算的单元，供客户端延迟处理尚未到线的视觉。
+    /// 返回本次新结算的单元，供客户端同步已判定的理论满分统计。
     /// </summary>
     public static IReadOnlyList<JudgeUnit> FailRemainingHold(
         IEnumerable<JudgeUnit> units, int headId, JudgeEngine engine)
@@ -172,6 +176,28 @@ public static class SustainJudgementRules
     }
 }
 
+/// <summary>
+/// Runtime Hold contact tracking. The first loss freezes the grace interval at the loss-time BPM;
+/// later losses or BPM changes must not move the deadline.
+/// </summary>
+public readonly record struct HoldContactState(double? ContactLostAt, double? GraceDeadline)
+{
+    /// <summary>Steady contact with no pending loss.</summary>
+    public static HoldContactState Contact => default;
+
+    /// <summary>True while a frozen contact loss is pending settlement or break.</summary>
+    public bool HasLoss => ContactLostAt is not null;
+
+    /// <summary>Records the first contact loss and freezes its grace interval.</summary>
+    public HoldContactState BeginLoss(double lostAt, double bpmAtLoss, JudgeSettings settings)
+    {
+        if (ContactLostAt is not null)
+            return this;
+        var loss = SustainJudgementRules.BeginHoldContactLoss(lostAt, bpmAtLoss, settings);
+        return new HoldContactState(loss.LostAt, loss.Deadline);
+    }
+}
+
 /// <summary>一次判定的结果。</summary>
 public readonly record struct JudgeResult(
     JudgeGrade Grade, HitTiming Timing, double DeltaSec, JudgeResolution Resolution);
@@ -225,16 +251,65 @@ public sealed class JudgeEngine
     /// 由调用方用 <see cref="InWindow"/> 判断。
     /// windowScale 用于 EX-Tap 等宽窗口类型（各窗口同比放大）。
     /// </summary>
-    public JudgeResult Judge(double noteTime, double inputTime, double windowScale = 1.0)
+    public JudgeResult Judge(double noteTime, double inputTime, double windowScale = 1.0,
+        bool binaryExTap = false)
     {
         var delta = inputTime - noteTime;
         var abs = Math.Abs(delta);
-        var grade =
+        var grade = binaryExTap
+            ? (abs <= Settings.GoodSec * windowScale ? JudgeGrade.Prefect : JudgeGrade.Miss)
+            :
             abs <= Settings.PrefectSec * windowScale ? JudgeGrade.Prefect :
             abs <= Settings.GreatSec * windowScale ? JudgeGrade.Great :
             abs <= Settings.GoodSec * windowScale ? JudgeGrade.Good :
             JudgeGrade.Miss;
         var timing = abs < 1e-9 ? HitTiming.Exact : delta < 0 ? HitTiming.Early : HitTiming.Late;
+        var resolution = grade switch
+        {
+            JudgeGrade.Prefect => JudgeResolution.Prefect,
+            JudgeGrade.Great => JudgeResolution.Great,
+            JudgeGrade.Good => JudgeResolution.Good,
+            _ => JudgeResolution.InputMiss,
+        };
+        return new JudgeResult(grade, timing, delta, resolution);
+    }
+
+    /// <summary>
+    /// Press-specific judgement. Early inputs beyond Good are explicit input
+    /// misses; a late input beyond Good remains pending until the normal sweep
+    /// reaches the note's Miss deadline.
+    /// </summary>
+    public JudgeResult JudgePress(double noteTime, double inputTime, double windowScale = 1.0,
+        bool binaryExTap = false)
+    {
+        var delta = inputTime - noteTime;
+        var abs = Math.Abs(delta);
+        var prefectSec = Settings.PrefectSec * windowScale;
+        var greatSec = Settings.GreatSec * windowScale;
+        var goodSec = Settings.GoodSec * windowScale;
+
+        if (binaryExTap)
+        {
+            // 原版 Burst：窗内命中一律 grade 5（Prefect），没有 GR/GD 档；
+            // 出窗（早侧或晚侧）只要落在输入窗内就是 grade 2（输入 Miss），不留 Pending。
+            if (abs <= goodSec)
+                return new JudgeResult(JudgeGrade.Prefect,
+                    abs < 1e-9 ? HitTiming.Exact : delta < 0 ? HitTiming.Early : HitTiming.Late,
+                    delta, JudgeResolution.Prefect);
+            return new JudgeResult(JudgeGrade.Miss,
+                abs < 1e-9 ? HitTiming.Exact : delta < 0 ? HitTiming.Early : HitTiming.Late,
+                delta, JudgeResolution.InputMiss);
+        }
+
+        if (delta > goodSec)
+            return new JudgeResult(JudgeGrade.Miss, HitTiming.Late, delta,
+                JudgeResolution.Pending);
+
+        var grade = abs <= prefectSec ? JudgeGrade.Prefect :
+            abs <= greatSec ? JudgeGrade.Great :
+            abs <= goodSec ? JudgeGrade.Good : JudgeGrade.Miss;
+        var timing = abs < 1e-9 ? HitTiming.Exact :
+            delta < 0 ? HitTiming.Early : HitTiming.Late;
         var resolution = grade switch
         {
             JudgeGrade.Prefect => JudgeResolution.Prefect,
@@ -409,8 +484,8 @@ public sealed class JudgeEngine
 /// </summary>
 public static class JudgePlan
 {
-    /// <summary>EX-Tap 判定窗口倍率（用户拍板"更宽松"，具体数值可调）。</summary>
-    public const double ExTapWindowScale = 1.5;
+    /// <summary>EX-Tap 判定窗口倍率：与原版一致（同窗），保留常量以便日后单独放宽。</summary>
+    public const double ExTapWindowScale = 1.0;
 
     public sealed class Plan
     {
@@ -460,9 +535,9 @@ public static class JudgePlan
                         break;
 
                     case NoteType.ExTap:
-                        // 蓝 EX-Tap：判定窗口更宽松（ExTapWindowScale 倍）。
+                        // 蓝 EX-Tap：与原版一致（同窗 + 二值判定：窗内 Prefect，出窗输入 Miss）。
                         units.Add(Unit(n, ScoreCategory.Tap, UnitKind.Input,
-                            ExTapWindowScale));
+                            ExTapWindowScale, isExTap: true));
                         break;
 
                     case NoteType.Mine:
@@ -531,7 +606,7 @@ public static class JudgePlan
     }
 
     private static JudgeUnit Unit(Note n, ScoreCategory c, UnitKind k,
-        double windowScale = 1.0, int? sustainHeadId = null) => new()
+        double windowScale = 1.0, int? sustainHeadId = null, bool isExTap = false) => new()
     {
         Time = n.Second,
         Category = c,
@@ -540,6 +615,7 @@ public static class JudgePlan
         Kind = k,
         WindowScale = windowScale,
         SustainHeadId = sustainHeadId,
+        IsExTap = isExTap,
     };
 
     /// <summary>沿 SubNoteId 构建时间有序的 sustain 路径（悬空/环容错）。</summary>

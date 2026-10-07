@@ -153,6 +153,166 @@
       "sha256": "b4f80e77290c6c713d0cc9968e396efa7c4521cf251a6fdd96e979a68a2a3d62",
       "kind": "project-placeholder",
       "method": "Clean-room UI placeholder; documentation only"
+    },
+    {
+      "path": "client/assets/results/ap.svg",
+      "sha256": "83e51681a6cf877486b0a8d2a089a04ff01f054615f7f0682bfcc4fd581a9273",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/back.svg",
+      "sha256": "52a048d71cbdd29b1286bf88f399d091d7df75f68516ad3c6abcec9d979f7802",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/background_A.svg",
+      "sha256": "2835c64d38680715cc532d908794a9c3b78df572afac989496637ec05842e88d",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/background_B.svg",
+      "sha256": "072f600717736f12a6e07d25f67bb05d776f036d238a2713c06c385ace4c6356",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/background_C.svg",
+      "sha256": "5894495139cd29d0fbcb5edbb4bd0f7c8642b6a9cff4447bc65070221b23ccf2",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/background_omega.svg",
+      "sha256": "f20ef4d56e4ef447fdd4f3f18e0aa651ab5a6d7829e3b42102cd73f00379c44a",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/background_S.svg",
+      "sha256": "047824f7583fe840a1ea0d69be5105c563905408d417b0f150d9b7f0337b7957",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/cover_placeholder.svg",
+      "sha256": "1eef9dee9ed94fee7e9877a5f1f42e3da9962cff01497407368232ef01e13a06",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/fc.svg",
+      "sha256": "fbedf0a69fb6dcc3eed40c73ca3a83ab9911448a08228f1187495cf2e8b3df06",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/A.png",
+      "sha256": "0f77abaaa18e574867f41c430eb68302ffe9f05425d79e185d92c46bd3e4f947",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/A_entry.png",
+      "sha256": "78418dc6890f4f438c1bdd9294cc5b068505239f573c6c998237debcb658d418",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/B.png",
+      "sha256": "628ecf2ffa9d5f601cc28d1ee63605e0bae9b22907a695c237144dea274ed3f5",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/B_entry.png",
+      "sha256": "cfb72858db156c47948eeb68847b4106bd922f087780115316f8673dccd820c0",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/C.png",
+      "sha256": "7b99774834fe652fa889e52fb50e98ee0643b48137371214ad2a24bfdbb83cbb",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/C_entry.png",
+      "sha256": "3ec9076c6b5071be52b555b929bfd53dc3247c2fb4bc0b87de545b94fda5d99f",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/omega.png",
+      "sha256": "b5dc444f46b57da4e53c374e35d0230ddc36d8afec7667a7adabe3677f3d35ac",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/omega_entry.png",
+      "sha256": "43cacf1f63d5a1fe8d58962d5c33a70a424fe78c916ea3b6fd096bd51f901e96",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/S.png",
+      "sha256": "922f8a39705fe390015b69dd6dc8d7e468e16d17210cdf8ea8b4e0915c96e0f8",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/grades/S_entry.png",
+      "sha256": "9d5a97247c85fcd1064d53e36d1f3fec4395d0d1820215f72fd777e1622779a7",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
+    },
+    {
+      "path": "client/assets/results/retry.svg",
+      "sha256": "1d5c6d257966519e765f96e64f0abda206c3d4fc21f27608dae8fb7932afb9db",
+      "kind": "project-generated-ui-asset",
+      "source": "Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_results.py",
+      "generatorSha256": "3e4d1b20943338cc5ca2fbac89652c3b7a3ab296f4a62390d1d43d8c2d12a392"
     }
   ],
   "excluded": [

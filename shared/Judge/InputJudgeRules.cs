@@ -10,6 +10,15 @@ public enum ContactPhase
     Stationary = 3,
 }
 
+[Flags]
+public enum TouchTrackMask
+{
+    None = 0,
+    Center = 1 << 0,
+    Left = 1 << 1,
+    Right = 1 << 2,
+}
+
 /// <summary>A valid touch projected into one track's chart-position coordinate.</summary>
 public readonly record struct TouchSample(
     int Id, Track Track, double Position, ContactPhase Phase);
@@ -22,6 +31,20 @@ public readonly record struct NoteBounds(double Left, double Right)
 /// <summary>Pure touch/phase rules shared by the client and core tests.</summary>
 public static class InputJudgeRules
 {
+    public static TouchTrackMask ProjectedTrackMask(double x, double y,
+        double centerMinY, double leftMaxX, double rightMinX)
+    {
+        var mask = TouchTrackMask.None;
+        if (y > centerMinY)
+            mask |= TouchTrackMask.Center;
+        if (x < leftMaxX)
+            mask |= TouchTrackMask.Left;
+        if (x > rightMinX)
+            mask |= TouchTrackMask.Right;
+
+        return mask == TouchTrackMask.None ? TouchTrackMask.Center : mask;
+    }
+
     /// <summary>
     /// Returns every candidate covered by the same touch snapshot. Candidates
     /// are evaluated independently; the touch is deliberately not consumed.

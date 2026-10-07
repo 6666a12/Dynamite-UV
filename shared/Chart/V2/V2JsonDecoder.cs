@@ -45,7 +45,10 @@ public static class V2JsonDecoder
     public static V2Chart DecodeChart(string json, string sourceName = "chart.json") =>
         DecodeChart(Encoding.UTF8.GetBytes(json), sourceName);
 
-    public static V2Pack DecodePack(ReadOnlySpan<byte> utf8Json, string sourceName = "meta.json")
+    public static V2Pack DecodePack(byte[] utf8Json, string sourceName = "meta.json") =>
+        DecodePack((ReadOnlyMemory<byte>)utf8Json, sourceName);
+
+    public static V2Pack DecodePack(ReadOnlyMemory<byte> utf8Json, string sourceName = "meta.json")
     {
         using var document = Parse(utf8Json, sourceName);
         var root = RequireObject(document.RootElement, sourceName, "");
@@ -72,7 +75,13 @@ public static class V2JsonDecoder
         return pack;
     }
 
-    public static V2Chart DecodeChart(ReadOnlySpan<byte> utf8Json, string sourceName = "chart.json")
+    public static V2Pack DecodePack(ReadOnlySpan<byte> utf8Json, string sourceName = "meta.json") =>
+        DecodePack(utf8Json.ToArray(), sourceName);
+
+    public static V2Chart DecodeChart(byte[] utf8Json, string sourceName = "chart.json") =>
+        DecodeChart((ReadOnlyMemory<byte>)utf8Json, sourceName);
+
+    public static V2Chart DecodeChart(ReadOnlyMemory<byte> utf8Json, string sourceName = "chart.json")
     {
         using var document = Parse(utf8Json, sourceName);
         var root = RequireObject(document.RootElement, sourceName, "");
@@ -106,11 +115,14 @@ public static class V2JsonDecoder
         return chart;
     }
 
-    private static JsonDocument Parse(ReadOnlySpan<byte> utf8Json, string sourceName)
+    public static V2Chart DecodeChart(ReadOnlySpan<byte> utf8Json, string sourceName = "chart.json") =>
+        DecodeChart(utf8Json.ToArray(), sourceName);
+
+    private static JsonDocument Parse(ReadOnlyMemory<byte> utf8Json, string sourceName)
     {
         try
         {
-            var document = JsonDocument.Parse(utf8Json.ToArray(), new JsonDocumentOptions
+            var document = JsonDocument.Parse(utf8Json, new JsonDocumentOptions
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,

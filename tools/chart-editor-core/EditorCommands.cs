@@ -37,6 +37,401 @@ public sealed class CompositeEditorCommand(params IEditorCommand[] commands) : I
     }
 }
 
+/// <summary>Edits user-authored pack identity and metadata through the same undo history as canvas work.</summary>
+public sealed class EditPackMetadataCommand(string packId, string title, string artist) : IEditorCommand
+{
+    private readonly string _packId = packId;
+    private readonly string _title = title;
+    private readonly string _artist = artist;
+    private (string PackId, string Title, string Artist) _before;
+    private bool _captured;
+
+    public void Execute(EditorDocument document)
+    {
+        if (!_captured)
+        {
+            _before = (document.PackId, document.Title, document.Artist);
+            _captured = true;
+        }
+        Apply(document, _packId, _title, _artist);
+    }
+
+    public void Undo(EditorDocument document) =>
+        Apply(document, _before.PackId, _before.Title, _before.Artist);
+
+    private static void Apply(EditorDocument document, string packId, string title, string artist)
+    {
+        var previous = (document.PackId, document.Title, document.Artist);
+        document.PackId = packId;
+        document.Title = title;
+        document.Artist = artist;
+        try
+        {
+            V2SemanticValidator.ValidatePack(document.BuildPackSnapshot());
+            _ = V2JsonDecoder.DecodePack(V2JsonEncoder.EncodePack(document.BuildPackSnapshot()), "editor metadata");
+        }
+        catch
+        {
+            (document.PackId, document.Title, document.Artist) = previous;
+            throw;
+        }
+    }
+}
+
+/// <summary>Edits a package or chart preview interval through strict v2 metadata validation.</summary>
+public sealed class EditPreviewCommand(bool packScope, string? chartId, double startSec, double durationSec) : IEditorCommand
+{
+    private V2Preview? _before;
+    private bool _captured;
+
+    public void Execute(EditorDocument document)
+    {
+        var chart = packScope ? null : document.Charts.SingleOrDefault(item => item.Id == chartId);
+        if (!packScope && chart is null)
+            throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        if (!_captured)
+        {
+            _before = packScope ? document.Preview : chart!.Preview;
+            _captured = true;
+        }
+        Apply(document, chart, new V2Preview(startSec, durationSec));
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var chart = packScope ? null : document.Charts.SingleOrDefault(item => item.Id == chartId);
+        if (!packScope && chart is null)
+            throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        Apply(document, chart, _before);
+    }
+
+    private void Apply(EditorDocument document, EditableChart? chart, V2Preview? preview)
+    {
+        var previous = packScope ? document.Preview : chart!.Preview;
+        if (packScope) document.Preview = preview; else chart!.Preview = preview;
+        try { EditorChartCommandRules.Validate(document, chartId ?? document.SelectedChartId); }
+        catch
+        {
+            if (packScope) document.Preview = previous; else chart!.Preview = previous;
+            throw;
+        }
+    }
+}
+
+/// <summary>Creates a chart entry and its authored chart data as one undoable operation.</summary>
+public sealed class AddChartCommand(EditableChart chart, int? index = null) : IEditorCommand
+{
+    private readonly EditableChart _chart = chart.Clone();
+    private readonly int? _requestedIndex = index;
+    private string? _previousSelectedChartId;
+    private int _index;
+    private bool _executed;
+
+    public void Execute(EditorDocument document)
+    {
+        _previousSelectedChartId ??= document.SelectedChartId;
+        _index = _executed ? _index : _requestedIndex ?? document.Charts.Count;
+        document.InsertChart(_index, _chart);
+        try { EditorChartCommandRules.Validate(document, _chart.Id); }
+        catch
+        {
+            document.Charts.RemoveAt(_index);
+            throw;
+        }
+        document.SelectChart(_chart.Id);
+        _executed = true;
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        document.RemoveChart(_chart.Id);
+        document.SelectChart(_previousSelectedChartId ?? throw new InvalidOperationException("Add chart command has not executed."));
+    }
+}
+
+/// <summary>Copies an existing chart so a new difficulty starts from valid authored data.</summary>
+public sealed class CopyChartCommand(string sourceChartId, string chartId, string file, int? index = null) : IEditorCommand
+{
+    private readonly int? _requestedIndex = index;
+    private EditableChart? _copy;
+    private string? _previousSelectedChartId;
+    private int _index;
+
+    public void Execute(EditorDocument document)
+    {
+        _previousSelectedChartId ??= document.SelectedChartId;
+        if (_copy is null)
+        {
+            var source = document.Charts.SingleOrDefault(item => item.Id == sourceChartId)
+                ?? throw new KeyNotFoundException($"Chart '{sourceChartId}' is not open.");
+            _copy = source.Clone();
+            _copy.Id = chartId;
+            _copy.File = file;
+        }
+        _index = _index == 0 && _requestedIndex is null ? document.Charts.Count : _index;
+        if (_requestedIndex is not null) _index = _requestedIndex.Value;
+        document.InsertChart(_index, _copy);
+        try { EditorChartCommandRules.Validate(document, _copy.Id); }
+        catch
+        {
+            document.Charts.RemoveAt(_index);
+            throw;
+        }
+        document.SelectChart(_copy.Id);
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        if (_copy is null) throw new InvalidOperationException("Copy chart command has not executed.");
+        document.RemoveChart(_copy.Id);
+        document.SelectChart(_previousSelectedChartId ?? throw new InvalidOperationException("Copy chart command has not executed."));
+    }
+}
+
+public sealed class DeleteChartCommand(string chartId) : IEditorCommand
+{
+    private EditableChart? _deleted;
+    private int _index;
+    private string? _previousSelectedChartId;
+
+    public void Execute(EditorDocument document)
+    {
+        _previousSelectedChartId ??= document.SelectedChartId;
+        var removed = document.RemoveChart(chartId);
+        _deleted = removed.Chart;
+        _index = removed.Index;
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        if (_deleted is null) throw new InvalidOperationException("Delete chart command has not executed.");
+        document.InsertChart(_index, _deleted);
+        document.SelectChart(_previousSelectedChartId ?? _deleted.Id);
+    }
+}
+
+public sealed class MoveChartCommand(string chartId, int destinationIndex) : IEditorCommand
+{
+    private int _sourceIndex = -1;
+
+    public void Execute(EditorDocument document)
+    {
+        _sourceIndex = document.MoveChart(chartId, destinationIndex);
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        if (_sourceIndex < 0) throw new InvalidOperationException("Move chart command has not executed.");
+        document.MoveChart(chartId, _sourceIndex);
+    }
+}
+
+/// <summary>Edits metadata stored in a chart entry while preserving its chart identity and file binding.</summary>
+public sealed class EditChartDetailsCommand(
+    string chartId,
+    V2Difficulty difficulty,
+    string? difficultyKey,
+    int? level,
+    bool unrated,
+    IReadOnlyList<string> charters) : IEditorCommand
+{
+    private readonly string[] _charters = charters?.ToArray() ?? throw new ArgumentNullException(nameof(charters));
+    private ChartDetails? _before;
+
+    public void Execute(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == chartId)
+            ?? throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        _before ??= ChartDetails.From(chart);
+        Apply(document, chart, new ChartDetails(difficulty, difficultyKey, level, unrated, _charters));
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == chartId)
+            ?? throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        Apply(document, chart, _before ?? throw new InvalidOperationException("Chart details command has not executed."));
+    }
+
+    private static void Apply(EditorDocument document, EditableChart chart, ChartDetails values)
+    {
+        var previous = ChartDetails.From(chart);
+        chart.Difficulty = values.Difficulty;
+        chart.DifficultyKey = values.DifficultyKey;
+        chart.Level = values.Level;
+        chart.Unrated = values.Unrated;
+        chart.Charters.Clear();
+        chart.Charters.AddRange(values.Charters);
+        try { EditorChartCommandRules.Validate(document, chart.Id); }
+        catch
+        {
+            chart.Difficulty = previous.Difficulty;
+            chart.DifficultyKey = previous.DifficultyKey;
+            chart.Level = previous.Level;
+            chart.Unrated = previous.Unrated;
+            chart.Charters.Clear();
+            chart.Charters.AddRange(previous.Charters);
+            throw;
+        }
+    }
+
+    private sealed record ChartDetails(V2Difficulty Difficulty, string? DifficultyKey, int? Level,
+        bool Unrated, IReadOnlyList<string> Charters)
+    {
+        public static ChartDetails From(EditableChart chart) => new(chart.Difficulty, chart.DifficultyKey,
+            chart.Level, chart.Unrated, chart.Charters.ToArray());
+    }
+}
+
+/// <summary>Atomically changes a chart entry id and storage path.</summary>
+public sealed class RenameChartCommand(string chartId, string newChartId, string newFile) : IEditorCommand
+{
+    private string? _oldFile;
+    private bool _captured;
+
+    public void Execute(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == chartId)
+            ?? throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        if (!_captured) _oldFile = chart.File;
+        Apply(document, chart, newChartId, newFile);
+        _captured = true;
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == newChartId)
+            ?? throw new KeyNotFoundException($"Chart '{newChartId}' is not open.");
+        Apply(document, chart, chartId, _oldFile ?? throw new InvalidOperationException("Rename command has not executed."));
+    }
+
+    private static void Apply(EditorDocument document, EditableChart chart, string id, string file)
+    {
+        var oldId = chart.Id;
+        var oldFile = chart.File;
+        chart.Id = id;
+        chart.File = file;
+        try
+        {
+            EditorChartCommandRules.Validate(document, id);
+            document.SelectChart(id);
+        }
+        catch
+        {
+            chart.Id = oldId;
+            chart.File = oldFile;
+            throw;
+        }
+    }
+}
+
+/// <summary>Replaces a pack/chart media reference and stages its external source for the next save.</summary>
+public sealed class ReplaceChartResourceCommand(string chartId, bool packScope, bool coverScope,
+    string packageRelativePath, string externalSourcePath) : IEditorCommand
+{
+    private string? _oldReference;
+    private string? _oldPendingSource;
+
+    public void Execute(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == chartId);
+        if (!packScope && chart is null)
+            throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        if (!File.Exists(externalSourcePath))
+            throw new FileNotFoundException("External resource does not exist.", externalSourcePath);
+        _oldPendingSource ??= document.GetPendingResource(packageRelativePath);
+        if (packScope)
+        {
+            _oldReference ??= coverScope ? document.Cover : document.Audio;
+            if (coverScope) document.Cover = packageRelativePath; else document.Audio = packageRelativePath;
+        }
+        else
+        {
+            _oldReference ??= chart!.Audio;
+            chart!.Audio = packageRelativePath;
+        }
+        try
+        {
+            document.SetPendingResource(packageRelativePath, externalSourcePath);
+            EditorChartCommandRules.Validate(document, chartId);
+        }
+        catch
+        {
+            if (packScope) { if (coverScope) document.Cover = _oldReference; else document.Audio = _oldReference; }
+            else chart!.Audio = _oldReference;
+            RestorePending(document);
+            throw;
+        }
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == chartId);
+        if (packScope) { if (coverScope) document.Cover = _oldReference; else document.Audio = _oldReference; }
+        else if (chart is not null) chart.Audio = _oldReference;
+        RestorePending(document);
+    }
+
+    private void RestorePending(EditorDocument document)
+    {
+        if (_oldPendingSource is null) document.RemovePendingResource(packageRelativePath);
+        else document.SetPendingResource(packageRelativePath, _oldPendingSource);
+    }
+}
+
+/// <summary>Removes Chart-level overrides so playback inherits Pack media/preview values.</summary>
+public sealed class ClearChartOverridesCommand(string chartId, bool clearAudio, bool clearPreview) : IEditorCommand
+{
+    private string? _oldAudio;
+    private V2Preview? _oldPreview;
+    private bool _captured;
+
+    public void Execute(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == chartId)
+            ?? throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        if (!_captured)
+        {
+            _oldAudio = chart.Audio;
+            _oldPreview = chart.Preview;
+            _captured = true;
+        }
+        Apply(document, chart, clearAudio ? null : chart.Audio, clearPreview ? null : chart.Preview);
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var chart = document.Charts.SingleOrDefault(item => item.Id == chartId)
+            ?? throw new KeyNotFoundException($"Chart '{chartId}' is not open.");
+        Apply(document, chart, _oldAudio, _oldPreview);
+    }
+
+    private static void Apply(EditorDocument document, EditableChart chart, string? audio, V2Preview? preview)
+    {
+        var oldAudio = chart.Audio;
+        var oldPreview = chart.Preview;
+        chart.Audio = audio;
+        chart.Preview = preview;
+        try { EditorChartCommandRules.Validate(document, chart.Id); }
+        catch
+        {
+            chart.Audio = oldAudio;
+            chart.Preview = oldPreview;
+            throw;
+        }
+    }
+}
+
+internal static class EditorChartCommandRules
+{
+    public static void Validate(EditorDocument document, string chartId)
+    {
+        V2SemanticValidator.ValidatePack(document.BuildPackSnapshot());
+        _ = V2JsonDecoder.DecodePack(V2JsonEncoder.EncodePack(document.BuildPackSnapshot()),
+            "editor chart metadata");
+    }
+}
+
 public sealed class AddNoteCommand(EditableNote note) : IEditorCommand
 {
     private readonly EditableNote _note = note.Clone();
@@ -118,6 +513,118 @@ public sealed class MoveNoteCommand(string noteId, ExactBarTime time, double cen
         note.Time = _oldTime;
         note.Center = _oldCenter;
         note.Width = _oldWidth;
+    }
+}
+
+/// <summary>Moves a Hold/Mixer head and all of its path nodes by the same exact bar delta.</summary>
+public sealed class MovePathNoteCommand(string noteId, ExactBarTime time, double center,
+    double width) : IEditorCommand
+{
+    private ExactBarTime _oldTime;
+    private double _oldCenter;
+    private double _oldWidth;
+    private ExactBarTime _delta;
+    private bool _captured;
+
+    public void Execute(EditorDocument document)
+    {
+        var note = EditorCommandRules.RequirePathNote(document, noteId);
+        if (!_captured)
+        {
+            _oldTime = note.Time;
+            _oldCenter = note.Center;
+            _oldWidth = note.Width;
+            _delta = time - note.Time;
+            _captured = true;
+        }
+        var candidate = note.Clone();
+        candidate.Time = time;
+        candidate.Center = center;
+        candidate.Width = width;
+        foreach (var node in candidate.Nodes)
+            node.Time = node.Time + _delta;
+        EditorCommandRules.ValidateNote(candidate);
+
+        note.Time = time;
+        note.Center = center;
+        note.Width = width;
+        foreach (var node in note.Nodes)
+            node.Time = node.Time + _delta;
+        document.Select(new EditorSelection(EditorSelectionKind.Note, noteId));
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        if (!_captured)
+            throw new InvalidOperationException("Move path command has not executed.");
+        var note = EditorCommandRules.RequirePathNote(document, noteId);
+        note.Time = _oldTime;
+        note.Center = _oldCenter;
+        note.Width = _oldWidth;
+        foreach (var node in note.Nodes)
+            node.Time = node.Time - _delta;
+        document.Select(new EditorSelection(EditorSelectionKind.Note, noteId));
+    }
+}
+
+public sealed class RenameNoteCommand(string noteId, string newId) : IEditorCommand
+{
+    public void Execute(EditorDocument document)
+    {
+        var note = document.RequireNote(noteId);
+        EditorCommandRules.ValidateId(newId, "Note");
+        document.RequireChartWideIdAvailable(newId, noteId);
+        note.Id = newId;
+        document.Select(new EditorSelection(EditorSelectionKind.Note, newId, note.Key));
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var note = document.RequireNote(newId);
+        document.RequireChartWideIdAvailable(noteId, newId);
+        note.Id = noteId;
+        document.Select(new EditorSelection(EditorSelectionKind.Note, noteId, note.Key));
+    }
+}
+
+public sealed class SetNoteTrackCommand(string noteId, EditorTrack track) : IEditorCommand
+{
+    private EditorTrack _before;
+    private bool _captured;
+
+    public void Execute(EditorDocument document)
+    {
+        var note = document.RequireNote(noteId);
+        if (!_captured) { _before = note.Track; _captured = true; }
+        note.Track = track;
+        document.Select(new EditorSelection(EditorSelectionKind.Note, note.Id, note.Key));
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var note = document.RequireNote(noteId);
+        note.Track = _before;
+        document.Select(new EditorSelection(EditorSelectionKind.Note, note.Id, note.Key));
+    }
+}
+
+public sealed class RenamePathNodeCommand(string noteId, string nodeId, string newId) : IEditorCommand
+{
+    public void Execute(EditorDocument document)
+    {
+        var node = document.RequirePathNode(noteId, nodeId);
+        EditorCommandRules.ValidateId(newId, "Path node");
+        document.RequireChartWideIdAvailable(newId, nodeId);
+        node.Id = newId;
+        document.Select(new EditorSelection(EditorSelectionKind.PathNode, newId, node.Key));
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        var node = document.RequirePathNode(noteId, newId);
+        document.RequireChartWideIdAvailable(nodeId, newId);
+        node.Id = nodeId;
+        document.Select(new EditorSelection(EditorSelectionKind.PathNode, nodeId, node.Key));
     }
 }
 
@@ -535,6 +1042,8 @@ public sealed class EditBpmCommand(ExactBarTime originalTime, ExactBarTime newTi
 
 public sealed class AddBpmCommand(ExactBarTime time, double bpm) : IEditorCommand
 {
+    private readonly EditorEntityKey _key = EditorEntityKey.New();
+
     public void Execute(EditorDocument document)
     {
         EditorCommandRules.ValidateTime(time, "BPM time");
@@ -542,7 +1051,7 @@ public sealed class AddBpmCommand(ExactBarTime time, double bpm) : IEditorComman
             throw new InvalidOperationException("BPM must be finite and greater than zero.");
         if (document.SelectedChart.Bpms.Any(item => item.Time == time))
             throw new InvalidOperationException($"BPM already exists at {time}.");
-        document.SelectedChart.Bpms.Add(new EditableBpm { Time = time, Bpm = bpm });
+        document.SelectedChart.Bpms.Add(new EditableBpm { Key = _key, Time = time, Bpm = bpm });
         document.SelectedChart.Bpms.Sort((left, right) => left.Time.CompareTo(right.Time));
         document.Select(new EditorSelection(EditorSelectionKind.Bpm, ExactBarTimeText.Format(time)));
     }
@@ -889,6 +1398,7 @@ internal static class EditorCommandRules
 
     public static EditablePathNode CloneNode(EditablePathNode node) => new()
     {
+        Key = node.Key,
         Id = node.Id,
         Time = node.Time,
         Center = node.Center,

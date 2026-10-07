@@ -76,7 +76,8 @@ public partial class SongClock : Node
     public void Pause()
     {
         if (!_playing) return;
-        _pausedPosition = GetSongTime();
+        // _pausedPosition 一律保存不含用户校准的原始位置，否则 Resume 后偏移会被重复累加。
+        _pausedPosition = GetSongTime() - UserOffsetMs / 1000.0;
         _playing = false;
         if (!_manualFallback && !_fixedFrameEnabled)
             _player?.Stop(); // MVP：暂停即停流，恢复时从记录位置重新 Play
@@ -92,11 +93,11 @@ public partial class SongClock : Node
             _pausedPosition = sec;
     }
 
-    /// <summary>当前歌曲时间（秒，含用户校准）。未播放时返回暂停位置。</summary>
+    /// <summary>当前歌曲时间（秒，含用户校准）。未播放时返回暂停位置（同样含校准）。</summary>
     public double GetSongTime()
     {
         if (!_playing)
-            return _pausedPosition;
+            return _pausedPosition + UserOffsetMs / 1000.0;
 
         double pos;
         if (_fixedFrameEnabled)

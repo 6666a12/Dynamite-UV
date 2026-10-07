@@ -10,6 +10,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
+    <!-- The result clock is deliberately Godot-free: verify opaque loading/skip semantics. -->
+    <Compile Include="../../client/scripts/ui/UiMotionMode.cs" Link="Ui/UiMotionMode.cs" />
+    <Compile Include="../../client/scripts/ui/ResultRevealTimeline.cs" Link="Ui/ResultRevealTimeline.cs" />
     <None Include="Fixtures/synthetic_chart.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />

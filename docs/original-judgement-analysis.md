@@ -148,6 +148,15 @@ HoldHoldingJudgeBarTime = 0.125
 MixerHoldingJudgeBarTime = 0.125
 ```
 
+换算到秒见 §3.2（×240/StandardBPM 150 = ×1.6）。
+
+难度键到实例的映射（原版规则）：`casual`→Casual、`normal`→Normal、
+`hard` 及以上（含 `mega`/`giga`/`tech`/自定义）→Hard、`tutorial`→Tutorial（数值等同
+Casual）。社区实现见 `JudgeSettings.PresetForDifficulty`，全部判定窗（含按键扫描窗、
+Drag 接触窗、Hold 断触宽限）一律从当前实例读取，不再硬编码。
+
+EX-Tap（Type 5）已完全对齐原版（2026-09 起窗口倍率回 `1.0`，即与 Tap 同窗）。
+
 ### 3.2 普通窗固定使用 StandardBPM（确认）
 
 换算公式：
@@ -265,6 +274,33 @@ Manual 主循环对每颗 Note 都从触点数组索引 0 重新扫描，命中�
 
 Early 仍受上述目标时间锁约束：异时未来 Note 被锁挡住，完全同刻且空间重叠的 Note 可以
 共享同一触点。多根触点也不是先做全局最优匹配，而是每颗 Note 独立扫描当前触点快照。
+
+社区实现补充：
+
+- **EX-Tap（Type 5）参与该时间锁**：候选照常被早侧锁检查，命中照常武装锁。RE 已确证
+  `_judgeBurst` 与 Tap 在时间锁上逐指令一致（三个 Burst 克隆体字节一致），此前"EX 不
+  参与锁"的推断作废。
+- 锁的武装值是**本批已结算早侧目标里的最早时刻**（本仓库实现为毫秒整数比较），因此与
+  事件到达顺序无关；晚侧命中不武装锁（原版晚侧分支没有 timestamp 检查，H1 修复）。
+
+### 4.4 EX-Tap（Burst）二值判定（确认）
+
+原版 Burst 叶函数没有 grade 3/4 的输出路径：
+
+```text
+接触到 Note 且 |Δ| <= Good 窗   -> grade 5（Prefect）
+接触到 Note 且 |Δ| >  Good 窗   -> grade 2（输入 Miss），早侧晚侧一致
+没有任何触点，直到超时           -> grade 1（AutoMiss）
+```
+
+即"窗内恒 Prefect、出窗即 Miss"的二值判定，没有 GR/GD 中间档，也没有晚侧 Pending 缓冲。
+
+社区实现（已与原版一致）：
+
+- 窗口倍率 `JudgePlan.ExTapWindowScale = 1.0`（与 Tap 同窗；2026-09 起从社区 1.5× 回退）。
+- 二值判定：`JudgeUnit.IsExTap` 显式标记 T5 单元，`JudgePress(..., binaryExTap)` 把 Good
+  窗内一律评为 Prefect，出窗（早/晚）立即按输入 Miss 结算，超时仍为 AutoMiss。
+- 与"EX 参与时间锁"共同构成 T5 的完整原版化路径：锁与 Tap 一致，窗口一致，分级为二值。
 
 ## 5. 各类音符的判定状态机
 
@@ -593,17 +629,20 @@ Mixer、Mine 与基础判定窗。
 
 ## 11. 与社区版现状的差异
 
+> 社区实现摘要于 2026-10-07 静态同步；原版证据/地址未因文档整理改变。
+> 原版每帧重算 Holding interval 的研究结论不等于社区 Hold 宽限策略；社区采用首次断触冻结 deadline，见 [v2 合同](<chart-format-v2.md>)。
+
 | 项目 | 原版 | 社区版当前实现 | 判断 |
 | --- | --- | --- | --- |
 | 普通判定窗 | StandardBPM=150 固定 | 固定 150 BPM | 已一致 |
-| Holding 间隔 | 当前 BPM，clamp 120–200 | 0.125 bar 动态生成，运行时宽限同样按当前 BPM | 已落地；BPM 边界调度仍按 §10 保留近似 |
+| Holding 间隔 | 当前 BPM，clamp 120–200 | Hold 实际路径节点/Mixer 八分 bar 主判定；Hold 首次断触按当时 BPM 冻结 deadline | 社区计数与宽限策略；不称原版每帧重算已完全复刻 |
 | 输入 | 多触点 x + phase | 逐 id 触点快照、轨内 Position、phase 1/2/3 | 已落地 |
-| 输入批次目标时间 | 同批早侧只放行精确同刻，晚侧不走同一锁 | Early/Exact 按帧锁最早 float32 时间组，Late 逐触点放行 | 已按现有证据落地 |
+| 输入批次目标时间 | 同批早侧只放行精确同刻，晚侧不走同一锁 | Early/Exact 按帧锁最早目标毫秒整数，Late 不检查/武装锁 | 语义已接入；数值表示不是原版 float32 精确同刻 |
 | 重叠 Note 的触点复用 | 每颗 Note 独立从触点 0 扫描，同一触点可命中多颗重叠 Note | `OnPress` 按 Note 独立扫描，同一 Press 可复用触点 | 已嵌入；仍需端到端事件序列和真机验证 |
 | 空间候选 | note 范围 + 触摸宽度 | 实际 `[P,P+W]` + 集中可调触摸宽；Mine 无扩边 | 公式已落地；设备 NSTouchWidth 真值仍未知 |
 | Drag/Chain | phase 分段的连续接触 | Prefect/2 phase 分段 + 空间接触 | 已落地 |
 | Mine | 精确范围、到点前短危险窗 | Prefect/4 phase 分段、到点安全 Prefect | 已落地 |
-| Hold | 实时条体插值 + 动态断触宽限 + Holding tick + 按 release 时刻尾判 | 左右缘插值、动态宽限、实际路径节点主判定、按 release 时刻尾判 | 状态机主体一致；节点计数为社区决策 |
+| Hold | 实时条体插值 + 动态断触宽限 + Holding tick + 按 release 时刻尾判 | 左右缘插值、首次断触冻结宽限、实际路径节点主判定、按 release 时刻尾判 | 主体参考原版；节点计数与冻结策略按社区 v2 合同 |
 | Hold Body 裁剪 | 固定拓扑，推进首截面并退化旧截面 | 每个 `NoteLink` 独立裁四边形，整段过线即 `QueueFree` | 视觉目标接近，拓扑与生命周期不同 |
 | Mixer | 虚拟滑块 + 无超时随时重接 + Holding tick 命中率尾判 | 当前触点连接、动态头显隐、每 1/8 bar 主判定、无额外尾判 | 连接机制一致；结算口径为社区决策 |
 | Mixer 视觉结构 | Body/Tail 与动态 Slider 头分离 | Body 连接段与运行时头分离 | 结构方向一致；Tail 拓扑和精确回收帧不同 |
@@ -614,25 +653,24 @@ Mixer、Mine 与基础判定窗。
 | 显示分数 | raw score 随谱面长度与 Combo 变化 | 归一化 1,000,000 | 社区产品口径 |
 | Health/Boost | 按 TotalMainNote 缩放，Health fallback 10000、Boost 上限 3000 | 已按公式缩放并钳制 | 已落地；模式化血量上限仍未知 |
 
-## 12. 社区版落地与验证
+## 12. 社区实现与验证边界
 
 当前规则分层为：
 
 ```text
 GameplayMain 输入适配与逐触点状态
-  -> InputTimeGroupGate / InputJudgeRules
+  -> V2InputProtection / InputJudgeRules
   -> JudgePlan / SustainPath
   -> JudgeEngine
   -> HUD / ScoreStore
 ```
 
 `OriginalJudgeMath` 单独保存原版 Combo/raw score/CLEAR 数学，不接入社区版百万分数和主
-Combo。核心测试已覆盖窗口、动态 BPM、phase/空间边界、sustain 插值、Early 时间组锁与
-Late 放行、按 release 时刻结算 Hold 尾、Miss 分源、Health/Boost 缩放、原版数学策略和
-两份开发谱 Auto 全 Prefect。
+Combo。现有 clean-room 回归代码包含窗口、BPM、phase/空间、sustain、毫秒目标锁、
+Hold release 冻结 deadline、计分/身份和结算时间线；官方开发语料需显式启用，不是默认测试依赖。
+本次文档清理没有重跑测试；历史阶段结果见 [归档](<archive/README.md>)。
 
-仍需窗口模式确认的项目只有真实多点事件顺序、音频自然结束/暂停恢复，以及最新 HUD、
-命中辉光和结算层的视觉效果。
+设备输入/焦点取消、音频自然结束/暂停恢复与最新视觉仍需端到端或实机验证；完整真实待办见 [当前交接](<handoff.md>)。
 
 ## 13. 关键地址索引
 
