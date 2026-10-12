@@ -1,7 +1,8 @@
 # UI 动效规格
 
-> 状态核对：2026-10-07。原生客户端已接入游戏 UI 动效；[网页参考](<ui-mock/motion-preview.html>)不是现有功能完成清单。
+> 状态核对：2026-10-08。原生客户端已接入游戏 UI 动效；[网页参考](<ui-mock/motion-preview.html>)不是现有功能完成清单。
 > 本文保留有效 token、三种运动策略与场景约束；§9.1–§9.4 是编辑器设计目标，尚未全部接入。
+> 2026-10-08 增补：`--t-hover` 独立 token（§3.1）、结算组内数据动效（§2.3 第 6 条）、选曲 v2 局部动效（§2.4）。
 > 不改变固定 UI/游玩布局；历史原文见 [归档快照](<archive/2026-10-07-cleanup/ui-motion.before.md>)。
 
 ## 1. 范围与基线
@@ -61,6 +62,10 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 3. 1400ms 开始播放本次评级的 v5 表面电流序列，24fps、30 帧；约 1692ms 第 8 帧命中。
 4. 1780ms 起曲目信息/CLEAR、分数与纪录、成就/Max Combo、判定分布、按钮依次浮现，向上 18px。
 5. 2650ms 进入低频表面电流循环；Reduced 为 260ms 静态短淡入，Off 立即显示完整页。
+6. 组内数据动效（2026-10-08 接入）：SCORE 0→终值 550ms CubicOut；判定四档计数各 250ms、
+   错峰 60ms；判定分布条整带从左缘 350ms 擦入；NEW RECORD 章 1.25→1.0 盖印回弹
+   （180ms easeOutBack）。全部是揭示时钟 `ResultRevealTimeline.Elapsed` 的纯函数，
+   跳过即落终值，不需要收尾分支；Reduced/Off 直接终值，盖印缩放仅 Full。
 
 约束：
 
@@ -69,6 +74,40 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 - 回声不改变最终字号和布局，不遮挡数字可读性。
 - 入场可点击/触摸或 Enter/Space/Escape 跳过；消费当前事件并留 120ms 防穿透间隔。
 
+### 2.4 校准向导
+
+校准页（Game — Calibration 两板，行为口径见 editor-ui-design.md §2.2）的动效服务于
+状态机 Ready → Sampling → Complete：
+
+1. 进场沿用分组交错 fade + shift（头部/相位块/试打台/统计板/条带）；路由转场是标准
+   Signal Lock（`OPEN CHANNEL / CALIBRATION`），返回用 Back 类转场。
+2. 状态切换时相位块与右板内容交叉淡换（0.18s），Complete 的轨道冻结压暗 0.2s，
+   条带 MEDIAN 线 0.18s 淡入。
+3. note 下落与拍点脉冲是**测量本体**，三档 MOTION 下都不降级；Reduced 只保留透明度类
+   过渡，Off 全部瞬时。
+
+约束：
+
+- 击打反馈只显示毫秒读数（早粉晚青），不使用 Hit Echo 与判定字——校准页不评价
+  「准不准」，只呈现「差多少」。
+- Complete 是冻结帧，击打不再产生读数；采样中目标样本步进器锁定为禁用态，不另做动画。
+- 数据计数是**时长驱动**的纯函数，终值必须精确等于真实成绩，不按数值密度变速。
+
+### 2.4 选曲 v2 局部动效
+
+2026-10-08 接入；几何与交互口径见 `editor-ui-design.md` §2.1。
+
+1. 就地展开卡：200ms 高度过渡（96↔392，`cubic-bezier(.33,1,.68,1)`），`ClipContents` 裁切、
+   下方行跟随滑动；收拢落点才交还选中行，途中可从中截高度干净反向。属 directional motion，
+   Reduced/Off 保持瞬时切换。
+2. 卡内内容切换：曲名/曲师/谱师 80ms 淡出 → 换文 → 120ms 淡入（换文由代际守卫，
+   快速连切不写回旧文本）；封面在谱面就绪后 150ms 从 0 淡入。Reduced 保留淡变，Off 瞬时。
+3. 列表滚动：滚轮/触摸板走惯性指数趋近，client 固定 τ = 112ms（editor 同模型、τ 由
+   SCROLL INERTIA 设置给，见 §9.2）；触摸拖动与滚动条拖动 1:1 直连不插值；
+   选中行/展开卡的 `EnsureControlVisible`、程序刷新与跳转旁路惯性。
+4. Hover 全量覆盖 `--t-hover`（曲库行、模式行、全部设置行、按钮、预览传输键），
+   端点色与原瞬时 hover 一致，只平滑中间过程。
+
 ## 3. Motion token
 
 ### 3.1 时间
@@ -76,7 +115,8 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 | Token | Full | Reduced | Off | 用途 |
 | --- | ---: | ---: | ---: | --- |
 | `--t-micro` | 90ms | 70ms | 0ms | 按下确认、光点和状态 ping |
-| `--t-control` | 160ms | 100ms | 0ms | Hover、按钮亮度和输入反馈 |
+| `--t-hover` | 100ms | 100ms | 0ms | Hover 颜色过渡（2026-10-08 拍板统一：editor `EditorMotion.HoverFade` / client `UiHoverFade` 同源实现；推进只在过渡期跑 `_Process`，「值变了才重绘」与「到终值才停表」是两个独立条件） |
+| `--t-control` | 160ms | 100ms | 0ms | 按钮亮度、开关方块和输入反馈（hover 已拆出到 `--t-hover`） |
 | `--t-focus` | 260ms | 140ms | 0ms | 数值替换、选择确认、局部聚焦 |
 | `--t-enter` | 420ms | 180ms | 0ms | 面板、列表、HUD 内容进入 |
 | `--t-route` | 620ms | 220ms | 0ms | Signal Lock 页面切换 |
@@ -85,6 +125,12 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 | `--stagger` | 60ms | 0ms | 0ms | 相邻同级信息的固定错峰 |
 
 TRACK HANDOFF 另有状态门槛：Full 的上下文可读状态最少约 `650ms`，若真实 Gameplay 尚未 ready，则以约 `1200ms` 的周期维持低强度等待扫描；ready 和最短驻留同时满足后立即揭示，不额外等待整轮扫描。Reduced 使用 `180ms` 最短静态 handoff 与其后的 `180ms` Gameplay alpha reveal，不扫描；两段顺序执行至少 360ms，覆盖/加载另计。`220ms` 是 route/relay token，不是整个 handoff 的总预算。Off 为 `0ms`，但仍须先绘制稳定不透明 handoff 状态再提交 Gameplay。游戏以 `UiMotionProfile`、`ResultRevealTimeline` 和当前转场代码为实现来源；网页 demo 只在自身 JS/CSS 内保持 token 同源，不能覆盖原生结算 v2。
+
+hover 的统一实现档是 **100ms**（2026-10-08 拍板；editor 侧 `EditorMotion.HoverMotion`、client 侧
+`UiHoverMotion.Seconds` 同源），比 `--t-control` 的 160ms 更轻，专用于指针悬停的颜色/亮度过渡；
+160ms 继续留给按下确认与输入反馈。选曲页的实现值：展开卡高度动画 200ms（`--t-focus` 档语义）、
+卡内文字淡切 80ms 出 / 120ms 入、封面就绪淡入 150ms（`--t-micro`/`--t-control` 档语义），
+明细见 [UI 设计施工约定](<editor-ui-design.md>) §2.1。
 
 ### 3.2 距离
 
@@ -206,7 +252,8 @@ motion-preview.html?scene=result
 | 右键菜单 | 以光标为锚点（近屏幕边缘翻转），项间 `--stagger` 自上而下单向进入，总长 ≤300ms | 整体淡入，无 stagger | 立即 |
 | 路径手柄出现 | 菱形手柄沿路径从头向尾依次点亮（`--stagger`），兼作方向提示 | 同时淡入 | 立即 |
 
-吸附成功不做专门光效（无吸附 ping）。Scrubbing、放置跟随与拖尾预览在三档下全部 1:1 直连输入，不得插值。
+吸附成功不做专门光效（无吸附 ping）。**拖动式** scrubbing、放置跟随与拖尾预览在三档下全部 1:1 直连输入，不得插值
+（滚轮/触摸板是离散推力而不是拖动，按 §9.2 的滚动惯性处理，两者不冲突）。
 
 ### 9.2 时间轴与网格
 
@@ -214,6 +261,7 @@ motion-preview.html?scene=result
 | --- | --- | --- | --- |
 | 标尺跳转 | 当前位置三角 `--t-focus` + `--e-standard` 滑动到位 | 同 Full | 立即 |
 | 网格密度切换 | 旧密度淡出 / 新密度淡入交叉 `--t-focus` | 同 Full | 立即 |
+| 滚轮/触摸板滚动（画布视图时间、Pack 差分行列表、选曲列表） | 惯性指数趋近，τ 由设置档/固定常量给（见 [UI 设计施工约定](<editor-ui-design.md#4-编辑器交互目标不是当前能力清单>) §4 第 14 条） | 同 Full | 立即（`MOTION = OFF` 时 τ 强制为 0） |
 | 播放/试玩 | 底部进度线与标尺三角与歌曲时钟 1:1 推进；判定线命中可复用 `GameplayHitBloom` | 同 Full | 同 Full |
 
 ### 9.3 页面与组件

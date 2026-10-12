@@ -64,6 +64,7 @@ public static class Program
             TestHoldReleaseFreezesGrace();
             TestScoreStoreMigrationAndIdentity();
             ResultRevealTests.Run(Check);
+            CalibrationStatsTests.Run(Check);
         }
         catch (Exception ex)
         {

@@ -178,6 +178,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
             "assets/scenes/song_select.tscn.remap": b"[remap]\npath=\"res://.godot/exported/select.scn\"\n",
             "assets/scenes/gameplay.tscn.remap": b"[remap]\npath=\"res://.godot/exported/game.scn\"\n",
             "assets/scenes/settings.tscn.remap": b"[remap]\npath=\"res://.godot/exported/settings.scn\"\n",
+            "assets/scenes/calibration.tscn.remap": b"[remap]\npath=\"res://.godot/exported/calibration.scn\"\n",
             "assets/shaders/note_surface.gdshader": b"shader_type canvas_item;",
             "assets/assets/models/detonation-orrery-mk2.glb": (
                 REPO_ROOT / "client" / "assets" / "models" / "detonation-orrery-mk2.glb"

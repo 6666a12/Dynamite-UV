@@ -6,8 +6,7 @@
 > 原版方法体证据见
 > `original-judgement-analysis.md`，几何测量见 `video-geometry-analysis.md`。
 > 文中不包含任何原版素材或可发布原版谱面。
-> 2026-10-07 静态同步当前实现；本轮没有重跑构建/测试。历史原文见 [整理前快照](<archive/2026-10-07-cleanup/gameplay-spec.before.md>)。
-> **已知规范偏差**：当前 EX-Tap 倍率 1.0 且二值判定，冻结 v2 §12.1 仍写 1.5；本文描述代码，不据此宣布完全符合冻结规则集，也不静默修改合同。
+> 2026-10-07 静态同步当前实现；本轮没有重跑构建/测试。历史原文见 [整理前快照](<archive/2026-10-07-cleanup/gameplay-spec.before.md>)。EX-Tap 二值判定与窗口倍率 1.0 已与冻结 v2 §12.1 对齐。
 
 ## 1. 当前 Legacy 谱面数据
 
@@ -66,7 +65,6 @@ Testdata 构建先扫描 `res://testdata/packs`，再扫描 `user://charts`，�
 
 D4-C 首次失联冻结 grace deadline 与 D5-A 四档 Mixer 头/后续 Prefect-Miss tick 已接入。
 v2 Hold 的 `judge:false` 节点只塑形，legacy 路径节点保留兼容主判定口径。成绩身份见 §10，不再统一为旧键。
-格式已支持不等于所有规则完全符合；EX-Tap 合同偏差须单独处理。
 
 ## 2. 时间、BPM 与变速
 
@@ -391,9 +389,10 @@ HUD、背景和命中辉光均为程序化 UI。Full 结算先合拢不透明屏
 
 | 设置 | 范围/行为 |
 | --- | --- |
-| 判定偏移 | −300..+300ms，5ms 步进，接入 `SongClock.UserOffsetMs` |
-| 落速 | 1..20，默认 10，倍率 `level/10` |
+| 判定偏移 | −300..+300ms，5ms 步进，接入 `SongClock.UserOffsetMs`；除设置页步进器外，校准向导页是第二个写入方（建议值 = 当前 − 击打偏差中位数 → 5ms 取整 → ±300 钳制） |
+| 落速 | 1..20，默认 10，倍率 `level/10`；校准试打台沿用同一倍率，保证测量条件与实战一致 |
 | Music/Hit/UI 音量 | 0..100，写入对应 Audio Bus |
+| 校准目标样本 | 8..32、4 拍一档、默认 16（`calibrationTargetSamples`）；采样途中步进器锁定 |
 
 `SongClock` 的窗口模式时间为：
 
@@ -405,6 +404,9 @@ player.GetPlaybackPosition()
 ```
 
 headless 模式改用系统计时器。暂停会记录当前位置并停止流，恢复时从记录位置重新播放。
+判定偏差的方向约定：`JudgeEngine` 的 delta = inputTime − noteTime（正 = 晚），inputTime 含
+`+userOffset`——所以玩家打得晚要靠**减小**偏移补偿，校准向导的建议值因此是「当前 − 中位数」。
+校准页读取时钟时用同一公式但不叠加 userOffset（那是被测量本身）。
 
 成绩写 `user://scores.json`：strict v2/成功转换路径使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy-direct 保留 `packId:diff`。Auto 不写成绩；当前没有独立 Standard/Hardcore 运行模式维度，不能称分模式隔离已完成。
 Music/Hit/UI 音量总线已接，但完整 Hit/UI 资产链路仍未完成。

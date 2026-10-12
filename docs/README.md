@@ -22,18 +22,18 @@
 
 | 文档 | 性质与权威边界 |
 | --- | --- |
-| [gameplay-spec.md](<gameplay-spec.md>) | 当前判定/舞台与 legacy 兼容说明；已知 EX-Tap 合同偏差单独标注 |
+| [gameplay-spec.md](<gameplay-spec.md>) | 当前判定/舞台与 legacy 兼容说明 |
 | [chart-format-v2.md](<chart-format-v2.md>) | 冻结的正式 v2 合同，不因文档清理而改变格式 |
 | [v2 Schema 与 golden pack](<../schemas/chart-format-v2/>) | 机器可读合同和 clean-room 向量 |
 | [original-judgement-analysis.md](<original-judgement-analysis.md>) | 原版机制研究证据；不是社区产品待办或实现宣告 |
 | [video-geometry-analysis.md](<video-geometry-analysis.md>)、[pixel-calibration.md](<pixel-calibration.md>) | 当前布局的测量依据；不能作为过期日志删除 |
 | [ui-motion.md](<ui-motion.md>) | 当前游戏动效规格、网页参考边界与编辑器目标动效 |
 | [editor-ui-design.md](<editor-ui-design.md>) | Penpot 板位、当前/参考稿标记、设计决策与施工安全约定 |
-| [result-v2-design.md](<result-v2-design.md>) | 已接入结算 v2 的几何、时间线和待验收边界 |
+| [result-v2-design.md](<result-v2-design.md>) | 已接入并通过用户验收的结算 v2 几何、时间线与边界 |
 
 ## 提案与历史参考
 
-- [Storyboard 提案](<storyboard-editor-proposal.md>)：未实现、未冻结的未来方向，不是现有编辑器工作区。
+- [Storyboard 提案](<storyboard-editor-proposal.md>)：首版不做、已拍板 sidecar 方向的未来工作区，编辑器设计稿仅留禁用占位入口；不是现有编辑器能力。
 - [网页 UI 参考目录](<ui-mock/>)：历史视觉/交互稿；不能据其判断当前客户端或编辑器能力。
 - [历史归档](<archive/README.md>)：旧阶段审计、编辑器重建检查点和整理前原文快照。
 - [开发样本统计](<../tools/chart_stats_report.md>)：研究记录，不是 Type 语义或公开发行曲库。

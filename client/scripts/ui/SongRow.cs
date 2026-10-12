@@ -58,7 +58,7 @@ public partial class SongRow : Control
     public override void _Process(double delta)
     {
         var profile = MotionProfile;
-        var nextHover = Advance(_hoverAmount, _hover ? 1f : 0f, delta, profile.HoverDuration);
+        var nextHover = Advance(_hoverAmount, _hover ? 1f : 0f, delta, UiHoverMotion.Seconds);
         var nextSelected = Advance(_selectedAmount, _selected ? 1f : 0f,
             delta, profile.ValueDuration);
         var nextCommit = _commitAmount;

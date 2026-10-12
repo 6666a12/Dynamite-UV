@@ -28,16 +28,23 @@ public static class GameplayStageGeometry
         double visibleBars = 8d) =>
         (float)(barDelta / visibleBars * PreviewTravelPx(track));
 
+    /// <summary>
+    /// 触点到该轨判定线的**剩余像素**（正 = 尚未判定），与 <see cref="PositionAt"/> 的
+    /// <c>remainingPx</c> 同一度量：中轨沿 y、侧轨沿 x。这是唯一一处"判定线距离"真源，
+    /// 预览投影与作者期鼠标模型都从这里取距离。
+    /// </summary>
+    public static float StageDistancePx(Track track, float stageX, float stageY) => track switch
+    {
+        Track.Left => stageX - LeftLineX,
+        Track.Right => RightLineX - stageX,
+        _ => CenterLineY - stageY,
+    };
+
     /// <summary>Inverse of the fixed preview projection used by DynaMaker UV placement.</summary>
     public static double PreviewBarAtStagePoint(Track track, float stageX, float stageY,
         double currentBar, double visibleBars = 8d)
     {
-        var distance = track switch
-        {
-            Track.Left => stageX - LeftLineX,
-            Track.Right => RightLineX - stageX,
-            _ => CenterLineY - stageY,
-        };
+        var distance = StageDistancePx(track, stageX, stageY);
         return Math.Max(0d, currentBar + distance / PreviewTravelPx(track) * visibleBars);
     }
 

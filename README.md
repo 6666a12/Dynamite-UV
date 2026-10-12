@@ -9,8 +9,8 @@ Dynamix 风格的 clean-room 社区音游重实现。公开发布包不使用原
 > 2026-10-07 按源码静态核对；不是本次构建/测试通过或实机验收声明。
 
 - **游戏**：主菜单 → 选曲 → 游玩 → 结算闭环可用；设置、本地成绩、三轨输入、Hold/Mixer 等主体判定已接入。
-- **UI**：选曲 v2、搜索/试听、Standard/Hardcore、Mirror/Auto、三 tab 设置、首页 3D 能量核心已实现。结算 v2 已接入，实机观感待用户验收；首页新分区启灯仍是设计探索。
-- **制谱器**：独立 Godot 桌面项目；能打开本地 strict v2 目录包，创建内存草稿，画布编辑与 undo/redo 已接入。**UI 保存/导出、真实音频试听/波形和 Storyboard 尚未完成**。
+- **UI**：选曲 v2、搜索/试听、Standard/Hardcore、Mirror/Auto、三 tab 设置、首页 3D 能量核心已实现。结算 v2 已接入并通过用户实机验收；首页新分区启灯仍是设计探索。
+- **制谱器**：独立 Godot 桌面项目；能打开本地 strict v2 目录包，创建内存草稿，画布编辑与 undo/redo 已接入，SAVE/SAVE AS 已接入 shared 事务式写包。**ZIP/XML/DY 导出、真实音频试听/波形和 Storyboard 尚未完成**。
 - **谱面/成绩**：支持 legacy 与 strict v2；分数归一化为 1,000,000。v2 使用四元成绩身份，legacy-direct 保留历史兼容键；Auto 不写成绩。
 - **明确缺口**：BLEED 目前只有开关/锁定/持久化，没有真实玩法机制；筛选排序占位，Hit/UI 声音链路不完整，服务器未接客户端。
 
@@ -64,7 +64,7 @@ taskkill /F /IM Godot_v4.7.1-stable_mono_win64.exe
 & "..\godot\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe" --path editor
 ```
 
-制谱器从 UI 的 BROWSE/OPEN PACKAGE 选择目录，不使用旧工作台启动参数。普通修改后不代替用户启动游戏目测，截图/录屏流程见 [交接文档](<docs/handoff.md>)。
+制谱器从 UI 的 Start 页选目录（OPEN PACKAGE 大卡 → 路径行的 OPEN），不使用旧工作台启动参数。普通修改后不代替用户启动游戏目测，截图/录屏流程见 [交接文档](<docs/handoff.md>)。
 
 ## 主要文档
 

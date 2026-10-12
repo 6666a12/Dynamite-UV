@@ -20,10 +20,11 @@
 | 区域 | 已接入 | 边界 |
 | --- | --- | --- |
 | 首页 | 游玩、设置、真实 Blender 模型的 3D 能量核心 | “谱面工坊”禁用，预留给服务器谱面库；分区启灯新概念未接入 |
-| 选曲 v2 | QUICK SETTINGS、Standard/Hardcore、BLEED/MIRROR/AUTO、曲名/曲师/谱师实时搜索、就地展开卡、试听、难度切换和最佳成绩 | 筛选排序仍占位；进场默认收起、不自动试听 |
+| 选曲 v2 | QUICK SETTINGS、Standard/Hardcore、BLEED/MIRROR/AUTO、曲名/曲师/谱师实时搜索、就地展开卡（Full 下 0.20s 高度动画 + 卡内内容淡切）、试听、难度切换和最佳成绩 | 筛选排序仍占位；进场默认收起、不自动试听 |
 | 游玩 | 三轨鼠标/多点触摸、镜像、Auto、暂停/继续、重开、返回选曲 | Auto 忽略游玩输入、全 Prefect 且不写成绩；多指设备层仍待验证 |
-| 结算 v2 | 不透明双屏风、v5 五评级图集、分组信息、AP/FC、判定分布、纪录增量、三动作按钮 | 已接入，实机观感待用户验收；运行时评级是图片/图集，不是实时 3D 模型 |
-| 设置 | GAMEPLAY/AUDIO/DISPLAY；偏移、落速、特效、模式、Music/Hit/UI 音量与 Full/Reduced/Off | 设置已持久化；完整 Hit/UI 声音资产链路未完成 |
+| 结算 v2 | 不透明双屏风、v5 五评级图集、分组信息、AP/FC、判定分布、纪录增量、三动作按钮、组内数据动效（分数计数/判定错峰计数/分布条擦入/NEW RECORD 盖印，Full 限定） | 已接入并通过用户实机验收；运行时评级是图片/图集，不是实时 3D 模型 |
+| 设置 | GAMEPLAY/AUDIO/DISPLAY；偏移、落速、特效、模式、Music/Hit/UI 音量与 Full/Reduced/Off；JUDGE OFFSET 行带「校准 ▶」入口 | 设置已持久化；完整 Hit/UI 声音资产链路未完成 |
+| 校准向导 | 单轨试打台（游玩几何/落速）+ 毫秒读数 + 偏差条带 + 实时统计，合成 120BPM 节拍循环，时钟与游玩同源（不含 userOffset）；建议偏移 = 当前 − 中位数（5ms 取整、±300 钳制）；目标样本 8–32 可调、采样中锁定；每颗 note 至多一个样本 | 已实机验收（Android 全流程：采样/统计/APPLY）；节拍音源数据末尾垫 1 静音帧——引擎混音在循环边界会读到 loop_end 帧，loop_end == 帧数时越界 2 字节，Android 上必崩（桌面被分配器冗余掩盖），手写 AudioStreamWav 循环必须遵守；页面动效口径见 editor-ui-design.md §2.2 |
 
 选曲展开即自动播放预览，切歌/收起/离页/START 停止；传输键可暂停，进度只读且不循环。无配置时使用 0s/30s，预览整段加载音频，大 WAV 首次展开可能卡顿。
 几何和状态细节见 [UI 设计施工约定](<editor-ui-design.md>)。
@@ -35,6 +36,7 @@
 ### 2.2 谱面、模式与判定
 
 - 目录扫描：开发/Internal 先读取 `res://testdata/packs` 再读 `user://charts`，同 id 玩家包覆盖开发包；Public/未分类导出只读玩家包。
+- v2 包加载按文件系统分路：`res://` 包全程走 Godot FileAccess/ResourceLoader 虚拟分支（Android 导出里 res:// 在 PCK 内，System.IO 不可见；包内音频只有导入重映射，digest 按空音频计算，desktop 同路保证两端一致），`user://`/绝对路径走 System.IO 文件系统版（digest 含完整音频）。**任何 v2 加载改动都必须保持 res:// 分支不引入 System.IO。**
 - 显式 v2 必须严格解码、跨文件校验与计算 Digest，失败拒绝；正常 legacy 先尝试转换成 v2，不适用时保留 legacy-direct 兼容路径。正式合同见 [Chart Format v2](<chart-format-v2.md>)。
 - legacy `Position` 为左缘，范围 `[P,P+W]`，中心 `P+W/2`；v2 使用自己的 center/width 合同，不能混用。Type 1 Tap、2 Drag、3/4 Hold、5 EX-Tap、6/7 Mixer、8 Mine、9 BarLine。
 - EX-Tap 为窗口倍率 1.0 的二值判定：窗内 Prefect、出窗输入 Miss，无 GR/GD；参与同帧时间锁。BarLine 只渲染，不计分/Combo。
@@ -60,11 +62,31 @@
 
 ### 2.4 制谱器（当前 shell，不是旧阶段能力）
 
-- 独立 Godot 桌面项目，页流为 Start → Pack → Create → Edit；从 UI 选本地目录并 OPEN PACKAGE，能真实打开 strict v2 包。
-- 新建包/差分先进入内存草稿；现有包的编辑也只留内存。画布已绑定 `EditorDocument` / `CanvasAuthoringController`，变更走命令、dirty 与 undo/redo。
-- 当前工具为三轨 Tap/Drag/两阶段 Hold/Select、Events/BPM、选择/拖动/宽度/已有路径节点编辑及网格/吸附。底层保留更多 v2 类型，不表示全部类型、Scroll、曲线或完整路径编辑 UI 已接通。
-- **保存/导出未接入 UI**；shared 已有事务式 `V2PackageWriter.Write/Create`，不能因此称编辑器已完成发布闭环。外部音频映射、strict reopen/probe/Digest 等还需 shell 接线。
-- 播放只是视觉游标计时，未接真实音乐/击音、波形或音频 mixer；无可用的 Settings/Storyboard 工作区。
+- 独立 Godot 桌面项目，页流为 Start → Pack → Create → Edit，以及由 Start 页文字键或 Edit 右键菜单进入的 **Settings**；从 UI 选本地目录并打开，能真实打开 strict v2 包。
+- 新建包/差分先进入内存草稿；现有包的编辑也只留内存。画布已绑定 `EditorDocument` / `CanvasAuthoringController`，变更走命令、dirty 与 undo/redo。SAVE（`Ctrl+S` / 右键 SAVE）与 SAVE AS 已写盘：未落盘草稿走 `V2PackageWriter.Create`，已有包走 `Write`，成功后 `MarkSaved`。
+- 当前工具为三轨 Tap/Drag/两阶段 Hold/Select、Events/BPM、选择/拖动/宽度/已有路径节点编辑及网格/吸附。底层保留更多 v2 类型，不表示全部类型、Scroll 或完整路径编辑 UI 已接通；节点曲线与 judge 已有真实命令入口。Hold/Mixer 的舞台投影已按 shared `V2PathEvaluator` 逐段求值（与实机 `V2RuntimeAdapter` 展开同形，修掉多节点路径被拉直、Mixer 无 body），路径编辑态画 `PATH_FIELD` 菱形手柄 + `#FFE0A0` 虚线 spine + 顶中 `PATH EDIT` 标签（手柄描边取类型的浅色顶边/浅色边，Hold = `#FFF2D1` / `#FFCC59`），选中 Mixer 时另按 shared `V2MixerTicks` 画 1/8 小节判定 tick；双击路径身体/菜单 `ADD NODE` 在采样几何上插入控制节点。
+- 放置手势已按设计板 `Editor — Placing` 落地视觉（`editor/scripts/AuthoringCanvasPlacement.cs`）：过幽灵时间的 pink 全宽时间线（两端渐隐）+ 过幽灵位置的白 3px 位置线 + 线上三读数（位置/宽度/时间，**吸附后的真值**，时间自由态写原始小数）+ 幽灵切角虚线描边 + 阶段 1 的宽度双向箭头与光标十字 + 阶段标签；Hold 拖尾阶段头保持已放置实体外观、body 改由虚线拖尾预览与尾端虚线菱形表示；同轨已放对象的锚点按「同位置/同宽度/两者皆同」画 26×26 蓝/红/品红方块，搬运已有对象时转白（容差取吸附步长的一半）。全部 1:1 跟随、无插值，手势结束即消失。与板面的偏差（幽灵填充不透明度取 shared 渲染器的 ghost alpha、BarTime 文本用编辑器唯一一份最简分式 formatter、侧轨读数没有板面几何）见 [UI 设计施工约定](<editor-ui-design.md>) §4。
+- Edit 主态已按设计稿换成裸舞台 + 四角纯文字 HUD（右上 GRID/SNAP/AUTO、左下曲名 + 难度色 + LV、右下时间 + BAR/BPM），画布叠三档网格、小节号、右缘小节标尺与底部进度细线；旧的曲名 CutPanel 与 AUTO CheckButton 已移除，AUTO 走 `F1` / `Space`。HUD 数值取运行时状态，不是设计稿上的展示值。主态不再有常驻的快捷键速览/工具态/选中摘要三行调试文字（2026-10-08 移除）；保存与错误回报走左下角的保存状态行，其余页走各自的消息行。
+- 单选 Note 时出现浮动 chip（精确 BarTime + 中心读数，删除图标接真实删除；duplicate 无命令，55% 占位；选中描边比 Note 矩形每边外扩 6px、chip 锚在这个外扩框上）；右键菜单按设计稿重建：轨道段/工具格/TIME-CENTER-WIDTH 步进器/`M`·MARK HERE 与 `R`·TEST PLAY FROM MARK（`REPLAY` 只在普通面板，节点态菜单没有）/SAVE 行接真实能力，节点态接真实曲线、judge、删节点与 ADD NODE（游标处插入）命令，EX-TAP/MIXER/MINE/BARLINE、EXPORT、HITSOUND/MUSIC 滑条为 55% 禁用占位。旧的「框选非空选区删除菜单」语义并进同面板 DELETE 行，菜单不再单独有 PLAY/PAUSE 行；菜单不做全屏压暗层（2026-10-08 拍板）。
+- Start 页已按设计稿重建：两行 `DESIGN · CHART · SHIP` 水印 + 椭圆轨道装饰（静态帧，旧的 StartDecoration 动画 ornament 已删）+ 居中标题组；OPEN PACKAGE 大卡承担 BROWSE（选目录只回填路径），NEW PROJECT 大卡进 Create，卡下 slim 路径行（LineEdit + OPEN）是真正的打开入口。设计板没有路径行，这一行是保留「粘贴路径 + 打开」能力的取舍。
+- Pack Select 页已按设计稿落地（`editor/scripts/PackPageOverlay.cs` 自绘）：左列当前包一行 + `IMPORT PACKAGE` 换包（失败保留当前包）；右侧真实封面图（无引用/解码失败回落客户端 NO COVER 占位）、包名、只画包内真实存在的难度 chips（custom 虚线）、DIGEST 盾标；差分行按 §4.4 排序、点行只选中、`OPEN IN EDITOR` 才进 Edit，`NEW CHART` 进 Create，底部 `STORYBOARD` 保持禁用占位。底部状态行没有时长来源，只写 `难度 等级 · N NOTES`（主判定数），与保存/打开回报共用；`DIGEST OK` 是用当前编辑状态真算 gameplay-v1 digest，算不出来时画压暗的 `DIGEST —`。
+- Create 页（设计稿 Create Project）已按稿落地（`editor/scripts/CreatePageOverlay.cs` 自绘 + 真实 LineEdit 子节点）：AUDIO 写真实音频校验态（无时长/采样率探测，试听钮 55% 占位）、METADATA 与 FIRST CHART 字段、TIMING 的 BPM/offset 大数字可直接输入（默认 150/0，非有限数与 BPM ≤ 0 被拒并短暂红框回退）、七枚难度 chips、等级十进制块编码（1..99 步进钳制、99 禁 `›`、非法值红框拒绝、unrated 无块且数字禁用）、可选封面（PNG/JPG，✕ 清空）、MEMORY DRAFT 真实状态行；中缝是实时前置校验（`PreflightCreate`），不过时写原因转红并禁用 `CREATE PACKAGE`。AddDifficulty 下包元数据/音频/封面只读、TIMING 隐藏（新差分时间线仍走既有默认 150/0）。
+- 保存已接 shell：菜单 SAVE/SAVE AS 与 `Ctrl+S` 调用 shared 事务式 `V2PackageWriter.Write/Create`。首次保存沿用完整 draft 的外部音频映射，失败（含空谱面）保留内存文档并显示错误；**导出（ZIP/XML/DY）仍未接入**。
+- Settings 页（设计稿 Editor — Settings，`editor/scripts/SettingsPageOverlay.cs` 自绘）已落地：三组导航 + 行式设置，
+  值持久化在 `user://editor-settings.json`（`editor/scripts/EditorSettings.cs`）。**真接点七项**——
+  MOTION（只关编辑器自己的两种淡入）、UI SCALE（正文字号倍率四档 90/100/110/125%，换档立即生效）、
+  DEFAULT GRID（新草稿与当前文档网格分母）、SNAP（画布空间吸附步长）、
+  GRID OPACITY（三档网格不透明度倍率）、BACKGROUND DIM（`GameplayBackdrop.Modulate` 的 RGB 压暗）、
+  SCROLL INERTIA（滚轮/触摸板滚动的惯性强度，0% 即瞬时）；
+  EFFECTS / AUTO SAVE / AUDIO 三组没有实现可接，按设计稿示例值 55% 占位且不响应、不写盘，
+  `RESET DEFAULTS` 回默认并落盘。两个入口（Start 页右下 `SETTINGS` 文字键、Edit 右键菜单 `SETTINGS` 行）进同一页，
+  BACK 各回其处。默认值取编辑器既有观感（网格 1/16、网格不透明度 100%、背景压暗 0%、滚动惯性 40%、UI SCALE 100%），
+  与板面示例值不同，SCROLL INERTIA 与 UI SCALE 两行本身是板面没有的新增（设计板 EDITOR 组只有四行、GENERAL 三行），
+  见 [UI 设计施工约定](<editor-ui-design.md#4-编辑器交互目标不是当前能力清单>) §4.7 与 §4 第 14、15 条。
+  页形态是**左导航分页、只画当前组**，且**三组各自从同一组顶（y=240）起排成独立面板**（2026-10-08 拍板并修正：
+  不铺成设计板的单面板全长，也不按组累进堆叠——后者会让后面的组面板上半截是大段空白）。
+- 播放只是视觉游标计时，未接真实音乐/击音、波形或音频 mixer；Settings 页的 AUDIO 组与右键菜单的
+  HITSOUND/MUSIC 滑条据此仍是占位，Storyboard 工作区仍不存在。
 - 不再推荐旧 `--editor-package` / `--editor-workbench` 参数。当前启动和详细能力以 [制谱器说明](<dyna-maker-uv.md>) 为准。
 
 ## 3. 舞台与视觉不变量
@@ -87,25 +109,19 @@ Note 为程序化切角材质；命中核心爆发加 GPU 粒子，Hold/Mixer �
 
 ## 4. 仍需处理
 
-### 已接入、待用户验收
-
-- 结算 v2 的屏风遮挡、五评级入场/低频电流、文字布局和 Reduced/Off 实机效果。
-- 最新 Note 生命周期、命中爆发及持续粒子的真实设备观感。
-
 ### 未完成的功能/决策
 
-- 制谱器保存/首次创建/Save As 闭环、外部资源映射和失败反馈；更完整类型/路径/属性 UI，真实音频试听与波形。
+- 制谱器更完整类型/路径/属性 UI，Note duplicate、书签与真实音频试听/波形，ZIP/XML/DY 导出；右键菜单里对应的占位行仍是 55% 禁用。
 - BLEED 规则、Health/GameOver 等是否接入，以及 Standard/Hardcore 成绩隔离。
-- **EX-Tap 规范偏差**：代码已为倍率 1.0 / 二值判定，冻结 v2 §12.1 仍写 1.5。需单独确认规则集版本与兼容策略；本轮不改冻结合同或业务行为，不把差异静默清掉。
 - 选曲筛选/排序、搜索清除等增强；预览大音频首次加载性能。
 - 完整打击音、UI 音效及 Music/Hit/UI 总线资产链路。
-- 首页分区启灯只是设计探索，需单独确认；Storyboard 仍为 [未实现提案](<storyboard-editor-proposal.md>)。
+- 首页分区启灯只是设计探索，需单独确认；Storyboard 首版不做，已拍板为未来单独冻结的谱面 sidecar，设计稿只在 Pack Select 留禁用占位入口（OPEN IN EDITOR 左侧，Storyboard Studio 是独立形态工作室，不是 Note Editor 内的工作区），细节见 [提案](<storyboard-editor-proposal.md>)。
 - 社区服务器尚未接客户端；本仓库无服务器工程，工作区外层仅有 C++ 起步骨架，不代表已选定正式服务器架构。
 
 ### 验证与工程护栏
 
 - 真机 3 指以上、跨轨多押/换指/同帧短点；端到端 pointer 序列回归，窗口失焦/触摸取消统一清理。
-- 客户端/编辑器共享视觉副本的一致性保护、几何同源及密集 Smooth 路径性能评估。
+- 客户端/编辑器共享视觉副本的一致性保护、几何同源及密集 Smooth 路径性能评估（编辑器画布现在按曲线逐段展开路径，每次画布重建的节点数量随曲线段数增长，需要基准测量）。
 - 主仓库 CI 与生成产物保留/清理策略；性能问题应先基准测量，不能把历史审查建议全部视为未实施缺陷。
 - 公开 APK 最终验包未在本次文档整理中执行；未通过 public checker 的产物不得分发。
 

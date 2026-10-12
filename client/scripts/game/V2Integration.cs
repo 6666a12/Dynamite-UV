@@ -38,6 +38,12 @@ internal static class V2Integration
 
     private static V2LoadedPackageChart LoadStrictV2(ChartPack pack, ChartDiff diff)
     {
+        // res:// 是 Godot 虚拟文件系统：Android 导出里它在 PCK 内，System.IO 完全不可见
+        // （GlobalizePath 给出的 OS 路径不存在），必须走 FileAccess/ResourceLoader 的虚拟分支。
+        // user:// 与绝对路径在真机上是真实文件，沿用文件系统版。
+        if (pack.DirPath.StartsWith("res://", StringComparison.Ordinal))
+            return LoadStrictV2Virtual(pack, diff);
+
         var root = ProjectSettings.GlobalizePath(pack.DirPath);
         var loaded = SharedV2Integration.LoadStrict(root, diff.ChartId);
 
@@ -65,13 +71,69 @@ internal static class V2Integration
         return loaded;
     }
 
+    /// <summary>
+    /// res:// 包的 v2 加载：全程 Godot FileAccess/ResourceLoader，不碰 System.IO。
+    /// 与文件系统版的语义差别只有一处——导出包里音频只剩导入重映射（原始字节不可得），
+    /// digest 按空音频计算。desktop 的 res:// 也走这条路，两端身份一致；
+    /// 正式分发的谱面包永远从 user:// 加载（文件系统版），digest 含完整音频。
+    /// </summary>
+    private static V2LoadedPackageChart LoadStrictV2Virtual(ChartPack pack, ChartDiff diff)
+    {
+        string Join(string relative) => $"{pack.DirPath}/{relative}";
+        string ReadText(string relative)
+        {
+            var path = Join(relative);
+            if (!Godot.FileAccess.FileExists(path))
+                throw new InvalidDataException($"v2 package file '{path}' does not exist");
+            return Godot.FileAccess.GetFileAsString(path);
+        }
+
+        var metaJson = ReadText("meta.json");
+        var semanticPack = V2JsonDecoder.DecodePack(metaJson, Join("meta.json"));
+        var entry = semanticPack.Charts.FirstOrDefault(item =>
+            string.Equals(item.Id, diff.ChartId, StringComparison.Ordinal)) ??
+            throw new InvalidDataException(
+                $"chart ID '{diff.ChartId}' is not declared by the pack");
+        var audio = semanticPack.ResolveAudio(entry);
+        var loaded = SharedV2Integration.LoadStrict(metaJson, ReadText(entry.File), diff.ChartId,
+            ReadOnlySpan<byte>.Empty, Join(audio));
+
+        // 与文件系统版相同的跨文件校验，hooks 换成 Godot 虚拟文件系统口径：json 是包内原始
+        // 文件（FileAccess 可读），音频/曲绘是导入资源（ResourceLoader 的 remap 可见）。
+        double? AudioDurationSeconds(string relative)
+        {
+            var duration = Res.LoadAudio(Join(relative))?.GetLength();
+            return duration is > 0.0 ? duration : null;
+        }
+        V2PackageValidator.Validate(loaded.SemanticPack, new V2PackageValidationHooks
+        {
+            FileExists = relative => Godot.FileAccess.FileExists(Join(relative)) ||
+                ResourceLoader.Exists(Join(relative)),
+            LoadChart = chartEntry => V2JsonDecoder.DecodeChart(ReadText(chartEntry.File),
+                Join(chartEntry.File)),
+            ValidateResolvedAudio = (_, relative) =>
+            {
+                if (Res.LoadAudio(Join(relative)) == null)
+                    throw new InvalidDataException(
+                        $"Unsupported or undecodable v2 audio '{relative}'.");
+            },
+            AudioDurationSeconds = AudioDurationSeconds,
+        }, Join("meta.json"));
+        return loaded;
+    }
+
     private static V2LoadedPackageChart LoadLegacyAsV2(ChartPack pack, ChartDiff diff)
     {
         var legacy = DynamixChartLoader.Load(
             Godot.FileAccess.GetFileAsString(pack.ChartPathFor(diff)));
         var audioPath = pack.AudioPathFor(diff);
+        // res:// 音频在导出包里只剩导入重映射（原始字节不可得）：digest 按空音频计算，
+        // desktop 与设备走同一口径（与 v2 虚拟分支相同）；user:// 包仍是真实文件，照常读字节。
+        var audioBytes = audioPath.StartsWith("res://", StringComparison.Ordinal)
+            ? ReadOnlySpan<byte>.Empty
+            : Godot.FileAccess.GetFileAsBytes(audioPath);
         return SharedV2Integration.ConvertLegacyPackageChart(legacy,
-            Godot.FileAccess.GetFileAsBytes(audioPath), pack.Id, diff.ChartId,
+            audioBytes, pack.Id, diff.ChartId,
             PresetFor(diff.Difficulty), audioPath);
     }
 

@@ -83,7 +83,7 @@ public partial class CutButton : Control
 	public override void _Process(double delta)
 	{
 		var profile = MotionProfile;
-		var nextHover = Advance(_hoverAmount, HoverTarget, delta, profile.HoverDuration);
+		var nextHover = Advance(_hoverAmount, HoverTarget, delta, UiHoverMotion.Seconds);
 		var nextPress = Advance(_pressAmount, 0f, delta, profile.PressDuration);
 		var nextCommit = _commitAmount;
 		if (_commitDuration > 0.0)

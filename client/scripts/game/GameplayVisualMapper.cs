@@ -9,9 +9,12 @@ public static class GameplayVisualMapper
     public const float BaseFallSpeedPx = 1026f;
     public const float SideLeadPx = 691f / GameplayStageGeometry.SideDistanceScale;
 
-    public static Vector2 PositionAt(Note note, float remainingPx)
+    // mirrored 显式传入：映射本体在 GameplayStageGeometry，调用方决定是否读镜像设置
+    // （客户端传 GameplayMirror.Enabled，编辑器预览恒为 false）。
+    public static Vector2 PositionAt(Note note, float remainingPx, bool mirrored = false)
     {
-        var (track, center) = GameplayMirror.Display(note.Track, note.Position + note.Width * .5);
+        var (track, center) = GameplayStageGeometry.MirroredDisplay(
+            note.Track, note.Position + note.Width * .5, mirrored);
         return GameplayStageGeometry.PositionAt(track, center, remainingPx)
             is var p ? new Vector2(p.X, p.Y) : Vector2.Zero;
     }
@@ -55,9 +58,9 @@ public static class GameplayVisualMapper
     }
 
     public static bool ClipToJudgeLine(Track track, ref Vector2 a, ref Vector2 b,
-        ref float wa, ref float wb)
+        ref float wa, ref float wb, bool mirrored = false)
     {
-        track = GameplayMirror.DisplayTrack(track);
+        track = GameplayStageGeometry.MirroredTrack(track, mirrored);
         bool Beyond(Vector2 point) => track switch
         {
             Track.Center => point.Y > GameplayStageGeometry.CenterLineY,

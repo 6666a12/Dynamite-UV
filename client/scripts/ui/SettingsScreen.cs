@@ -268,6 +268,7 @@ public partial class SettingsScreen : Node2D
             () => $"{s.TimingOffsetMs:+0;-0;0} ms",
             direction => s.TimingOffsetMs = Math.Clamp(
                 s.TimingOffsetMs + direction * TimingStepMs, -300, 300));
+        AddCalibrationEntry(offsetRow);
 
         var speedRow = CreateRow(root, 500f);
         var speedSub = AddRowLabel(speedRow, "DROP SPEED", $"{s.FallSpeedMultiplier:F1}x");
@@ -478,6 +479,33 @@ public partial class SettingsScreen : Node2D
             leftX + TouchButton + 24f, RowHeight * 0.5f, StepperValueWidth, 64f,
             HorizontalAlignment.Center);
         _valueBindings.Add(new ValueBinding(value, valueText, value.Position, value.Text));
+    }
+
+    /// <summary>
+    /// JUDGE OFFSET 行右侧的「校准 ▶」入口：移到说明文字下面一行（左对齐），
+    /// 与同行的步进器错开，不与 ‹ › 抢 96px 触控键的位置。样式对齐该行既有控件。
+    /// </summary>
+    private void AddCalibrationEntry(Control row)
+    {
+        var entry = new CutButton
+        {
+            Position = new Vector2(0f, RowHeight - 44f),
+            Size = new Vector2(240f, 44f),
+            Cut = 12f,
+            Text = "校准 ▶",
+            FontSize = 20,
+            Accent = UiFonts.Cyan,
+        };
+        entry.Pressed += () =>
+        {
+            if (_localMotionBusy || TransitionDirector.IsBusy)
+                return;
+            GameSession.Settings.Save();
+            TransitionDirector.Navigate(UiRoutes.Calibration, TransitionKind.Standard,
+                "OPEN CHANNEL", "CALIBRATION");
+        };
+        row.AddChild(entry);
+        _enterItems.Add(entry);
     }
 
     private void AddToggle(Control row, Func<bool> read, Action toggle)

@@ -16,7 +16,11 @@ public partial class GameplayMain
 		_hudRoot = new Node2D { Name = "GameplayHud", ZIndex = 20 };
 		AddChild(_stageRoot);
 		AddChild(_hudRoot);
-		var sharedStage = new GameplayStageRenderer { Name = "SharedCommunityStage" };
+		var sharedStage = new GameplayStageRenderer
+		{
+			Name = "SharedCommunityStage",
+			MirrorEnabled = GameplayMirror.Enabled,
+		};
 		_stageRoot.AddChild(sharedStage);
 		sharedStage.BuildCommunityStageChrome();
 		// Gameplay-owned judgement state still controls spawn/recycle, but its

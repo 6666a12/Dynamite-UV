@@ -13,6 +13,8 @@
     <!-- The result clock is deliberately Godot-free: verify opaque loading/skip semantics. -->
     <Compile Include="../../client/scripts/ui/UiMotionMode.cs" Link="Ui/UiMotionMode.cs" />
     <Compile Include="../../client/scripts/ui/ResultRevealTimeline.cs" Link="Ui/ResultRevealTimeline.cs" />
+    <!-- The calibration statistics core is Godot-free too: verify median/spread/suggestion. -->
+    <Compile Include="../../client/scripts/ui/CalibrationStats.cs" Link="Ui/CalibrationStats.cs" />
     <None Include="Fixtures/synthetic_chart.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />

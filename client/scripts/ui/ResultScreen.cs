@@ -30,6 +30,22 @@ public partial class ResultScreen : Control
     private int _lastAmbientFrame = -1;
     private double _ambientElapsed;
     private UiMotionProfile _motion = null!;
+    private Label _scoreValue = null!;
+    private int _scoreFinal;
+    private readonly List<(Label Label, int Final, double Start)> _judgeCounts = [];
+    private readonly List<(ColorRect Bar, float X, float Width)> _judgeBars = [];
+    private Control? _recordStamp;
+
+    // 数据揭示的次级时窗：嵌在各组浮现时窗内开始，不改变整体节奏骨架。
+    private const double ScoreRevealStart = 1.94;
+    private const double ScoreCountDuration = 0.55;
+    private const double JudgmentRevealStart = 2.20;
+    private const double JudgeCountDuration = 0.25;
+    private const double JudgeCountStagger = 0.06;
+    private const double JudgeBarDuration = 0.35;
+    private const double StampPunchDuration = 0.18;
+    private const float StampPunchAmplitude = 0.25f;
+    private const float JudgmentDistributionX = 900f;
 
     internal void Present(ResultScreenData data, UiMotionProfile motion,
         Action covered, Action back, Action next, Action retry, bool canNext)
@@ -45,6 +61,11 @@ public partial class ResultScreen : Control
         Size = new Vector2(1920, 1080);
         ClipContents = true;
         MouseFilter = MouseFilterEnum.Stop;
+        _scoreValue = null!;
+        _scoreFinal = 0;
+        _judgeCounts.Clear();
+        _judgeBars.Clear();
+        _recordStamp = null;
         Build(data, back, next, retry);
         _active = true;
         Visible = true;
@@ -116,6 +137,7 @@ public partial class ResultScreen : Control
             node.Modulate = new Color(1, 1, 1, alpha);
             node.Position = new Vector2(0, _motion.AllowDirectionalMotion ? 18 * (1 - alpha) : 0);
         }
+        ApplyDataMotion();
         var enabled = _timeline.IsComplete && !_actionInFlight && Time.GetTicksMsec() >= _unlockAt;
         if (enabled != _actionsEnabled)
         {
@@ -142,13 +164,19 @@ public partial class ResultScreen : Control
         Label(clear, 104, 882, 624, $"{d.Score.Acc:F2}%", 52, UiFonts.GradeColor(d.Score.Grade), align: HorizontalAlignment.Center);
         var score = RevealGroup("Score", 1.94, 2.18);
         Label(score, 900, 285, 220, "SCORE", 20, UiFonts.Dim);
-        Label(score, 890, 380, 956, $"{d.Score.Score:N0}", d.Score.Score >= 1_000_000 ? 120 : 132, UiFonts.Text, bold: true);
+        _scoreFinal = d.Score.Score;
+        _scoreValue = Label(score, 890, 380, 956, $"{_scoreFinal:N0}",
+            d.Score.Score >= 1_000_000 ? 120 : 132, UiFonts.Text, bold: true);
         if (d.PreviousBest is int best)
             Label(score, 902, 446, 940, $"BEST {best:N0}", 18, UiFonts.Dim);
         if (d.NewRecord && !d.Auto)
         {
-            Panel(score, 1328, 265, 214, 40, UiFonts.Pink, UiFonts.Pink, 10);
-            Label(score, 1328, 285, 214, "NEW RECORD", 17, UiFonts.InkText, true, HorizontalAlignment.Center);
+            // 印章的 scale punch 需要以自身中心缩放，包一层 Control 设 PivotOffset。
+            _recordStamp = new Control { Position = new(1328, 265), Size = new(214, 40),
+                PivotOffset = new(107, 20), MouseFilter = MouseFilterEnum.Ignore };
+            score.AddChild(_recordStamp);
+            Panel(_recordStamp, 0, 0, 214, 40, UiFonts.Pink, UiFonts.Pink, 10);
+            Label(_recordStamp, 0, 20, 214, "NEW RECORD", 17, UiFonts.InkText, true, HorizontalAlignment.Center);
             if (d.PreviousBest is int previous)
                 Label(score, 1558, 285, 290, $"+ {d.Score.Score - previous:N0}", 24, UiFonts.Pink, align: HorizontalAlignment.Right);
         }
@@ -233,21 +261,33 @@ public partial class ResultScreen : Control
         string[] tags = ["PREFECT", "GREAT", "GOOD", "MISS"];
         Color[] colors = [UiFonts.Cyan, new("ffcc59"), UiFonts.Casual, UiFonts.Dim];
         var total = values.Sum();
-        const float distributionX = 900;
         const float distributionWidth = 860;
         Label(parent, 900, 667, 300, "判定分布", 19, UiFonts.Dim);
-        Label(parent, distributionX, 667, distributionWidth, $"{total:N0} NOTES", 16, UiFonts.Dim, align: HorizontalAlignment.Right);
-        Rect(parent, distributionX, 702, distributionWidth, 10, UiFonts.Line);
-        var cursor = distributionX;
+        Label(parent, JudgmentDistributionX, 667, distributionWidth, $"{total:N0} NOTES", 16, UiFonts.Dim, align: HorizontalAlignment.Right);
+        Rect(parent, JudgmentDistributionX, 702, distributionWidth, 10, UiFonts.Line);
+        var cursor = JudgmentDistributionX;
         for (var i = 0; i < 4; i++)
         {
             var width = total > 0 ? distributionWidth * values[i] / total : 0;
-            if (width > 0) Rect(parent, cursor, 702, width, 10, colors[i]);
+            if (width > 0)
+            {
+                // 分布条留句柄：ApplyDataMotion 按擦入系数逐帧重写宽度与位置。
+                var bar = new ColorRect
+                {
+                    Position = new Vector2(cursor, 702),
+                    Size = new Vector2(width, 10),
+                    Color = colors[i],
+                    MouseFilter = MouseFilterEnum.Ignore,
+                };
+                parent.AddChild(bar);
+                _judgeBars.Add((bar, cursor, width));
+            }
             cursor += width;
             var x = 900 + i * 246;
             Rect(parent, x, 748, 5, 13, colors[i]);
             Label(parent, x + 17, 755, 200, tags[i], 17, colors[i]);
-            Label(parent, x + 14, 809, 196, $"{values[i]:N0}", 42, values[i] > 0 ? UiFonts.Text : UiFonts.Dim);
+            var count = Label(parent, x + 14, 809, 196, $"{values[i]:N0}", 42, values[i] > 0 ? UiFonts.Text : UiFonts.Dim);
+            _judgeCounts.Add((count, values[i], JudgmentRevealStart + i * JudgeCountStagger));
             if (i > 0) Rect(parent, x - 28, 748, 1, 84, new Color(UiFonts.Line, .45f));
         }
     }
@@ -280,6 +320,56 @@ public partial class ResultScreen : Control
         return c;
     }
 
+    /// <summary>数据揭示动效：SCORE 计数、判定计数错峰、分布条擦入、NEW RECORD 盖印。
+    /// 全部是 <see cref="ResultRevealTimeline.Elapsed"/> 的纯函数——Skip 把 Elapsed 跳终值后
+    /// 所有数字自然落终值，不需要额外收尾。Reduced/Off 直接给终值：对"快速浮现"语义来说，
+    /// 半路停住的计数没有信息量。盖印缩放是 directional motion，仅 Full 播放。</summary>
+    private void ApplyDataMotion()
+    {
+        var full = _motion.Mode == UiMotionMode.Full;
+        var scoreT = full ? CubicOut(WindowProgress(ScoreRevealStart, ScoreCountDuration)) : 1f;
+        _scoreValue.Text = $"{(int)MathF.Round(_scoreFinal * scoreT):N0}";
+
+        var wipe = full ? UiEase.Standard(WindowProgress(JudgmentRevealStart, JudgeBarDuration)) : 1f;
+        foreach (var (bar, x, width) in _judgeBars)
+        {
+            // 段宽与段位同乘擦入系数：整条分布带从左缘一起长出，段间不会拉开口子。
+            bar.Size = new Vector2(width * wipe, bar.Size.Y);
+            bar.Position = new Vector2(JudgmentDistributionX + (x - JudgmentDistributionX) * wipe,
+                bar.Position.Y);
+        }
+        foreach (var (label, final, start) in _judgeCounts)
+        {
+            var t = full ? CubicOut(WindowProgress(start, JudgeCountDuration)) : 1f;
+            label.Text = $"{(int)MathF.Round(final * t):N0}";
+        }
+
+        if (_recordStamp != null)
+        {
+            var punch = full && _motion.AllowDirectionalMotion
+                ? Mathf.Lerp(1f + StampPunchAmplitude, 1f,
+                    BackOut(WindowProgress(ScoreRevealStart, StampPunchDuration)))
+                : 1f;
+            _recordStamp.Scale = new Vector2(punch, punch);
+        }
+    }
+
+    /// <summary>timeline Elapsed 在 [start, start+duration] 窗口内的 0..1 进度。</summary>
+    private float WindowProgress(double start, double duration) =>
+        (float)Math.Clamp((_timeline.Elapsed - start) / duration, 0.0, 1.0);
+
+    private static float CubicOut(float t) => 1f - MathF.Pow(1f - t, 3f);
+
+    /// <summary>带回弹的落点曲线（easeOutBack）：冲过 1 再收回，给盖印那一下"砸到位"的回弹。
+    /// UiEase.CubicBezier 输出钳在 [0,1] 给不出过冲，所以这里是独立实现。</summary>
+    private static float BackOut(float t)
+    {
+        const float c1 = 1.70158f;
+        const float c3 = c1 + 1f;
+        var u = t - 1f;
+        return 1f + c3 * u * u * u + c1 * u * u;
+    }
+
     private static Control Group(Node parent, string name)
     {
         var c = new Control { Name = name, Size = new(1920, 1080), MouseFilter = MouseFilterEnum.Ignore };
@@ -303,7 +393,7 @@ public partial class ResultScreen : Control
         return c;
     }
 
-    private static void Label(Node parent, float x, float cy, float width, string text, int size, Color color,
+    private static Label Label(Node parent, float x, float cy, float width, string text, int size, Color color,
         bool bold = false, HorizontalAlignment align = HorizontalAlignment.Left)
     {
         var label = new Label { Text = text, Position = new(x, cy - size * .75f), Size = new(width, size * 1.5f),
@@ -314,5 +404,6 @@ public partial class ResultScreen : Control
         label.AddThemeFontSizeOverride("font_size", size);
         label.AddThemeColorOverride("font_color", color);
         parent.AddChild(label);
+        return label;
     }
 }

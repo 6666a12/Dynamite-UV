@@ -1663,7 +1663,8 @@ public partial class GameplayMain : Node2D
 	private static bool ClipToLine(Track track, ref Vector2 a, ref Vector2 b,
 		ref float wa, ref float wb)
 	{
-		return GameplayVisualMapper.ClipToJudgeLine(track, ref a, ref b, ref wa, ref wb);
+		return GameplayVisualMapper.ClipToJudgeLine(track, ref a, ref b, ref wa, ref wb,
+			GameplayMirror.Enabled);
 	/*
 		bool Beyond(Vector2 p) => track switch
 		{
@@ -1774,7 +1775,7 @@ public partial class GameplayMain : Node2D
 		Mathf.Max(0f, -remaining * (track == Track.Center ? 1f : SideDistScale));
 
 	private static Vector2 PositionAt(Note n, float rem)
-		=> GameplayVisualMapper.PositionAt(n, rem);
+		=> GameplayVisualMapper.PositionAt(n, rem, GameplayMirror.Enabled);
 	/* => n.Track switch
 	{
 		// Center：匀速落向底部隐形判定线。Position = 条的**左缘**（跨域 [P, P+W]，

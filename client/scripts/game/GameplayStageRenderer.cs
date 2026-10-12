@@ -20,6 +20,8 @@ public partial class GameplayStageRenderer : Node2D
     private Node2D? _noteRoot;
     public bool ShowControlNodes { get; set; } = true;
     public bool ShowLinks { get; set; } = true;
+    /// <summary>Chart mirroring, injected by gameplay from GameplayMirror.Enabled; editor previews keep it false.</summary>
+    public bool MirrorEnabled { get; set; }
     /// <summary>Dynamic gameplay views can live in the same visual layer as editor previews.</summary>
     public Node2D NoteLayer
     {
@@ -65,7 +67,7 @@ public partial class GameplayStageRenderer : Node2D
     {
         foreach (var note in _notes)
             if (_views.TryGetValue(note.Id, out var view))
-                view.Position = GameplayVisualMapper.PositionAt(note, Remaining(note));
+                view.Position = GameplayVisualMapper.PositionAt(note, Remaining(note), MirrorEnabled);
         foreach (var link in _links)
             UpdateLink(link);
     }
@@ -118,7 +120,7 @@ public partial class GameplayStageRenderer : Node2D
             var view = NoteView.Create(note, GameplayVisualMapper.SizeFor(note), GameplayVisualMapper.ColorFor(note), ghost: ghost);
             view.SetDepthAlpha(ghost ? 0.6f : 1f);
             var drawRemaining = ghost && note.Type == NoteType.HoldHead ? Mathf.Max(0f, remaining) : remaining;
-            view.Position = GameplayVisualMapper.PositionAt(note, drawRemaining);
+            view.Position = GameplayVisualMapper.PositionAt(note, drawRemaining, MirrorEnabled);
             _noteRoot.AddChild(view);
             _views[note.Id] = view;
         }
@@ -183,21 +185,25 @@ public partial class GameplayStageRenderer : Node2D
 
     private void UpdateLink((Note From, Note To, Polygon2D Body, Line2D? Frame) link)
     {
-        var a = GameplayVisualMapper.PositionAt(link.From, Remaining(link.From));
-        var b = GameplayVisualMapper.PositionAt(link.To, Remaining(link.To));
+        var a = GameplayVisualMapper.PositionAt(link.From, Remaining(link.From), MirrorEnabled);
+        var b = GameplayVisualMapper.PositionAt(link.To, Remaining(link.To), MirrorEnabled);
         var wa = GameplayVisualMapper.LinkHalfFor(link.From);
         var wb = GameplayVisualMapper.LinkHalfFor(link.To);
         var ghostLink = _ghostNoteIds.Contains(link.From.Id) || _ghostNoteIds.Contains(link.To.Id);
         if (ghostLink && link.From.Type == NoteType.HoldHead && a.DistanceSquaredTo(b) < 1f)
         {
-            b = link.From.Track switch
+            // stub 方向按显示轨道选：a/b 已镜像映射，原始 Left 镜像后显示在右侧，
+            // 若仍向右伸会越过右判定线，被下方 ClipToJudgeLine（内部自己镜像）判 Beyond 而整条消失。
+            var displayTrack = GameplayStageGeometry.MirroredTrack(link.From.Track, MirrorEnabled);
+            b = displayTrack switch
             {
                 Track.Center => a + Vector2.Up * 66f,
                 Track.Left => a + Vector2.Right * 66f,
                 _ => a + Vector2.Left * 66f,
             };
         }
-        if (!GameplayVisualMapper.ClipToJudgeLine(link.From.Track, ref a, ref b, ref wa, ref wb))
+        if (!GameplayVisualMapper.ClipToJudgeLine(link.From.Track, ref a, ref b, ref wa, ref wb,
+            MirrorEnabled))
         {
             link.Body.Visible = false;
             if (link.Frame is not null) link.Frame.Visible = false;

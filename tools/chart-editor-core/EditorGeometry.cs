@@ -2,36 +2,19 @@ using DynamiteUniverse.Shared.Chart.V2;
 
 namespace DynamiteUniverse.ChartEditor.Core;
 
-/// <summary>Fixed 1920×1080 editor geometry, matching the approved gameplay layout.</summary>
+/// <summary>Editor mouse-model constants that are not stage geometry. The 1920×1080
+/// layout itself lives in shared <see cref="DynamiteUniverse.Shared.Chart.GameplayStageGeometry"/>;
+/// this type only owns the magnetic grid steps.</summary>
 public static class EditorGeometry
 {
-    public const double DesignWidth = 1920;
-    public const double DesignHeight = 1080;
-    public const double CenterLineY = 861;
-    public const double CenterX0 = 280;
-    public const double CenterUnit = 273.2;
-    public const double NoteVisualScale = .95;
-    public const double LeftLineX = 184;
-    public const double RightLineX = 1736;
-    public const double SideY0 = 840;
-    public const double SideUnit = 115;
-    public const double SideVisualUnit = 102;
+    /// <summary>Magnetic chart-coordinate step for note centres (DynaMaker's 0.1 unit grid).</summary>
+    public const double CenterSnap = .1d;
 
-    public static double CenterLeft(double center, double width) =>
-        CenterX0 + (center - width / 2.0) * CenterUnit;
+    /// <summary>Fine centre step while the free-edit modifier is held.</summary>
+    public const double FineCenterSnap = .01d;
 
-    public static double CenterWidth(double width) => width * CenterUnit * NoteVisualScale;
-
-    public static double SideCenterY(double center) => SideY0 - SideUnit * center;
-
-    public static double SideLength(double width) => width * SideVisualUnit * NoteVisualScale;
-
-    public static (double Scale, double OffsetX, double OffsetY) Fit(double hostWidth, double hostHeight)
-    {
-        var scale = Math.Min(hostWidth / DesignWidth, hostHeight / DesignHeight);
-        return (scale, (hostWidth - DesignWidth * scale) / 2.0,
-            (hostHeight - DesignHeight * scale) / 2.0);
-    }
+    /// <summary>Note widths snap to 1/20 of a chart unit.</summary>
+    public const double WidthSnapDivisor = 20d;
 
     public static ExactBarTime Snap(ExactBarTime time, int divisor)
     {

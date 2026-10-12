@@ -37,6 +37,12 @@ public sealed class GameSettings
     /// <summary>谱面左右镜像（选曲页开关）：侧轨互换、中轨水平镜像。</summary>
     public bool MirrorEnabled { get; set; } = false;
 
+    /// <summary>
+    /// 校准向导的目标有效样本数：8–32、每档 4，默认 16。只影响校准页的采样进度门槛，
+    /// 不参与判定。取值范围与钳制口径见 <see cref="Ui.CalibrationStats"/>。
+    /// </summary>
+    public int CalibrationTargetSamples { get; set; } = Ui.CalibrationStats.DefaultTargetSamples;
+
     /// <summary>BLEED 的实际生效值：HARDCORE 强制开启（锁定态不改写持久化值）。</summary>
     public bool BleedEffective => GameplayMode == GameplayMode.Hardcore || BleedEnabled;
 
@@ -55,6 +61,7 @@ public sealed class GameSettings
         AutoEnabled = false;
         BleedEnabled = false;
         MirrorEnabled = false;
+        CalibrationTargetSamples = Ui.CalibrationStats.DefaultTargetSamples;
     }
 
     public void Load()
@@ -83,6 +90,7 @@ public sealed class GameSettings
                 AutoEnabled = data.AutoEnabled;
                 BleedEnabled = data.BleedEnabled;
                 MirrorEnabled = data.MirrorEnabled;
+                CalibrationTargetSamples = data.CalibrationTargetSamples;
             }
         }
         catch (Exception e)
@@ -113,6 +121,7 @@ public sealed class GameSettings
                 AutoEnabled = AutoEnabled,
                 BleedEnabled = BleedEnabled,
                 MirrorEnabled = MirrorEnabled,
+                CalibrationTargetSamples = CalibrationTargetSamples,
             }, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception e)
@@ -143,6 +152,7 @@ public sealed class GameSettings
     private void ClampValues()
     {
         TimingOffsetMs = Math.Clamp(TimingOffsetMs, -300, 300);
+        CalibrationTargetSamples = Ui.CalibrationStats.NormalizeTargetSamples(CalibrationTargetSamples);
         FallSpeedLevel = Math.Clamp(FallSpeedLevel, 1, 20);
         MusicVolume = Math.Clamp(MusicVolume, 0, 100);
         HitVolume = Math.Clamp(HitVolume, 0, 100);
@@ -210,5 +220,7 @@ public sealed class GameSettings
         [JsonPropertyName("autoEnabled")] public bool AutoEnabled { get; set; }
         [JsonPropertyName("bleedEnabled")] public bool BleedEnabled { get; set; }
         [JsonPropertyName("mirrorEnabled")] public bool MirrorEnabled { get; set; }
+        [JsonPropertyName("calibrationTargetSamples")]
+        public int CalibrationTargetSamples { get; set; } = Ui.CalibrationStats.DefaultTargetSamples;
     }
 }

@@ -294,6 +294,15 @@ public sealed class ChartPack
     private static bool IsLegacyRegularFile(string packageDirectory, string path,
         out string reason)
     {
+        // res:// 是只读虚拟文件系统（导出包里是 PCK 内容），不存在目录逃逸/链接伪装，
+        // 且音频/图片在导出后只剩导入重映射（原始文件不在包内）——存在性必须同时问
+        // FileAccess（原始文件）与 ResourceLoader（导入资源），System.IO 一律不可见。
+        if (path.StartsWith("res://", StringComparison.Ordinal))
+        {
+            var exists = Godot.FileAccess.FileExists(path) || ResourceLoader.Exists(path);
+            reason = exists ? string.Empty : "file does not exist";
+            return exists;
+        }
         var global = ProjectSettings.GlobalizePath(path);
         if (!ValidateLegacyDirectoryChain(ProjectSettings.GlobalizePath(packageDirectory), global, out reason))
             return false;

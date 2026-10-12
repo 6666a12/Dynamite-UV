@@ -20,5 +20,6 @@ public static class UiRoutes
     public const string Main = "res://scenes/main.tscn";
     public const string SongSelect = "res://scenes/song_select.tscn";
     public const string Settings = "res://scenes/settings.tscn";
+    public const string Calibration = "res://scenes/calibration.tscn";
     public const string Gameplay = "res://scenes/gameplay.tscn";
 }

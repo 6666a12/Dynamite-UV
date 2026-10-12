@@ -6,7 +6,6 @@
 >
 > 当前 Godot 客户端已接 strict v2 目录包加载、validator、legacy→v2 适配与 Gameplay Digest 成绩身份；legacy 仍是兼容输入。
 > 原生 DynaMaker UV 已接包打开与基础编辑，保存/导出等尚未接入；当前能力见 [制谱器说明](<dyna-maker-uv.md>)，不能把本文最低要求当成 UI 完成证明。
-> **实现偏差提醒（2026-10-07 静态核对）**：现有 EX-Tap 倍率为 1.0 且采用二值判定，而冻结 §12.1 保留 1.5 边界。文档整理未修改该冻结条款；需单独决定规则集/兼容策略，不能据“已接入”宣布全项符合。
 > “正式”表示本文的数据合同与玩法语义已经冻结，客户端和工具必须按此 fail closed。
 
 本文是 Dynamite Universe 社区谱面包 v2 的权威规范。机器可读约束见
@@ -451,7 +450,7 @@ width 是有限数且 width > 0
 | --- | --- |
 | `tap` | Began/Press 型四档判定 |
 | `drag` | 接触型四档判定；已有触点经过即可 |
-| `exTap` | Began/Press 型，四档窗口统一乘 1.5 |
+| `exTap` | Began/Press 型二值判定：窗口与 `tap` 相同；`|Δ| ≤ Good` 为 Prefect，出窗输入为 Miss，无 Great/Good |
 | `mine` | 危险窗内触碰为 Miss，未触碰安全通过为 Prefect |
 | `barLine` | 纯视觉，不产生主判定、不改变 Combo |
 
@@ -715,8 +714,9 @@ k = 1, 2, ..., floor(8 * (E-H))
 | `hard` | ±62.5ms | ±112.5ms | ±162.5ms | ±250ms |
 
 `Judge(target,input)` 使用 `input-target` 的绝对值选择最内层匹配等级；超出 Good 为 Miss。
-Miss 候选范围用于输入候选选择，不能把超出 Good 的输入升级为 Good。`exTap` 的全部边界
-统一乘 1.5。Mixer 后续 tick 和 Hold 已连接的中间 node 不使用四档窗口。
+Miss 候选范围用于输入候选选择，不能把超出 Good 的输入升级为 Good。`exTap` 是二值判定：
+窗口边界与 `tap` 相同（倍率 1.0），`|Δ| ≤ Good` 一律 Prefect，不产生 Great/Good；出窗输入
+立即按输入 Miss 结算，不留 Pending。Mixer 后续 tick 和 Hold 已连接的中间 node 不使用四档窗口。
 
 ### 12.2 主判定展开
 

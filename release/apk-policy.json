@@ -45,6 +45,7 @@
         "scenes/song_select.tscn.remap",
         "scenes/gameplay.tscn.remap",
         "scenes/settings.tscn.remap",
+        "scenes/calibration.tscn.remap",
         "shaders/note_surface.gdshader",
         ".godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata",
         ".godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata",

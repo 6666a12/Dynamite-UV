@@ -1,7 +1,7 @@
 # 结算页与结算转场 v2
 
 > 当前方案：屏风合拢、停顿、拉开，评级先落位，其它信息再浮现。
-> 2026-10-03 已接入；2026-10-07 按源码整理状态，实机观感待用户验收。
+> 2026-10-03 已接入；2026-10-07 通过用户实机验收。
 > 旧版替换过程与阶段检查记录见 [历史快照](<archive/2026-10-07-cleanup/result-v2-design.before.md>)，不是本次新验证。
 用户认可 v5 评级的炫光方向并要求附着表面电流；本稿直接使用
 `design/grades/v5_current/delivery/` 的评级资产。
@@ -70,8 +70,8 @@
 | 920–1400ms | 屏风左右拉开，只露出结算空背景 |
 | 1400–1780ms | v5 评级序列单独入场，约 1692ms 到第 8 帧命中；其它信息仍隐藏 |
 | 1780–2040ms | 曲目信息、模式标记与 CLEAR 先后向上 18px 淡入 |
-| 1940–2180ms | 分数与纪录信息向上 18px 淡入 |
-| 2080–2420ms | 成就徽章与 Max Combo，随后判定比例条和计数依次浮现 |
+| 1940–2180ms | 分数与纪录信息向上 18px 淡入；SCORE 数字同时从 0 计到终值（0.55s CubicOut），NEW RECORD 章带 1.25→1.0 盖印回弹（0.18s easeOutBack） |
+| 2080–2420ms | 成就徽章与 Max Combo，随后判定比例条从左缘整体擦入（0.35s）且四档计数错峰 60ms 各自 0.25s count-up |
 | 2360–2600ms | 底部按钮最后浮现；揭晓期间点击只跳过，不穿透触发按钮 |
 | 2650ms | 评级序列播完，进入低频表面电流循环；页面其它内容稳定 |
 
@@ -113,6 +113,10 @@ Off 直接显示稳定页，遮住 Gameplay，避免短暂透层。
 客户端实现位于 `client/scripts/ui/ResultScreen.cs`、`ResultShutter.cs`、
 `ResultRevealTimeline.cs` 与 `ResultGradeArt.cs`。`GameplayMain` 仍负责计算/保存成绩，
 并在保存前读取旧最佳分数用于 NEW RECORD 增量。新 UI 不改变 legacy/v2 成绩身份。
+数据揭示动效（SCORE 计数、判定计数/分布条、NEW RECORD 盖印）集中在
+`ResultScreen.ApplyDataMotion`：全部是 `ResultRevealTimeline.Elapsed` 的纯函数，
+跳过（Skip 跳终值）与 Reduced/Off 因此不需要任何收尾分支就落终值；盖印缩放是
+directional motion 仅 Full 播放，计数/擦入在 Reduced/Off 直接显示终值。
 
 运行时资产为 `client/assets/results/`，生成器
 `tools/grade-assets/build_runtime_results.py` 将每级 30 帧无损拼为 3072×2560 图集，

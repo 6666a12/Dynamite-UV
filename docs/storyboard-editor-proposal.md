@@ -5,6 +5,15 @@
 >
 > 本文用于在优化制谱器之前固定 Storyboard 的职责边界、编辑体验和未来运行时接口。
 > 当前不修改客户端、shared、制谱器代码，也不改变 Chart Format v2。
+>
+> **2026-10-07 拍板**：首版不做 Storyboard。正式形态确认为**谱面 sidecar**（如
+> `charts/<chartId>.storyboard.json`，路径与版本号实现前单独冻结）；编辑器 UI 只保留一个
+> 明确禁用态的占位入口，不实现任何 Storyboard 功能。前向兼容性已核实：当前 strict
+> loader 的 `ValidatePackageTree` 只拒绝 reparse point 与大小写路径碰撞，不拒绝包内未声明
+> 文件，未来 sidecar 文件不会导致旧客户端拒载；Gameplay Digest 投影不含 sidecar，成绩身份
+> 不受影响。遗留实现期事项：`V2PackageWriter.PublishOverExisting` 会清理不在目标集内的
+> 文件，Storyboard 落地时 writer 必须认识 sidecar 文件，不得把作者的 Storyboard 当孤儿
+> 文件清除。
 
 ## 1. 结论先行
 

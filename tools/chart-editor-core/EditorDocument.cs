@@ -144,6 +144,10 @@ public sealed class EditableChart
 
 public sealed class EditorDocument
 {
+    /// <summary>DynaMaker's default magnetic grid: 1/16 of a chart bar. Single source for the
+    /// document default, the canvas reset shortcut and the new-project request.</summary>
+    public const int DefaultGridDivisor = 16;
+
     private readonly Stack<EditorHistoryEntry> _undo = new();
     private readonly Stack<EditorHistoryEntry> _redo = new();
     private int _historyPosition;
@@ -165,7 +169,7 @@ public sealed class EditorDocument
     private readonly Dictionary<string, string> _pendingResourceReplacements = new(StringComparer.OrdinalIgnoreCase);
     public string SelectedChartId { get; private set; } = string.Empty;
     public EditorSelection Selection { get; private set; } = EditorSelection.None;
-    public int GridDivisor { get; set; } = 16;
+    public int GridDivisor { get; set; } = DefaultGridDivisor;
     public bool SnapEnabled { get; set; } = true;
     public bool IsUnpersisted { get; private set; }
     public bool HasUnsavedChanges { get; private set; }

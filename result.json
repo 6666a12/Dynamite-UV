@@ -1,0 +1,853 @@
+{
+  "status": "complete",
+  "llm": {
+    "provider": "calsil",
+    "model": "gpt-6.1-sol"
+  },
+  "message": "Review complete: 20 finding(s) across 42 selected item(s).",
+  "summary": {
+    "files_reviewed": 42,
+    "comments": 20,
+    "total_tokens": 5280698,
+    "input_tokens": 5232849,
+    "output_tokens": 47849,
+    "cache_read_tokens": 3699219,
+    "elapsed": "22m7s"
+  },
+  "tool_calls": {
+    "total": 250,
+    "by_tool": {
+      "code_comment": 10,
+      "code_search": 112,
+      "file_find": 6,
+      "file_read": 120,
+      "file_read_diff": 2
+    },
+    "failure": 8,
+    "failure_by_tool": {
+      "code_comment": 1,
+      "code_search": 6,
+      "file_read": 1
+    },
+    "failure_details": [
+      {
+        "tool_call_number": 3,
+        "tool_name": "code_search",
+        "file_path": "tools/chart-editor-core/CanvasAuthoringController.cs,tools/chart-editor-core/EditorDocument.cs,tools/chart-editor-core/EditorGeometry.cs,tools/chart-editor-core/EditorPathProjection.cs,tools/chart-editor-core/EditorPlacementGuide.cs,tools/chart-editor-core/EditorPropertySteps.cs,tools/chart-editor-core/EditorStagePlacement.cs",
+        "arguments": "{\"search_text\": \"class V2PathEvaluator|Evaluate(\", \"file_patterns\": [\"shared/\", \"tools/\"], \"use_perl_regexp\": true}",
+        "error": "git grep failed: exit status 128: fatal: -e option, 'class V2PathEvaluator|Evaluate(': missing closing parenthesis"
+      },
+      {
+        "tool_call_number": 32,
+        "tool_name": "code_search",
+        "file_path": "editor/scripts/CreatePageOverlay.cs,editor/scripts/EditorFlow.cs,editor/scripts/EditorFonts.cs,editor/scripts/EditorMotion.cs,editor/scripts/EditorOverlayDraw.cs,editor/scripts/EditorScrollInertia.cs,editor/scripts/EditorSettings.cs,editor/scripts/PackPageOverlay.cs,editor/scripts/SettingsPageOverlay.cs,editor/scripts/StandaloneEditorMain.cs",
+        "arguments": "{\"search_text\": \"GameplayDigest|Compute(\", \"file_patterns\": [\"shared/\", \"tools/\", \"editor/\"], \"use_perl_regexp\": true}",
+        "error": "git grep failed: exit status 128: fatal: -e option, 'GameplayDigest|Compute(': missing closing parenthesis"
+      },
+      {
+        "tool_call_number": 93,
+        "tool_name": "code_search",
+        "file_path": "editor/scripts/AuthoringCanvas.cs,editor/scripts/AuthoringCanvasPath.cs,editor/scripts/AuthoringCanvasPlacement.cs,editor/scripts/AuthoringCanvasSelection.cs",
+        "arguments": "{\"search_text\": \"class V2MixerTicks|Enumerate(|EditorPathProjection.Sample|DrawMixerTicks\", \"file_patterns\": [\"shared/\", \"tools/chart-editor-core/\", \"editor/scripts/\"], \"case_sensitive\": false, \"use_perl_regexp\": true}",
+        "error": "git grep failed: exit status 128: fatal: -e option, 'class V2MixerTicks|Enumerate(|EditorPathProjection.Sample|DrawMixerTicks': missing closing parenthesis"
+      },
+      {
+        "tool_call_number": 94,
+        "tool_name": "code_search",
+        "file_path": "editor/scripts/AuthoringCanvas.cs,editor/scripts/AuthoringCanvasPath.cs,editor/scripts/AuthoringCanvasPlacement.cs,editor/scripts/AuthoringCanvasSelection.cs",
+        "arguments": "{\"search_text\": \"RemainingPxAtTime|TimeAtRemainingPx|StageDistancePx|CenterAt(\", \"file_patterns\": [\"tools/chart-editor-core/EditorStagePlacement.cs\", \"shared/Chart/GameplayStageGeometry.cs\", \"editor/scripts/AuthoringCanvas*.cs\"], \"case_sensitive\": false, \"use_perl_regexp\": true}",
+        "error": "git grep failed: exit status 128: fatal: -e option, 'RemainingPxAtTime|TimeAtRemainingPx|StageDistancePx|CenterAt(': missing closing parenthesis"
+      },
+      {
+        "tool_call_number": 95,
+        "tool_name": "code_search",
+        "file_path": "editor/scripts/AuthoringCanvas.cs,editor/scripts/AuthoringCanvasPath.cs,editor/scripts/AuthoringCanvasPlacement.cs,editor/scripts/AuthoringCanvasSelection.cs",
+        "arguments": "{\"search_text\": \"SideDistanceScale|PositionAt(|StageDistancePx\", \"file_patterns\": [\"shared/\", \"client/scripts/game/\", \"editor/scripts/\"], \"case_sensitive\": false, \"use_perl_regexp\": true}",
+        "error": "git grep failed: exit status 128: fatal: -e option, 'SideDistanceScale|PositionAt(|StageDistancePx': missing closing parenthesis"
+      },
+      {
+        "tool_call_number": 102,
+        "tool_name": "file_read",
+        "file_path": "editor/scripts/AuthoringCanvas.cs,editor/scripts/AuthoringCanvasPath.cs,editor/scripts/AuthoringCanvasPlacement.cs,editor/scripts/AuthoringCanvasSelection.cs",
+        "arguments": "{\"file_path\": \"shared/Chart/V2/MixerTicks.cs\", \"start_line\": 1, \"end_line\": 180}",
+        "error": "file \"shared/Chart/V2/MixerTicks.cs\" not found: read file \"shared/Chart/V2/MixerTicks.cs\": open D:\\Workspace\\Dynamix\\community\\shared\\Chart\\V2\\MixerTicks.cs: The system cannot find the file specified."
+      },
+      {
+        "tool_call_number": 132,
+        "tool_name": "code_comment",
+        "file_path": "client/scripts/ui/CutButton.cs,client/scripts/ui/ResultScreen.cs,client/scripts/ui/SettingsScreen.cs,client/scripts/ui/SongRow.cs,client/scripts/ui/SongSelect.cs,client/scripts/ui/UiLayout.cs",
+        "arguments": "{\"search_text\":\"StopListInertia|ScrollVertical =\",\"file_patterns\":[\"client/scripts/ui/SongSelect.cs\"],\"use_perl_regexp\":true}",
+        "error": "Error: 'comments' array is required. Got args: {\"file_patterns\":[\"client/scripts/ui/SongSelect.cs\"],\"search_text\":\"StopListInertia|ScrollVertical =\",\"use_perl_regexp\":true}"
+      },
+      {
+        "tool_call_number": 171,
+        "tool_name": "code_search",
+        "file_path": "editor/scripts/AuthoringCanvas.cs,editor/scripts/AuthoringCanvasPath.cs,editor/scripts/AuthoringCanvasPlacement.cs,editor/scripts/AuthoringCanvasSelection.cs",
+        "arguments": "{\"search_text\":\"note.Position|Position + note.Width|PositionAt(\",\"file_patterns\":[\"client/scripts/game/GameplayStageRenderer.cs\",\"client/scripts/game/V2Integration.cs\",\"client/scripts/game/GameplayVisualMapper.cs\"],\"case_sensitive\":false,\"use_perl_regexp\":true}",
+        "error": "git grep failed: exit status 128: fatal: -e option, 'note.Position|Position + note.Width|PositionAt(': missing closing parenthesis"
+      }
+    ]
+  },
+  "comments": [
+    {
+      "path": "client/scripts/ui/SongSelect.cs",
+      "content": "`InputEventPanGesture.Delta` is already the gesture's pixel displacement, unlike a mouse-wheel factor. Multiplying it by `Page / 8` makes trackpad scrolling proportional to the viewport size (and can jump hundreds/thousands of pixels per event), so a small two-finger pan will usually clamp straight to an edge. Pass the delta in the same pixel coordinate space as the touch-drag path, or explicitly normalize it before applying the page-step conversion.",
+      "existing_code": "case InputEventPanGesture pan when ListRect.HasPoint(pan.Position):\n                PushListScroll(WheelScrollPixels(pan.Delta.Y));\n                GetViewport().SetInputAsHandled();",
+      "start_line": 536,
+      "end_line": 538,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-core/EditorPathProjection.cs",
+      "content": "`Flatten` documents and tests a strictly increasing sample sequence, but this append is unconditional. If a draft `shape` contains a duplicate or decreasing node time, the earlier guard merely skips subdivision and then appends the invalid control point, returning unsorted samples. If a later valid interval is curved, the evaluator was still built from the malformed full shape, so PCHIP can also divide by a zero/negative interval. Validate all point times up front (or reject the shape) before constructing/evaluating the projection.",
+      "existing_code": "            result.Add(new EditorPathSample(current.Time, current.Center, current.Width, true));",
+      "start_line": 89,
+      "end_line": 89,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-core/EditorPropertySteps.cs",
+      "content": "When `center` is 0 or 5, `maximum` is 0, but `Math.Max(MinimumWidth, maximum)` makes the upper bound 0.1. The returned minimum-width note therefore has an edge outside the `[0, 5]` domain, contradicting this method's containment contract (and the same occurs for centers closer to an edge than half the minimum width). Clamp/validate the center or reject this step instead of manufacturing an infeasible width.",
+      "existing_code": "        var maximum = 2d * Math.Min(clampedCenter, EditorStagePlacement.MaximumCenter - clampedCenter);\n        return Round(Math.Clamp(width + direction * increment, MinimumWidth,\n            Math.Max(MinimumWidth, maximum)));",
+      "start_line": 57,
+      "end_line": 59,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-core/EditorStagePlacement.cs",
+      "content": "This public conversion divides by `fallSpeedPx` without checking that it is finite and non-zero. A zero speed returns `Infinity` (or `NaN` for a zero distance), and a negative/non-finite speed produces an invalid placement time. Validate a finite positive fall speed before performing the conversion; apply the same contract to `RemainingPxAtTime`.",
+      "existing_code": "    public static double TimeAtRemainingPx(double remainingPx, double currentSecond,\n        double fallSpeedPx) =\u003e currentSecond + remainingPx / fallSpeedPx;",
+      "start_line": 34,
+      "end_line": 35,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-core/EditorPathProjection.cs",
+      "content": "The scale parameters are used directly in `SubdivisionErrorPx` without finite/positive validation. For `NaN`, every `error \u003c= tolerance` comparison is false and this silently returns the maximum subdivision count; zero or negative scales make the pixel error criterion meaningless. Reject non-finite or non-positive scales (and invalid interval ordering) at this API boundary rather than producing unreliable projections and unnecessary work.",
+      "existing_code": "    public static int RequiredSubdivisions(V2PathEvaluator evaluator, ExactBarTime start,\n        ExactBarTime end, double positionScalePx, double widthScalePx)",
+      "start_line": 95,
+      "end_line": 96,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-core/CanvasAuthoringController.cs",
+      "content": "The `default` arm treats any undefined enum value as `Width`. Since this is a public controller API, an invalid cast or a future enum member can silently mutate the wrong property and create misleading history. Handle `EditorStepProperty.Width` explicitly and throw (or return false) for unknown values.",
+      "existing_code": "            case EditorStepProperty.Center:\n                steppedCenter = EditorPropertySteps.StepCenter(center, width, direction, fine);\n                break;\n            default:\n                steppedWidth = EditorPropertySteps.StepWidth(width, center, direction, fine);",
+      "start_line": 126,
+      "end_line": 130,
+      "category": "bug",
+      "severity": "low"
+    },
+    {
+      "path": "editor/scripts/StandaloneEditorMain.cs",
+      "content": "This handler is global and has no active-page/focus guard. While Start/Create/Settings is visible, any key that is not consumed by a child control (for example F1, Q/W, Delete, or Ctrl+S while a field has focus) still mutates the edit canvas or invokes save. Gate editor shortcuts on `_flowPage == EditorFlowPage.Edit` and avoid dispatching when a `LineEdit`/other text control owns focus, while preserving only the intended page-specific shortcuts.",
+      "existing_code": "    public override void _UnhandledKeyInput(InputEvent @event)\n    {\n        if (@event is not InputEventKey key || key.Echo) return;\n        if (_menu is not null \u0026\u0026 _menu.Visible)",
+      "start_line": 274,
+      "end_line": 277,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "client/scripts/ui/SongSelect.cs",
+      "content": "This path runs even when motion is OFF, despite the comments saying OFF should be instantaneous. `BeginRefreshAll` sets the cover alpha to 0 and starts this fade unconditionally; if `CompleteRefreshAll` then sets the cover back to white in OFF mode before the next process tick, the still-active 0→0 fade will overwrite it back to transparent for a frame. Gate `StartCardCoverFade`/the animation step on the motion profile (or clear the fade state in the OFF branch) so OFF cannot run a stale fade.",
+      "existing_code": "_cardCover.Modulate = new Color(1f, 1f, 1f, 0f);\nStartCardCoverFade(0f, CardTextFadeOutDuration);",
+      "start_line": 1452,
+      "end_line": 1453,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/EditorSettings.cs",
+      "content": "`Save()` reports write failures only through a warning and returns normally, so `CommitSettings()`/slider release update the UI as if persistence succeeded. A read-only or full `user://` filesystem can therefore lose the user's settings on restart without any visible error. Return success/throw a controlled error and surface it through the settings page (or otherwise mark the settings as unsaved).",
+      "existing_code": "catch (Exception exception)\n        {\n            GD.PushWarning($\"EditorSettings: 写入 {SavePath} 失败。{exception.Message}\");\n        }",
+      "start_line": 153,
+      "end_line": 156,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/EditorFlow.cs",
+      "content": "This hashes the entire audio file synchronously on the UI thread during `RefreshPackPage()` (which is called when opening/returning to Pack and after chart selection). Large package audio can block rendering and input; move the read/hash (and the cover decode in `LoadPackCover`) off the main thread or cache by a file identity such as length/last-write time rather than doing synchronous I/O in the page refresh path.",
+      "existing_code": "                _digestAudioSha = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(audio)));\n                _digestAudioPath = audio;",
+      "start_line": 848,
+      "end_line": 849,
+      "category": "performance",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/EditorFlow.cs",
+      "content": "The computed `Sha256` is discarded and this returns `true` for any chart/audio pair that merely passes validation. Consequently `DIGEST OK` is not an integrity verification and cannot detect a stale/tampered digest (or even a changed audio file when `_digestAudioPath` remains the same). Compare the computed digest with the package's expected digest if one is part of the contract, or label this state as “DIGEST COMPUTABLE” and invalidate the audio cache using file metadata/content changes.",
+      "existing_code": "            _ = V2GameplayDigest.Compute(_document.BuildChartSnapshot(_document.SelectedChartId),\n                entry.JudgePreset, _digestAudioSha!);\n            return true;",
+      "start_line": 852,
+      "end_line": 854,
+      "category": "bug",
+      "severity": "high"
+    },
+    {
+      "path": "tools/chart-editor-tests/Program.cs",
+      "content": "This assertion is not independent of the implementation under test: `EditorPathProjection.Flatten` creates its samples with `V2PathEvaluator`, and the test then evaluates the same path with another `V2PathEvaluator`. A regression in the shared evaluator (including a segment-boundary or curve-transition bug) can therefore make both sides agree and still pass. Add fixed expected values/continuity checks at each node and immediately on either side of every curve transition, or compare against an independently calculated reference.",
+      "existing_code": "        var evaluator = new V2PathEvaluator(ReferencePathNote(head, middle, tail));\n        var offCurve = flattened.Max(sample =\u003e\n        {\n            var expected = evaluator.Evaluate(sample.Time);\n            return Math.Max(Math.Abs(sample.Center - expected.Center), Math.Abs(sample.Width - expected.Width));\n        });",
+      "start_line": 416,
+      "end_line": 421,
+      "category": "test",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-tests/Program.cs",
+      "content": "This save-sequence test manually performs the `MarkSaved` calls and constructs the package requests, so it never exercises the editor's actual `SaveToDirectory` orchestration (including draft disposal/state changes, save-as selection, and failure handling). A regression in that flow can pass while this test remains green. Extract the save operation into a testable service or invoke the same production-level save entry point, and retain assertions that a failed save leaves the document/draft dirty.",
+      "existing_code": "            var created = V2PackageWriter.Create(\n                draft.BuildPackageCreateRequest(destination, allowEmptyDestination: true));\n            draft.Document.MarkSaved(created.DestinationDirectory);",
+      "start_line": 1786,
+      "end_line": 1788,
+      "category": "test",
+      "severity": "medium"
+    },
+    {
+      "path": "client/scripts/ui/CalibrationScreen.cs",
+      "content": "A tap is accepted solely by its deviation, so multiple rapid taps within ±150 ms of the same bar head are each appended. There is no note/bar index in `CalibrationStats` and no last-attributed-note/debounce check here; a player can therefore fill the target with repeated taps on one note and get a misleading median. Track the attributed note (and accept at most one sample per note), or otherwise enforce the note hit lifecycle before calling `TryAdd`.",
+      "existing_code": "        if (_stats.TryAdd(deviation))\n        {\n            _lastHitMs = deviation;\n            _hasLastHit = true;",
+      "start_line": 859,
+      "end_line": 862,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "client/scripts/ui/CalibrationStats.cs",
+      "content": "These public helpers do not define a non-finite-input policy even though `SuggestedOffsetMs` explicitly guards non-finite values before calling them. Direct callers can pass `NaN`/infinity and reach the floating-point-to-`int` conversion in `ClampOffset`, whose result is not a meaningful calibration offset. Either reject non-finite input (for example by throwing/returning a documented fallback) or add direct tests and document the intended behavior for both helpers.",
+      "existing_code": "    public static double QuantizeOffset(double valueMs) =\u003e\n        Math.Round(valueMs / OffsetStepMs, MidpointRounding.AwayFromZero) * OffsetStepMs;\n\n    /// \u003csummary\u003e建议偏移的最终钳制（与设置页同范围）。\u003c/summary\u003e\n    public static int ClampOffset(double valueMs) =\u003e\n        Math.Clamp((int)Math.Round(valueMs), -OffsetLimitMs, OffsetLimitMs);",
+      "start_line": 98,
+      "end_line": 103,
+      "category": "bug",
+      "severity": "low"
+    },
+    {
+      "path": "editor/scripts/AuthoringCanvasPath.cs",
+      "content": "`ChartNote.BarTime` is the chart's bar-time coordinate (the shared model documents this explicitly, and runtime conversion calls `BarTimeToSeconds` on it), but this assigns the converted seconds. Any Hold/Mixer preview chain generated here will therefore be converted a second time and rendered/judged at the wrong times. Keep the sampled `ExactBarTime` (e.g. `sample.Time.ToDouble()`) in `BarTime`, and use `second` only for `Second`/`BakedSecond`.",
+      "suggestion_code": "\t\t\tvar second = EditorTime.BarToSeconds(sample.Time, CurrentBpms);\n\t\t\tchain.Add(new ChartNote\n\t\t\t{\n\t\t\t\tId = headId + index,\n\t\t\t\tSubNoteId = index + 1 \u003c samples.Count ? headId + index + 1 : -1,\n\t\t\t\tType = index == 0 ? HeadRuntimeType(note.Kind) : NodeRuntimeType(note.Kind),\n\t\t\t\tTrack = RuntimeTrack(note.Side),\n\t\t\t\tBarTime = sample.Time.ToDouble(),\n\t\t\t\tPosition = sample.Center - sample.Width * .5d,\n\t\t\t\tWidth = sample.Width,\n\t\t\t\tSecond = second,\n\t\t\t\tBakedSecond = second,\n\t\t\t\tSyncNote = 0,\n\t\t\t});",
+      "existing_code": "\t\t\tvar second = EditorTime.BarToSeconds(sample.Time, CurrentBpms);\n\t\t\tchain.Add(new ChartNote\n\t\t\t{\n\t\t\t\tId = headId + index,\n\t\t\t\tSubNoteId = index + 1 \u003c samples.Count ? headId + index + 1 : -1,\n\t\t\t\tType = index == 0 ? HeadRuntimeType(note.Kind) : NodeRuntimeType(note.Kind),\n\t\t\t\tTrack = RuntimeTrack(note.Side),\n\t\t\t\tBarTime = second,\n\t\t\t\tPosition = sample.Center - sample.Width * .5d,\n\t\t\t\tWidth = sample.Width,\n\t\t\t\tSecond = second,\n\t\t\t\tBakedSecond = second,\n\t\t\t\tSyncNote = 0,\n\t\t\t});",
+      "start_line": 99,
+      "end_line": 112,
+      "category": "bug",
+      "severity": "high"
+    },
+    {
+      "path": "client/scripts/game/GameplayStageRenderer.cs",
+      "content": "When mirroring is enabled, the fallback for a ghost hold link just above this call still chooses its direction from the original `link.From.Track` (Left uses `Vector2.Right`, Right uses `Vector2.Left`). The endpoints have already been mapped to the displayed rail, so a collapsed mirrored left/right link can be extended in the wrong direction and then clipped/hidden incorrectly. Use the displayed track (`MirroredTrack(link.From.Track, MirrorEnabled)`) for that fallback as well, or centralize the displayed-track calculation for all link geometry.",
+      "existing_code": "if (!GameplayVisualMapper.ClipToJudgeLine(link.From.Track, ref a, ref b, ref wa, ref wb,\n            MirrorEnabled))",
+      "start_line": 202,
+      "end_line": 203,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/StandaloneEditorMain.cs",
+      "content": "When the menu has previously finished its fade, `_Process` has been disabled at line 478. `Open` resets `_fade` to 0 for motion-enabled settings but never re-enables processing, so reopening the menu leaves it permanently transparent (and the fade never advances). Re-enable processing after `Show()` (or before it) whenever a new open starts.",
+      "existing_code": "            _hoverFade.Clear();\n            _hover = -1;\n            // GENERAL / MOTION = OFF 时菜单不淡入，直接定格在终值（编辑器当前只有菜单与页面切换两种淡入）。\n            _fade = EditorSettings.Current.MotionMode == UiMotionMode.Off ? 1d : 0d;\n            Modulate = new Color(1f, 1f, 1f, (float)_fade);\n            Show();\n            QueueRedraw();",
+      "start_line": 518,
+      "end_line": 524,
+      "category": "bug",
+      "severity": "high"
+    },
+    {
+      "path": "editor/scripts/PackPageOverlay.cs",
+      "content": "`_hoverFade` is a single value shared by the entire list, but this value is applied to every row in `DrawRow`. As soon as any row is hovered, all visible chart rows receive the hover background, and while moving between rows the transition cannot identify which row should fade out/in. Track the hovered row's index (or use a keyed fade map) and apply the value only to that row.",
+      "existing_code": "            EditorOverlayDraw.CutPanel(this, rect, ChartRowCut,\n                new Color(UiFonts.Panel.Lightened(RowHoverLift * _hoverFade.Value), .5f),\n                row.Selected ? row.Color : UiFonts.Line, 2f);",
+      "start_line": 569,
+      "end_line": 571,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/AuthoringCanvas.cs",
+      "content": "`DrawGridLines` can execute this conversion for up to 10,001 grid entries on every redraw, and `EditorTime.BarToSeconds` sorts/materializes the entire BPM list on each call. Cursor movement, hover, and other interaction redraws therefore turn a large chart/BPM timeline into an O(grid-lines × BPM-events log BPM-events) hot path, causing frame stalls. Pre-order/cache the BPM timeline (or add a batch conversion that reuses its segments) before entering this loop.",
+      "existing_code": "var gridTime = EditorTime.BarToSeconds(ExactBarTime.FromFraction(i, GridDivisor), bpms);",
+      "start_line": 933,
+      "end_line": 933,
+      "category": "performance",
+      "severity": "medium"
+    }
+  ],
+  "groups": [
+    {
+      "label": "Gameplay rendering and stage geometry",
+      "files": [
+        "client/scripts/game/GameSettings.cs",
+        "client/scripts/game/GameplayMain.Presentation.cs",
+        "client/scripts/game/GameplayMain.cs",
+        "client/scripts/game/GameplayStageRenderer.cs",
+        "client/scripts/game/GameplaySustainEffect.cs",
+        "client/scripts/game/GameplayVisualMapper.cs",
+        "shared/Chart/GameplayStageGeometry.cs"
+      ]
+    },
+    {
+      "label": "Client gameplay UI screens and song selection",
+      "files": [
+        "client/scripts/ui/CutButton.cs",
+        "client/scripts/ui/ResultScreen.cs",
+        "client/scripts/ui/SettingsScreen.cs",
+        "client/scripts/ui/SongRow.cs",
+        "client/scripts/ui/SongSelect.cs",
+        "client/scripts/ui/UiLayout.cs"
+      ]
+    },
+    {
+      "label": "Calibration UI and statistics",
+      "files": [
+        "client/scripts/ui/CalibrationScreen.cs",
+        "client/scripts/ui/CalibrationStats.cs",
+        "client/scripts/ui/ScrollInertia.cs",
+        "client/scripts/ui/UiHoverFade.cs",
+        "tools/core-tests/CalibrationStatsTests.cs"
+      ]
+    },
+    {
+      "label": "Editor authoring canvas components",
+      "files": [
+        "editor/scripts/AuthoringCanvas.cs",
+        "editor/scripts/AuthoringCanvasPath.cs",
+        "editor/scripts/AuthoringCanvasPlacement.cs",
+        "editor/scripts/AuthoringCanvasSelection.cs"
+      ]
+    },
+    {
+      "label": "Editor flow, overlays, settings, and presentation",
+      "files": [
+        "editor/scripts/EditorFlow.cs",
+        "editor/scripts/StandaloneEditorMain.cs",
+        "editor/scripts/CreatePageOverlay.cs",
+        "editor/scripts/EditorFonts.cs",
+        "editor/scripts/EditorMotion.cs",
+        "editor/scripts/EditorOverlayDraw.cs",
+        "editor/scripts/EditorScrollInertia.cs",
+        "editor/scripts/EditorSettings.cs",
+        "editor/scripts/PackPageOverlay.cs",
+        "editor/scripts/SettingsPageOverlay.cs"
+      ]
+    },
+    {
+      "label": "Chart editor core geometry and placement",
+      "files": [
+        "tools/chart-editor-core/CanvasAuthoringController.cs",
+        "tools/chart-editor-core/EditorDocument.cs",
+        "tools/chart-editor-core/EditorGeometry.cs",
+        "tools/chart-editor-core/EditorStagePlacement.cs",
+        "tools/chart-editor-core/EditorPathProjection.cs",
+        "tools/chart-editor-core/EditorPlacementGuide.cs",
+        "tools/chart-editor-core/EditorPropertySteps.cs"
+      ]
+    },
+    {
+      "label": "Chart editor test updates",
+      "files": [
+        "tools/chart-editor-tests/Program.cs",
+        "tools/core-tests/Program.cs"
+      ]
+    },
+    {
+      "label": "Release policy configuration",
+      "files": [
+        "release/apk-policy.json"
+      ]
+    }
+  ],
+  "warnings": [
+    {
+      "file": "tools/chart-editor-tests/Program.cs",
+      "message": "comment filed against tools/chart-editor-tests/Program.cs,tools/core-tests/Program.cs describes code in tools/chart-editor-tests/Program.cs; re-filed",
+      "type": "comment_refiled"
+    },
+    {
+      "file": "tools/chart-editor-tests/Program.cs",
+      "message": "comment filed against tools/chart-editor-tests/Program.cs,tools/core-tests/Program.cs describes code in tools/chart-editor-tests/Program.cs; re-filed",
+      "type": "comment_refiled"
+    }
+  ],
+  "session_id": "c2c23e6b-693a-4206-80bd-752f8693610d",
+  "manifest": {
+    "schema_version": "ocr.run-manifest/v1",
+    "run_id": "c2c23e6b-693a-4206-80bd-752f8693610d",
+    "operation": "review",
+    "terminal_state": "complete",
+    "repository": {
+      "identity_sha256": "d3cc8643c8942bdd5a7bd93a2681a9651edd9916b3dee14fcd72b0b03e00d930"
+    },
+    "input": {
+      "mode": "workspace",
+      "resolved_base": "d5fff841180b270fb698674eef5b16aebbf0918b",
+      "source_artifact_sha256": "a6ba92cfae92e22df1d567ff4d76c87bf302cd8e942db3dbb7302cca864ef7e9"
+    },
+    "execution": {
+      "ocr_version": "v1.12.13",
+      "provider": "calsil",
+      "model": "gpt-6.1-sol",
+      "configured_concurrency": 8,
+      "rule_config_sha256": "d5e28d02ed5cdf85b533907db24b47f1be02847db764a4ded208dbaf54380ae1",
+      "runtime_config_sha256": "307d9bc19e99ccce5aedb1080ad465ba11ad4a2e9c9d8577c94db4bb9f1475b2"
+    },
+    "coverage": {
+      "selected": [
+        {
+          "item_id": "112e3bbc27deb338283f3e46bff0286dc309a6fd6d832132c44a93762f1a4959",
+          "path": "client/scripts/game/GameSettings.cs",
+          "fingerprint": "2c3cdb1bfedfe78d4e9804f8799c29e3c0c503ca7125d71f20375e7a3bddfaba"
+        },
+        {
+          "item_id": "17eff2281da94b480b6d9707a40416ca0f53bee833e2168576d9f1871d562e16",
+          "path": "editor/scripts/SettingsPageOverlay.cs",
+          "fingerprint": "fb791036815b11cd9db5f56b67a53e3f5e7f4daabb58a15d7f2ed2e0f0361a10"
+        },
+        {
+          "item_id": "275177f51358db4411772308ff2464a3b1f2c6794ec5a57d374a36102860a110",
+          "path": "editor/scripts/AuthoringCanvasPath.cs",
+          "fingerprint": "823953417e1e7f4031c34ef6ce466c074d0c1e07637863989305e1a3b8de715d"
+        },
+        {
+          "item_id": "2957d9e933f183dbbb7a9f2d5129ab04b25cc19286eb1c6beb904901ff75c9b9",
+          "path": "client/scripts/game/GameplayStageRenderer.cs",
+          "fingerprint": "c26df9c2ef46d6c4647e24c03cc11c74edaf34cfb92fa17dceb54e135c0b86aa"
+        },
+        {
+          "item_id": "2aeacb2f0838dc6b4854265988a1f38741c223de8856157a08d7f673cc70499d",
+          "path": "client/scripts/game/GameplaySustainEffect.cs",
+          "fingerprint": "472d2c49f77e208475c1368ce913fc5200fc72735a45b99b1815ccd660610ed6"
+        },
+        {
+          "item_id": "2f5812603a7c0b9528af29d0482e88c8ef3a0c4714a631fae5e7067893365034",
+          "path": "editor/scripts/AuthoringCanvasSelection.cs",
+          "fingerprint": "94fd8556ccc12058f2af39e383b0f84d0c1cbac7b2d19f234204317534b2c2ec"
+        },
+        {
+          "item_id": "307d547c2679d2fe7c6c150b1dbee24685df7b1a1fad6fbc5ec9851ddb5b4655",
+          "path": "editor/scripts/EditorSettings.cs",
+          "fingerprint": "ff088720543bfc8f749dde09e89c490b01ec8e6987d13c07914a3b72cd8a1003"
+        },
+        {
+          "item_id": "4422a1407acf1ab4525932a50bd63701d49764bed8639df1aa4136f94337e326",
+          "path": "tools/chart-editor-core/EditorPathProjection.cs",
+          "fingerprint": "d22e48e9986a2b3cafca65b70e5ad695749f5cb387983a271839cce565179c0a"
+        },
+        {
+          "item_id": "567a321cb1fb7b8dcb69c44a311f3d924ee33d567da4c4f42f5d2d6c0acfe902",
+          "path": "client/scripts/ui/SongRow.cs",
+          "fingerprint": "3e03cbefff5c93fdd01f33d584f74c4caa08b9a0d9dbaf22d6fa672e2286851f"
+        },
+        {
+          "item_id": "58d6eda20fc838b6cf2caffb550ab9a8c6f0bd875c97d547e5c13e9b3e6516e4",
+          "path": "editor/scripts/AuthoringCanvasPlacement.cs",
+          "fingerprint": "855f1fc5d8cfe3c585887b6bc6a24c25a8b956c673df7b47191b989b2eea796e"
+        },
+        {
+          "item_id": "59db91af94153ca9a5e0cb38b12fc7e6306523d1b7a18fc0e58866bc77fbc283",
+          "path": "tools/chart-editor-core/EditorPlacementGuide.cs",
+          "fingerprint": "1976600f8715dbf69eeb8bde7accccc84645d95f91130c9993893631783ea37a"
+        },
+        {
+          "item_id": "5a4e72926a9f62975ed31433ade07de0770a85e80f07ee65acae6cee1b380386",
+          "path": "editor/scripts/EditorScrollInertia.cs",
+          "fingerprint": "401d17301b577b9a3a5d425c2b56616ec179b106f8a9e02113d37cd13bca472b"
+        },
+        {
+          "item_id": "5d5ec27984ec2439b05fd1e3faa19b33cffb58f9fea50503f71148ad90d509d3",
+          "path": "tools/chart-editor-core/EditorStagePlacement.cs",
+          "fingerprint": "a6927f7ca5ef85247b9138c0a29bd75ecb2ce426f263b3bc12680ef2c1d511b2"
+        },
+        {
+          "item_id": "615fe8cd3a6e35a9920c6adabf278f262ee4751c35f443361ac9e7f61bf3976d",
+          "path": "editor/scripts/EditorMotion.cs",
+          "fingerprint": "1e88af1a04dc8cc5feaace70ac9003463a6d38b21e651a634fd952919ac75693"
+        },
+        {
+          "item_id": "6fcb4a318d649f79be556f10c81bf7dd7c692ed5c07fb6f04d9b16033fb4ee72",
+          "path": "release/apk-policy.json",
+          "fingerprint": "75d4083008d6e848f33d51bb51c5ea12a391aeaa517dfc91fbd67eb89358a859"
+        },
+        {
+          "item_id": "75bfe96d14993ca4be456f78b03a2553c386e863392fa613efb05d39ddce68ac",
+          "path": "tools/chart-editor-tests/Program.cs",
+          "fingerprint": "dbabd86a4c46cb926e8ed0dadd8c19644564794ac627b5dd120e6d067ce51ee0"
+        },
+        {
+          "item_id": "780874eb82524fddc20eab9cbf41d442748f2d2daf59153e3b8a36798a94320a",
+          "path": "shared/Chart/GameplayStageGeometry.cs",
+          "fingerprint": "0c9ba981372c0d7a2618e4f5fdca4c9baaaf37c646962eddafef9f5604af52d6"
+        },
+        {
+          "item_id": "7c0cf06f430aadf173985516a42a1fe372b6f4eff2ba70fbc6208258e5d5da4f",
+          "path": "client/scripts/ui/UiLayout.cs",
+          "fingerprint": "10da1ded3479e6a4e7b1aa96bd4f7cfe830adcac5544949ed901ce22f3e36c0f"
+        },
+        {
+          "item_id": "80df41c6276b83e60e1328ee0c2a7ef1e84ac1d6d438754d633019fd7c4f1efb",
+          "path": "client/scripts/game/GameplayMain.cs",
+          "fingerprint": "e7b5c8f5a5601af76a99eb6cd465219fe183c385d9e3053ae0a4c1cc2169c2f7"
+        },
+        {
+          "item_id": "8735025e35a59fce9953df9dd65d5c842ee6686eb1f2f4248906949315191722",
+          "path": "tools/core-tests/CalibrationStatsTests.cs",
+          "fingerprint": "abf76156a541efb30a5fbd99f0f00ce40dfe85f73fb33e3a49657c585fe817b5"
+        },
+        {
+          "item_id": "956818b529e14b5f079f550311b94aeeb76699a04a0f392f52555f3f75a80129",
+          "path": "editor/scripts/EditorFlow.cs",
+          "fingerprint": "761531f14509f85533928f8ab9200683382d1dced9d0904fab844ba0582a28c5"
+        },
+        {
+          "item_id": "98a981ac8c7e886cbb002af754bdd2ba5c95dfe6cfaa1d4c2a96846c0a719faf",
+          "path": "client/scripts/ui/SongSelect.cs",
+          "fingerprint": "db232ea25e0990d6f54ec3c2cc62545bf89609674dfa547f6f9e763fdb941ad9"
+        },
+        {
+          "item_id": "9b5ecf01d04d4b67921c485ce4db051ed91a633c39aa6e5a7201fb3c963fea63",
+          "path": "editor/scripts/PackPageOverlay.cs",
+          "fingerprint": "d34ef821af7fec2dab56093ae413b2cc86f5ae3f0f9ea855666004ff58464c8a"
+        },
+        {
+          "item_id": "a780adf5cc1614218d0c6530b1bc5dd9351631c84b7aa21cf4115c409819bc2a",
+          "path": "tools/chart-editor-core/CanvasAuthoringController.cs",
+          "fingerprint": "724727d400ec1a90fadb9882471eb7b138d78a4ccca9c341d2836da73106029f"
+        },
+        {
+          "item_id": "a8c978e8fe47dfddd37fd4a55c5a52fb344fbae907c50a6aaa027f1976da0d16",
+          "path": "client/scripts/ui/CutButton.cs",
+          "fingerprint": "b9e6a3e659fe92e0fb72543bdfe71afbb1af6666fec8af78cc23f0fe9f16225f"
+        },
+        {
+          "item_id": "aac4fb77f3d88af7b5a341c3965c0641391175f62ce0cdeef26cf6e3e8f4f685",
+          "path": "editor/scripts/EditorOverlayDraw.cs",
+          "fingerprint": "78315a5c6c937605996159fb460dd1301ea5d7714c54f50c55d16f00b552e364"
+        },
+        {
+          "item_id": "afbe8024d2b1b4b0840161fa4e8313a030f47e7fe7283dda24eb7cc0b01ed009",
+          "path": "client/scripts/ui/ScrollInertia.cs",
+          "fingerprint": "14a0366a3fbe65d06ce71e770ee7a187d6a6a5141566727ca190cb8504056af9"
+        },
+        {
+          "item_id": "b097d393b5572d409870894a6e65ca57b68ec0afb8df0d37875880ffdba3328a",
+          "path": "client/scripts/game/GameplayVisualMapper.cs",
+          "fingerprint": "98591824e92403a3eefe2206432bccd4eb33b5d2fb093b3cbfb3d62c4ada6ca9"
+        },
+        {
+          "item_id": "b5806376056ae8a32044bdcd49caffcaddc7f54f456da621da986b155fef7769",
+          "path": "editor/scripts/AuthoringCanvas.cs",
+          "fingerprint": "1666806fb2548c1d4258771f449d0eac4d633c787c9ce92020f7e149e6d261a8"
+        },
+        {
+          "item_id": "b65f5974dce05bf02613d14eb2eb88e5be01eac01b28844f99549f86db5443d1",
+          "path": "editor/scripts/CreatePageOverlay.cs",
+          "fingerprint": "620df0cb6c309a93d282b3dad5cfe1f84b276dd26e7bd1aa00ed75e7d45a58f4"
+        },
+        {
+          "item_id": "d984491242cdcf9b5c7fd67c593673462a7d4f73df240ab5d13c0257c690385e",
+          "path": "editor/scripts/StandaloneEditorMain.cs",
+          "fingerprint": "1e290117169b22d4a8532c5ed0478f174ce522336129c357f796bf9d37b7f85f"
+        },
+        {
+          "item_id": "dc4d85cde66c553ea581c2e64a4a3de775ae817d200b56d7b577f366dbc3c470",
+          "path": "client/scripts/ui/SettingsScreen.cs",
+          "fingerprint": "b79e64ece621532febe58c210f57705b1bba7f9af85842f33dc8b68e61b4e074"
+        },
+        {
+          "item_id": "dcf908c10fb6849484dd7b8064b64248cdd55945c3ac38c6e77acd3a14c9f90f",
+          "path": "tools/core-tests/Program.cs",
+          "fingerprint": "1d9493f5b84a562d299116fffc3877c132bfac69ee4ba2addb67c2966a13f9be"
+        },
+        {
+          "item_id": "e0e1af56c1a71d40b3f18542e5a31ceebf30dc4d0f61827c9e9dc4d645f1f5de",
+          "path": "client/scripts/game/GameplayMain.Presentation.cs",
+          "fingerprint": "fa670c20a992b6ceaf7a2a524a05bac55848b0ef5058acf8afff4fe0f8341c2d"
+        },
+        {
+          "item_id": "e207ee5df46bf1598adc2e35a77a0121c7b5309874a6cab250d0fccffd07112d",
+          "path": "client/scripts/ui/ResultScreen.cs",
+          "fingerprint": "7759c46ce21e8b2e09d1e5e7d1d555de0d44b5738c75f2aad58e606a9b7da01e"
+        },
+        {
+          "item_id": "e62b998c68c34b9b9417ce7f8bd256909a0ff07627c3b73e48c405a31c214fac",
+          "path": "tools/chart-editor-core/EditorDocument.cs",
+          "fingerprint": "444b5dacfb2b300adcdd76fa17e25e0150c92c4260c5caf94ac9c7880143c13d"
+        },
+        {
+          "item_id": "e88b11edee33744398bbecce7b51633699828f286f2ab974cfcaa875e67550e6",
+          "path": "editor/scripts/EditorFonts.cs",
+          "fingerprint": "b45cbbf7a1b111b4a3c854e8a83aaa2ee09e9982a0587535926fd0cd998b78b4"
+        },
+        {
+          "item_id": "ee801461d514d43b0b49985b77ba5f252322ddc122594d57bec6e3d7c6fb3dad",
+          "path": "client/scripts/ui/CalibrationStats.cs",
+          "fingerprint": "3f90ff130bf21b8a13f781cc41b1d3f53f3620c08cc6e3b14dbfadf6184c23cc"
+        },
+        {
+          "item_id": "f0c345362a5a6b8e516d266019b31cb391f3f5ba9d7f2d8f91e69910a5990daa",
+          "path": "client/scripts/ui/CalibrationScreen.cs",
+          "fingerprint": "6e439d18d456818b2c4274802eaf0ee7ecacdf7baf7fd63010dfdb77c634d813"
+        },
+        {
+          "item_id": "f50cdbade45e247a025c54b24fd3895d8d8dbc18ae788f0cff6197ec487fe741",
+          "path": "tools/chart-editor-core/EditorPropertySteps.cs",
+          "fingerprint": "5bdd060f70686c9a19b3f726e56cca2e8a6a102ec4b727c3e686fa7d1771cd68"
+        },
+        {
+          "item_id": "f76ca4cae45ce9408e7abea5a2cf88b0c0a1d1f699d266eac0f97ef1bc2f1504",
+          "path": "tools/chart-editor-core/EditorGeometry.cs",
+          "fingerprint": "ef1dd51e8bd2952c19a5f4201023c8711486e7d115740a8006ad3fa67e7e0a2f"
+        },
+        {
+          "item_id": "fc8aad9df4706da11774201540fec2aee0c777e88aac391ce28e7242d28df746",
+          "path": "client/scripts/ui/UiHoverFade.cs",
+          "fingerprint": "52f8545e4802e0e12425630d7cdbf26d8f12cf566f64887ba728ecce908a4800"
+        }
+      ],
+      "completed": [
+        {
+          "item_id": "112e3bbc27deb338283f3e46bff0286dc309a6fd6d832132c44a93762f1a4959",
+          "path": "client/scripts/game/GameSettings.cs",
+          "fingerprint": "2c3cdb1bfedfe78d4e9804f8799c29e3c0c503ca7125d71f20375e7a3bddfaba"
+        },
+        {
+          "item_id": "17eff2281da94b480b6d9707a40416ca0f53bee833e2168576d9f1871d562e16",
+          "path": "editor/scripts/SettingsPageOverlay.cs",
+          "fingerprint": "fb791036815b11cd9db5f56b67a53e3f5e7f4daabb58a15d7f2ed2e0f0361a10"
+        },
+        {
+          "item_id": "275177f51358db4411772308ff2464a3b1f2c6794ec5a57d374a36102860a110",
+          "path": "editor/scripts/AuthoringCanvasPath.cs",
+          "fingerprint": "823953417e1e7f4031c34ef6ce466c074d0c1e07637863989305e1a3b8de715d"
+        },
+        {
+          "item_id": "2957d9e933f183dbbb7a9f2d5129ab04b25cc19286eb1c6beb904901ff75c9b9",
+          "path": "client/scripts/game/GameplayStageRenderer.cs",
+          "fingerprint": "c26df9c2ef46d6c4647e24c03cc11c74edaf34cfb92fa17dceb54e135c0b86aa"
+        },
+        {
+          "item_id": "2aeacb2f0838dc6b4854265988a1f38741c223de8856157a08d7f673cc70499d",
+          "path": "client/scripts/game/GameplaySustainEffect.cs",
+          "fingerprint": "472d2c49f77e208475c1368ce913fc5200fc72735a45b99b1815ccd660610ed6"
+        },
+        {
+          "item_id": "2f5812603a7c0b9528af29d0482e88c8ef3a0c4714a631fae5e7067893365034",
+          "path": "editor/scripts/AuthoringCanvasSelection.cs",
+          "fingerprint": "94fd8556ccc12058f2af39e383b0f84d0c1cbac7b2d19f234204317534b2c2ec"
+        },
+        {
+          "item_id": "307d547c2679d2fe7c6c150b1dbee24685df7b1a1fad6fbc5ec9851ddb5b4655",
+          "path": "editor/scripts/EditorSettings.cs",
+          "fingerprint": "ff088720543bfc8f749dde09e89c490b01ec8e6987d13c07914a3b72cd8a1003"
+        },
+        {
+          "item_id": "4422a1407acf1ab4525932a50bd63701d49764bed8639df1aa4136f94337e326",
+          "path": "tools/chart-editor-core/EditorPathProjection.cs",
+          "fingerprint": "d22e48e9986a2b3cafca65b70e5ad695749f5cb387983a271839cce565179c0a"
+        },
+        {
+          "item_id": "567a321cb1fb7b8dcb69c44a311f3d924ee33d567da4c4f42f5d2d6c0acfe902",
+          "path": "client/scripts/ui/SongRow.cs",
+          "fingerprint": "3e03cbefff5c93fdd01f33d584f74c4caa08b9a0d9dbaf22d6fa672e2286851f"
+        },
+        {
+          "item_id": "58d6eda20fc838b6cf2caffb550ab9a8c6f0bd875c97d547e5c13e9b3e6516e4",
+          "path": "editor/scripts/AuthoringCanvasPlacement.cs",
+          "fingerprint": "855f1fc5d8cfe3c585887b6bc6a24c25a8b956c673df7b47191b989b2eea796e"
+        },
+        {
+          "item_id": "59db91af94153ca9a5e0cb38b12fc7e6306523d1b7a18fc0e58866bc77fbc283",
+          "path": "tools/chart-editor-core/EditorPlacementGuide.cs",
+          "fingerprint": "1976600f8715dbf69eeb8bde7accccc84645d95f91130c9993893631783ea37a"
+        },
+        {
+          "item_id": "5a4e72926a9f62975ed31433ade07de0770a85e80f07ee65acae6cee1b380386",
+          "path": "editor/scripts/EditorScrollInertia.cs",
+          "fingerprint": "401d17301b577b9a3a5d425c2b56616ec179b106f8a9e02113d37cd13bca472b"
+        },
+        {
+          "item_id": "5d5ec27984ec2439b05fd1e3faa19b33cffb58f9fea50503f71148ad90d509d3",
+          "path": "tools/chart-editor-core/EditorStagePlacement.cs",
+          "fingerprint": "a6927f7ca5ef85247b9138c0a29bd75ecb2ce426f263b3bc12680ef2c1d511b2"
+        },
+        {
+          "item_id": "615fe8cd3a6e35a9920c6adabf278f262ee4751c35f443361ac9e7f61bf3976d",
+          "path": "editor/scripts/EditorMotion.cs",
+          "fingerprint": "1e88af1a04dc8cc5feaace70ac9003463a6d38b21e651a634fd952919ac75693"
+        },
+        {
+          "item_id": "6fcb4a318d649f79be556f10c81bf7dd7c692ed5c07fb6f04d9b16033fb4ee72",
+          "path": "release/apk-policy.json",
+          "fingerprint": "75d4083008d6e848f33d51bb51c5ea12a391aeaa517dfc91fbd67eb89358a859"
+        },
+        {
+          "item_id": "75bfe96d14993ca4be456f78b03a2553c386e863392fa613efb05d39ddce68ac",
+          "path": "tools/chart-editor-tests/Program.cs",
+          "fingerprint": "dbabd86a4c46cb926e8ed0dadd8c19644564794ac627b5dd120e6d067ce51ee0"
+        },
+        {
+          "item_id": "780874eb82524fddc20eab9cbf41d442748f2d2daf59153e3b8a36798a94320a",
+          "path": "shared/Chart/GameplayStageGeometry.cs",
+          "fingerprint": "0c9ba981372c0d7a2618e4f5fdca4c9baaaf37c646962eddafef9f5604af52d6"
+        },
+        {
+          "item_id": "7c0cf06f430aadf173985516a42a1fe372b6f4eff2ba70fbc6208258e5d5da4f",
+          "path": "client/scripts/ui/UiLayout.cs",
+          "fingerprint": "10da1ded3479e6a4e7b1aa96bd4f7cfe830adcac5544949ed901ce22f3e36c0f"
+        },
+        {
+          "item_id": "80df41c6276b83e60e1328ee0c2a7ef1e84ac1d6d438754d633019fd7c4f1efb",
+          "path": "client/scripts/game/GameplayMain.cs",
+          "fingerprint": "e7b5c8f5a5601af76a99eb6cd465219fe183c385d9e3053ae0a4c1cc2169c2f7"
+        },
+        {
+          "item_id": "8735025e35a59fce9953df9dd65d5c842ee6686eb1f2f4248906949315191722",
+          "path": "tools/core-tests/CalibrationStatsTests.cs",
+          "fingerprint": "abf76156a541efb30a5fbd99f0f00ce40dfe85f73fb33e3a49657c585fe817b5"
+        },
+        {
+          "item_id": "956818b529e14b5f079f550311b94aeeb76699a04a0f392f52555f3f75a80129",
+          "path": "editor/scripts/EditorFlow.cs",
+          "fingerprint": "761531f14509f85533928f8ab9200683382d1dced9d0904fab844ba0582a28c5"
+        },
+        {
+          "item_id": "98a981ac8c7e886cbb002af754bdd2ba5c95dfe6cfaa1d4c2a96846c0a719faf",
+          "path": "client/scripts/ui/SongSelect.cs",
+          "fingerprint": "db232ea25e0990d6f54ec3c2cc62545bf89609674dfa547f6f9e763fdb941ad9"
+        },
+        {
+          "item_id": "9b5ecf01d04d4b67921c485ce4db051ed91a633c39aa6e5a7201fb3c963fea63",
+          "path": "editor/scripts/PackPageOverlay.cs",
+          "fingerprint": "d34ef821af7fec2dab56093ae413b2cc86f5ae3f0f9ea855666004ff58464c8a"
+        },
+        {
+          "item_id": "a780adf5cc1614218d0c6530b1bc5dd9351631c84b7aa21cf4115c409819bc2a",
+          "path": "tools/chart-editor-core/CanvasAuthoringController.cs",
+          "fingerprint": "724727d400ec1a90fadb9882471eb7b138d78a4ccca9c341d2836da73106029f"
+        },
+        {
+          "item_id": "a8c978e8fe47dfddd37fd4a55c5a52fb344fbae907c50a6aaa027f1976da0d16",
+          "path": "client/scripts/ui/CutButton.cs",
+          "fingerprint": "b9e6a3e659fe92e0fb72543bdfe71afbb1af6666fec8af78cc23f0fe9f16225f"
+        },
+        {
+          "item_id": "aac4fb77f3d88af7b5a341c3965c0641391175f62ce0cdeef26cf6e3e8f4f685",
+          "path": "editor/scripts/EditorOverlayDraw.cs",
+          "fingerprint": "78315a5c6c937605996159fb460dd1301ea5d7714c54f50c55d16f00b552e364"
+        },
+        {
+          "item_id": "afbe8024d2b1b4b0840161fa4e8313a030f47e7fe7283dda24eb7cc0b01ed009",
+          "path": "client/scripts/ui/ScrollInertia.cs",
+          "fingerprint": "14a0366a3fbe65d06ce71e770ee7a187d6a6a5141566727ca190cb8504056af9"
+        },
+        {
+          "item_id": "b097d393b5572d409870894a6e65ca57b68ec0afb8df0d37875880ffdba3328a",
+          "path": "client/scripts/game/GameplayVisualMapper.cs",
+          "fingerprint": "98591824e92403a3eefe2206432bccd4eb33b5d2fb093b3cbfb3d62c4ada6ca9"
+        },
+        {
+          "item_id": "b5806376056ae8a32044bdcd49caffcaddc7f54f456da621da986b155fef7769",
+          "path": "editor/scripts/AuthoringCanvas.cs",
+          "fingerprint": "1666806fb2548c1d4258771f449d0eac4d633c787c9ce92020f7e149e6d261a8"
+        },
+        {
+          "item_id": "b65f5974dce05bf02613d14eb2eb88e5be01eac01b28844f99549f86db5443d1",
+          "path": "editor/scripts/CreatePageOverlay.cs",
+          "fingerprint": "620df0cb6c309a93d282b3dad5cfe1f84b276dd26e7bd1aa00ed75e7d45a58f4"
+        },
+        {
+          "item_id": "d984491242cdcf9b5c7fd67c593673462a7d4f73df240ab5d13c0257c690385e",
+          "path": "editor/scripts/StandaloneEditorMain.cs",
+          "fingerprint": "1e290117169b22d4a8532c5ed0478f174ce522336129c357f796bf9d37b7f85f"
+        },
+        {
+          "item_id": "dc4d85cde66c553ea581c2e64a4a3de775ae817d200b56d7b577f366dbc3c470",
+          "path": "client/scripts/ui/SettingsScreen.cs",
+          "fingerprint": "b79e64ece621532febe58c210f57705b1bba7f9af85842f33dc8b68e61b4e074"
+        },
+        {
+          "item_id": "dcf908c10fb6849484dd7b8064b64248cdd55945c3ac38c6e77acd3a14c9f90f",
+          "path": "tools/core-tests/Program.cs",
+          "fingerprint": "1d9493f5b84a562d299116fffc3877c132bfac69ee4ba2addb67c2966a13f9be"
+        },
+        {
+          "item_id": "e0e1af56c1a71d40b3f18542e5a31ceebf30dc4d0f61827c9e9dc4d645f1f5de",
+          "path": "client/scripts/game/GameplayMain.Presentation.cs",
+          "fingerprint": "fa670c20a992b6ceaf7a2a524a05bac55848b0ef5058acf8afff4fe0f8341c2d"
+        },
+        {
+          "item_id": "e207ee5df46bf1598adc2e35a77a0121c7b5309874a6cab250d0fccffd07112d",
+          "path": "client/scripts/ui/ResultScreen.cs",
+          "fingerprint": "7759c46ce21e8b2e09d1e5e7d1d555de0d44b5738c75f2aad58e606a9b7da01e"
+        },
+        {
+          "item_id": "e62b998c68c34b9b9417ce7f8bd256909a0ff07627c3b73e48c405a31c214fac",
+          "path": "tools/chart-editor-core/EditorDocument.cs",
+          "fingerprint": "444b5dacfb2b300adcdd76fa17e25e0150c92c4260c5caf94ac9c7880143c13d"
+        },
+        {
+          "item_id": "e88b11edee33744398bbecce7b51633699828f286f2ab974cfcaa875e67550e6",
+          "path": "editor/scripts/EditorFonts.cs",
+          "fingerprint": "b45cbbf7a1b111b4a3c854e8a83aaa2ee09e9982a0587535926fd0cd998b78b4"
+        },
+        {
+          "item_id": "ee801461d514d43b0b49985b77ba5f252322ddc122594d57bec6e3d7c6fb3dad",
+          "path": "client/scripts/ui/CalibrationStats.cs",
+          "fingerprint": "3f90ff130bf21b8a13f781cc41b1d3f53f3620c08cc6e3b14dbfadf6184c23cc"
+        },
+        {
+          "item_id": "f0c345362a5a6b8e516d266019b31cb391f3f5ba9d7f2d8f91e69910a5990daa",
+          "path": "client/scripts/ui/CalibrationScreen.cs",
+          "fingerprint": "6e439d18d456818b2c4274802eaf0ee7ecacdf7baf7fd63010dfdb77c634d813"
+        },
+        {
+          "item_id": "f50cdbade45e247a025c54b24fd3895d8d8dbc18ae788f0cff6197ec487fe741",
+          "path": "tools/chart-editor-core/EditorPropertySteps.cs",
+          "fingerprint": "5bdd060f70686c9a19b3f726e56cca2e8a6a102ec4b727c3e686fa7d1771cd68"
+        },
+        {
+          "item_id": "f76ca4cae45ce9408e7abea5a2cf88b0c0a1d1f699d266eac0f97ef1bc2f1504",
+          "path": "tools/chart-editor-core/EditorGeometry.cs",
+          "fingerprint": "ef1dd51e8bd2952c19a5f4201023c8711486e7d115740a8006ad3fa67e7e0a2f"
+        },
+        {
+          "item_id": "fc8aad9df4706da11774201540fec2aee0c777e88aac391ce28e7242d28df746",
+          "path": "client/scripts/ui/UiHoverFade.cs",
+          "fingerprint": "52f8545e4802e0e12425630d7cdbf26d8f12cf566f64887ba728ecce908a4800"
+        }
+      ],
+      "reused": [],
+      "failed": [],
+      "waived": []
+    },
+    "elapsed_ms": 1327412
+  },
+  "retry_report": {
+    "schema_version": "ocr.llm-retry-report/v1",
+    "total_requests": 137,
+    "retried_requests": 0,
+    "total_retries": 0,
+    "recovered_requests": 0,
+    "failed_requests": 1,
+    "cancelled_requests": 0,
+    "requests": [
+      {
+        "logical_request_id": "53b04c36039bb5ba361c7412fcee0ba52847538a586a75f766091033004fe97c",
+        "provider": "calsil",
+        "model": "gpt-6.1-sol",
+        "file_path": "client/scripts/ui/CutButton.cs,client/scripts/ui/ResultScreen.cs,client/scripts/ui/SettingsScreen.cs,client/scripts/ui/SongRow.cs,client/scripts/ui/SongSelect.cs,client/scripts/ui/UiLayout.cs",
+        "task_type": "plan_task",
+        "request_no": 1,
+        "outcome": "failed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "outcome": "error",
+            "error_class": "provider",
+            "failure_phase": "response_status",
+            "status_code": 200,
+            "duration_to_headers_ms": 10534
+          }
+        ]
+      }
+    ]
+  }
+}
