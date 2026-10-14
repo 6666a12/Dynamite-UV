@@ -69,12 +69,20 @@ main.tscn ── PLAY ──> song_select.tscn ── START ──> gameplay.tsc
 `SustainJudgementRules`、`VisualScrollMath` 和 `DropSpeedMap` 是 shared 权威规则，客户端
 只编排它们，不复制规则。
 
+Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 shared：输入按时间戳推进，
+接收头独立于手指存活，路径边界用 evaluator 多项式求根。`GameplayMain.Mixer.cs` 负责输入投影、
+早头授权和视图更新，缓存 tick 结果给第 7 步统一应用，不能提前按 Mixer 分组修改 Score/Combo。
+
 需要区分两种时间：
 
 - **song-clock time**：音频播放、判定和普通 legacy 显示使用；
 - **chart/audio time**：v2 timeline/scroll 查询使用，按现有用户 timing offset 换算。
 
 不要借由重构调整这两者的算式。
+
+实时音频补偿读数在 SongClock 通过 `MonotonicSongPosition` 保证单次播放周期不回退；
+输入时间戳与帧时钟共享下限，恢复保留暂停下限，显式 Play/Seek 才重置。回退期间等待音频追上，
+不累加假时间，用户校准仍在原始音频位置过滤后叠加。Mixer 另对迟到输入作顺序容错。
 
 ## 5. 展示、成绩与发布不变量
 
@@ -93,8 +101,8 @@ main.tscn ── PLAY ──> song_select.tscn ── START ──> gameplay.tsc
 
 - 独立 Godot shell 的 Start/Pack/Create/Edit 负责页面和手势；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。
 - `AuthoringCanvas` 绑定 `EditorDocument` / `CanvasAuthoringController`，只投影数据；修改通过可撤销命令进入文档。
-- shared 的 `V2PackageWriter.Write/Create` 是已存在的事务发布能力，但当前 shell 未调用；新建草稿的外部资源映射也未接续到发布。
-- 视觉计时预览不等同 `SongClock` 音频预览；Settings/Storyboard、完整属性/类型 UI 尚未实现。
+- shared 的 `V2PackageWriter.Write/Create` 已由 shell SAVE/SAVE AS 调用；首次保存使用草稿的外部资源映射。ZIP/XML/DY 导出仍未接入。
+- 视觉计时预览不等同 `SongClock` 音频预览；Settings 已有部分真实设置，Storyboard 和更完整属性/类型 UI 仍未实现。
 - 能力范围与启动操作统一见 [DynaMaker UV](<dyna-maker-uv.md>)，历史完整 UI 记录不能跨阶段套用。
 
 ## 7. 回归层级

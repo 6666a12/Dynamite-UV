@@ -80,29 +80,88 @@ public partial class NoteView : Node2D
 	public bool IsLineAnchored { get; private set; }
 	public float MissDistancePx { get; private set; }
 
+	public void ResetForPool()
+	{
+		Visible = false;
+		Position = Vector2.Zero;
+		Rotation = 0f;
+		Scale = Vector2.One;
+		Skew = 0f;
+		Modulate = Colors.Transparent;
+		ZIndex = 1;
+		_ttl = -1f;
+		_depthAlpha = 1f;
+		_stateAlpha = 1f;
+		IsResolved = false;
+		IsMissFalling = false;
+		IsRecoverableHoldFalling = false;
+		IsLineAnchored = false;
+		MissDistancePx = 0f;
+		if (_flatRect != null)
+		{
+			_flatRect.Color = Colors.White;
+			_flatRect.Visible = true;
+		}
+		foreach (var (rect, material, _) in _surfaces)
+		{
+			rect.Color = Colors.White;
+			rect.Visible = true;
+			material.SetShaderParameter("flash_color", Colors.White);
+			material.SetShaderParameter("flash_mix", 0f);
+		}
+	}
+
+	public void Reuse(Note model, Vector2 sizePx, Color color, bool goldFrame = false, bool ghost = false)
+	{
+		ResetForPool();
+		Model = model;
+		_sizePx = sizePx;
+		Visible = true;
+		Modulate = Colors.White;
+		if (_flatRect != null)
+		{
+			_flatRect.Color = color;
+			_flatRect.Size = sizePx;
+			_flatRect.Position = -sizePx / 2f;
+			return;
+		}
+		TryPaletteFor(model.Type, out var palette);
+		var vertical = model.Track != Track.Center;
+		for (var i = 0; i < _surfaces.Count; i++)
+		{
+			var (rect, material, _) = _surfaces[i];
+			var expansion = i == 0 ? (vertical ? new Vector2(8f, 14f) : new Vector2(14f, 8f))
+				: i == 1 ? new Vector2(8f, 8f) : Vector2.Zero;
+			var surfacePalette = i == 0 ? FlatPalette(palette.Glow, GlowAlphaFor(model.Type))
+				: i == 1 ? GoldPalette : palette;
+			var detail = i == 0 ? 0f : i == 1 ? 0.35f : DetailStrengthFor(model.Type);
+			var surfaceSize = sizePx + expansion;
+			_surfaces[i] = (rect, material, expansion);
+			rect.Visible = i == 0 ? GlowAlphaFor(model.Type) > 0f && !ghost : i != 1 || goldFrame;
+			rect.Size = surfaceSize;
+			rect.Position = -surfaceSize / 2f;
+			material.SetShaderParameter("size_px", surfaceSize);
+			material.SetShaderParameter("cut_px", Mathf.Min(7f, Mathf.Min(surfaceSize.X, surfaceSize.Y) * 0.34f));
+			material.SetShaderParameter("border_px", detail > 0f ? 1.5f : 0.6f);
+			material.SetShaderParameter("vertical", vertical);
+			material.SetShaderParameter("detail_strength", detail);
+			material.SetShaderParameter("detail_kind", i == 2 ? DetailKindFor(model.Type) : 0);
+			material.SetShaderParameter("top_color", surfacePalette.Top);
+			material.SetShaderParameter("mid_color", surfacePalette.Mid);
+			material.SetShaderParameter("bottom_color", surfacePalette.Bottom);
+			material.SetShaderParameter("border_color", surfacePalette.Border);
+		}
+	}
+
 	public static NoteView Create(Note model, Vector2 sizePx, Color color, bool goldFrame = false, bool ghost = false)
 	{
 		var view = new NoteView { Model = model, ZIndex = 1, _sizePx = sizePx }; // 连接体（ZIndex 0）之上
 		if (TryPaletteFor(model.Type, out var palette))
 		{
-			var vertical = model.Track != Track.Center;
-			var glowExpansion = vertical ? new Vector2(8f, 14f) : new Vector2(14f, 8f);
-			var glowAlpha = GlowAlphaFor(model.Type);
-			if (glowAlpha > 0f && !ghost)
-			{
-				var glow = FlatPalette(palette.Glow, glowAlpha);
-				AddSurface(view, sizePx + glowExpansion, glow, vertical, 0f, 0);
-			}
-
-				if (goldFrame)
-				{
-					// Runtime-derived cross-track press chord accent; never trust Baked_SyncNote.
-					AddSurface(view, sizePx + new Vector2(8f, 8f), GoldPalette,
-
-					vertical, 0.35f, 0);
-			}
-			AddSurface(view, sizePx, palette, vertical,
-				DetailStrengthFor(model.Type), DetailKindFor(model.Type));
+			AddSurface(view, sizePx, palette, false, 0f, 0);
+			AddSurface(view, sizePx, GoldPalette, false, 0.35f, 0);
+			AddSurface(view, sizePx, palette, false, 1f, 0);
+			view.Reuse(model, sizePx, color, goldFrame, ghost);
 			return view;
 		}
 

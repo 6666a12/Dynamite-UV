@@ -78,7 +78,7 @@ public static class V2Integration
             throw new V2DiagnosticException(metaPath, "/charts",
                 $"chart ID '{chartId}' is not declared by the pack");
 
-        var resolved = V2PackageValidator.Validate(pack, new V2PackageValidationHooks
+        V2PackageValidator.ValidatePackStructure(pack, new V2PackageValidationHooks
         {
             FileExists = relative => IsRegularPackageFile(root, relative),
             LoadChart = declaration => V2JsonDecoder.DecodeChartFile(
@@ -88,7 +88,25 @@ public static class V2Integration
                 ResolvePackagePath(root, relative);
             },
         }, metaPath);
-        var selected = resolved.Single(item => ReferenceEquals(item.Entry, entry));
+        var entryIndex = -1;
+        for (var i = 0; i < pack.Charts.Count; i++)
+        {
+            if (ReferenceEquals(pack.Charts[i], entry))
+            {
+                entryIndex = i;
+                break;
+            }
+        }
+        var selected = V2PackageValidator.ValidateEntry(pack, entry,
+            new V2PackageValidationHooks
+            {
+                LoadChart = declaration => V2JsonDecoder.DecodeChartFile(
+                    ResolvePackagePath(root, declaration.File)),
+                ValidateResolvedAudio = (declaration, relative) =>
+                {
+                    ResolvePackagePath(root, relative);
+                },
+            }, entryIndex, metaPath);
         var audioPath = ResolvePackagePath(root, selected.ResolvedAudio);
         var audioBytes = File.ReadAllBytes(audioPath);
         return BuildLoaded(pack, entry, selected.Chart, audioBytes, audioPath);

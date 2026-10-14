@@ -17,23 +17,14 @@ public sealed class ScoreStore
 
     public ScoreRecord? Get(ScoreIdentity identity) => _core.Get(identity);
 
-    public bool TryUpdate(ScoreIdentity identity, ScoreRecord candidate)
-    {
-        if (!_core.TryUpdate(identity, candidate))
-            return false;
-        Save();
-        return true;
-    }
+    // TryUpdate 不再同步写盘：成功后由调用方 SaveDeferred，避免结算首帧被 IO 阻塞。
+    public bool TryUpdate(ScoreIdentity identity, ScoreRecord candidate) =>
+        _core.TryUpdate(identity, candidate);
 
     public ScoreRecord? Get(string packId, string diff) => _core.GetLegacy(packId, diff);
 
-    public bool TryUpdate(string packId, string diff, ScoreRecord candidate)
-    {
-        if (!_core.TryUpdateLegacy(packId, diff, candidate))
-            return false;
-        Save();
-        return true;
-    }
+    public bool TryUpdate(string packId, string diff, ScoreRecord candidate) =>
+        _core.TryUpdateLegacy(packId, diff, candidate);
 
     public void Load()
     {
@@ -54,6 +45,8 @@ public sealed class ScoreStore
 
     public void LoadJson(string json) => _core.LoadJson(json);
     public string SaveJson() => _core.SaveJson();
+
+    public void SaveDeferred() => Callable.From(Save).CallDeferred();
 
     private void Save()
     {

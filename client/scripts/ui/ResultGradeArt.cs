@@ -1,8 +1,9 @@
 using Godot;
+using DynamiteUniverse.Shared.Score;
 
 namespace DynamiteUniverse.Ui;
 
-/// <summary>Loads only the current grade atlas (6×5 frames, 512px each), never all five animations.</summary>
+/// <summary>Loads only the current grade atlas (6×5 frames, 512px each), never all eight animations.</summary>
 internal sealed class ResultGradeArt
 {
     private static readonly int[] AmbientFrames = [29, 28, 27, 26, 25, 24, 25, 26, 27, 28];
@@ -15,7 +16,7 @@ internal sealed class ResultGradeArt
 
     public ResultGradeArt(string grade, bool animate)
     {
-        var key = grade == "Ω" ? "omega" : grade is "S" or "A" or "B" ? grade : "C";
+        var key = ScoreStoreCore.GradeAssetKey(grade);
         _still = GD.Load<Texture2D>($"res://assets/results/grades/{key}.png");
         _path = $"res://assets/results/grades/{key}_entry.png";
         if (animate)

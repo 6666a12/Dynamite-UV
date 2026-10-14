@@ -127,11 +127,24 @@ public sealed class ScoreStoreCore
 
     public static string GradeOf(double clearPercent) => clearPercent switch
     {
-        >= 98.0 => "Ω",
-        >= 95.0 => "S",
-        >= 90.0 => "A",
-        >= 80.0 => "B",
-        _ => "C",
+        100.0 => "Ω",
+        >= 99.0 and < 100.0 => "Y",
+        >= 97.0 and < 99.0 => "X",
+        >= 95.0 and < 97.0 => "S",
+        >= 90.0 and < 95.0 => "A",
+        >= 80.0 and < 90.0 => "B",
+        >= 60.0 and < 80.0 => "C",
+        _ => "D",
+    };
+
+    /// <summary>Stable storage/asset key Y is displayed as the approved Psi glyph.</summary>
+    public static string GradeLabel(string grade) => grade == "Y" ? "Ψ" : grade;
+
+    public static string GradeAssetKey(string grade) => grade switch
+    {
+        "Ω" => "omega",
+        "Y" or "X" or "S" or "A" or "B" or "C" or "D" => grade,
+        _ => "D",
     };
 
     public ScoreRecord? Get(ScoreIdentity identity) =>
@@ -183,9 +196,15 @@ public sealed class ScoreStoreCore
 
         Clear();
         foreach (var (identity, result) in records)
+        {
+            result.Grade = GradeOf(result.Acc);
             _records[identity] = result;
+        }
         foreach (var (key, result) in legacyRecords)
+        {
+            result.Grade = GradeOf(result.Acc);
             _legacyRecords[key] = result;
+        }
     }
 
     public string SaveJson()

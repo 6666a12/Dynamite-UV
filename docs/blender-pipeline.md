@@ -1,13 +1,14 @@
 # 评级资产 Blender 管线
 
 > 当前状态核对：2026-10-07。采用 v5 + 表面电流五级评级，已于 2026-10-03 接入结算 v2，2026-10-07 通过用户实机验收。
+> 2026-10-14 接入扩展：用户批准 X/Ψ/D，美术扩展为 Ω/Ψ/X/S/A/B/C/D 八级；源交付分别来自 v5_current、v5_current_xy、v5_current_d，游戏内新档效果仍待实机确认。
 > 方向比较、v4/v5 样片过程和历史构建结果见 [整理前原文](<archive/2026-10-07-cleanup/blender-pipeline.before.md>)。本文不宣称本次重新渲染或运行测试。
 > 入库策略：整个 `design/` 是 Git 忽略的本地美术工作区；源工程、交付序列和下列本地设计链接不随克隆取得。客户端最终 PNG/SVG、生成脚本和发布来源清单仍入库，普通构建/导出使用这些已有运行资源；完整重建前须另行备份并恢复本地设计输入。
 
 ## 1. 当前采用版本与边界
 
 - 用户选定原创 **双刃折返**、认可 v5 炫光，并要求附着表面电流；已撤回的“像碎屑”反馈不能作为削减光效依据。
-- 五级 Ω/S/A/B/C 各有 512×512 RGBA 静态图、30 帧 24fps 透明入场。S 复用获选 v5 基底，只叠加电流；其余四级扩展同一材质/光效语言。
+- 八级 Ω/Ψ/X/S/A/B/C/D 各有 512×512 RGBA 静态图、30 帧 24fps 透明入场。S 复用获选 v5 基底，只叠加电流；其余级别扩展同一材质/光效语言。新增 Ψ 的文件键为 Y。
 - 全部直接建原创网格，不依赖字体或原版游戏资产。设计源文件、分层渲染、视频、ZIP 不整体进入客户端；只打包批准的 PNG/SVG。
 - 当前 [结算 v2](<result-v2-design.md>) 使用静态 PNG 和图集，不实时加载 Blender 3D 字形。Full 播放入场后约 7fps 往返末尾帧电流；Reduced/Off 只用静态评级。
 
@@ -23,6 +24,7 @@
 | [asset-provenance.json](<../release/asset-provenance.json>) | 公开资产来源与 SHA-256 |
 
 交付目录的 `static/{omega,S,A,B,C}.png` 与各 `animation/<grade>/0030.png` 逐像素一致。
+X/Y 使用 `design/grades/v5_current_xy/delivery`，D 使用 `design/grades/v5_current_d/delivery`；同样遵守静图/末帧一致要求。
 每级 30 帧无损拼成 **3072×2560** 图集，单帧 512×512，6 列×5 行。
 游戏仅异步加载当前评级，未就绪时延长不透明屏风闭合等待，失败回退静图。
 S 的独立 `idle_current/` 是可选源序列，**当前 runtime 并未使用这一单独序列**，使用的是入场图集末尾往返帧。
@@ -39,7 +41,7 @@ python -B tools/grade-assets/package_grade_set.py
 ```
 
 这些脚本会覆盖相应生成目录；有手工改动时先保存副本或使用脚本支持的其他输出目录。
-打包使用已有五级交付，并抽取结算 Penpot vectors：
+打包使用三个目录的已批准八级交付（Ψ 文件键为 Y），并抽取结算 Penpot vectors：
 
 ```powershell
 python -B tools/grade-assets/build_runtime_results.py
@@ -56,7 +58,7 @@ ffmpeg -y -framerate 24 -i design/grades/v5_current/delivery/preview_frames/%04d
 
 ## 4. 必须检查
 
-- 五级静图/每帧尺寸与 RGBA 通道、30 帧/24fps、画布透明边缘和非透明内容边界。
+- 八级静图/每帧尺寸与 RGBA 通道、30 帧/24fps、画布透明边缘和非透明内容边界。
 - `fx_back` → `body/S_composite_####.png` → `fx_front` 普通 alpha 合成与最终帧重合；表面电流受实体遮挡，不能污染 beauty pass。
 - v5 的发光区域采用 mask 与多尺度辉光，RGB 和 alpha 都保留；没有因 alpha 裁切造成硬边。
 - S 基底哈希保持不变；图集回切、末帧/静图一致；生成器及运行时资产哈希更新一致。
@@ -64,6 +66,10 @@ ffmpeg -y -framerate 24 -i design/grades/v5_current/delivery/preview_frames/%04d
 - Public 最终检查仍按 [发布流程](<releasing.md>)，不能以源图片合规代替 APK 检查。
 
 ## 5. 保留的历史参考
+
+新补档 X / Ψ 的独立设计、重建命令与交付路径见 [X / Ψ 美术扩展](<grade-xy-art.md>)。
+其本地目录为 `design/grades/v5_current_xy/`；`--grade missing` 只生成这两档，待美术验收。
+低档 D 的独立交付见 [D 美术扩展](<grade-d-art.md>)，目录为 `design/grades/v5_current_d/`，使用 `--grade D`。
 
 | 目录/板组 | 状态 |
 | --- | --- |

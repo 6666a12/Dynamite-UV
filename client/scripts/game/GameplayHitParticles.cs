@@ -18,96 +18,113 @@ public partial class GameplayHitParticles : Node2D
     private const int SparkFullCount = 14;
     private const int EmberFullCount = 6;
 
+    private readonly List<GpuParticles2D> _emitters = new();
     private double _age;
-    private double _lifetime = SparkLifetime;
+    private double _lifetime;
+    private bool _playing;
 
-    /// <summary>命中点生成一组粒子。Mine 与 Off 档直接跳过，Reduced 档减半且无余烬。</summary>
-    public static void Spawn(Node parent, Vector2 position, float rotation, Color accent,
-        HitEffectKind kind, float strength, UiMotionMode mode)
+    public bool IsExpired => _playing && _age >= _lifetime + RecycleTail;
+
+    public static GameplayHitParticles CreatePooled(Node parent)
     {
-        if (parent == null || kind == HitEffectKind.Mine || mode == UiMotionMode.Off)
-            return;
-
-        var node = new GameplayHitParticles
-        {
-            Name = "HitParticles",
-            Position = position,
-            Rotation = rotation,
-            ZIndex = 2,
-        };
-        node.Build(accent, kind, strength, mode, HitParticleAssets.BurstCullRect);
+        var node = new GameplayHitParticles { Name = "HitParticles", ZIndex = 2 };
+        node.AddEmitter("SparkLayer", HitParticleAssets.SparkTexture(), SparkLifetime);
+        node.AddEmitter("EmberLayer", HitParticleAssets.EmberTexture(), EmberLifetime);
         parent.AddChild(node);
+        node.ResetForPool();
+        return node;
     }
 
-    /// <summary>
-    /// 屏外预发射一次，让命中与持续两套粒子 shader 在首击前完成编译。
-    /// 只在舞台就绪后调用一次。
-    /// </summary>
-    public static void Prewarm(Node parent)
+    public void ResetFor(Vector2 position, float rotation, Color accent,
+        HitEffectKind kind, float strength, UiMotionMode mode, bool prewarm = false)
     {
-        if (parent == null)
-            return;
-
-        var burst = new GameplayHitParticles
-        {
-            Name = "HitParticlesPrewarm",
-            Position = new Vector2(-2000f, -2000f),
-            Modulate = new Color(1f, 1f, 1f, 0f),
-            ZIndex = 2,
-        };
-        burst.Build(NoteVisualSpec.Tap, HitEffectKind.Tap, 1f, UiMotionMode.Full,
-            HitParticleAssets.PrewarmCullRect);
-        parent.AddChild(burst);
-        GameplaySustainParticles.Prewarm(parent);
-    }
-
-    public override void _Process(double delta)
-    {
-        _age += delta;
-        if (_age >= _lifetime + RecycleTail)
-            QueueFree();
-    }
-
-    private void Build(Color accent, HitEffectKind kind, float strength, UiMotionMode mode, Rect2 cullRect)
-    {
+        ResetForPool();
+        Position = position;
+        Rotation = rotation;
+        ZIndex = 2;
+        Visible = true;
+        Modulate = prewarm ? Colors.Transparent : Colors.White;
+        _playing = true;
+        _lifetime = mode == UiMotionMode.Full ? EmberLifetime : SparkLifetime;
         var tinted = HitParticleAssets.Tint(accent, kind);
         var amountScale = Mathf.Clamp(strength, 0.4f, 1.3f) * KindAmountFactor(kind);
         if (mode == UiMotionMode.Reduced)
             amountScale *= 0.5f;
-
-        var sparkCount = Mathf.Max(4, Mathf.RoundToInt(SparkFullCount * amountScale));
-        AddEmitter(HitParticleAssets.LayerBurstSpark, "SparkLayer", sparkCount,
-            HitParticleAssets.SparkTexture(), HitParticleAssets.SparkMaterial(tinted), cullRect, SparkLifetime);
-
-        if (mode != UiMotionMode.Full)
-            return;
-
-        var emberCount = Mathf.Max(3, Mathf.RoundToInt(EmberFullCount * Mathf.Clamp(strength, 0.5f, 1.2f)));
-        AddEmitter(HitParticleAssets.LayerBurstEmber, "EmberLayer", emberCount,
-            HitParticleAssets.EmberTexture(), HitParticleAssets.EmberMaterial(tinted), cullRect, EmberLifetime);
+        var spark = _emitters[0];
+        spark.Amount = Mathf.Max(4, Mathf.RoundToInt(SparkFullCount * amountScale));
+        spark.ProcessMaterial = HitParticleAssets.SparkMaterial(tinted);
+        spark.VisibilityRect = prewarm ? HitParticleAssets.PrewarmCullRect : HitParticleAssets.BurstCullRect;
+        spark.Visible = true;
+        spark.Restart();
+        spark.Emitting = true;
+        var ember = _emitters[1];
+        ember.Visible = mode == UiMotionMode.Full;
+        if (mode == UiMotionMode.Full)
+        {
+            ember.Amount = Mathf.Max(3, Mathf.RoundToInt(EmberFullCount * Mathf.Clamp(strength, 0.5f, 1.2f)));
+            ember.ProcessMaterial = HitParticleAssets.EmberMaterial(tinted);
+            ember.VisibilityRect = spark.VisibilityRect;
+            ember.Restart();
+            ember.Emitting = true;
+        }
+        SetProcess(true);
     }
 
-    private void AddEmitter(int layer, string name, int amount, Texture2D texture,
-        ParticleProcessMaterial material, Rect2 cullRect, float lifetime)
+    public void ResetForPool()
     {
-        _lifetime = Mathf.Max(_lifetime, lifetime);
-        AddChild(new GpuParticles2D
+        foreach (var emitter in _emitters)
+        {
+            emitter.Restart();
+            emitter.Emitting = false;
+            emitter.Visible = false;
+            emitter.Position = Vector2.Zero;
+            emitter.Rotation = 0f;
+            emitter.Scale = Vector2.One;
+            emitter.Modulate = Colors.White;
+            emitter.Amount = 1;
+            emitter.ProcessMaterial = null;
+            emitter.VisibilityRect = HitParticleAssets.BurstCullRect;
+        }
+        _age = 0.0;
+        _lifetime = SparkLifetime;
+        _playing = false;
+        Visible = false;
+        Modulate = Colors.White;
+        Position = Vector2.Zero;
+        Rotation = 0f;
+        Scale = Vector2.One;
+        Skew = 0f;
+        ZIndex = 2;
+        SetProcess(false);
+    }
+
+    public static void Prewarm(Node parent)
+    {
+        if (parent == null) return;
+        var burst = CreatePooled(parent);
+        burst.ResetFor(new Vector2(-2000f, -2000f), 0f, NoteVisualSpec.Tap,
+            HitEffectKind.Tap, 1f, UiMotionMode.Full, prewarm: true);
+    }
+
+    private void AddEmitter(string name, Texture2D texture, float lifetime)
+    {
+        var emitter = new GpuParticles2D
         {
             Name = name,
-            Amount = amount,
+            Amount = 1,
             Lifetime = lifetime,
             OneShot = true,
             Explosiveness = 1f,
             Randomness = 0.5f,
-            Emitting = true,
+            Emitting = false,
             LocalCoords = false,
             FixedFps = 0,
             Texture = texture,
-            ProcessMaterial = material,
-            VisibilityRect = cullRect,
-            // 与持续层一致的加法混合；ramp 峰值已按过曝预算下调。
             Material = HitParticleAssets.Additive,
-        });
+            VisibilityRect = HitParticleAssets.BurstCullRect,
+        };
+        _emitters.Add(emitter);
+        AddChild(emitter);
     }
 
     private static float KindAmountFactor(HitEffectKind kind) => kind switch
@@ -142,37 +159,57 @@ public partial class GameplaySustainParticles : Node2D
     private const int TrailSectionSubdivisions = 4;
 
     private readonly List<GpuParticles2D> _emitters = new();
-    private double _age;
     private double _drainAge;
-    private double _drainLifetime = SparkLifetime;
-    private double _autoStopSecond = -1.0;
-    private bool _emitting = true;
+    private double _drainLifetime;
+    private bool _emitting;
+    private bool _full;
     private bool _counted;
+    private bool _releasing;
+    private double _prewarmRemaining;
     private static int _liveEmitters;
 
-    /// <summary>
-    /// 接触激活期间创建；返回的实例需要每帧更新 Position。
-    /// <paramref name="headSpanPx"/> 是接触头沿轨道方向的实宽，用于按宽度铺开发射；
-    /// 旋转需按轨道给符号（中轨 0、左轨 +π/2、右轨 −π/2），配合局部 (0,1,0) 方向
-    /// 把粒子推向面板外侧。
-    /// </summary>
-    public static GameplaySustainParticles Spawn(Node parent, float rotation,
-        HitEffectKind kind, UiMotionMode mode, float headSpanPx)
+    public bool IsDrained => _releasing && _drainAge >= _drainLifetime + DrainTail;
+
+    public static GameplaySustainParticles CreatePooled(Node parent)
     {
-        // 并发折算：同一时刻多条 Hold/Mixer 保持时单条减量，避免总量失控。
-        // 只影响新建的发射器，先开始的那条保持完整密度。
-        var node = new GameplaySustainParticles
-        {
-            Name = "SustainParticles",
-            Rotation = rotation,
-            ZIndex = 2,
-        };
-        node.Build(kind, mode, HitParticleAssets.BurstCullRect, ConcurrencyFactor(),
-            HitParticleAssets.BoxBucket(headSpanPx * 0.5f));
-        node._counted = true;
-        _liveEmitters++;
+        var node = new GameplaySustainParticles { Name = "SustainParticles", ZIndex = 2 };
+        node.AddEmitter("SustainSparkLayer", HitParticleAssets.SparkTexture(), SparkLifetime, true);
+        node.AddEmitter("SustainEmberLayer", HitParticleAssets.EmberTexture(), EmberLifetime, false);
         parent.AddChild(node);
+        node.ResetForPool();
         return node;
+    }
+
+    public void ResetFor(float rotation, HitEffectKind kind, UiMotionMode mode,
+        float headSpanPx, bool prewarm = false)
+    {
+        ResetForPool();
+        Rotation = rotation;
+        Visible = true;
+        Modulate = prewarm ? Colors.Transparent : Colors.White;
+        _full = mode == UiMotionMode.Full;
+        _drainLifetime = _full ? EmberLifetime : SparkLifetime;
+        var factor = prewarm ? 1f : ConcurrencyFactor();
+        var tinted = HitParticleAssets.Tint(NoteVisualSpec.HitPerfect, kind);
+        var bucket = HitParticleAssets.BoxBucket(headSpanPx * 0.5f);
+        var spark = _emitters[0];
+        spark.Amount = ScaleAmount(_full ? SparkFullAmount : SparkReducedAmount, factor);
+        spark.ProcessMaterial = HitParticleAssets.SustainSparkMaterial(tinted, bucket);
+        spark.Visible = true;
+        spark.VisibilityRect = prewarm ? HitParticleAssets.PrewarmCullRect : HitParticleAssets.BurstCullRect;
+        var ember = _emitters[1];
+        ember.Amount = ScaleAmount(EmberFullAmount, factor);
+        ember.ProcessMaterial = HitParticleAssets.SustainEmberMaterial(tinted, bucket);
+        ember.Visible = _full;
+        ember.VisibilityRect = spark.VisibilityRect;
+        if (!prewarm)
+        {
+            _counted = true;
+            _liveEmitters++;
+        }
+        _prewarmRemaining = prewarm ? 0.4 : 0.0;
+        SetEmitting(true);
+        SetProcess(true);
     }
 
     private static float ConcurrencyFactor() => _liveEmitters switch
@@ -182,115 +219,93 @@ public partial class GameplaySustainParticles : Node2D
         _ => 0.72f,
     };
 
-    public override void _ExitTree()
+    private void Uncount()
     {
-        if (!_counted)
-            return;
+        if (!_counted) return;
         _counted = false;
         _liveEmitters = Mathf.Max(0, _liveEmitters - 1);
     }
 
-    /// <summary>屏外预发射一次并自行停发回收，让持续层 shader 提前编译。</summary>
-    public static void Prewarm(Node parent)
-    {
-        if (parent == null)
-            return;
-
-        var node = new GameplaySustainParticles
-        {
-            Name = "SustainParticlesPrewarm",
-            Position = new Vector2(-2600f, -1400f),
-            Modulate = new Color(1f, 1f, 1f, 0f),
-            ZIndex = 2,
-        };
-        node.Build(HitEffectKind.Hold, UiMotionMode.Full, HitParticleAssets.PrewarmCullRect, 1f,
-            HitParticleAssets.BoxBucket(80f));
-        node.StopAfter(0.4);
-        parent.AddChild(node);
-    }
+    public override void _ExitTree() => Uncount();
 
     public void SetEmitting(bool emitting)
     {
-        if (_emitting == emitting)
-            return;
-
+        if (_emitting == emitting) return;
         _emitting = emitting;
         _drainAge = 0.0;
+        _emitters[0].Emitting = emitting;
+        _emitters[1].Emitting = emitting && _full;
+    }
+
+    public void BeginRelease()
+    {
+        SetEmitting(false);
+        _releasing = true;
+        SetProcess(true);
+    }
+
+    public void ResetForPool()
+    {
+        Uncount();
         foreach (var emitter in _emitters)
         {
-            if (GodotObject.IsInstanceValid(emitter))
-                emitter.Emitting = emitting;
+            emitter.Restart();
+            emitter.Emitting = false;
+            emitter.Visible = false;
+            emitter.Position = Vector2.Zero;
+            emitter.Rotation = 0f;
+            emitter.Scale = Vector2.One;
+            emitter.Modulate = Colors.White;
+            emitter.Amount = 1;
+            emitter.ProcessMaterial = null;
+            emitter.VisibilityRect = HitParticleAssets.BurstCullRect;
         }
+        _drainAge = 0.0;
+        _drainLifetime = SparkLifetime;
+        _prewarmRemaining = 0.0;
+        _emitting = false;
+        _full = false;
+        _releasing = false;
+        Position = Vector2.Zero;
+        Rotation = 0f;
+        Scale = Vector2.One;
+        Skew = 0f;
+        Modulate = Colors.White;
+        ZIndex = 2;
+        Visible = false;
+        SetProcess(false);
     }
 
     public override void _Process(double delta)
     {
-        _age += delta;
-        if (_autoStopSecond > 0.0 && _age >= _autoStopSecond)
+        if (_prewarmRemaining > 0.0)
         {
-            // 只给预热探针用：闪一下就走，不需要外部回收。
-            _autoStopSecond = -1.0;
-            SetEmitting(false);
+            _prewarmRemaining -= delta;
+            if (_prewarmRemaining <= 0.0)
+                BeginRelease();
         }
-
-        if (_emitting)
-            return;
-
-        _drainAge += delta;
-        if (_drainAge >= _drainLifetime + DrainTail)
-            QueueFree();
+        if (!_emitting)
+            _drainAge += delta;
     }
 
-    private void Build(HitEffectKind kind, UiMotionMode mode, Rect2 cullRect,
-        float concurrencyFactor, int boxBucket)
-    {
-        // 持续段的判定色恒为 HitPerfect，由类型色承担可辨识度（和命中爆发同一比例）。
-        var tinted = HitParticleAssets.Tint(NoteVisualSpec.HitPerfect, kind);
-        var reduced = mode == UiMotionMode.Reduced;
-
-        // 火花层带彗尾：拖尾由 GPUParticles2D 的 Trail 属性控制（不是 ParticleProcessMaterial）。
-        AddEmitter("SustainSparkLayer",
-            ScaleAmount(reduced ? SparkReducedAmount : SparkFullAmount, concurrencyFactor),
-            HitParticleAssets.SparkTexture(), HitParticleAssets.SustainSparkMaterial(tinted, boxBucket),
-            cullRect, SparkLifetime, trail: true);
-
-        if (reduced)
-            return;
-
-        _drainLifetime = Mathf.Max(_drainLifetime, EmberLifetime);
-        AddEmitter("SustainEmberLayer",
-            ScaleAmount(EmberFullAmount, concurrencyFactor),
-            HitParticleAssets.EmberTexture(), HitParticleAssets.SustainEmberMaterial(tinted, boxBucket),
-            cullRect, EmberLifetime, trail: false);
-    }
-
-    // Godot 的连续发射速率 = Amount / Lifetime，所以折算数量就是折算速率与稳态可见数。
     private static int ScaleAmount(int amount, float factor) =>
         Mathf.Max(1, Mathf.RoundToInt(amount * factor));
 
-    private void StopAfter(double seconds)
-    {
-        _autoStopSecond = seconds;
-    }
-
-    private void AddEmitter(string name, int amount, Texture2D texture,
-        ParticleProcessMaterial material, Rect2 cullRect, float lifetime, bool trail)
+    private void AddEmitter(string name, Texture2D texture, float lifetime, bool trail)
     {
         var emitter = new GpuParticles2D
         {
             Name = name,
-            Amount = amount,
+            Amount = 1,
             Lifetime = lifetime,
             OneShot = false,
             Explosiveness = 0f,
             Randomness = 0.55f,
-            Emitting = true,
+            Emitting = false,
             LocalCoords = false,
             FixedFps = 0,
             Texture = texture,
-            ProcessMaterial = material,
-            VisibilityRect = cullRect,
-            // 持续层用加法混合发光。
+            VisibilityRect = HitParticleAssets.BurstCullRect,
             Material = HitParticleAssets.Additive,
             TrailEnabled = trail,
             TrailLifetime = TrailLifetime,

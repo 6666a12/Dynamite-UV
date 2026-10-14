@@ -2,10 +2,10 @@ using DynamiteUniverse.Shared.Chart;
 
 namespace DynamiteUniverse.Shared.Judge;
 
-/// <summary>判定等级（规格书 §6.4，原文拼写 Prefect）。</summary>
+/// <summary>判定等级（规格书 §6.4，原文拼写 Perfect）。</summary>
 public enum JudgeGrade
 {
-    Prefect,
+    Perfect,
     Great,
     Good,
     Miss,
@@ -27,7 +27,7 @@ public enum JudgeResolution
     InputMiss = 2,
     Good = 3,
     Great = 4,
-    Prefect = 5,
+    Perfect = 5,
 }
 
 /// <summary>社区版计分类别。</summary>
@@ -69,7 +69,7 @@ public sealed class JudgeUnit
     /// <summary>判定窗口倍率（EX-Tap &gt; 1，其余 1）。</summary>
     public double WindowScale { get; init; } = 1.0;
     /// <summary>
-    /// EX-Tap（T5）二值判定：窗内一律 Prefect，出窗即输入 Miss（原版 Burst 无 GR/GD 档）。
+    /// EX-Tap（T5）二值判定：窗内一律 Perfect，出窗即输入 Miss（原版 Burst 无 GR/GD 档）。
     /// </summary>
     public bool IsExTap { get; init; }
     /// <summary>是否改变 Combo。</summary>
@@ -109,6 +109,24 @@ public static class SustainJudgementRules
     /// <summary>Whether the frozen deadline permanently breaks the Hold before its tail.</summary>
     public static bool ShouldBreakHold(double currentTime, double tailTime,
         HoldContactLoss loss) => loss.Deadline < tailTime && currentTime >= loss.Deadline;
+
+    /// <summary>
+    /// A short Hold's tail must wait for the head's legal late window, just like its body nodes.
+    /// A successful late head may resolve an already-passed tail; a failed head is settled by
+    /// FailRemainingHold. Presentation rounding and frame timing never narrow the head window.
+    /// </summary>
+    public static JudgeResult? JudgeHoldTail(double tailTime, double currentTime,
+        bool startResolved, bool holding, bool broken, HoldContactState contact,
+        JudgeEngine engine, double windowScale = 1.0)
+    {
+        if (currentTime < tailTime || !startResolved)
+            return null;
+        if (!broken && contact.ContactLostAt is { } releaseTime)
+            return engine.Judge(tailTime, Math.Min(releaseTime, tailTime), windowScale);
+        return new JudgeResult(!broken && holding ? JudgeGrade.Perfect : JudgeGrade.Miss,
+            HitTiming.Exact, 0.0,
+            !broken && holding ? JudgeResolution.Perfect : JudgeResolution.AutoMiss);
+    }
 
     /// <summary>
     /// Hold 头 Miss 后，立即将该 Hold 的所有剩余节点判为 Miss。
@@ -196,6 +214,19 @@ public readonly record struct HoldContactState(double? ContactLostAt, double? Gr
         var loss = SustainJudgementRules.BeginHoldContactLoss(lostAt, bpmAtLoss, settings);
         return new HoldContactState(loss.LostAt, loss.Deadline);
     }
+
+    /// <summary>
+    /// Observe the complete contact snapshot at an input event (or at the tail/frame boundary).
+    /// Once the grace deadline expires before the tail, a later touch cannot erase that loss.
+    /// Events after the tail must be excluded by the caller.
+    /// </summary>
+    public HoldContactState Observe(double time, double tailTime, bool connected,
+        double bpm, JudgeSettings settings)
+    {
+        if (GraceDeadline is { } deadline && deadline < tailTime && time >= deadline)
+            return this;
+        return connected ? Contact : BeginLoss(time, bpm, settings);
+    }
 }
 
 /// <summary>一次判定的结果。</summary>
@@ -218,13 +249,15 @@ public sealed class JudgeEngine
     public JudgePreset Preset { get; }
 
     public int Score { get; private set; }
+    /// <summary>Perfect-weight denominator of all applied judgements, including sustain batches.</summary>
+    public int JudgedTheoreticalMax { get; private set; }
     public int Combo { get; private set; }
     public int MaxCombo { get; private set; }
     public int Health { get; private set; }
     public int MaxHealth { get; }
     public int Boost { get; private set; }
 
-    public int CountPrefect { get; private set; }
+    public int CountPerfect { get; private set; }
     public int CountGreat { get; private set; }
     public int CountGood { get; private set; }
     public int CountMiss { get; private set; }
@@ -257,16 +290,16 @@ public sealed class JudgeEngine
         var delta = inputTime - noteTime;
         var abs = Math.Abs(delta);
         var grade = binaryExTap
-            ? (abs <= Settings.GoodSec * windowScale ? JudgeGrade.Prefect : JudgeGrade.Miss)
+            ? (abs <= Settings.GoodSec * windowScale ? JudgeGrade.Perfect : JudgeGrade.Miss)
             :
-            abs <= Settings.PrefectSec * windowScale ? JudgeGrade.Prefect :
+            abs <= Settings.PerfectSec * windowScale ? JudgeGrade.Perfect :
             abs <= Settings.GreatSec * windowScale ? JudgeGrade.Great :
             abs <= Settings.GoodSec * windowScale ? JudgeGrade.Good :
             JudgeGrade.Miss;
         var timing = abs < 1e-9 ? HitTiming.Exact : delta < 0 ? HitTiming.Early : HitTiming.Late;
         var resolution = grade switch
         {
-            JudgeGrade.Prefect => JudgeResolution.Prefect,
+            JudgeGrade.Perfect => JudgeResolution.Perfect,
             JudgeGrade.Great => JudgeResolution.Great,
             JudgeGrade.Good => JudgeResolution.Good,
             _ => JudgeResolution.InputMiss,
@@ -284,18 +317,18 @@ public sealed class JudgeEngine
     {
         var delta = inputTime - noteTime;
         var abs = Math.Abs(delta);
-        var prefectSec = Settings.PrefectSec * windowScale;
+        var perfectSec = Settings.PerfectSec * windowScale;
         var greatSec = Settings.GreatSec * windowScale;
         var goodSec = Settings.GoodSec * windowScale;
 
         if (binaryExTap)
         {
-            // 原版 Burst：窗内命中一律 grade 5（Prefect），没有 GR/GD 档；
+            // 原版 Burst：窗内命中一律 grade 5（Perfect），没有 GR/GD 档；
             // 出窗（早侧或晚侧）只要落在输入窗内就是 grade 2（输入 Miss），不留 Pending。
             if (abs <= goodSec)
-                return new JudgeResult(JudgeGrade.Prefect,
+                return new JudgeResult(JudgeGrade.Perfect,
                     abs < 1e-9 ? HitTiming.Exact : delta < 0 ? HitTiming.Early : HitTiming.Late,
-                    delta, JudgeResolution.Prefect);
+                    delta, JudgeResolution.Perfect);
             return new JudgeResult(JudgeGrade.Miss,
                 abs < 1e-9 ? HitTiming.Exact : delta < 0 ? HitTiming.Early : HitTiming.Late,
                 delta, JudgeResolution.InputMiss);
@@ -305,14 +338,14 @@ public sealed class JudgeEngine
             return new JudgeResult(JudgeGrade.Miss, HitTiming.Late, delta,
                 JudgeResolution.Pending);
 
-        var grade = abs <= prefectSec ? JudgeGrade.Prefect :
+        var grade = abs <= perfectSec ? JudgeGrade.Perfect :
             abs <= greatSec ? JudgeGrade.Great :
             abs <= goodSec ? JudgeGrade.Good : JudgeGrade.Miss;
         var timing = abs < 1e-9 ? HitTiming.Exact :
             delta < 0 ? HitTiming.Early : HitTiming.Late;
         var resolution = grade switch
         {
-            JudgeGrade.Prefect => JudgeResolution.Prefect,
+            JudgeGrade.Perfect => JudgeResolution.Perfect,
             JudgeGrade.Great => JudgeResolution.Great,
             JudgeGrade.Good => JudgeResolution.Good,
             _ => JudgeResolution.InputMiss,
@@ -333,6 +366,7 @@ public sealed class JudgeEngine
         JudgeResolution? resolution = null)
     {
         Score += ScoreDelta(category, grade);
+        JudgedTheoreticalMax += ScoreDelta(category, JudgeGrade.Perfect);
         Health = Math.Clamp(Health + HealthDelta(category, grade), 0, MaxHealth);
         Boost = Math.Clamp(Boost + BoostDelta(category, grade), 0, MaxBoost);
 
@@ -348,7 +382,7 @@ public sealed class JudgeEngine
         {
             switch (grade)
             {
-                case JudgeGrade.Prefect: CountPrefect++; break;
+                case JudgeGrade.Perfect: CountPerfect++; break;
                 case JudgeGrade.Great: CountGreat++; break;
                 case JudgeGrade.Good: CountGood++; break;
                 default: CountMiss++; break;
@@ -368,11 +402,11 @@ public sealed class JudgeEngine
     }
 
     /// <summary>
-    /// Mine 判定：到点前未触发 = Prefect；危险窗内接触 = InputMiss。
+    /// Mine 判定：到点前未触发 = Perfect；危险窗内接触 = InputMiss。
     /// </summary>
     public void ApplyMine(bool touched) =>
-        Apply(ScoreCategory.Mine, touched ? JudgeGrade.Miss : JudgeGrade.Prefect,
-            resolution: touched ? JudgeResolution.InputMiss : JudgeResolution.Prefect);
+        Apply(ScoreCategory.Mine, touched ? JudgeGrade.Miss : JudgeGrade.Perfect,
+            resolution: touched ? JudgeResolution.InputMiss : JudgeResolution.Perfect);
 
     /// <summary>社区版 CLEAR = 当前基础得分 / 理论满分 × 100。</summary>
     public double Percent(int theoreticalMax) =>
@@ -380,7 +414,7 @@ public sealed class JudgeEngine
 
     /// <summary>
     /// 社区版显示/存档分数：原始加权得分按该谱理论满分归一化到 0..1,000,000。
-    /// 使用整数四舍五入，并钳制上限，保证全 Prefect 严格等于 1,000,000。
+    /// 使用整数四舍五入，并钳制上限，保证全 Perfect 严格等于 1,000,000。
     /// </summary>
     public int NormalizedScore(int theoreticalMax)
     {
@@ -397,14 +431,14 @@ public sealed class JudgeEngine
     {
         ScoreCategory.Chain => g switch
         {
-            JudgeGrade.Prefect => 50,
+            JudgeGrade.Perfect => 50,
             JudgeGrade.Great => 35,
             JudgeGrade.Good => 25,
             _ => 0,
         },
         _ => g switch // 所有社区版主判定使用完整 100 分权重
         {
-            JudgeGrade.Prefect => 100,
+            JudgeGrade.Perfect => 100,
             JudgeGrade.Great => 70,
             JudgeGrade.Good => 50,
             _ => 0,
@@ -418,26 +452,26 @@ public sealed class JudgeEngine
         {
             ScoreCategory.Mine => g switch
             {
-                JudgeGrade.Prefect => 20,
+                JudgeGrade.Perfect => 20,
                 JudgeGrade.Great => 15,
                 JudgeGrade.Good => 10,
                 _ => tutorial ? -200 : Preset == JudgePreset.Hard ? -1500 : -1000,
             },
             ScoreCategory.HoldHolding => g switch
             {
-                JudgeGrade.Prefect => 5,
+                JudgeGrade.Perfect => 5,
                 JudgeGrade.Miss => tutorial ? -20 : -100,
                 _ => 0,
             },
             ScoreCategory.MixerHolding => g switch
             {
-                JudgeGrade.Prefect => 10,
+                JudgeGrade.Perfect => 10,
                 JudgeGrade.Miss => tutorial ? -20 : -100,
                 _ => 0,
             },
             _ => g switch // Tap/Burst/Chain/HoldStart/HoldEnd/MixerStart
             {
-                JudgeGrade.Prefect => 20,
+                JudgeGrade.Perfect => 20,
                 JudgeGrade.Great => 15,
                 JudgeGrade.Good => 10,
                 _ => tutorial ? -100 : -500,
@@ -454,7 +488,7 @@ public sealed class JudgeEngine
         {
             ScoreCategory.Chain => g switch
             {
-                JudgeGrade.Prefect => 50,
+                JudgeGrade.Perfect => 50,
                 JudgeGrade.Great => 25,
                 JudgeGrade.Good => 12,
                 _ => 0,
@@ -463,7 +497,7 @@ public sealed class JudgeEngine
                 g == JudgeGrade.Miss ? 0 : 15,
             _ => g switch
             {
-                JudgeGrade.Prefect => 100,
+                JudgeGrade.Perfect => 100,
                 JudgeGrade.Great => 50,
                 JudgeGrade.Good => 25,
                 _ => 0,
@@ -491,7 +525,7 @@ public static class JudgePlan
     {
         public required List<JudgeUnit> Units { get; init; }
         public required IReadOnlyDictionary<int, SustainPath> Sustains { get; init; }
-        /// <summary>理论满分 = 全部单元 Prefect 的得分和。</summary>
+        /// <summary>理论满分 = 全部单元 Perfect 的得分和。</summary>
         public required int TheoreticalMax { get; init; }
         /// <summary>主判定总数；与谱面 Note 数、满 Combo、P/GR/GD/M 总和同口径。</summary>
         public required int HeadlineUnitCount { get; init; }
@@ -535,7 +569,7 @@ public static class JudgePlan
                         break;
 
                     case NoteType.ExTap:
-                        // 蓝 EX-Tap：与原版一致（同窗 + 二值判定：窗内 Prefect，出窗输入 Miss）。
+                        // 蓝 EX-Tap：与原版一致（同窗 + 二值判定：窗内 Perfect，出窗输入 Miss）。
                         units.Add(Unit(n, ScoreCategory.Tap, UnitKind.Input,
                             ExTapWindowScale, isExTap: true));
                         break;
@@ -593,8 +627,14 @@ public static class JudgePlan
             }
         }
 
-        units.Sort((a, b) => a.Time.CompareTo(b.Time));
-        var max = units.Sum(u => JudgeEngine.ScoreDelta(u.Category, JudgeGrade.Prefect));
+        var orderedUnits = units
+            .Select((unit, index) => (unit, index))
+            .OrderBy(item => item.unit.Time)
+            .ThenBy(item => item.index)
+            .Select(item => item.unit)
+            .ToList();
+        units = orderedUnits;
+        var max = units.Sum(u => JudgeEngine.ScoreDelta(u.Category, JudgeGrade.Perfect));
         var headlineCount = units.Count(u => u.AffectsJudgeCounts);
         return new Plan
         {

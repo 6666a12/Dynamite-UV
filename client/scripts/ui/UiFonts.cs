@@ -47,9 +47,12 @@ public static class UiFonts
     public static Color GradeColor(string grade) => grade switch
     {
         "Ω" => Pink,
+        "Y" => new Color("ED75FF"),
+        "X" => new Color("AA88FF"),
         "S" => Cyan,
         "A" => Hard,
         "B" => Normal,
+        "D" => new Color("697F91"),
         _ => Dim,
     };
 

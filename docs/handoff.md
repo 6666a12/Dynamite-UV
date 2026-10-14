@@ -1,6 +1,7 @@
 # Dynamite Universe 当前交接
 
-> 状态核对：2026-10-07，依据当前源码和有效规格进行静态核对；本次文档整理未重新构建、测试或启动游戏。
+> 状态核对：2026-10-14 工作区盘点；本轮只读检查源码/diff/目录并同步文档，没有重新构建、测试或启动游戏。具体基线见 [工作区盘点](workspace-inventory-2026-10-14.md)。
+> 最近 Internal 测试包已导出并验包通过；用户已认可新三档评级，并反馈 Mixer 目前看来正常。前轮性能/其他专项验收仍见 §4，不将初步反馈扩大为全面验证。
 > 本文只保留当前实现、固定决策、真实待办和操作流程。阶段更新与旧验证记录见 [历史归档](<archive/README.md>)。
 > 专题入口见 [文档导航](<README.md>)。项目名为 Dynamite Universe；冻结的 `dynamite-uv-*` / `gameplay-v1` wire 标签继续兼容。
 
@@ -20,13 +21,13 @@
 | 区域 | 已接入 | 边界 |
 | --- | --- | --- |
 | 首页 | 游玩、设置、真实 Blender 模型的 3D 能量核心 | “谱面工坊”禁用，预留给服务器谱面库；分区启灯新概念未接入 |
-| 选曲 v2 | QUICK SETTINGS、Standard/Hardcore、BLEED/MIRROR/AUTO、曲名/曲师/谱师实时搜索、就地展开卡（Full 下 0.20s 高度动画 + 卡内内容淡切）、试听、难度切换和最佳成绩 | 筛选排序仍占位；进场默认收起、不自动试听 |
-| 游玩 | 三轨鼠标/多点触摸、镜像、Auto、暂停/继续、重开、返回选曲 | Auto 忽略游玩输入、全 Prefect 且不写成绩；多指设备层仍待验证 |
-| 结算 v2 | 不透明双屏风、v5 五评级图集、分组信息、AP/FC、判定分布、纪录增量、三动作按钮、组内数据动效（分数计数/判定错峰计数/分布条擦入/NEW RECORD 盖印，Full 限定） | 已接入并通过用户实机验收；运行时评级是图片/图集，不是实时 3D 模型 |
+| 选曲 v2 | QUICK SETTINGS、Standard/Hardcore、BLEED/MIRROR/AUTO、曲名/曲师/谱师实时搜索、就地展开卡（Full 下 0.20s 高度动画 + 卡内内容淡切；详情加载走 Task.Run 异步 + SemaphoreSlim 单并发 + generation 竞态守卫）、试听、难度切换和最佳成绩 | 筛选排序仍占位；进场默认收起、不自动试听 |
+| 游玩 | 三轨鼠标/多点触摸、镜像、Auto、暂停/继续、重开、返回选曲 | Auto 忽略游玩输入、全 Perfect 且不写成绩；多指设备层仍待验证 |
+| 结算 v2 | 不透明双屏风、v5 八评级图集（Ω/Ψ/X/S/A/B/C/D）、分组信息、AP/FC、判定分布、纪录增量、三动作按钮、组内数据动效（分数计数/判定错峰计数/分布条擦入/NEW RECORD 盖印，Full 限定） | 既有结算流程已通过用户实机验收；用户已认可新接入客户端的 X/Ψ/D（2026-10-14）；运行时评级是图片/图集 |
 | 设置 | GAMEPLAY/AUDIO/DISPLAY；偏移、落速、特效、模式、Music/Hit/UI 音量与 Full/Reduced/Off；JUDGE OFFSET 行带「校准 ▶」入口 | 设置已持久化；完整 Hit/UI 声音资产链路未完成 |
 | 校准向导 | 单轨试打台（游玩几何/落速）+ 毫秒读数 + 偏差条带 + 实时统计，合成 120BPM 节拍循环，时钟与游玩同源（不含 userOffset）；建议偏移 = 当前 − 中位数（5ms 取整、±300 钳制）；目标样本 8–32 可调、采样中锁定；每颗 note 至多一个样本 | 已实机验收（Android 全流程：采样/统计/APPLY）；节拍音源数据末尾垫 1 静音帧——引擎混音在循环边界会读到 loop_end 帧，loop_end == 帧数时越界 2 字节，Android 上必崩（桌面被分配器冗余掩盖），手写 AudioStreamWav 循环必须遵守；页面动效口径见 editor-ui-design.md §2.2 |
 
-选曲展开即自动播放预览，切歌/收起/离页/START 停止；传输键可暂停，进度只读且不循环。无配置时使用 0s/30s，预览整段加载音频，大 WAV 首次展开可能卡顿。
+选曲展开即自动播放预览，切歌/收起/离页/START 停止；传输键可暂停，进度只读且不循环。无配置时使用 0s/30s，预览整段加载音频；音频已按路径缓存（`shared/IO/PathResourceCache.cs` + `Res.EvictAudio`）且加载异步化，大 WAV 首次解码仍有成本。
 几何和状态细节见 [UI 设计施工约定](<editor-ui-design.md>)。
 
 `GameSession` 保存跨场景选择与预加载。无选择直接启动 gameplay 时，仅 Godot 编辑环境和 Internal Testdata 构建可回退开发谱并默认 Auto；Public 和未分类导出回到选曲。
@@ -39,14 +40,18 @@
 - v2 包加载按文件系统分路：`res://` 包全程走 Godot FileAccess/ResourceLoader 虚拟分支（Android 导出里 res:// 在 PCK 内，System.IO 不可见；包内音频只有导入重映射，digest 按空音频计算，desktop 同路保证两端一致），`user://`/绝对路径走 System.IO 文件系统版（digest 含完整音频）。**任何 v2 加载改动都必须保持 res:// 分支不引入 System.IO。**
 - 显式 v2 必须严格解码、跨文件校验与计算 Digest，失败拒绝；正常 legacy 先尝试转换成 v2，不适用时保留 legacy-direct 兼容路径。正式合同见 [Chart Format v2](<chart-format-v2.md>)。
 - legacy `Position` 为左缘，范围 `[P,P+W]`，中心 `P+W/2`；v2 使用自己的 center/width 合同，不能混用。Type 1 Tap、2 Drag、3/4 Hold、5 EX-Tap、6/7 Mixer、8 Mine、9 BarLine。
-- EX-Tap 为窗口倍率 1.0 的二值判定：窗内 Prefect、出窗输入 Miss，无 GR/GD；参与同帧时间锁。BarLine 只渲染，不计分/Combo。
+- EX-Tap 为窗口倍率 1.0 的二值判定：窗内 Perfect、出窗输入 Miss，无 GR/GD；参与同帧时间锁。BarLine 只渲染，不计分/Combo。
 - Standard 按难度取 Casual/Normal/Hard/Tutorial；Hard 及以上含 custom 用 Hard。Hardcore 对所有难度强制 Hard 窗口 ×0.5（31.25/56.25/81.25/125ms），Holding 宽限沿用 Hard。
 - BLEED 是修饰开关，不是第三个模式；Hardcore 下强制开启且锁定，锁定期不改用户持久化值。**机制未实现**，不能把标签或开关当作真实扣血玩法。
-- 镜像只改变屏幕映射：左右轨互换，中轨绕中心坐标 2.5（屏幕 x=963）反射，宽度不变。判定逆映射只走 `GameplayMain.ChartTouchOf` / `ChartPointOf`，镜像只施加一次；Hold release 掩码按显示轨道比较。
+- 镜像只改变屏幕映射：左右轨互换，中轨绕中心坐标 2.5（屏幕 x=963）反射，宽度不变。判定逆映射只走 `GameplayMain.ChartTouchOf` / `ChartPointOf`，镜像只施加一次；Hold 快照在投影后按谱面轨道保存。
 - 普通窗口按固定 150 BPM 换算；Hold 首次断触时用当时 BPM（钳制 120–200）冻结宽限 deadline，后续 BPM 改变不移动 deadline。
-- 触摸由全局 `_Input` 按 id/phase 收集，关闭触摸模拟鼠标。Early/Exact 同批锁最早目标毫秒组，同刻多押允许；Late 不检查也不武装锁。普通 Note 独立扫描且可复用触点；触摸宽 0.40、每侧扩 0.20，Mine 不扩边。
-- Hold：头和实际 judge 节点是完整主判定；头 Miss 批量结算后续节点；宽限内可换指接回；确认断开后中间节点 Miss、尾按 release 时刻评级；持有过尾为 Prefect。
-- Mixer：可随时重接，Body 常驻，仅接触时显示动态头；从头起每 1/8 chart bar 产生主判定，非网格尾不补判，无额外尾命中率判定。
+- 触摸由全局 `_Input` 按 id/phase 收集，关闭触摸模拟鼠标。每帧批次锁在首个成功结算（Perfect/Great/Good/输入 Miss，不区分早晚侧）后记录精确 note 秒值；同一 double 时间继续放行，异时普通候选等待后续帧或超时。Mine 独立观测，不检查也不武装该锁。普通 Note 独立扫描且可复用触点；触摸宽 0.40、每侧扩 0.20，Mine 不扩边。未知 id 的 Move 直接忽略、不创建触点；窗口失焦（`NotificationWMWindowFocusOut`）统一 `ClearPointerState()`。
+- Hold：头和实际 judge 节点是完整主判定；头 Miss 批量结算后续节点；宽限内可换指接回；确认断开后中间节点 Miss、尾按 release 时刻评级；持有过尾为 Perfect。
+- 短 Hold 修复：尾等待头判，合法接头时已过尾则尾 Perfect。shared `HoldContactFrame` 重放接头至尾之间的时间戳快照，覆盖同帧短点、尾后 release 与换指；头窗和早松尾判窗口不变。核心回归 `ShortHoldTests` 覆盖这些时序和不同帧切分；实机手感仍需回收。
+  2026-10-13 本轮验证：客户端构建 0 error（`SongSelect.cs:1223` 一条 CS8604），core-tests 与 chart-editor-tests 通过；未启动游戏、未重新导出 APK，不能视作实机验收。
+- Mixer：已改为可放置接收头。有效短按/拖动改变位置，无效操作忽略；松手保持，普通 Note 共享触点。身体漏接享有 1/8 chart bar 宽限（实际音乐时间，宽限内节点 Perfect），之后可重接；节点仍每 1/8 bar、非网格尾不补判、无额外尾判。`MixerRuntime` 统一重放输入/几何边界/节点，适配层仅投影输入与缓存结果，原全局 sweep 应用分数。用户反馈目前看来正常，专项边界/设备覆盖未穷尽；详见玩法规格 §6.3。
+- Mixer 实机异常跟进（2026-10-14）：修复实时音频时间回退导致 `Mixer time cannot run backwards`。SongClock 同一播放周期单调过滤，Resume 保留暂停下限；Mixer 保留提交游标、按顺序接收迟到操作，适配层成功后提交 tick 游标。新增抖动/恢复/迟到松手/宽限回归及全部 core-tests 通过，client 构建 0 error（既有 CS8604）；未启动游戏/导出 APK，待用户复测。
+- 2026-10-14 Mixer 验证：core-tests（含六种曲线、PCHIP 变宽边界、30/60/144fps、短按松手、接力与变 BPM 宽限）、chart-editor-tests、35 项发布测试通过；client 构建 0 error/既有 SongSelect CS8604，editor 构建 0 warning/error。未启动游戏或导出 APK。[实现与实机清单](mixer-receiver.md)。
 - legacy 资源加载已拒绝逃逸路径、URI/盘符和根/父目录 reparse point；v2 包读写也有严格路径边界。旧审查问题与修复经过仅在 [审查归档](<archive/reports/2026-09-09-code-review-fixes.md>) 保留。
 
 详细规则以 [玩法规格](<gameplay-spec.md>)、[v2 合同](<chart-format-v2.md>) 与 shared 为准；原版研究的未知边界见 [原版判定分析](<original-judgement-analysis.md>)，不据未闭环证据改变社区语义。
@@ -54,11 +59,13 @@
 ### 2.3 分数与存档
 
 - 主判定使用 100/70/50/0 权重，进入 Combo、判定计数、理论满分及 Health/Boost 缩放；显示/存档分数归一化为 1,000,000。
-- HUD ACC = 当前得分 / 已判定理论满分；结果 CLEAR = 全谱得分 / 全谱理论满分。Ω≥98、S≥95、A≥90、B≥80，否则 C。
+- HUD ACC = 当前得分 / 已判定理论满分；结果 CLEAR = 全谱得分 / 全谱理论满分。评级使用未舍入 CLEAR：Ω=100、Ψ≥99、X≥97、S≥95、A≥90、B≥80、C≥60，否则 D；从高到低选择。Ψ 的存档/资源键为 Y，选曲显示 Ψ。旧成绩加载时按 Acc 重算评级，分数、判定、日期及 identity 保留。
+- 已判定理论满分统一由 `JudgeEngine.Apply` 累计（含 Hold/Mixer 节点和批量结算），修复持续节点提前设置 Judged 导致 HUD ACC 分母漏计。
+- 2026-10-14 八级接入验证：客户端构建 0 error（既有 `SongSelect.cs:1223` CS8604），core-tests（含评级边界/旧成绩重算）及 35 项发布测试通过；八组图集 240 帧回切一致，原五级静图/图集字节不变，新三档白名单与来源哈希已核对。未启动游戏或导出新 APK。
 - 成绩写 `user://scores.json`：v2/成功转换路径使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy-direct 保留历史 `packId:diff` 键。两套身份不混为单一旧键。
 - Auto 绝不写成绩。当前成绩身份没有独立运行模式维度；不能保证 Standard/Hardcore 已完全隔离，分模式记录仍待设计。
 - Health/Boost 有内部计算，但客户端无对应 HUD 或 GameOver/Buff/EX Boost 行为；`OriginalJudgeMath` 仅保留研究数学，不驱动社区 HUD/存档。
-- 判定文字沿用 `PREFECT`；Great/Good 保留 E/L。
+- 判定文字为 `PERFECT`（修正了原版 `PREFECT` 的拼写错误，仅社区侧改名，原版分析文档保留原拼写）；Great/Good 保留 E/L。
 
 ### 2.4 制谱器（当前 shell，不是旧阶段能力）
 
@@ -89,6 +96,15 @@
   HITSOUND/MUSIC 滑条据此仍是占位，Storyboard 工作区仍不存在。
 - 不再推荐旧 `--editor-package` / `--editor-workbench` 参数。当前启动和详细能力以 [制谱器说明](<dyna-maker-uv.md>) 为准。
 
+### 2.5 性能与输入工程（2026-10 上旬，落地时构建与回归全绿）
+
+- 判定单遍化：JudgeUnit 按轨道分桶 + 每轨道窗口游标（`AdvancePressWindows`）；v2 每帧 BigInteger 换算改为 double 预算（`V2BpmTimeline.RuntimeSecondsAt/RuntimeBarAt`、`V2ScrollMap.RuntimeSpeedAt`）；PCHIP 斜率构建期缓存（`V2PathEvaluator`）。旧 Mixer 触点快照游标已被可放置接收头的时间戳状态机替换。
+- 对象池：Note 视图按类型池、Bloom/粒子/Sustain 效果池、Hold 连接体池（`NoteLink`）；加载期 `shared/Judge/VisualPoolPlanning.cs` 滑动窗口预处理峰值，容量 clamp(8,32)（用户拍板，应对 jumpscare 式高密度段），满池 steal-oldest。连接体入池前 Reparent 回 `_noteRoot`、取池 `IsInstanceValid` 兜底（修池毒化导致的 Hold 身体渲染异常）；`SpawnNotes` 不再重复 `AddChild`（`TakeNoteView` 统一挂载，修实机 `already has a parent` 报错）。`GameplayMain.cs` 极晚接头重建 Hold 头路径仍绕池直接 `NoteView.Create`，是已知小性能项。
+- 加载/IO：音频按路径缓存、v2 单差分按需校验（`ValidatePackStructure`+`ValidateEntry`）、选曲详情/试听异步、`res://` FileAccess 统一锁、谱面预加载 LRU×4、meta.json 单次读、JSON 解码去分配、成绩 `SaveDeferred()`。
+- 输入修复（用户拍板"做原版锁不分轨 + 原版无 id 触点"）：`V2InputProtection` 重写为精确 double 批次锁（无毫秒取整、任何结算都武装、每帧重置，Mine 不参与）；未知 id 的 Move 不再创建触点；窗口失焦清触点。全局 Prefect→Perfect 改名（存档字段本来就是 Perfect，无需迁移）。
+- 行为一致性回归：`tools/core-tests/BehaviorEquivalenceTests.cs` 17a–17f。
+- 无自定义锁帧：Godot 默认 vsync 开、渲染管线 mobile。低端设备卡顿在 Release 配置探针包下明显缓解，指向 Debug JIT 是主因之一；Internal 政策（debuggable=true）与性能的矛盾见 §4。
+
 ## 3. 舞台与视觉不变量
 
 | 项目 | 当前值 |
@@ -98,7 +114,7 @@
 | Center 中心映射 | x=280+273.2×(P+W/2)；视觉宽 W×273.2×0.95 |
 | Side 判定线与中心 y | x=184/1736；y=840−115×(P+W/2) |
 | Side Note 长度 | W×102×0.95；BarLine 使用 W×190×0.95 |
-| 行程与距离尺度 | Center 790px，Side 691px，Side scale 0.75 |
+| 行程与距离尺度 | Center 790px，Side 691px，Side scale 691/790≈0.8747（行程比实验值，待实机确认；原标定 0.75） |
 | 滚动 | 剩余音频秒×当前流速×玩家落速×1026px/s，固定二维映射，不做透视 |
 | 触点投影 | y>771 含 Center，x<400 含 Left，x>1520 含 Right；可同时属于多个轨道 |
 
@@ -113,14 +129,33 @@ Note 为程序化切角材质；命中核心爆发加 GPU 粒子，Hold/Mixer �
 
 - 制谱器更完整类型/路径/属性 UI，Note duplicate、书签与真实音频试听/波形，ZIP/XML/DY 导出；右键菜单里对应的占位行仍是 55% 禁用。
 - BLEED 规则、Health/GameOver 等是否接入，以及 Standard/Hardcore 成绩隔离。
-- 选曲筛选/排序、搜索清除等增强；预览大音频首次加载性能。
+- 待拍板（2026-10-13 记录；逆向结论见 [原版判定分析](<original-judgement-analysis.md>)）：
+  - Hold 宽限/节点时序：当前 `JudgeHoldingPoint` 对尚未 Broken 的持续状态（含宽限）判 Perfect，旧“宽限内不补 tick”描述已不准确。无输入的移动路径断触采样、同帧跨 deadline 的批量结算顺序仍有静态疑点；临时探针未成功运行，用户已暂缓调查，不能视为已复现 Bug。
+  - Mixer 尾部命中率评级：原版按完成 tick 数/floor(总数) 以 100%/70%/50% 评 Perfect/Great/Good/Miss；社区当前无尾判。建议加（权重 100 的主判定）。
+  - 侧轨距离尺度：代码已改行程比 691/790≈0.8747 实验（正侧同刻同时入场）；确认保留后清除各文档的 0.75 原值注记，回退则还原代码。
+  - Internal 政策 debuggable=true（`release/apk-policy.json`）强制 Debug JIT 导出，与低端设备性能矛盾（Release 探针实测缓解）；是否调整政策或导出配置待定。
+  - 批次 D（UI 每帧分配：SetDepthAlpha 无变化仍写 Modulate、HUD 进度条每帧写入、首页 3D 核心 4xMSAA+1.5x 缩放等）用户暂缓，未实施。
+- 选曲筛选/排序、搜索清除等增强。
 - 完整打击音、UI 音效及 Music/Hit/UI 总线资产链路。
 - 首页分区启灯只是设计探索，需单独确认；Storyboard 首版不做，已拍板为未来单独冻结的谱面 sidecar，设计稿只在 Pack Select 留禁用占位入口（OPEN IN EDITOR 左侧，Storyboard Studio 是独立形态工作室，不是 Note Editor 内的工作区），细节见 [提案](<storyboard-editor-proposal.md>)。
 - 社区服务器尚未接客户端；本仓库无服务器工程，工作区外层仅有 C++ 起步骨架，不代表已选定正式服务器架构。
 
+### 最新测试包与验收状态（2026-10-14 更新）
+
+最新 Internal 包 `client/builds/internal/dynamite-universe-internal-testdata.apk`（2026-10-14，Debug JIT，含短 Hold 修复、八评级、Mixer 放置/宽限及音频时间回退修复，亦含此前展开卡异步 + Hold 池修复 + 侧轨 0.8747 实验），验包 PASS；版本 `0.1.2-internal-testdata` / code 4，185406710 bytes，SHA-256 `235dc36bc64214e1ff67978168346f900ae2453e6e5f26ed661b77867d904e82`。本次完成导出与最终验包，未安装真机。待确认：
+
+- Mixer 已收到“目前看来没什么问题”的初步反馈；暂停恢复、原报错段落和密集曲线性能没有分别记录专项结论；
+- 短 Hold 晚接头的实机手感；
+
+- 华为平板帧率是否达标（已知 Debug JIT 卡顿，Release 探针有缓解）；
+- 选曲展开卡流畅度；
+- Hold 断触后再玩的身体渲染（池毒化修复是否彻底）；
+- `already has a parent` 报错是否消失；
+- 侧轨 0.8747 手感（确认后按 §4 拍板项同步或回退）。
+
 ### 验证与工程护栏
 
-- 真机 3 指以上、跨轨多押/换指/同帧短点；端到端 pointer 序列回归，窗口失焦/触摸取消统一清理。
+- 真机 3 指以上、跨轨多押/换指/同帧短点；端到端 pointer 序列回归（窗口失焦清理已接入 `NotificationWMWindowFocusOut`，平台取消事件投递差异待验证）。
 - 客户端/编辑器共享视觉副本的一致性保护、几何同源及密集 Smooth 路径性能评估（编辑器画布现在按曲线逐段展开路径，每次画布重建的节点数量随曲线段数增长，需要基准测量）。
 - 主仓库 CI 与生成产物保留/清理策略；性能问题应先基准测量，不能把历史审查建议全部视为未实施缺陷。
 - 公开 APK 最终验包未在本次文档整理中执行；未通过 public checker 的产物不得分发。

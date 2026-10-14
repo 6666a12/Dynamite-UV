@@ -91,31 +91,31 @@ public static class InputJudgeRules
     }
 
     /// <summary>
-    /// Chain/Drag: the outer half of the early Prefect window requires a new
+    /// Chain/Drag: the outer half of the early Perfect window requires a new
     /// press; the inner half and the late side accept phases 1..3.
     /// </summary>
     public static bool AcceptsContactPhase(double noteTime, double currentTime,
-        double prefectSecond, ContactPhase phase)
+        double perfectSecond, ContactPhase phase)
     {
         var noteDelta = noteTime - currentTime;
-        if (noteDelta > prefectSecond)
+        if (noteDelta > perfectSecond)
             return false;
-        if (noteDelta > prefectSecond * 0.5)
+        if (noteDelta > perfectSecond * 0.5)
             return phase == ContactPhase.Began;
         return phase is ContactPhase.Began or ContactPhase.Moved or ContactPhase.Stationary;
     }
 
     /// <summary>
-    /// Mine: only active during the early Prefect window. Its outer 3/4 requires
-    /// phase 1; the final Prefect/4 accepts phases 1..3.
+    /// Mine: only active during the early Perfect window. Its outer 3/4 requires
+    /// phase 1; the final Perfect/4 accepts phases 1..3.
     /// </summary>
     public static bool AcceptsMinePhase(double noteTime, double currentTime,
-        double prefectSecond, ContactPhase phase)
+        double perfectSecond, ContactPhase phase)
     {
         var noteDelta = noteTime - currentTime;
-        if (noteDelta < 0.0 || noteDelta > prefectSecond)
+        if (noteDelta < 0.0 || noteDelta > perfectSecond)
             return false;
-        if (noteDelta > prefectSecond * 0.25)
+        if (noteDelta > perfectSecond * 0.25)
             return phase == ContactPhase.Began;
         return phase is ContactPhase.Began or ContactPhase.Moved or ContactPhase.Stationary;
     }

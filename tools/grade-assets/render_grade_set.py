@@ -1,4 +1,4 @@
-"""Complete the v5 blade family with original Omega/A/B/C meshes and current masks."""
+"""Render original v5 blade meshes and current masks, including isolated X/Psi and D."""
 from pathlib import Path
 import argparse
 import json
@@ -16,6 +16,9 @@ from render_surface_current import make_arc,animate_arc,emission
 
 OUT=base.ROOT/'design/grades/v5_current/set'
 GRADES={'omega':'#ff4d8f','A':'#fbbf24','B':'#38bdf8','C':'#7c88b0'}
+ADDITIONS={'X':'#a78bfa','Y':'#e879f9'}  # Internal Y is the displayed Greek Psi, never a Latin Y.
+ADDITIONS_OUT=base.ROOT/'design/grades/v5_current_xy/set'
+LOW_GRADE={'D':'#697f91'}
 
 
 def band(path,width):
@@ -61,7 +64,34 @@ def plate(name,poly,p,parent,z=.10):
 
 def build(key,p,groups):
     paths=[]
-    if key=='omega':
+    if key=='X':
+        # Two forged, tapered diagonal blades. The raised descending blade bridges
+        # the lower ascending blade; its solid geometry occludes the lower current.
+        plate('Rising cross blade',[(-1.24,-1.25),(-.62,-1.08),(1.25,1.24),
+              (.67,1.16),(-.14,.28)],p,groups[0],.08)
+        plate('Falling cross blade',[(-1.22,1.26),(-.66,1.13),(1.24,-1.23),
+              (.64,-1.10),(-.15,-.25)],p,groups[1],.19)
+        paths=[([(-.98,-1.02,.125),(-.02,.00,.125),(1.00,1.06,.125)],groups[0]),
+               ([(-.98,1.04,.235),(-.04,.06,.235),(1.00,-1.03,.235)],groups[1])]
+    elif key=='Y':
+        # Psi has three distinct upward prongs and a full-length centre stem.
+        # The two angular return hooks use the approved blade-family construction.
+        left=[(-1.05,1.11),(-1.02,.29),(-.66,-.15),(-.12,-.32)]
+        right=[(1.05,1.11),(1.02,.29),(.66,-.15),(.12,-.32)]
+        paths.append((stroked('Left returning tine',left,.34,p,groups[0],.10),groups[0]))
+        paths.append((stroked('Right returning tine',right,.34,p,groups[0],.10),groups[0]))
+        plate('Central spear',[(-.20,-1.27),(.19,-1.18),(.19,1.11),
+              (.02,1.40),(-.20,1.10)],p,groups[1],.20)
+        paths.append(([(0,-1.09,.245),(0,.06,.245),(0,1.17,.245)],groups[1]))
+    elif key=='D':
+        # A single closed counter distinguishes D from B; the straight left spine
+        # and angular returning right blade share the existing machined language.
+        plate('D load-bearing spine',[(-1.02,-1.22),(-.62,-1.15),(-.62,1.18),
+              (-1.02,1.26)],p,groups[0],.14)
+        bowl=[(-.73,1.07),(.25,1.07),(.88,.63),(1.00,.08),(.83,-.65),(.25,-1.08),(-.73,-1.08)]
+        paths.append((stroked('D returning outer blade',bowl,.36,p,groups[1],.08),groups[1]))
+        paths.append(([(-.82,-1.05,.185),(-.82,.05,.185),(-.82,1.09,.185)],groups[0]))
+    elif key=='omega':
         points=[(-.70,-.68),(-.96,-.13),(-.94,.52),(-.48,1.03),(.15,1.22),(.73,.96),(.94,.35),(.73,-.42),(.51,-.72)]
         paths.append((stroked('Crowned horseshoe',points,.41,p,groups[0],.12),groups[0]))
         points=[(-1.20,-1.15),(-.41,-1.15),(-.55,-.73)]
@@ -100,7 +130,8 @@ def build(key,p,groups):
 def render(key,selected):
     dest=OUT/key
     for folder in ['body','emission_mask','current_mask']:(dest/folder).mkdir(parents=True,exist_ok=True)
-    sc=base.setup(48);p=setup_palette(GRADES[key])
+    color={**GRADES,**ADDITIONS,**LOW_GRADE}[key]
+    sc=base.setup(48);p=setup_palette(color)
     sc.render.resolution_x=sc.render.resolution_y=512;sc.render.fps=24;sc.frame_start=1;sc.frame_end=30
     root=bpy.data.objects.new('Impact root',None);sc.collection.objects.link(root)
     groups=[]
@@ -112,7 +143,7 @@ def render(key,selected):
     objects=[o for o in sc.objects if o.type in {'MESH','CURVE'}]
     arc_objects={arc['obj'] for arc in arcs}
     source_names={p['edge'].name,p['energy'].name}
-    meta={'grade':key,'color':GRADES[key],'fps':24,'impact_frame':8,'end_frame':30,'frames':[]}
+    meta={'grade':key,'display_grade':'Ψ' if key=='Y' else key,'color':color,'fps':24,'impact_frame':8,'end_frame':30,'frames':[]}
     for f in range(1,31):
         sc.frame_set(f)
         scale=interpolate(f,[(1,1.06),(4,1.06),(7,1.02),(8,.955),(10,1.025),(15,1),(30,1)])
@@ -124,9 +155,11 @@ def render(key,selected):
         for i,g in enumerate(groups):
             sign=1 if i==0 else -1;g.location=(separation*sign,separation*.38*sign,0);g.keyframe_insert('location',frame=f)
         power=interpolate(f,[(1,.15),(5,.7),(7,1.6),(8,18),(9,12),(11,6),(15,3),(22,2.2),(30,2.2)])
+        if key=='D':power*=.55
         for name,mult in [('edge',1),('energy',4),('pink',1.5)]:
             node=p[name].node_tree.nodes.get('Principled BSDF').inputs['Emission Strength'];node.default_value=power*mult;node.keyframe_insert('default_value',frame=f)
         amount=interpolate(f,[(1,0),(3,.1),(5,.45),(7,.9),(8,1.3),(10,1.15),(16,.9),(23,.78),(30,.72)])
+        if key=='D':amount*=.72
         for arc in arcs:
             animate_arc(arc,f,amount,f)
             # Render passes toggle visibility themselves. A visibility F-curve would
@@ -165,10 +198,17 @@ def render(key,selected):
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--grade',choices=['all',*GRADES],default='all');parser.add_argument('--frames',default='all')
+    global OUT
+    parser=argparse.ArgumentParser();parser.add_argument('--grade',choices=['all','missing',*GRADES,*ADDITIONS,*LOW_GRADE],default='all');parser.add_argument('--frames',default='all')
+    parser.add_argument('--output',type=Path,help='Set directory; X/Y default to v5_current_xy/set, D to v5_current_d/set')
     args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
     selected=set(range(1,31)) if args.frames=='all' else set(map(int,args.frames.split(',')))
-    for key in GRADES if args.grade=='all' else [args.grade]:render(key,selected)
+    if not selected or not selected<=set(range(1,31)):parser.error('frames must be within 1..30')
+    if args.output:OUT=args.output.resolve()
+    elif args.grade=='D':OUT=base.ROOT/'design/grades/v5_current_d/set'
+    elif args.grade=='missing' or args.grade in ADDITIONS:OUT=ADDITIONS_OUT
+    keys=GRADES if args.grade=='all' else ADDITIONS if args.grade=='missing' else [args.grade]
+    for key in keys:render(key,selected)
 
 
 if __name__=='__main__':main()

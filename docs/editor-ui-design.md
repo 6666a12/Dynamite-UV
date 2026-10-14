@@ -84,7 +84,7 @@
 不恢复 v4 薄光或未采用的 v6 试验，不把旧板上的“未接入”当成现在的结算状态。
 
 Result v2 六板后缀为 `01 Shutter Close 300ms`、`02 Shutter Hold 800ms`、`03 Shutter Open 1250ms`、
-`04 Grade First 1750ms`、`05 Settled`、`06 All Prefect`。600ms 合拢、320ms 停顿、480ms 拉开，
+`04 Grade First 1750ms`、`05 Settled`、`06 All Perfect`。600ms 合拢、320ms 停顿、480ms 拉开，
 评级先入场、信息后浮现，总约 2650ms。几何、资源和真实触发边界见 [结算 v2](<result-v2-design.md>)。
 恢复源在 [design/result-v2/source](<../design/result-v2/source/>)；不再沿用旧电流回收转场。
 
@@ -274,8 +274,8 @@ Signal Lock 与 handoff 三板原样保留。
   （歌曲详情不增加装饰性波形；这不意味着制谱器的音频波形需求已完成或被取消）。
 - 编辑器几何复用游玩客户端：中央判定线、侧轨位置等与 `GameplayMain.cs` 顶部常量一致。
 - 游戏页板的数值一律取客户端源码/常量：判定线 y=861、判定线跨 x=60..1800、侧轨 x=184/1736、
-  Mixer 装饰条 y=620/642 跨 x=675..1244、中心轨 x=280+273.2·(P+W/2)、侧轨 x=184+剩余·0.75 /
-  1736−剩余·0.75、侧轨 y=840−115·(P+W/2)、Note 视觉缩放 0.95（`GameplayStageGeometry`）。
+  Mixer 装饰条 y=620/642 跨 x=675..1244、中心轨 x=280+273.2·(P+W/2)、侧轨 x=184+剩余·k /
+  1736−剩余·k（k=SideDistScale，当前代码 691/790≈0.8747 实验值、待实机确认，原标定 0.75）、侧轨 y=840−115·(P+W/2)、Note 视觉缩放 0.95（`GameplayStageGeometry`）。
 - **hover 统一过渡（2026-10-08 拍板）**：全部 hover 可点元素从瞬时换色改为约 0.10s 的颜色
   lerp（共享 helper `editor/scripts/EditorMotion.cs`：`HoverFade` 单值版给 hotspot 少而固定的
   页面，`HoverFadeMap` 键值版给动态/大量 hotspot 的页面；时长集中在 `HoverMotion.Seconds`），

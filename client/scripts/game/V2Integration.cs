@@ -56,18 +56,25 @@ internal static class V2Integration
             var duration = Res.LoadAudio(Resolve(relative))?.GetLength();
             return duration is > 0.0 ? duration : null;
         }
-        V2PackageValidator.Validate(loaded.SemanticPack, new V2PackageValidationHooks
+        V2PackageValidator.ValidatePackStructure(loaded.SemanticPack, new V2PackageValidationHooks
         {
+            LoadChart = _ => throw new InvalidOperationException(),
             FileExists = relative => File.Exists(Resolve(relative)),
-            LoadChart = entry => V2JsonDecoder.DecodeChartFile(Resolve(entry.File)),
-            ValidateResolvedAudio = (_, relative) =>
-            {
-                if (Res.LoadAudio(Resolve(relative)) == null)
-                    throw new InvalidDataException(
-                        $"Unsupported or undecodable v2 audio '{relative}'.");
-            },
-            AudioDurationSeconds = AudioDurationSeconds,
         }, Resolve("meta.json"));
+        var entry = loaded.SemanticPack.Charts.First(item =>
+            StringComparer.Ordinal.Equals(item.Id, diff.ChartId));
+        V2PackageValidator.ValidateEntry(loaded.SemanticPack, entry,
+            new V2PackageValidationHooks
+            {
+                LoadChart = chartEntry => V2JsonDecoder.DecodeChartFile(Resolve(chartEntry.File)),
+                ValidateResolvedAudio = (_, relative) =>
+                {
+                    if (Res.LoadAudio(Resolve(relative)) == null)
+                        throw new InvalidDataException(
+                            $"Unsupported or undecodable v2 audio '{relative}'.");
+                },
+                AudioDurationSeconds = AudioDurationSeconds,
+            }, Array.FindIndex(loaded.SemanticPack.Charts.ToArray(), item => ReferenceEquals(item, entry)), Resolve("meta.json"));
         return loaded;
     }
 
@@ -83,9 +90,9 @@ internal static class V2Integration
         string ReadText(string relative)
         {
             var path = Join(relative);
-            if (!Godot.FileAccess.FileExists(path))
+            if (!Res.WithVirtualFileAccess(() => Godot.FileAccess.FileExists(path)))
                 throw new InvalidDataException($"v2 package file '{path}' does not exist");
-            return Godot.FileAccess.GetFileAsString(path);
+            return Res.WithVirtualFileAccess(() => Godot.FileAccess.GetFileAsString(path));
         }
 
         var metaJson = ReadText("meta.json");
@@ -105,27 +112,34 @@ internal static class V2Integration
             var duration = Res.LoadAudio(Join(relative))?.GetLength();
             return duration is > 0.0 ? duration : null;
         }
-        V2PackageValidator.Validate(loaded.SemanticPack, new V2PackageValidationHooks
+        V2PackageValidator.ValidatePackStructure(loaded.SemanticPack, new V2PackageValidationHooks
         {
-            FileExists = relative => Godot.FileAccess.FileExists(Join(relative)) ||
-                ResourceLoader.Exists(Join(relative)),
-            LoadChart = chartEntry => V2JsonDecoder.DecodeChart(ReadText(chartEntry.File),
-                Join(chartEntry.File)),
-            ValidateResolvedAudio = (_, relative) =>
-            {
-                if (Res.LoadAudio(Join(relative)) == null)
-                    throw new InvalidDataException(
-                        $"Unsupported or undecodable v2 audio '{relative}'.");
-            },
-            AudioDurationSeconds = AudioDurationSeconds,
+            LoadChart = _ => throw new InvalidOperationException(),
+            FileExists = relative => Res.WithVirtualFileAccess(() =>
+                Godot.FileAccess.FileExists(Join(relative))) || ResourceLoader.Exists(Join(relative)),
         }, Join("meta.json"));
+        V2PackageValidator.ValidateEntry(loaded.SemanticPack, entry,
+            new V2PackageValidationHooks
+            {
+                LoadChart = chartEntry => V2JsonDecoder.DecodeChart(ReadText(chartEntry.File),
+                    Join(chartEntry.File)),
+                ValidateResolvedAudio = (_, relative) =>
+                {
+                    if (Res.LoadAudio(Join(relative)) == null)
+                        throw new InvalidDataException(
+                            $"Unsupported or undecodable v2 audio '{relative}'.");
+                },
+                AudioDurationSeconds = AudioDurationSeconds,
+            }, Array.FindIndex(semanticPack.Charts.ToArray(), item => ReferenceEquals(item, entry)), Join("meta.json"));
         return loaded;
     }
 
     private static V2LoadedPackageChart LoadLegacyAsV2(ChartPack pack, ChartDiff diff)
     {
         var legacy = DynamixChartLoader.Load(
-            Godot.FileAccess.GetFileAsString(pack.ChartPathFor(diff)));
+            pack.ChartPathFor(diff).StartsWith("res://", StringComparison.Ordinal)
+                ? Res.WithVirtualFileAccess(() => Godot.FileAccess.GetFileAsString(pack.ChartPathFor(diff)))
+                : Godot.FileAccess.GetFileAsString(pack.ChartPathFor(diff)));
         var audioPath = pack.AudioPathFor(diff);
         // res:// 音频在导出包里只剩导入重映射（原始字节不可得）：digest 按空音频计算，
         // desktop 与设备走同一口径（与 v2 虚拟分支相同）；user:// 包仍是真实文件，照常读字节。

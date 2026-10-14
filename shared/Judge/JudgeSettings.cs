@@ -31,7 +31,7 @@ public enum GameplayMode
 /// </summary>
 public sealed class JudgeSettings
 {
-    public required double PrefectBarTime { get; init; }
+    public required double PerfectBarTime { get; init; }
     public required double GreatBarTime { get; init; }
     public required double GoodBarTime { get; init; }
     public required double MissBarTime { get; init; }
@@ -45,7 +45,7 @@ public sealed class JudgeSettings
     private double BarToSec(double bar) => bar * 240.0 / StandardBPM;
 
     /// <summary>普通双侧窗口固定按 StandardBPM=150 换算。</summary>
-    public double PrefectSec => BarToSec(PrefectBarTime);
+    public double PerfectSec => BarToSec(PerfectBarTime);
     public double GreatSec => BarToSec(GreatBarTime);
     public double GoodSec => BarToSec(GoodBarTime);
     public double MissSec => BarToSec(MissBarTime);
@@ -85,7 +85,7 @@ public sealed class JudgeSettings
     public static JudgeSettings ForPreset(JudgePreset preset) => preset switch    {
         JudgePreset.Casual => new JudgeSettings
         {
-            PrefectBarTime = 0.0625,
+            PerfectBarTime = 0.0625,
             GreatBarTime = 0.09375,
             GoodBarTime = 0.125,
             MissBarTime = 0.15625,
@@ -94,7 +94,7 @@ public sealed class JudgeSettings
         },
         JudgePreset.Normal => new JudgeSettings
         {
-            PrefectBarTime = 0.0390625,
+            PerfectBarTime = 0.0390625,
             GreatBarTime = 0.09375,
             GoodBarTime = 0.125,
             MissBarTime = 0.15625,
@@ -103,7 +103,7 @@ public sealed class JudgeSettings
         },
         JudgePreset.Hard => new JudgeSettings
         {
-            PrefectBarTime = 0.0390625,
+            PerfectBarTime = 0.0390625,
             GreatBarTime = 0.0703125,
             GoodBarTime = 0.1015625,
             MissBarTime = 0.15625,
@@ -114,7 +114,7 @@ public sealed class JudgeSettings
         {
             // Hard 窗口 × 0.5：31.25 / 56.25 / 81.25 / 125 ms（×240/150 = ×1.6）。
             // Holding 宽限沿用 Hard 值，见 docs/gameplay-spec.md「游玩模式」。
-            PrefectBarTime = 0.01953125,
+            PerfectBarTime = 0.01953125,
             GreatBarTime = 0.03515625,
             GoodBarTime = 0.05078125,
             MissBarTime = 0.078125,
@@ -123,7 +123,7 @@ public sealed class JudgeSettings
         },
         _ => new JudgeSettings // Tutorial
         {
-            PrefectBarTime = 0.0625,
+            PerfectBarTime = 0.0625,
             GreatBarTime = 0.09375,
             GoodBarTime = 0.125,
             MissBarTime = 0.15625,

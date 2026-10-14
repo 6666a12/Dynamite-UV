@@ -22,6 +22,7 @@ LEGACY_PATTERN = re.compile(
 ALLOWED_LEGACY_MATCHES = Counter({
     ("docs/original-judgement-analysis.md", "DUX-Community"): 3,
     ("docs/releasing.md", "org.duxcommunity"): 1,
+    ("docs/archive/2026-10-07-cleanup/original-judgement-analysis.before.md", "DUX-Community"): 3,
 })
 FROZEN_WIRE_LITERALS = {
     "dynamite-uv-pack",

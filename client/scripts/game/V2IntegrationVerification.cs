@@ -180,7 +180,7 @@ internal sealed class V2IntegrationTrace : IDisposable
                 resolved = plan.Units.Count(unit => unit.Judged),
                 total = plan.Units.Count,
                 pending = plan.Units.Count(unit => !unit.Judged),
-                prefect = engine.CountPrefect,
+                perfect = engine.CountPerfect,
                 great = engine.CountGreat,
                 good = engine.CountGood,
                 miss = engine.CountMiss,

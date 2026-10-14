@@ -450,8 +450,8 @@ width 是有限数且 width > 0
 | --- | --- |
 | `tap` | Began/Press 型四档判定 |
 | `drag` | 接触型四档判定；已有触点经过即可 |
-| `exTap` | Began/Press 型二值判定：窗口与 `tap` 相同；`|Δ| ≤ Good` 为 Prefect，出窗输入为 Miss，无 Great/Good |
-| `mine` | 危险窗内触碰为 Miss，未触碰安全通过为 Prefect |
+| `exTap` | Began/Press 型二值判定：窗口与 `tap` 相同；`|Δ| ≤ Good` 为 Perfect，出窗输入为 Miss，无 Great/Good |
+| `mine` | 危险窗内触碰为 Miss，未触碰安全通过为 Perfect |
 | `barLine` | 纯视觉，不产生主判定、不改变 Combo |
 
 普通 Note 不得携带 `nodes`、`curveToNext` 或 `judge`。
@@ -610,6 +610,8 @@ Center 和 Width 各自把 `y` 替换为对应值。实现至少使用 IEEE 754 
 - 最后一个 node 是 Hold 尾，必须显式写 `"judge": true`。
 - Hold 主判定数为 `1 + count(nodes where resolved judge == true)`。
 - Hold 头 Miss 时，全部尚未结算的 `judge:true` node 同帧 Miss；`judge:false` node 不产生结果。
+- 短 Hold 的尾与中间 node 在头尚未结算时保持 Pending，不能缩短头的合法晚判窗口。
+  合法接头时已过尾，则头按实际偏差评级、尾 Perfect；接头之前的 release 不属于此 Hold 的断触。
 
 ### 10.2 持续、grace 与 D4-C
 
@@ -621,7 +623,7 @@ Center 和 Width 各自把 `y` 替换为对应值。实现至少使用 IEEE 754 
 - 若另一触点在同刻 Began 并覆盖范围，完整快照仍视为连接；
 - Hold 尾的 release 评级另按下述专门规则处理。
 
-连接时经过 `judge:true` 中间 node，该单元为 Prefect。首次失去全部有效覆盖时记录
+连接时经过 `judge:true` 中间 node，该单元为 Perfect。首次失去全部有效覆盖时记录
 `lostAt=L`，并只在该时刻计算一次：
 
 ```text
@@ -631,7 +633,7 @@ deadline D = L + graceDuration
 ```
 
 grace 期间不随 BPM 每帧重算。在 `D` 前重新覆盖则清除本次 `lostAt`；之后再次失联会建立
-新的 `lostAt`。grace 中经过的 `judge:true` 中间 node 仍结算为 Prefect。
+新的 `lostAt`。grace 中经过的 `judge:true` 中间 node 仍结算为 Perfect。
 
 设尾的音频时刻为 `T`。未恢复连接时：
 
@@ -643,9 +645,9 @@ settlementTime = min(T, D)
 - 若 `D < T`，在 deadline 把尚未结算的 `judge:true` 中间 node 批量判 Miss；尾仍立即用
   `Judge(target=T,input=L)` 评级，而不是用 `D` 评级。
 - 批量结算只执行一次；Hold 随后永久失败，不可重接，未来 node 不得重复清 Combo。
-- 若持续连接到尾，尾为 Prefect。
-- Release 恰好发生在 `T` 时，等价于 `Judge(T,T)`，尾为 Prefect。
-- 持有过尾后才收到 Release 必须钳到 `T`，尾仍为 Prefect。
+- 若持续连接到尾，尾为 Perfect。
+- Release 恰好发生在 `T` 时，等价于 `Judge(T,T)`，尾为 Perfect。
+- 持有过尾后才收到 Release 必须钳到 `T`，尾仍为 Perfect。
 
 这里的 `BPM-at-audio-time(L)` 使用 §5 的分段映射找到失联瞬间所在 BPM 段。
 
@@ -691,7 +693,7 @@ k = 1, 2, ..., floor(8 * (E-H))
 - `k=0` 不属于后续 tick；它是唯一的 Mixer 头。
 - 头是 Began/Press 型普通四档判定，必须由新按下触发。
 - 头 Miss 只影响头，不会使 Body 永久失败。
-- `k>=1` 的 tick 只产生 Prefect 或 Miss：该精确时刻 connected 为 Prefect，否则 Miss。
+- `k>=1` 的 tick 只产生 Perfect 或 Miss：该精确时刻 connected 为 Perfect，否则 Miss。
 - 后续 Began/Moved/Stationary 均可连接或重接；过去的 tick 不补判，未来 tick 继续正常判定。
 - 非网格尾不补判，没有独立尾判；恰好落在网格上的尾自然是最后一个 tick。
 - 总判定数为 `1 + floor(8*(E-H))`；持续一 bar 时为头加 8 tick，共 9 个。
@@ -707,7 +709,7 @@ k = 1, 2, ..., floor(8 * (E-H))
 
 `dynamite-uv-ruleset-2.0` 使用以下绝对时间窗：
 
-| JudgePreset | Prefect | Great | Good | Miss 候选范围 |
+| JudgePreset | Perfect | Great | Good | Miss 候选范围 |
 | --- | --- | --- | --- | --- |
 | `casual` | ±100ms | ±150ms | ±200ms | ±250ms |
 | `normal` | ±62.5ms | ±150ms | ±200ms | ±250ms |
@@ -715,7 +717,7 @@ k = 1, 2, ..., floor(8 * (E-H))
 
 `Judge(target,input)` 使用 `input-target` 的绝对值选择最内层匹配等级；超出 Good 为 Miss。
 Miss 候选范围用于输入候选选择，不能把超出 Good 的输入升级为 Good。`exTap` 是二值判定：
-窗口边界与 `tap` 相同（倍率 1.0），`|Δ| ≤ Good` 一律 Prefect，不产生 Great/Good；出窗输入
+窗口边界与 `tap` 相同（倍率 1.0），`|Δ| ≤ Good` 一律 Perfect，不产生 Great/Good；出窗输入
 立即按输入 Miss 结算，不留 Pending。Mixer 后续 tick 和 Hold 已连接的中间 node 不使用四档窗口。
 
 ### 12.2 主判定展开
@@ -729,11 +731,11 @@ Miss 候选范围用于输入候选选择，不能把超出 Good 的输入升级
 
 每个主判定权重均为：
 
-| Prefect | Great | Good | Miss |
+| Perfect | Great | Good | Miss |
 | --- | --- | --- | --- |
 | 100 | 70 | 50 | 0 |
 
-Prefect/Great/Good 增加 Combo，Miss 清零 Combo。所有主判定进入 P/GR/GD/M、Combo、Score、
+Perfect/Great/Good 增加 Combo，Miss 清零 Combo。所有主判定进入 P/GR/GD/M、Combo、Score、
 CLEAR、Health 和 Boost。理论满分为 `主判定数 * 100`。
 
 百万分使用整数 half-up：
@@ -742,8 +744,8 @@ CLEAR、Health 和 Boost。理论满分为 `主判定数 * 100`。
 normalizedScore = floor((RawScore * 1000000 + TheoreticalMax/2) / TheoreticalMax)
 ```
 
-结果钳制到 `0..1000000`。CLEAR 为 `RawScore/TheoreticalMax*100%`；评级：Ω≥98、S≥95、
-A≥90、B≥80，否则 C。
+结果钳制到 `0..1000000`。CLEAR 为 `RawScore/TheoreticalMax*100%`；评级按未舍入 CLEAR 从高到低取：
+Ω=100、Ψ≥99、X≥97、S≥95、A≥90、B≥80、C≥60，否则 D。Ψ 的内部键为 `Y`；评级展示调整不改变 gameplay digest。
 
 ### 12.3 同步多押描边
 
@@ -1013,7 +1015,7 @@ y(1.5) = 0.9125
 - [ ] 路径统一 evaluator 与 `pchip-v1`
 - [ ] Hold `judge` 只影响判定，不影响形状
 - [ ] Hold D4-C 使用首次 `lostAt` 和固定 grace deadline
-- [ ] Mixer D5-A：四档头、后续 Prefect/Miss、可重接
+- [ ] Mixer D5-A：四档头、后续 Perfect/Miss、可重接
 - [ ] 音频与 preview 边界检查
 - [ ] 主判定、理论满分和统计全部重算
 - [ ] Gameplay Digest 从语义投影自动计算

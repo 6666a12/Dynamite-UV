@@ -18,24 +18,47 @@ public enum HitEffectKind
 /// </summary>
 public partial class GameplayHitBloom : Node2D
 {
-    public Color Accent { get; init; } = new(0.21f, 0.88f, 1.0f);
-    public HitEffectKind Kind { get; init; } = HitEffectKind.Tap;
-    public float SpanPx { get; init; } = 120f;
-    public float Strength { get; init; } = 1f;
+    public Color Accent { get; set; } = new(0.21f, 0.88f, 1.0f);
+    public HitEffectKind Kind { get; set; } = HitEffectKind.Tap;
+    public float SpanPx { get; set; } = 120f;
+    public float Strength { get; set; } = 1f;
 
     private const int FrameCount = 12;
     private const double Lifetime = 0.36;
     private const float BrightnessBoost = 1.55f;
     private double _age;
+    private readonly Vector2[] _dragPoints = new Vector2[3];
+
+    public void ResetFor(Vector2 position, float rotation, Color accent,
+        HitEffectKind kind, float spanPx, float strength)
+    {
+        Position = position;
+        Rotation = rotation;
+        Accent = accent;
+        Kind = kind;
+        SpanPx = spanPx;
+        Strength = strength;
+        _age = 0.0;
+        Visible = true;
+        Modulate = Colors.White;
+        QueueRedraw();
+    }
+
+    public void ResetForPool()
+    {
+        _age = 0.0;
+        Visible = false;
+        Modulate = Colors.Transparent;
+        Position = Vector2.Zero;
+        Rotation = 0f;
+        QueueRedraw();
+    }
+
+    public bool IsExpired => _age >= Lifetime;
 
     public override void _Process(double delta)
     {
         _age += delta;
-        if (_age >= Lifetime)
-        {
-            QueueFree();
-            return;
-        }
         QueueRedraw();
     }
 
@@ -112,11 +135,11 @@ public partial class GameplayHitBloom : Node2D
             for (var i = -1; i <= 1; i++)
             {
                 var x = i * radius * 0.34f + progress * radius * 0.12f;
-                DrawPolyline(new[]
-                {
-                    new Vector2(x - 10f, -8f), new Vector2(x, 0f),
-                    new Vector2(x - 10f, 8f),
-                }, new Color(0.90f, 1f, 0.92f, fade * 0.58f), 2f, true);
+                _dragPoints[0] = new Vector2(x - 10f, -8f);
+                _dragPoints[1] = new Vector2(x, 0f);
+                _dragPoints[2] = new Vector2(x - 10f, 8f);
+                DrawPolyline(_dragPoints,
+                    new Color(0.90f, 1f, 0.92f, fade * 0.58f), 2f, true);
             }
         }
         else if (Kind is HitEffectKind.Hold or HitEffectKind.Mixer)

@@ -13,7 +13,11 @@ public static class GameSession
 
     public static List<ChartPack> Packs { get; private set; } = new();
     public static ChartSelection? CurrentSelection { get; private set; }
-    public static ChartPreload? CurrentPreload { get; private set; }
+    private const int MaxPreloads = 4;
+    private static readonly Dictionary<(string PackId, string ChartId), ChartPreload> Preloads = new();
+    private static readonly LinkedList<(string PackId, string ChartId)> PreloadOrder = new();
+
+    public static ChartPreload? CurrentPreload => Preloads.Values.FirstOrDefault();
 
     private static bool _init;
 
@@ -34,25 +38,43 @@ public static class GameSession
         if (CurrentSelection is { } selection && !Packs.Any(pack =>
                 StringComparer.Ordinal.Equals(pack.Id, selection.Pack.Id)))
             ClearSelection();
-        if (CurrentPreload is { } preload && !Packs.Any(pack =>
-                StringComparer.Ordinal.Equals(pack.Id, preload.Pack.Id)))
+        if (Preloads.Values.Any(preload => !Packs.Any(pack =>
+                StringComparer.Ordinal.Equals(pack.Id, preload.Pack.Id))))
             ClearPreload();
     }
 
     /// <summary>Stores a successful selection-screen preload without changing the committed chart.</summary>
     public static void CachePreload(ChartPack pack, ChartDiff diff, LoadedChart loaded)
     {
-        CurrentPreload = new ChartPreload(pack, diff, loaded);
+        var key = (pack.Id, diff.ChartId);
+        if (Preloads.ContainsKey(key))
+            PreloadOrder.Remove(key);
+        Preloads[key] = new ChartPreload(pack, diff, loaded);
+        PreloadOrder.AddLast(key);
+        while (PreloadOrder.Count > MaxPreloads)
+        {
+            var oldest = PreloadOrder.First!.Value;
+            PreloadOrder.RemoveFirst();
+            Preloads.Remove(oldest);
+        }
         if (CurrentSelection is { } selection && selection.Matches(pack, diff))
             SetSelection(new ChartSelection(pack, diff, loaded));
     }
 
-    public static LoadedChart? GetPreload(ChartPack pack, ChartDiff diff) =>
-        CurrentPreload is { } preload && preload.Matches(pack, diff) ? preload.LoadedChart : null;
+    public static LoadedChart? GetPreload(ChartPack pack, ChartDiff diff)
+    {
+        var key = (pack.Id, diff.ChartId);
+        if (!Preloads.TryGetValue(key, out var preload))
+            return null;
+        PreloadOrder.Remove(key);
+        PreloadOrder.AddLast(key);
+        return preload.LoadedChart;
+    }
 
     public static void ClearPreload()
     {
-        CurrentPreload = null;
+        Preloads.Clear();
+        PreloadOrder.Clear();
         if (CurrentSelection is { } selection)
             SetSelection(selection with { LoadedChart = null });
     }

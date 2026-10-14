@@ -14,9 +14,48 @@ public enum SustainEffectKind
 /// </summary>
 public partial class GameplaySustainEffect : Node2D
 {
-	public SustainEffectKind Kind { get; init; }
-	public Color Accent { get; init; } = new(1f, 0.72f, 0.30f);
+	public SustainEffectKind Kind { get; private set; }
+	public Color Accent { get; private set; } = new(1f, 0.72f, 0.30f);
 	public float SpanPx { get; set; } = 120f;
+
+	public void ResetFor(SustainEffectKind kind, float rotation)
+	{
+		ResetForPool();
+		Kind = kind;
+		Accent = NoteVisualSpec.HitPerfect;
+		Rotation = rotation;
+		ZIndex = 4;
+		Visible = true;
+		SetProcess(true);
+		QueueRedraw();
+	}
+
+	public void SetContact(bool connected)
+	{
+		if (connected && !Visible)
+			_age = 0.0;
+		Visible = connected;
+		SetProcess(connected);
+		QueueRedraw();
+	}
+
+	public void ResetForPool()
+	{
+		_age = 0.0;
+		Array.Clear(_bracketPoints);
+		Kind = SustainEffectKind.Hold;
+		Accent = new Color(1f, 0.72f, 0.30f);
+		SpanPx = 120f;
+		Position = Vector2.Zero;
+		Rotation = 0f;
+		Scale = Vector2.One;
+		Skew = 0f;
+		Modulate = Colors.White;
+		ZIndex = 4;
+		Visible = false;
+		SetProcess(false);
+		QueueRedraw();
+	}
 
 	private const int FrameCount = 12;
 	private const double AttackSecond = 0.28;

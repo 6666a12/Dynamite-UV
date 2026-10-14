@@ -23,6 +23,7 @@
 | 文档 | 性质与权威边界 |
 | --- | --- |
 | [gameplay-spec.md](<gameplay-spec.md>) | 当前判定/舞台与 legacy 兼容说明 |
+| [mixer-receiver.md](<mixer-receiver.md>) | Mixer 放置接收器实现、社区边界与实机清单 |
 | [chart-format-v2.md](<chart-format-v2.md>) | 冻结的正式 v2 合同，不因文档清理而改变格式 |
 | [v2 Schema 与 golden pack](<../schemas/chart-format-v2/>) | 机器可读合同和 clean-room 向量 |
 | [original-judgement-analysis.md](<original-judgement-analysis.md>) | 原版机制研究证据；不是社区产品待办或实现宣告 |
@@ -32,6 +33,8 @@
 | [result-v2-design.md](<result-v2-design.md>) | 已接入并通过用户验收的结算 v2 几何、时间线与边界 |
 
 ## 提案与历史参考
+
+- [工作区盘点基线](<workspace-inventory-2026-10-14.md>)：83 项未提交文件归属、APK 哈希、验收状态、本地资产/产物与提交边界（计数为该文新增前快照）。
 
 - [Storyboard 提案](<storyboard-editor-proposal.md>)：首版不做、已拍板 sidecar 方向的未来工作区，编辑器设计稿仅留禁用占位入口；不是现有编辑器能力。
 - [网页 UI 参考目录](<ui-mock/>)：历史视觉/交互稿；不能据其判断当前客户端或编辑器能力。

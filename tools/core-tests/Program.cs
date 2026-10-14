@@ -65,6 +65,10 @@ public static class Program
             TestScoreStoreMigrationAndIdentity();
             ResultRevealTests.Run(Check);
             CalibrationStatsTests.Run(Check);
+            BehaviorEquivalenceTests.Run(Check);
+            ShortHoldTests.Run(Check);
+            GradeTests.Run(Check);
+            MixerTests.Run(Check);
         }
         catch (Exception ex)
         {
@@ -408,15 +412,15 @@ public static class Program
             {
                 case UnitKind.Input:
                     var r = engine.Judge(u.Time, u.Time); // 精确时刻命中
-                    Check(r.Grade == JudgeGrade.Prefect, "精确命中 = Prefect");
+                    Check(r.Grade == JudgeGrade.Perfect, "精确命中 = Perfect");
                     engine.Apply(u.Category, r.Grade,
                         u.AffectsCombo, u.AffectsJudgeCounts);
                     break;
                 case UnitKind.Auto:
                 case UnitKind.HoldPoint:
-                case UnitKind.Contact: // Drag 接触判定：模拟按住 → Prefect
+                case UnitKind.Contact: // Drag 接触判定：模拟按住 → Perfect
                 case UnitKind.HoldEnd:
-                    engine.Apply(u.Category, JudgeGrade.Prefect,
+                    engine.Apply(u.Category, JudgeGrade.Perfect,
                         u.AffectsCombo, u.AffectsJudgeCounts);
                     break;
                 case UnitKind.Mine:
@@ -429,7 +433,7 @@ public static class Program
         Console.WriteLine($"    score={engine.Score} maxCombo={engine.MaxCombo} " +
                           $"health={engine.Health}/{engine.MaxHealth} " +
                           $"percent={engine.Percent(plan.TheoreticalMax):F2}%");
-        Check(engine.CountPrefect == 15, "Auto 精确得到 15 Prefect");
+        Check(engine.CountPerfect == 15, "Auto 精确得到 15 Perfect");
         Check(engine.CountMiss == 0 && engine.CountGreat == 0 && engine.CountGood == 0,
             "Auto 无其他等级");
         Check(engine.MaxCombo == 15, "Auto MaxCombo = 15");
@@ -467,7 +471,7 @@ public static class Program
             var engine = new JudgeEngine(JudgePreset.Hard);
             var plan = JudgePlan.Build(chart, engine.Settings);
             foreach (var unit in plan.Units)
-                engine.Apply(unit.Category, JudgeGrade.Prefect,
+                engine.Apply(unit.Category, JudgeGrade.Perfect,
                     unit.AffectsCombo, unit.AffectsJudgeCounts);
             Console.WriteLine($"    {Path.GetRelativePath(packsDirectory, file)}: " +
                               $"units={plan.Units.Count} headline={plan.HeadlineUnitCount} " +
@@ -476,7 +480,7 @@ public static class Program
             Check(plan.Units.All(unit => unit.AffectsCombo && unit.AffectsJudgeCounts),
                 $"{Path.GetFileName(file)} 全部派生单元都是主判定");
             Check(engine.NormalizedScore(plan.TheoreticalMax) == 1_000_000,
-                $"{Path.GetFileName(file)} 全 Prefect 满分为 1,000,000");
+                $"{Path.GetFileName(file)} 全 Perfect 满分为 1,000,000");
         }
     }
 
@@ -492,11 +496,11 @@ public static class Program
         var normal = new JudgeEngine(JudgePreset.Normal);
         const double t = 10.0;
 
-        // ±50ms -> Prefect（Hard/Normal 均为 ±62.5ms 内）
+        // ±50ms -> Perfect（Hard/Normal 均为 ±62.5ms 内）
         foreach (var offset in new[] { -0.050, 0.050 })
         {
-            Check(hard.Judge(t, t + offset).Grade == JudgeGrade.Prefect, $"Hard ±50ms -> Prefect ({offset:+0.000;-0.000})");
-            Check(normal.Judge(t, t + offset).Grade == JudgeGrade.Prefect, $"Normal ±50ms -> Prefect ({offset:+0.000;-0.000})");
+            Check(hard.Judge(t, t + offset).Grade == JudgeGrade.Perfect, $"Hard ±50ms -> Perfect ({offset:+0.000;-0.000})");
+            Check(normal.Judge(t, t + offset).Grade == JudgeGrade.Perfect, $"Normal ±50ms -> Perfect ({offset:+0.000;-0.000})");
         }
 
         // ±120ms：Normal 档（±150ms 内）-> Great；Hard 档（超 ±112.5ms）-> Good
@@ -538,7 +542,7 @@ public static class Program
 
         // 窗口换算值本身（bar * 240/StandardBPM=150，规格书 §6.3）
         var s = hard.Settings;
-        Check(Math.Abs(s.PrefectSec - 0.0625) < 1e-12, "Hard Prefect 窗 = ±62.5ms");
+        Check(Math.Abs(s.PerfectSec - 0.0625) < 1e-12, "Hard Perfect 窗 = ±62.5ms");
         Check(Math.Abs(s.GreatSec - 0.1125) < 1e-12, "Hard Great 窗 = ±112.5ms");
         Check(Math.Abs(s.GoodSec - 0.1625) < 1e-12, "Hard Good 窗 = ±162.5ms");
         Check(Math.Abs(s.MissSec - 0.250) < 1e-12, "Hard Miss 窗 = ±250ms");
@@ -555,11 +559,11 @@ public static class Program
         // 原版 4 个 JudgeSettings 实例的精确换算（barTime × 240 / StandardBPM 150 = ×1.6）
         var casual = JudgeSettings.ForPreset(JudgePreset.Casual);
         var tutorial = JudgeSettings.ForPreset(JudgePreset.Tutorial);
-        Check(Math.Abs(casual.PrefectSec - 0.100) < 1e-12, "Casual Prefect 窗 = ±100ms");
+        Check(Math.Abs(casual.PerfectSec - 0.100) < 1e-12, "Casual Perfect 窗 = ±100ms");
         Check(Math.Abs(casual.GreatSec - 0.150) < 1e-12, "Casual Great 窗 = ±150ms");
         Check(Math.Abs(casual.GoodSec - 0.200) < 1e-12, "Casual Good 窗 = ±200ms");
         Check(Math.Abs(casual.MissSec - 0.250) < 1e-12, "Casual Miss 窗 = ±250ms");
-        Check(Math.Abs(tutorial.PrefectSec - casual.PrefectSec) < 1e-12 &&
+        Check(Math.Abs(tutorial.PerfectSec - casual.PerfectSec) < 1e-12 &&
               Math.Abs(tutorial.GreatSec - casual.GreatSec) < 1e-12 &&
               Math.Abs(tutorial.GoodSec - casual.GoodSec) < 1e-12 &&
               Math.Abs(tutorial.MissSec - casual.MissSec) < 1e-12,
@@ -575,12 +579,12 @@ public static class Program
 
         // Hardcore 实例 = Hard × 0.5（31.25 / 56.25 / 81.25 / 125 ms）
         var hc = JudgeSettings.ForPreset(JudgePreset.Hardcore);
-        Check(Math.Abs(hc.PrefectSec - 0.03125) < 1e-12, "Hardcore Prefect 窗 = ±31.25ms");
+        Check(Math.Abs(hc.PerfectSec - 0.03125) < 1e-12, "Hardcore Perfect 窗 = ±31.25ms");
         Check(Math.Abs(hc.GreatSec - 0.05625) < 1e-12, "Hardcore Great 窗 = ±56.25ms");
         Check(Math.Abs(hc.GoodSec - 0.08125) < 1e-12, "Hardcore Good 窗 = ±81.25ms");
         Check(Math.Abs(hc.MissSec - 0.125) < 1e-12, "Hardcore Miss 窗 = ±125ms");
         var hcEngine = new JudgeEngine(JudgePreset.Hardcore);
-        Check(hcEngine.Judge(t, t + 0.030).Grade == JudgeGrade.Prefect, "Hardcore ±30ms -> Prefect");
+        Check(hcEngine.Judge(t, t + 0.030).Grade == JudgeGrade.Perfect, "Hardcore ±30ms -> Perfect");
         Check(hcEngine.Judge(t, t + 0.050).Grade == JudgeGrade.Great, "Hardcore ±50ms -> Great");
         Check(hcEngine.Judge(t, t + 0.080).Grade == JudgeGrade.Good, "Hardcore ±80ms -> Good");
         Check(hcEngine.Judge(t, t + 0.100).Grade == JudgeGrade.Miss, "Hardcore ±100ms -> Miss");
@@ -599,7 +603,7 @@ public static class Program
             "Bleed 预留：暂等同 Standard（normal -> Normal）");
     }
 
-    // 5. Mine：不碰给分（Prefect），危险窗内接触为 Miss。
+    // 5. Mine：不碰给分（Perfect），危险窗内接触为 Miss。
     private static void TestMine()
     {
         Console.WriteLine("[5] Mine behavior");
@@ -608,7 +612,7 @@ public static class Program
         engine.ApplyMine(touched: false);
         Check(engine.Score == 100, "不触碰 Mine -> +100 分");
         Check(engine.Combo == 1, "不触碰 Mine -> 连击 +1");
-        Check(engine.CountPrefect == 1, "不触碰 Mine -> 计 Prefect");
+        Check(engine.CountPerfect == 1, "不触碰 Mine -> 计 Perfect");
 
         var healthBefore = engine.Health;
         engine.ApplyMine(touched: true);
@@ -629,71 +633,36 @@ public static class Program
             "Great Tap 70/100 -> 700,000");
 
         var perfect = new JudgeEngine(JudgePreset.Hard);
-        perfect.Apply(ScoreCategory.Tap, JudgeGrade.Prefect);
+        perfect.Apply(ScoreCategory.Tap, JudgeGrade.Perfect);
         Check(perfect.NormalizedScore(100) == 1_000_000,
             "Perfect Tap 100/100 -> 1,000,000");
         Check(perfect.NormalizedScore(0) == 0, "空谱理论满分 0 -> 分数 0");
     }
 
-	// 7. 同帧目标时间锁（原版 JudgeState 语义）：只锁早侧、同刻放行、晚侧放行、EX 豁免。
-	private static void TestV2InputTimeLock()
-	{
-		Console.WriteLine("[7] V2 input time lock (early side only)");
-		var gate = new V2InputProtection();
+		// 7. 每帧精确 note 时间批次锁；成功结算不区分 Early/Late，Mine 独立。
+		private static void TestV2InputTimeLock()
+		{
+			Console.WriteLine("[7] Exact-time frame batch lock");
+			var gate = new V2InputProtection();
+			Check(gate.CanUse(84.231), "未武装时任意候选通过");
+			gate.CommitResolved(84.231);
+			Check(gate.IsArmed && gate.LockedTime == 84.231, "结算记录精确锁定时间");
+			Check(gate.CanUse(84.231), "同刻多押放行");
+			Check(!gate.CanUse(84.350), "同帧异时候选被拒");
 
-		// 未武装时早侧任意目标可判定。
-		gate.Reset();
-		Check(gate.CanUse(84_231, 83_981), "未武装时未来 Note 可判定");
-		Check(gate.CanUse(84_231, 84_231), "未武装时同刻可判定");
+			// 早侧 Miss 与晚侧成功都使用同一个结算入口并武装锁。
+			gate.Reset();
+			gate.CommitResolved(84.231);
+			Check(!gate.CanUse(84.232), "早侧 Miss 后不同时间被拒");
+			gate.Reset();
+			gate.CommitResolved(83.900);
+			Check(!gate.CanUse(84.231), "晚侧成功后不同时间同样被拒");
 
-		// 早侧命中武装锁，取本批最早目标；完全同刻继续放行。
-		gate.CommitResolved(84_231, 83_981);
-		Check(gate.Xm == 84_231, "早侧命中武装 Xm");
-		Check(gate.CanUse(84_231, 83_981), "同刻多押放行");
-		Check(gate.CanUse(84_231, 84_231), "同刻（Exact）多押放行");
-		Check(!gate.CanUse(84_350, 83_981), "异时早侧目标被锁拦截");
-		Check(gate.CanUse(84_231, 84_231, enforceProbability: false), "关闭概率保护后同刻仍放行");
+			gate.Reset();
+			Check(!gate.IsArmed && gate.CanUse(84.350), "跨帧重置解除锁");
+		}
 
-		// H1 回归：晚侧候选既不检查锁，也被放行。
-		Check(gate.CanUse(83_900, 84_000), "晚侧候选不检查锁（H1）");
-		Check(gate.CanUse(500, 84_000), "远晚于输入的目标仍然放行");
-
-		// 晚侧命中不武装锁。
-		gate.Reset();
-		gate.CommitResolved(83_900, 84_000);
-		Check(gate.Xm == V2InputProtection.Infinity, "晚侧命中不武装时间锁");
-		Check(gate.CanUse(84_231, 83_981), "晚侧结算后早侧目标不被锁（无武装）");
-
-		// 武装值取最早目标，与事件到达顺序无关。
-		gate.Reset();
-		gate.CommitResolved(84_500, 83_981);
-		gate.CommitResolved(84_231, 83_981);
-		gate.CommitResolved(84_400, 83_981);
-		Check(gate.Xm == 84_231, "本批锁 = 最早已结算目标（与顺序无关）");
-		Check(!gate.CanUse(84_400, 83_981), "异时早侧仍被拦截");
-		Check(gate.CanUse(83_500, 84_000), "晚侧不受最早目标影响");
-
-		// 早侧 Miss 保护：被保护的未来目标可在同批继续使用，超出上限的早侧目标被拒。
-		gate.Reset();
-		gate.ProtectEarlyMiss(84_231, 83_981);
-		Check(gate.ProbXm == 84_231, "早侧 Miss 记录保护上限");
-		Check(gate.CanUse(84_231, 83_981), "受保护上限内的早侧目标可判定");
-		Check(!gate.CanUse(84_400, 83_981), "超出保护上限的早侧目标被拒");
-		Check(gate.CanUse(83_900, 84_000), "保护上限不影响晚侧候选");
-
-		// EX-Tap（Burst）与 Tap 逐指令一致：同样参与时间锁（检查 + 命中武装）。
-		gate.Reset();
-		gate.CommitResolved(84_231, 83_981);
-		Check(!gate.CanUse(84_900, 83_981), "EX 异时早侧目标被锁拦截");
-		Check(gate.CanUse(84_231, 83_981), "EX 与已武装时刻同刻放行");
-		Check(gate.Xm == 84_231, "EX 早侧命中武装锁");
-		Check(gate.CanUse(83_900, 84_000), "EX 晚侧候选仍不受锁限制");
-
-		// 毫秒换算保持原值的四舍五入语义。
-		Check(V2InputProtection.ToMilliseconds(83.981) == 83_981, "秒 -> 毫秒换算");
-	}
-
-	// 7b. EX-Tap 二值判定（原版 Burst：窗内恒 Prefect，出窗即输入 Miss）。
+	// 7b. EX-Tap 二值判定（原版 Burst：窗内恒 Perfect，出窗即输入 Miss）。
 	private static void TestExTapBinaryJudgement()
 	{
 		Console.WriteLine("[7b] EX-Tap binary judgement");
@@ -704,12 +673,12 @@ public static class Program
 		var good = settings.GoodSec * ex;   // Hard: 0.1625
 		var miss = settings.MissSec * ex;   // Hard: 0.25
 
-		// 窗内（含 Great/Good 档位区间）一律 grade 5 = Prefect。
+		// 窗内（含 Great/Good 档位区间）一律 grade 5 = Perfect。
 		foreach (var offset in new[] { 0.0, 0.05, -0.05, 0.10, -0.10, 0.16, -0.16 })
 		{
 			var r = engine.JudgePress(t, t + offset, ex, binaryExTap: true);
-			Check(r.Grade == JudgeGrade.Prefect && r.Resolution == JudgeResolution.Prefect,
-				$"EX 窗内 {offset:+0.00;-0.00}s -> Prefect（无 GR/GD 档）");
+			Check(r.Grade == JudgeGrade.Perfect && r.Resolution == JudgeResolution.Perfect,
+				$"EX 窗内 {offset:+0.00;-0.00}s -> Perfect（无 GR/GD 档）");
 		}
 
 		// 出窗（早侧或晚侧）在输入窗内 -> grade 2 = 输入 Miss，不留 Pending。
@@ -732,8 +701,8 @@ public static class Program
 		Check(timeout.CountAutoMiss == 1 && timeout.CountMiss == 1, "超时 -> grade 1（AutoMiss）");
 
 		// Tap 等其他类型分级不变（窗口倍率 1.0）。
-		Check(engine.JudgePress(t, t + 0.05).Grade == JudgeGrade.Prefect,
-			"非二值路径 ±50ms 仍为 Prefect");
+		Check(engine.JudgePress(t, t + 0.05).Grade == JudgeGrade.Perfect,
+			"非二值路径 ±50ms 仍为 Perfect");
 		Check(engine.JudgePress(t, t + 0.10).Grade == JudgeGrade.Great,
 			"非二值路径 ±100ms 仍为 Great（GR 档未被二值化）");
 		Check(engine.JudgePress(t, t + 0.15).Grade == JudgeGrade.Good,
@@ -831,25 +800,25 @@ public static class Program
 		Check(projectedSamples.Count == 2 &&
 			projectedSamples.ContainsKey((7, Track.Center)) &&
 			projectedSamples.ContainsKey((7, Track.Left)), nameof(projectedSamples));
-		const double prefect = 0.1;
-		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 9.925, prefect,
+		const double perfect = 0.1;
+		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 9.925, perfect,
 			ContactPhase.Began), "Drag 早侧外半窗接受 phase 1");
-		Check(!InputJudgeRules.AcceptsContactPhase(noteTime, 9.925, prefect,
+		Check(!InputJudgeRules.AcceptsContactPhase(noteTime, 9.925, perfect,
 			ContactPhase.Moved), "Drag 早侧外半窗拒绝持续接触");
-		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 9.975, prefect,
+		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 9.975, perfect,
 			ContactPhase.Stationary), "Drag 最后半窗接受 phase 1..3");
-		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 10.05, prefect,
+		Check(InputJudgeRules.AcceptsContactPhase(noteTime, 10.05, perfect,
 			ContactPhase.Stationary), "Drag 晚侧接受持续接触");
-		Check(!InputJudgeRules.AcceptsContactPhase(noteTime, 9.89, prefect,
-			ContactPhase.Began), "Drag Prefect 早窗之外保持 Pending");
+		Check(!InputJudgeRules.AcceptsContactPhase(noteTime, 9.89, perfect,
+			ContactPhase.Began), "Drag Perfect 早窗之外保持 Pending");
 
-		Check(InputJudgeRules.AcceptsMinePhase(noteTime, 9.95, prefect,
+		Check(InputJudgeRules.AcceptsMinePhase(noteTime, 9.95, perfect,
 			ContactPhase.Began), "Mine 外侧危险窗接受 phase 1");
-		Check(!InputJudgeRules.AcceptsMinePhase(noteTime, 9.95, prefect,
+		Check(!InputJudgeRules.AcceptsMinePhase(noteTime, 9.95, perfect,
 			ContactPhase.Moved), "Mine 外侧危险窗拒绝持续接触");
-		Check(InputJudgeRules.AcceptsMinePhase(noteTime, 9.98, prefect,
-			ContactPhase.Stationary), "Mine 最后 Prefect/4 接受 phase 1..3");
-		Check(!InputJudgeRules.AcceptsMinePhase(noteTime, 10.001, prefect,
+		Check(InputJudgeRules.AcceptsMinePhase(noteTime, 9.98, perfect,
+			ContactPhase.Stationary), "Mine 最后 Perfect/4 接受 phase 1..3");
+		Check(!InputJudgeRules.AcceptsMinePhase(noteTime, 10.001, perfect,
 			ContactPhase.Began), "Mine 到点后不再触发");
 	}
 
@@ -909,8 +878,8 @@ public static class Program
 		Check(plan.Units.All(unit => unit.AffectsCombo && unit.AffectsJudgeCounts),
 			"Hold 节点和 Mixer 八分点全部进入 Combo 与 P/GR/GD/M");
 		Check(plan.Units.All(unit =>
-			JudgeEngine.ScoreDelta(unit.Category, JudgeGrade.Prefect) == 100),
-			"Hold 节点和 Mixer 八分点 Prefect 权重均为 100 分");
+			JudgeEngine.ScoreDelta(unit.Category, JudgeGrade.Perfect) == 100),
+			"Hold 节点和 Mixer 八分点 Perfect 权重均为 100 分");
 		Check(JudgeEngine.ScoreDelta(ScoreCategory.HoldHolding, JudgeGrade.Great) == 70 &&
 			JudgeEngine.ScoreDelta(ScoreCategory.HoldHolding, JudgeGrade.Good) == 50 &&
 			JudgeEngine.ScoreDelta(ScoreCategory.MixerHolding, JudgeGrade.Great) == 70 &&
@@ -941,14 +910,14 @@ public static class Program
 		var engine = new JudgeEngine(JudgePreset.Hard, plan.HeadlineUnitCount);
 		var headUnit = plan.Units.Single(
 			unit => unit.Category == ScoreCategory.HoldStart);
-		engine.Apply(headUnit.Category, JudgeGrade.Prefect);
+		engine.Apply(headUnit.Category, JudgeGrade.Perfect);
 		headUnit.Judged = true;
 		var failed = SustainJudgementRules.FailRemainingHold(
 			plan.Units, head.Id, engine);
 		Check(failed.Count == 2, nameof(TestHoldFailureSettlement));
 		Check(failed.All(unit => unit.Judged),
 			nameof(SustainJudgementRules.FailRemainingHold));
-		Check(engine.CountPrefect == 1 && engine.CountMiss == 2 &&
+		Check(engine.CountPerfect == 1 && engine.CountMiss == 2 &&
 			engine.Combo == 0, nameof(JudgeEngine.Combo));
 		var score = engine.Score;
 		var misses = engine.CountMiss;
@@ -979,7 +948,7 @@ public static class Program
 		var engine = new JudgeEngine(JudgePreset.Hard, plan.HeadlineUnitCount);
 		var headUnit = plan.Units.Single(
 			unit => unit.Category == ScoreCategory.HoldStart);
-		engine.Apply(headUnit.Category, JudgeGrade.Prefect);
+		engine.Apply(headUnit.Category, JudgeGrade.Perfect);
 		headUnit.Judged = true;
 
 		var settled = SustainJudgementRules.SettleReleasedHold(
@@ -991,22 +960,22 @@ public static class Program
 			.Grade == JudgeGrade.Great, "Hold 尾按实际松手时刻进入 Great 档");
 		Check(settled.Single(item => item.Unit.Category == ScoreCategory.HoldEnd)
 			.Timing == HitTiming.Early, "提前松手的 Hold 尾保留 Early 时序");
-		Check(engine.CountPrefect == 1 && engine.CountGreat == 1 &&
+		Check(engine.CountPerfect == 1 && engine.CountGreat == 1 &&
 			engine.CountMiss == 1, "提前松手结算统计正确");
 
 		var afterTailPlan = JudgePlan.Build(chart, JudgeSettings.ForPreset(JudgePreset.Hard));
 		var afterTail = new JudgeEngine(JudgePreset.Hard, afterTailPlan.HeadlineUnitCount);
 		var afterTailHead = afterTailPlan.Units.Single(
 			unit => unit.Category == ScoreCategory.HoldStart);
-		afterTail.Apply(afterTailHead.Category, JudgeGrade.Prefect);
+		afterTail.Apply(afterTailHead.Category, JudgeGrade.Perfect);
 		afterTailHead.Judged = true;
 		var afterTailSettled = SustainJudgementRules.SettleReleasedHold(
 			afterTailPlan.Units, head.Id, 2.2, afterTail);
 		Check(afterTailSettled.Single(item => item.Unit.Category == ScoreCategory.HoldEnd)
-			.Grade == JudgeGrade.Prefect &&
+			.Grade == JudgeGrade.Perfect &&
 			afterTailSettled.Single(item => item.Unit.Category == ScoreCategory.HoldEnd)
 				.Timing == HitTiming.Exact,
-			"共享 Hold 结算将尾后 release 钳到尾时刻 Prefect");
+			"共享 Hold 结算将尾后 release 钳到尾时刻 Perfect");
 	}
 
 	// 10. Hold/Mixer 身体左右边缘分别线性插值。
@@ -1040,7 +1009,7 @@ public static class Program
 			"Health = floor(-500*600/1200)");
 		Check(scaled.HealthDelta(ScoreCategory.Mine, JudgeGrade.Miss) == -750,
 			"Mine Health = floor(-1500*600/1200)");
-		Check(scaled.BoostDelta(ScoreCategory.Tap, JudgeGrade.Prefect) == 8,
+		Check(scaled.BoostDelta(ScoreCategory.Tap, JudgeGrade.Perfect) == 8,
 			"Boost = floor(100*100/1200)");
 		scaled.Apply(ScoreCategory.Tap, JudgeGrade.Miss,
 			resolution: JudgeResolution.AutoMiss);
@@ -1049,7 +1018,7 @@ public static class Program
 		Check(scaled.CountAutoMiss == 1 && scaled.CountInputMiss == 1,
 			"两种 Miss 来源分别统计");
 		for (var i = 0; i < 10000; i++)
-			scaled.Apply(ScoreCategory.Tap, JudgeGrade.Prefect);
+			scaled.Apply(ScoreCategory.Tap, JudgeGrade.Perfect);
 		Check(scaled.Boost == JudgeEngine.MaxBoost, "Boost 上限钳到 3000");
 
 		Check(Math.Abs(OriginalJudgeMath.ComboMultiplier(0) - 1.0) < 1e-12,
@@ -1061,7 +1030,7 @@ public static class Program
 		Check(OriginalJudgeMath.RawScoreDelta(100, 300) == 1500,
 			"原版 raw score 使用命中前 Combo 倍率和固定 ×10");
 		Check(OriginalJudgeMath.ClearPercent100(100, 0, 0, 100) == 10000,
-			"原版 CLEAR 全 Prefect 快速路径 = 10000");
+			"原版 CLEAR 全 Perfect 快速路径 = 10000");
 		Check(OriginalJudgeMath.ClearPercent100(0, 100, 0, 100) == 6999,
 			"原版 CLEAR Great 使用实际 float 0.699999988 并截断");
 		Check(OriginalJudgeMath.MixerEndGrade(7, 10) == JudgeGrade.Great &&

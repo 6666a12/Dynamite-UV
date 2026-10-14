@@ -488,6 +488,8 @@ public partial class GameplayMain
 	{
 		_pendingPointerInputs.Clear();
 		_activePointers.Clear();
+		foreach (var state in _sustainStates.Values)
+			state.Mixer?.ClearControls();
 		_frameTouchSamples.Clear();
 		_ignoredTouchIds.Clear();
 		_v2InputProtection.Reset();
@@ -585,16 +587,16 @@ public partial class GameplayMain
 			_scoreLabel.Text = $"{score:N0}";
 		}
 		// 实时 ACC = 当前得分 / 已判定单元的理论满分（未判定不计入），并钳制在 0..100%。
-		var liveAcc = _judgedTheoreticalMax > 0
-			? Math.Clamp(100.0 * _engine.Score / _judgedTheoreticalMax, 0.0, 100.0) : 100.0;
+		var liveAcc = _engine.JudgedTheoreticalMax > 0
+			? Math.Clamp(_engine.Percent(_engine.JudgedTheoreticalMax), 0.0, 100.0) : 100.0;
 		if (liveAcc != _hudLiveAcc)
 		{
 			_hudLiveAcc = liveAcc;
 			_pillAcc.Text = $"ACC {liveAcc:F2}%";
 		}
-		if (_engine.CountPrefect != _hudPerfect)
+		if (_engine.CountPerfect != _hudPerfect)
 		{
-			_hudPerfect = _engine.CountPrefect;
+			_hudPerfect = _engine.CountPerfect;
 			_pillP.Text = $"PERFECT {_hudPerfect}";
 		}
 		if (_engine.CountGreat != _hudGreat)
@@ -646,13 +648,15 @@ public partial class GameplayMain
 		var record = new ScoreRecord
 		{
 			Score = normalizedScore, Acc = pct, MaxCombo = _engine.MaxCombo, Grade = grade,
-			Perfect = _engine.CountPrefect, Great = _engine.CountGreat,
+			Perfect = _engine.CountPerfect, Great = _engine.CountGreat,
 			Good = _engine.CountGood, Miss = _engine.CountMiss,
 		};
 		// Snapshot the previous best before saving; AUTO must never write scores.
 		var isNewRecord = !_auto && (hasIdentity
 			? GameSession.Scores.TryUpdate(identity, record)
 			: GameSession.Scores.TryUpdate(_run.PackId, _run.LegacyScoreKey, record));
+		if (isNewRecord)
+			GameSession.Scores.SaveDeferred();
 		var texture = CoverTextureCache.Current(_run.CoverPath) ?? CoverTextureCache.Load(_run.CoverPath);
 		_presentationPauseTween?.Kill();
 		_presentationPauseTween = null;
@@ -676,7 +680,7 @@ public partial class GameplayMain
 
 		GD.Print($"=== RESULT === {_run.SongTitle} [{_run.LegacyScoreKey} Lv{_run.DifficultyLevel}] " +
 			$"score={normalizedScore} rawScore={_engine.Score} clear={pct:F2}% grade={grade} " +
-			$"P={_engine.CountPrefect} Gr={_engine.CountGreat} Gd={_engine.CountGood} M={_engine.CountMiss} " +
+			$"P={_engine.CountPerfect} Gr={_engine.CountGreat} Gd={_engine.CountGood} M={_engine.CountMiss} " +
 			$"maxCombo={_engine.MaxCombo} newRecord={isNewRecord}");
 	}
 

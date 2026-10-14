@@ -323,15 +323,14 @@ public static class V2JsonDecoder
         {
             var itemPointer = Child(pointer, index++);
             var obj = RequireObject(item, source, itemPointer);
-            var typeProperty = obj.EnumerateObject()
-                .Where(property => property.NameEquals("type"))
-                .ToArray();
-            if (typeProperty.Length == 0)
-                throw Error(source, Child(itemPointer, "type"), "required property is missing");
-            var typeText = ReadString(typeProperty[0].Value, source, Child(itemPointer, "type"));
-            if (!NoteTypes.TryGetValue(typeText, out var noteType))
+            if (!NoteTypes.TryGetValue(
+                    ReadString(obj.TryGetProperty("type", out var typeElement)
+                        ? typeElement
+                        : throw Error(source, Child(itemPointer, "type"),
+                            "required property is missing"),
+                    source, Child(itemPointer, "type")), out var noteType))
                 throw Error(source, Child(itemPointer, "type"),
-                    $"unsupported note type '{typeText}'");
+                    $"unsupported note type '{typeElement.GetString()}'");
 
             var isPath = noteType is V2NoteType.Hold or V2NoteType.Mixer;
             var properties = Properties(obj, source, itemPointer,

@@ -1,4 +1,5 @@
 using Godot;
+using DynamiteUniverse.Shared.Judge;
 
 namespace DynamiteUniverse.Audio;
 
@@ -13,6 +14,7 @@ public partial class SongClock : Node
     private AudioStreamPlayer? _player;
     private double _pausedPosition;
     private bool _playing;
+    private readonly MonotonicSongPosition _position = new();
 
     private bool _manualFallback;
     private double _fallbackBaseSec;
@@ -58,6 +60,14 @@ public partial class SongClock : Node
 
     public void Play(double fromSec = 0.0)
     {
+        // Play/Seek deliberately start a new timeline. Do not clamp the initial
+        // compensated position to zero: output latency can make it negative.
+        _position.Reset();
+        StartPlayback(fromSec);
+    }
+
+    private void StartPlayback(double fromSec)
+    {
         _playing = true;
         if (_fixedFrameEnabled)
         {
@@ -83,14 +93,23 @@ public partial class SongClock : Node
             _player?.Stop(); // MVP：暂停即停流，恢复时从记录位置重新 Play
     }
 
-    public void Resume() => Play(_pausedPosition);
+    public void Resume()
+    {
+        // Restarting the stream subtracts output latency again; retain the pause
+        // floor so both input timestamps and render reads remain ordered.
+        _position.Reset(_pausedPosition);
+        StartPlayback(_pausedPosition);
+    }
 
     public void Seek(double sec)
     {
         if (_playing)
             Play(sec);
         else
+        {
             _pausedPosition = sec;
+            _position.Reset(sec);
+        }
     }
 
     /// <summary>当前歌曲时间（秒，含用户校准）。未播放时返回暂停位置（同样含校准）。</summary>
@@ -115,6 +134,8 @@ public partial class SongClock : Node
                   + AudioServer.GetTimeSinceLastMix()
                   - AudioServer.GetOutputLatency();
         }
-        return pos + UserOffsetMs / 1000.0;
+        // Playback position, last-mix age and latency are separate audio-thread
+        // observations. Their sum can briefly decrease across a mix boundary.
+        return _position.Observe(pos) + UserOffsetMs / 1000.0;
     }
 }

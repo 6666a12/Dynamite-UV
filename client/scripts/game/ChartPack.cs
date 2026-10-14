@@ -161,7 +161,9 @@ public sealed class ChartPack
             return null;
         try
         {
-            using var doc = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(metaPath));
+            var metaBytes = Godot.FileAccess.GetFileAsBytes(metaPath);
+            using var doc = JsonDocument.Parse(metaBytes);
+
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 throw new InvalidDataException("meta.json root must be an object.");
@@ -192,7 +194,7 @@ public sealed class ChartPack
             if (packageFormat == ChartPackageFormat.V2)
             {
                 var strictPack = DynamiteUniverse.Shared.Chart.V2.V2JsonDecoder.DecodePack(
-                    Godot.FileAccess.GetFileAsBytes(metaPath), metaPath);
+                    metaBytes, metaPath);
                 return V2ChartMetadataAdapter.ToChartPack(dirPath, strictPack);
             }
 

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Godot;
 using DynamiteUniverse.Game;
 using DynamiteUniverse.Shared.Judge;
@@ -82,6 +83,8 @@ public partial class SongSelect : Node2D
     private int _packIdx = -1;
     private int _diffIdx;
     private int _detailRequestGeneration;
+    private readonly SemaphoreSlim _detailLoadGate = new(1, 1);
+    private readonly ConcurrentQueue<DetailLoadResult> _detailResults = new();
     private bool _localTransitionBusy;
     private readonly List<SongRow> _rows = new();
     private readonly List<int> _visibleOrder = new();
@@ -467,6 +470,7 @@ public partial class SongSelect : Node2D
 
     public override void _ExitTree()
     {
+        ++_detailRequestGeneration;
         StopPreview();
         _previewStream = null;
     }
@@ -1112,6 +1116,7 @@ public partial class SongSelect : Node2D
         if (!_expanded)
             return;
         StopPreview();
+        ++_detailRequestGeneration;
         // 收拢动画期间保持 _expanded=true：行维持隐藏、卡占位逐帧收缩，收完才换回普通行，
         // 避免收缩途中"行 + 半截卡"双重占高。途中再点行由 ExpandCard 干净反向。
         if (UiMotionProfile.For(GameSession.Settings.MotionMode).AllowDirectionalMotion)
@@ -1202,7 +1207,7 @@ public partial class SongSelect : Node2D
         if (pack == null || pack.Charts.Count == 0)
             return;
         var diff = pack.Charts[Mathf.Clamp(_diffIdx, 0, pack.Charts.Count - 1)];
-        var loaded = GetOrCacheChart(pack, diff);
+        var loaded = GameSession.GetPreload(pack, diff);
         if (loaded == null)
             return;
 
@@ -1210,14 +1215,25 @@ public partial class SongSelect : Node2D
             ?? new ChartPreview(PreviewFallbackStart, PreviewFallbackDuration);
         _previewStart = Math.Max(0.0, preview.StartSec);
         _previewDuration = preview.DurationSec > 0.0 ? preview.DurationSec : PreviewFallbackDuration;
+        var path = loaded.ResolvedAudioPath;
+        var generation = _detailRequestGeneration;
+        _previewTime.Text = "加载预览中…";
+        Task.Run(() => Res.LoadAudio(path)).ContinueWith(task =>
+            CallDeferred(nameof(CompletePreviewLoad), generation, pack.Id, diff.ChartId,
+                path, task.Status == TaskStatus.RanToCompletion ? task.Result : null),
+            TaskScheduler.Default);
+    }
 
-        if (_previewStream == null ||
-            !StringComparer.Ordinal.Equals(_previewStreamPath, loaded.ResolvedAudioPath))
-        {
-            // Godot 没有本地文件流式播放 API；整段加载并在切歌时释放。
-            _previewStream = Res.LoadAudio(loaded.ResolvedAudioPath);
-            _previewStreamPath = _previewStream != null ? loaded.ResolvedAudioPath : null;
-        }
+    private void CompletePreviewLoad(int generation, string packId, string chartId,
+        string path, AudioStream? stream)
+    {
+        if (!IsInsideTree() || generation != _detailRequestGeneration || !_expanded ||
+            CurrentPack is not { } pack || !StringComparer.Ordinal.Equals(pack.Id, packId) ||
+            pack.Charts.Count == 0 || !StringComparer.Ordinal.Equals(
+                pack.Charts[Mathf.Clamp(_diffIdx, 0, pack.Charts.Count - 1)].ChartId, chartId))
+            return;
+        _previewStream = stream;
+        _previewStreamPath = stream != null ? path : null;
         if (_previewStream == null)
         {
             _transport.SetPlaying(false);
@@ -1225,7 +1241,6 @@ public partial class SongSelect : Node2D
             UpdatePreviewReadout(0);
             return;
         }
-
         _preview.Stream = _previewStream;
         _preview.Play((float)_previewStart);
         _previewPlaying = true;
@@ -1315,7 +1330,6 @@ public partial class SongSelect : Node2D
         if (pack == null || pack.Charts.Count == 0)
             return;
         _diffIdx = (_diffIdx + 1) % pack.Charts.Count;
-        GameSession.ClearPreload();
         BeginRefreshAll();
     }
 
@@ -1468,7 +1482,7 @@ public partial class SongSelect : Node2D
         else
             CancelCardCoverFade();
         _transport.Disabled = true;
-        _previewTime.Text = "READING CHART";
+        _previewTime.Text = "加载谱面中…";
         _diffBtn.Disabled = false;
         _diffBtn.Text = diff.Level is { } level
             ? $"{diff.Display.ToUpperInvariant()} · Lv {level}"
@@ -1501,7 +1515,82 @@ public partial class SongSelect : Node2D
         if (!StringComparer.Ordinal.Equals(diff.ChartId, chartId))
             return;
 
-        var loaded = GetOrCacheChart(pack, diff);
+        if (GameSession.GetPreload(pack, diff) is { } cached)
+        {
+            CompleteChartDetails(generation, pack, diff, cached);
+            return;
+        }
+
+        _previewTime.Text = "加载谱面中…";
+        _ = LoadChartDetailsAsync(generation, pack, diff);
+    }
+
+    private async Task LoadChartDetailsAsync(int generation, ChartPack pack, ChartDiff diff)
+    {
+        LoadedChart? loaded = null;
+        try
+        {
+            await _detailLoadGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                loaded = await Task.Run(() =>
+                {
+                    try
+                    {
+                        return pack.LoadChart(diff);
+                    }
+                    catch (Exception e)
+                    {
+                        GD.PushWarning($"SongSelect: loading {pack.Id}/{diff.ChartId} failed: {e.Message}");
+                        return null;
+                    }
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                _detailLoadGate.Release();
+            }
+        }
+        catch (Exception e)
+        {
+            GD.PushWarning($"SongSelect: detail loading {pack.Id}/{diff.ChartId} failed: {e.Message}");
+        }
+
+        _detailResults.Enqueue(new DetailLoadResult(generation, pack.Id, diff.ChartId, loaded));
+        CallDeferred(nameof(CompleteChartDetailsLoad));
+    }
+
+    private void CompleteChartDetailsLoad()
+    {
+        while (_detailResults.TryDequeue(out var result))
+        {
+            var generation = result.Generation;
+            var packId = result.PackId;
+            var chartId = result.ChartId;
+            var loaded = result.Loaded;
+            if (loaded is not null &&
+                CurrentPack is { } loadedPack &&
+                StringComparer.Ordinal.Equals(loadedPack.Id, packId) &&
+                loadedPack.ChartOf(chartId) is { } loadedDiff)
+                GameSession.CachePreload(loadedPack, loadedDiff, loaded);
+
+            if (!IsInsideTree() || generation != _detailRequestGeneration || !_expanded ||
+                CurrentPack is not { } pack || !StringComparer.Ordinal.Equals(pack.Id, packId) ||
+                pack.Charts.Count == 0 || !StringComparer.Ordinal.Equals(
+                    pack.Charts[Mathf.Clamp(_diffIdx, 0, pack.Charts.Count - 1)].ChartId, chartId))
+                continue;
+
+            var diff = pack.Charts[_diffIdx];
+            CompleteChartDetails(generation, pack, diff, loaded);
+        }
+    }
+
+    private readonly record struct DetailLoadResult(int Generation, string PackId, string ChartId,
+        LoadedChart? Loaded);
+
+    private void CompleteChartDetails(int generation, ChartPack pack, ChartDiff diff,
+        LoadedChart? loaded)
+    {
         if (generation != _detailRequestGeneration)
             return;
         if (loaded is not null)
@@ -1541,7 +1630,7 @@ public partial class SongSelect : Node2D
         if (rec != null)
         {
             _bestLabel.Text = $"BEST {rec.Score:N0}   CLEAR {rec.Acc:F2}%";
-            _bestGrade.Text = rec.Grade;
+            _bestGrade.Text = DynamiteUniverse.Shared.Score.ScoreStoreCore.GradeLabel(rec.Grade);
             _bestGrade.AddThemeColorOverride("font_color", UiFonts.GradeColor(rec.Grade));
         }
         else

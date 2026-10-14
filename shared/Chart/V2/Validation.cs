@@ -321,7 +321,8 @@ public sealed record V2ResolvedChart(
 /// <summary>Cross-file pack/chart/audio validation with host-supplied filesystem and decoder hooks.</summary>
 public static class V2PackageValidator
 {
-    public static IReadOnlyList<V2ResolvedChart> Validate(
+    /// <summary>Validates package-level metadata and references that do not require chart/audio decoding.</summary>
+    public static void ValidatePackStructure(
         V2Pack pack, V2PackageValidationHooks hooks, string sourceName = "meta.json")
     {
         ArgumentNullException.ThrowIfNull(hooks);
@@ -329,7 +330,6 @@ public static class V2PackageValidator
         if (pack.Cover is not null && hooks.FileExists is not null && !hooks.FileExists(pack.Cover))
             throw new V2DiagnosticException(sourceName, "/cover",
                 $"referenced cover '{pack.Cover}' does not exist as a regular package file");
-        var result = new List<V2ResolvedChart>(pack.Charts.Count);
         for (var i = 0; i < pack.Charts.Count; i++)
         {
             var entry = pack.Charts[i];
@@ -337,33 +337,55 @@ public static class V2PackageValidator
             if (hooks.FileExists is not null && !hooks.FileExists(entry.File))
                 throw new V2DiagnosticException(sourceName, pointer + "/file",
                     $"referenced chart file '{entry.File}' does not exist as a regular package file");
-            var chart = hooks.LoadChart(entry) ??
-                throw new V2DiagnosticException(sourceName, pointer + "/file",
-                    "chart loader returned null");
-            V2SemanticValidator.ValidateChart(chart, entry.File);
-            if (!string.Equals(chart.ChartId, entry.Id, StringComparison.Ordinal))
-                throw new V2DiagnosticException(entry.File, "/chartId",
-                    $"chartId '{chart.ChartId}' does not match pack entry ID '{entry.Id}'");
-
             var audio = pack.ResolveAudio(entry);
             if (hooks.FileExists is not null && !hooks.FileExists(audio))
                 throw new V2DiagnosticException(sourceName,
                     entry.Audio is null ? "/audio" : pointer + "/audio",
                     $"resolved audio '{audio}' does not exist as a regular package file");
-            hooks.ValidateResolvedAudio?.Invoke(entry, audio);
-
-            var duration = hooks.AudioDurationSeconds?.Invoke(audio);
-            if (duration is not null)
-            {
-                if (!double.IsFinite(duration.Value) || duration.Value < 0.0)
-                    throw new V2DiagnosticException(sourceName, pointer + "/audio",
-                        "audio duration hook returned an invalid duration");
-                ValidateAudioBounds(pack, entry, chart, duration.Value, sourceName, pointer);
-            }
-
-            result.Add(new V2ResolvedChart(entry, chart, audio,
-                pack.ResolvePreview(entry), new V2BpmTimeline(chart.Bpms, chart.AudioOffsetSec)));
         }
+    }
+
+    /// <summary>Deep-validates one declared chart, including semantic and resolved-audio checks.</summary>
+    public static V2ResolvedChart ValidateEntry(
+        V2Pack pack, V2ChartEntry entry, V2PackageValidationHooks hooks,
+        int entryIndex = -1, string sourceName = "meta.json")
+    {
+        ArgumentNullException.ThrowIfNull(hooks);
+        var index = entryIndex >= 0 ? entryIndex :
+            Enumerable.Range(0, pack.Charts.Count)
+                .FirstOrDefault(i => ReferenceEquals(pack.Charts[i], entry), -1);
+        var pointer = $"/charts/{Math.Max(0, index)}";
+        var chart = hooks.LoadChart(entry) ??
+            throw new V2DiagnosticException(sourceName, pointer + "/file",
+                "chart loader returned null");
+        V2SemanticValidator.ValidateChart(chart, entry.File);
+        if (!string.Equals(chart.ChartId, entry.Id, StringComparison.Ordinal))
+            throw new V2DiagnosticException(entry.File, "/chartId",
+                $"chartId '{chart.ChartId}' does not match pack entry ID '{entry.Id}'");
+
+        var audio = pack.ResolveAudio(entry);
+        hooks.ValidateResolvedAudio?.Invoke(entry, audio);
+        var duration = hooks.AudioDurationSeconds?.Invoke(audio);
+        if (duration is not null)
+        {
+            if (!double.IsFinite(duration.Value) || duration.Value < 0.0)
+                throw new V2DiagnosticException(sourceName, pointer + "/audio",
+                    "audio duration hook returned an invalid duration");
+            ValidateAudioBounds(pack, entry, chart, duration.Value, sourceName, pointer);
+        }
+        return new V2ResolvedChart(entry, chart, audio,
+            pack.ResolvePreview(entry), new V2BpmTimeline(chart.Bpms, chart.AudioOffsetSec));
+    }
+
+    /// <summary>Full validation retained for editor, writer, and explicit verification paths.</summary>
+    public static IReadOnlyList<V2ResolvedChart> Validate(
+        V2Pack pack, V2PackageValidationHooks hooks, string sourceName = "meta.json")
+    {
+        ArgumentNullException.ThrowIfNull(hooks);
+        ValidatePackStructure(pack, hooks, sourceName);
+        var result = new List<V2ResolvedChart>(pack.Charts.Count);
+        for (var i = 0; i < pack.Charts.Count; i++)
+            result.Add(ValidateEntry(pack, pack.Charts[i], hooks, i, sourceName));
         return result;
     }
 

@@ -134,6 +134,17 @@ Internal APK 可以从含 `client/testdata/` 的开发目录导出。启动 Godo
   client\builds\internal\dynamite-universe-internal-testdata.apk
 ```
 
+已知坑（2026-10 实测）：
+
+- Godot 4.7.1 命令行导出若报"目标文件夹不存在"，把输出 APK 路径改为**绝对路径**再试。
+- 若 apksigner 报磁盘空间不足，除输出盘外还要检查 Java 临时盘。2026-10-14 导出曾因 C 盘临时空间不足失败；在当前导出进程临时设置 `JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=<有空间的本地临时目录>` 后重导出、签名及验包通过，完成后恢复环境变量。
+- 对同一 Internal preset 用 `--export-release` 会因签名凭据缺失失败；可用 debug keystore
+  手动补签做性能探针（`apksigner sign --ks <debug.keystore>`），产物只作内部实验，
+  不替代正常流程、不通过 `--mode internal` 验包即不得分发。
+- Internal 政策要求 `debuggable=true`（`release/apk-policy.json`），即只能 Debug JIT
+  导出，低端设备帧率明显低于 Release 配置；实测 Release 探针包卡顿有缓解。政策与性能
+  的矛盾待拍板，见 [交接 §4](<handoff.md>)。
+
 导出后必须检查内部身份和 testdata 的存在：
 
 ```powershell

@@ -28,10 +28,22 @@ public sealed class SustainPath
     public NoteBounds BoundsAt(double time)
     {
         if (V2Evaluator is not null && V2BpmTimeline is not null)
+            return BoundsAtRuntime(time);
+        return BoundsAtLegacy(time);
+    }
+
+    public NoteBounds BoundsAtRuntime(double time)
+    {
+        if (V2Evaluator is not null && V2BpmTimeline is not null)
         {
-            var sample = V2Evaluator.Evaluate(V2BpmTimeline.ToBarTime(time));
+            var sample = V2Evaluator.EvaluateRuntime(V2BpmTimeline.RuntimeBarAt(time));
             return new NoteBounds(sample.Left, sample.Right);
         }
+        return BoundsAtLegacy(time);
+    }
+
+    private NoteBounds BoundsAtLegacy(double time)
+    {
         if (Nodes.Count == 1 || time <= Nodes[0].Second)
             return InputJudgeRules.Bounds(Nodes[0].Position, Nodes[0].Width);
         if (time >= Nodes[^1].Second)

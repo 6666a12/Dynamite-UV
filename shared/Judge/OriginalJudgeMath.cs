@@ -15,14 +15,14 @@ public static class OriginalJudgeMath
             ComboMultiplier(comboBeforeHit) * Math.Max(0.0, buffScoreFactor));
 
     /// <summary>Returns the original CLEAR value in the 0..10000 integer scale.</summary>
-    public static int ClearPercent100(int prefectMain, int greatMain, int goodMain,
+    public static int ClearPercent100(int perfectMain, int greatMain, int goodMain,
         int totalMainNote)
     {
         if (totalMainNote <= 0)
             return 0;
-        if (prefectMain >= totalMainNote)
+        if (perfectMain >= totalMainNote)
             return 10000;
-        var weighted = prefectMain + 0.699999988 * greatMain + 0.5 * goodMain;
+        var weighted = perfectMain + 0.699999988 * greatMain + 0.5 * goodMain;
         return Math.Clamp((int)Math.Truncate(weighted * 10000.0 / totalMainNote),
             0, 10000);
     }
@@ -30,7 +30,7 @@ public static class OriginalJudgeMath
     public static JudgeGrade MixerEndGrade(int holdingHit, int holdingTotal)
     {
         var rate = holdingTotal <= 0 ? 0.0 : (double)holdingHit / holdingTotal;
-        return rate >= 1.0 ? JudgeGrade.Prefect :
+        return rate >= 1.0 ? JudgeGrade.Perfect :
             rate >= 0.699999988 ? JudgeGrade.Great :
             rate >= 0.5 ? JudgeGrade.Good : JudgeGrade.Miss;
     }

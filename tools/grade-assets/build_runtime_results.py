@@ -11,6 +11,9 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'design/grades/v5_current/delivery'
+SOURCES = {key: SOURCE for key in ('omega', 'S', 'A', 'B', 'C')}
+SOURCES.update({key: ROOT / 'design/grades/v5_current_xy/delivery' for key in ('X', 'Y')})
+SOURCES['D'] = ROOT / 'design/grades/v5_current_d/delivery'
 DEST = ROOT / 'client/assets/results'
 
 
@@ -23,14 +26,16 @@ def penpot_svg(prefix):
 
 def main():
     (DEST/'grades').mkdir(parents=True, exist_ok=True)
-    manifest = {'source':'clean-room v5_current delivery', 'fps':24, 'frame_size':512,
+    manifest = {'source':'approved clean-room v5_current / v5_current_xy / v5_current_d deliveries', 'fps':24, 'frame_size':512,
                 'atlas_columns':6,'atlas_rows':5,'frames':30,'grades':{}}
-    for key in ('omega','S','A','B','C'):
-        static=SOURCE/'static'/f'{key}.png'
+    for key, source in SOURCES.items():
+        static=source/'static'/f'{key}.png'
+        with Image.open(static) as image:
+            assert image.size == (512,512) and image.mode == 'RGBA'
         shutil.copyfile(static, DEST/'grades'/static.name)
         atlas=Image.new('RGBA',(3072,2560))
         for i in range(30):
-            frame=Image.open(SOURCE/'animation'/key/f'{i+1:04}.png').convert('RGBA')
+            frame=Image.open(source/'animation'/key/f'{i+1:04}.png').convert('RGBA')
             assert frame.size == (512,512)
             atlas.paste(frame,((i%6)*512,(i//6)*512))
         assert atlas.crop((5*512,4*512,6*512,5*512)).tobytes()==Image.open(static).convert('RGBA').tobytes()
@@ -40,11 +45,12 @@ def main():
         packed=Image.open(destination)
         for i in range(30):
             region=packed.crop(((i%6)*512,(i//6)*512,(i%6+1)*512,(i//6+1)*512))
-            assert region.tobytes()==Image.open(SOURCE/'animation'/key/f'{i+1:04}.png').convert('RGBA').tobytes()
-        manifest['grades'][key]={'static_sha256':hashlib.sha256(static.read_bytes()).hexdigest(),
+            assert region.tobytes()==Image.open(source/'animation'/key/f'{i+1:04}.png').convert('RGBA').tobytes()
+        manifest['grades'][key]={'source':source.relative_to(ROOT).as_posix(),
+                                 'static_sha256':hashlib.sha256(static.read_bytes()).hexdigest(),
                                  'atlas_sha256':hashlib.sha256(destination.read_bytes()).hexdigest()}
     background=penpot_svg('storage.svg(B,0,0,')
-    for key,color in {'omega':'#FF4D8F','S':'#35E0FF','A':'#FBBF24','B':'#38BDF8','C':'#7C88B0'}.items():
+    for key,color in {'omega':'#FF4D8F','Y':'#ED75FF','X':'#AA88FF','S':'#35E0FF','A':'#FBBF24','B':'#38BDF8','C':'#7C88B0','D':'#697F91'}.items():
         (DEST/f'background_{key}.svg').write_text(background.replace('#35E0FF',color),encoding='utf-8')
     cover=penpot_svg('storage.svg(B,72,64,')
     (DEST/'cover_placeholder.svg').write_text(cover,encoding='utf-8')
@@ -79,12 +85,12 @@ def main():
             'path':asset.relative_to(ROOT).as_posix(),
             'sha256':hashlib.sha256(asset.read_bytes()).hexdigest(),
             'kind':'project-generated-ui-asset',
-            'source':'Original v5_current Blender renders and project Penpot result-v2 design; no original-game pixels',
+            'source':'Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels',
             'generator':generator.relative_to(ROOT).as_posix(),
             'generatorSha256':hashlib.sha256(generator.read_bytes()).hexdigest(),
         })
     provenance_path.write_text(json.dumps(provenance,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-    print('Packaged five exact RGBA atlases + static grades and Penpot vectors; Public export list updated.')
+    print('Packaged eight exact RGBA atlases + static grades and Penpot vectors; Public export list updated.')
 
 
 if __name__=='__main__':main()

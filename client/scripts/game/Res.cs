@@ -1,4 +1,5 @@
 using Godot;
+using DynamiteUniverse.Shared.IO;
 
 namespace DynamiteUniverse.Game;
 
@@ -9,30 +10,82 @@ public static class Res
     private const int MaxRawTextureWidth = 4096;
     private const int MaxRawTextureHeight = 4096;
     private const long MaxRawTexturePixels = 16_000_000;
+    private static readonly PathResourceCache<AudioStream> AudioCache = new();
+    private static readonly object AudioLock = new();
+    private static readonly object VirtualFileLock = new();
+
+    public static int CachedAudioCount
+    {
+        get
+        {
+            lock (AudioLock)
+                return AudioCache.Count;
+        }
+    }
+
+    internal static T WithVirtualFileAccess<T>(Func<T> load)
+    {
+        lock (VirtualFileLock)
+            return load();
+    }
 
     public static AudioStream? LoadAudio(string path)
     {
-        // Exported res:// audio is stored as an imported/remapped Godot resource;
-        // the original wav/ogg/mp3 file may no longer exist in the APK.
-        if (path.StartsWith("res://") && ResourceLoader.Exists(path))
-            return GD.Load<AudioStream>(path);
-
-        if (!Godot.FileAccess.FileExists(path))
+        var cacheable = !path.StartsWith("res://", StringComparison.Ordinal);
+        if (cacheable)
         {
-            GD.PushError($"Res.LoadAudio: 文件不存在 {path}");
-            return null;
+            lock (AudioLock)
+            {
+                if (AudioCache.TryGet(path, out var cached))
+                    return cached;
+            }
         }
-        var ext = path.GetExtension().ToLowerInvariant();
-        AudioStream? stream = ext switch
+
+        AudioStream? Load()
         {
-            "wav" => AudioStreamWav.LoadFromFile(path),
-            "ogg" => AudioStreamOggVorbis.LoadFromFile(path),
-            "mp3" => AudioStreamMP3.LoadFromFile(path),
-            _ => null,
-        };
-        if (stream == null)
-            GD.PushError($"Res.LoadAudio: 不支持的音频格式 {path}");
-        return stream;
+            // the original wav/ogg/mp3 file may no longer exist in the APK.
+            if (path.StartsWith("res://", StringComparison.Ordinal) && ResourceLoader.Exists(path))
+                return GD.Load<AudioStream>(path);
+
+            if (!Godot.FileAccess.FileExists(path))
+            {
+                GD.PushError($"Res.LoadAudio: 文件不存在 {path}");
+                return null;
+            }
+            var ext = path.GetExtension().ToLowerInvariant();
+            AudioStream? stream = ext switch
+            {
+                "wav" => AudioStreamWav.LoadFromFile(path),
+                "ogg" => AudioStreamOggVorbis.LoadFromFile(path),
+                "mp3" => AudioStreamMP3.LoadFromFile(path),
+                _ => null,
+            };
+            if (stream == null)
+                GD.PushError($"Res.LoadAudio: 不支持的音频格式 {path}");
+            return stream;
+        }
+
+        var loaded = path.StartsWith("res://", StringComparison.Ordinal)
+            ? WithVirtualFileAccess(Load)
+            : Load();
+        if (loaded != null && cacheable)
+        {
+            lock (AudioLock)
+                AudioCache.Set(path, loaded);
+        }
+        return loaded;
+    }
+
+    public static bool EvictAudio(string path)
+    {
+        lock (AudioLock)
+            return AudioCache.Remove(path);
+    }
+
+    public static void ClearAudioCache()
+    {
+        lock (AudioLock)
+            AudioCache.Clear();
     }
 
     public static Texture2D? LoadTexture(string path)

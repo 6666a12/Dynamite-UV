@@ -153,7 +153,7 @@ public partial class ResultScreen : Control
         _page = Group(this, "ResultPage");
         // Opaque base appears only once shutters are closed. Missing covers never expose gameplay.
         Rect(_page, 0, 0, 1920, 1080, UiFonts.Bg);
-        var key = d.Score.Grade == "Ω" ? "omega" : d.Score.Grade;
+        var key = ScoreStoreCore.GradeAssetKey(d.Score.Grade);
         Texture(_page, 0, 0, 1920, 1080, GD.Load<Texture2D>($"res://assets/results/background_{key}.svg"));
         _grade = Texture(_page, 104, 204, 624, 624, _art.Still);
         _grade.Name = "GradeV5Current";
@@ -243,7 +243,7 @@ public partial class ResultScreen : Control
             var accent = all ? UiFonts.Pink : UiFonts.Cyan;
             Panel(parent, 900, 506, 530, 104, new Color("141b33"), new Color(accent, .38f), 16);
             Texture(parent, 924, 526, 64, 64, GD.Load<Texture2D>($"res://assets/results/{(all ? "ap" : "fc")}.svg"));
-            Label(parent, 1010, 549, 400, all ? "ALL PREFECT" : "FULL COMBO", 28, accent, true);
+            Label(parent, 1010, 549, 400, all ? "ALL PERFECT" : "FULL COMBO", 28, accent, true);
             Label(parent, 1012, 584, 394, all ? "全部最高判定" : "全连达成", 17, UiFonts.Dim);
         }
         Label(parent, 1484, 523, 364, "MAX COMBO", 17, UiFonts.Dim);
@@ -258,7 +258,7 @@ public partial class ResultScreen : Control
     private void BuildJudgments(Control parent, ResultScreenData d)
     {
         int[] values = [d.Score.Perfect, d.Score.Great, d.Score.Good, d.Score.Miss];
-        string[] tags = ["PREFECT", "GREAT", "GOOD", "MISS"];
+        string[] tags = ["PERFECT", "GREAT", "GOOD", "MISS"];
         Color[] colors = [UiFonts.Cyan, new("ffcc59"), UiFonts.Casual, UiFonts.Dim];
         var total = values.Sum();
         const float distributionWidth = 860;

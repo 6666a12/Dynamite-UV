@@ -25,7 +25,7 @@
 | Side BarLine 长度 | `W·190·0.95px` |
 | Center 可见行程 | 790px |
 | Side 可见行程 | 691px |
-| Side 距离尺度 | 0.75 |
+| Side 距离尺度 | `691/790 ≈ 0.8747`（行程比，2026-10 实验值，待用户实机确认；原标定值 0.75） |
 
 Position 是条的左缘。Center 渲染中心为：
 
@@ -36,8 +36,9 @@ x = 280 + 273.2 * (P + W/2)
 Side 渲染中心为：
 
 ```text
-Left:  x = 184 + remainingDistance * 0.75
-Right: x = 1736 - remainingDistance * 0.75
+Left:  x = 184 + remainingDistance * SideDistScale
+Right: x = 1736 - remainingDistance * SideDistScale
+（SideDistScale 当前代码为 691/790 ≈ 0.8747 实验值，原标定 0.75）
 y = 840 - 115 * (P + W/2)
 ```
 
