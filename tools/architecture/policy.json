@@ -1,0 +1,237 @@
+{
+  "source_roots": [
+    "client/scripts",
+    "editor/scripts",
+    "presentation",
+    "shared",
+    "tools/chart-editor-core",
+    "tools/core-tests",
+    "tools/chart-editor-tests"
+  ],
+  "pure_roots": [
+    "shared",
+    "tools/chart-editor-core"
+  ],
+  "default_file_limit": 1000,
+  "source_boundaries": [
+    {
+      "files": [
+        "client/scripts/game/GameplayNoteRenderer*.cs",
+        "client/scripts/game/GameplayEffects.cs"
+      ],
+      "forbidden": "\\b(?:JudgeEngine|JudgeUnit|SustainRuntime|GameplayMain|GameSession)\\b",
+      "reason": "render components must not depend on scene/judge objects or fetch global session state"
+    },
+    {
+      "files": [
+        "client/scripts/ui/SongBrowseState.cs"
+      ],
+      "forbidden": "\\b(?:Godot|GameSession|ChartPack|AudioStreamPlayer)\\b",
+      "reason": "browse state must remain independent of engine, session and loading adapters"
+    },
+    {
+      "files": [
+        "client/scripts/game/GameplayHud.cs"
+      ],
+      "forbidden": "\\b(?:JudgeEngine|JudgeUnit|GameplayMain|GameSession)\\b",
+      "reason": "HUD receives display values and callbacks, not scene/judge/session objects"
+    },
+    {
+      "files": [
+        "client/scripts/game/GameplayPauseOverlay.cs"
+      ],
+      "forbidden": "\\b(?:JudgeEngine|JudgeUnit|SustainRuntime|GameplayMain|GameSession)\\b",
+      "reason": "pause overlay owns visual state and receives host callbacks instead of scene, judge or session objects"
+    },
+    {
+      "files": [
+        "client/scripts/ui/SongPreviewPlayer.cs",
+        "client/scripts/ui/CalibrationBeatSource.cs"
+      ],
+      "forbidden": "\\bGameSession\\b",
+      "reason": "audio lifecycle components must not fetch global selection or settings"
+    },
+    {
+      "files": [
+        "client/scripts/ui/SongSelectWidgets.cs",
+        "client/scripts/ui/SettingsWidgets.cs",
+        "client/scripts/ui/CalibrationWidgets.cs"
+      ],
+      "forbidden": "\\bGameSession\\b",
+      "reason": "widgets receive current motion/speed providers instead of global session access"
+    },
+    {
+      "files": [
+        "client/scripts/ui/SongDetailCard.cs"
+      ],
+      "forbidden": "\\b(?:GameSession|SongSelect)\\b",
+      "reason": "the detail card receives motion profile and display values from its page instead of reading session or host state"
+    },
+    {
+      "files": [
+        "client/scripts/ui/SongDetailRequest.cs"
+      ],
+      "forbidden": "\\b(?:Godot|GameSession|ChartPack|AudioStreamPlayer|SongSelect)\\b",
+      "reason": "detail request generation and loading stay independent of the engine, session, chart packs and the host page"
+    },
+    {
+      "files": [
+        "editor/scripts/EditorStartPage.cs",
+        "editor/scripts/EditorHudView.cs",
+        "editor/scripts/EditorSettingsPage.cs",
+        "editor/scripts/EditorContextMenu.cs"
+      ],
+      "forbidden": "\\bStandaloneEditorMain\\b",
+      "reason": "editor page components must not depend on the shell"
+    },
+    {
+      "files": [
+        "presentation/**/*.cs"
+      ],
+      "forbidden": "\\b(?:GameSession|GameSettings|GameplayMain|StandaloneEditorMain|EditorSettings|ChartPack)\\b",
+      "reason": "the common visual assembly must not depend on either application or its settings"
+    }
+  ],
+  "file_limits": {
+    "client/scripts/game/GameplayMain.cs": 320,
+    "client/scripts/ui/SongSelect.cs": 260,
+    "editor/scripts/EditorFlow.cs": 360,
+    "editor/scripts/StandaloneEditorMain.cs": 420,
+    "tools/chart-editor-core/EditorCommands.cs": 100,
+    "tools/core-tests/Program.cs": 160,
+    "tools/chart-editor-tests/Program.cs": 100,
+    "client/scripts/game/GameplayEffects.cs": 280,
+    "client/scripts/ui/SongBrowseState.cs": 130,
+    "tools/chart-editor-core/EditorDocumentSession.cs": 150,
+    "tools/chart-editor-core/CanvasEditGesture.cs": 120,
+    "client/scripts/game/GameplayHud.cs": 400,
+    "client/scripts/game/GameplayPauseOverlay.cs": 280,
+    "client/scripts/ui/SongPreviewPlayer.cs": 120,
+    "client/scripts/ui/CalibrationBeatSource.cs": 200,
+    "client/scripts/ui/CalibrationSampling.cs": 190,
+    "client/scripts/ui/SongCardMotion.cs": 400,
+    "client/scripts/ui/SongSelectWidgets.cs": 400,
+    "client/scripts/ui/SongDetailCard.cs": 400,
+    "client/scripts/ui/SongDetailRequest.cs": 120,
+    "client/scripts/ui/SettingsWidgets.cs": 400,
+    "client/scripts/ui/CalibrationWidgets.cs": 450,
+    "editor/scripts/EditorStartPage.cs": 350,
+    "editor/scripts/EditorHudView.cs": 190,
+    "editor/scripts/EditorSettingsPage.cs": 150,
+    "editor/scripts/EditorContextMenu.cs": 675,
+    "tools/chart-editor-core/CanvasProjection.cs": 120,
+    "tools/chart-editor-core/CanvasPlacementDraft.cs": 100
+  },
+  "partial_class_limits": {
+    "GameplayMain": {
+      "root": "client/scripts",
+      "class": "GameplayMain",
+      "max_lines": 1350
+    },
+    "SongSelect": {
+      "root": "client/scripts",
+      "class": "SongSelect",
+      "max_lines": 1300
+    },
+    "CalibrationScreen": {
+      "root": "client/scripts",
+      "class": "CalibrationScreen",
+      "max_lines": 1250
+    },
+    "SettingsScreen": {
+      "root": "client/scripts",
+      "class": "SettingsScreen",
+      "max_lines": 800
+    },
+    "StandaloneEditorMain": {
+      "root": "editor/scripts",
+      "class": "StandaloneEditorMain",
+      "max_lines": 1350
+    },
+    "AuthoringCanvas": {
+      "root": "editor/scripts",
+      "class": "AuthoringCanvas",
+      "max_lines": 2450
+    },
+    "CreatePageOverlay": {
+      "root": "editor/scripts",
+      "class": "CreatePageOverlay",
+      "max_lines": 1350
+    },
+    "GameplayNoteRenderer": {
+      "root": "client/scripts",
+      "class": "GameplayNoteRenderer",
+      "max_lines": 800
+    }
+  },
+  "projects": {
+    "shared/DynamiteUniverse.Shared.csproj": {
+      "references": [],
+      "source_links": [],
+      "packages": []
+    },
+    "tools/chart-editor-core/ChartEditor.Core.csproj": {
+      "references": [
+        "../../shared/DynamiteUniverse.Shared.csproj"
+      ],
+      "source_links": [],
+      "packages": []
+    },
+    "client/DynamiteUniverse.csproj": {
+      "references": [
+        "../shared/DynamiteUniverse.Shared.csproj",
+        "../presentation/DynamiteUniverse.Presentation.csproj"
+      ],
+      "source_links": [],
+      "packages": []
+    },
+    "editor/DynaMakerUv.Editor.csproj": {
+      "references": [
+        "../shared/DynamiteUniverse.Shared.csproj",
+        "../tools/chart-editor-core/ChartEditor.Core.csproj",
+        "../presentation/DynamiteUniverse.Presentation.csproj"
+      ],
+      "source_links": [],
+      "packages": []
+    },
+    "tools/core-tests/CoreTests.csproj": {
+      "references": [
+        "../../shared/DynamiteUniverse.Shared.csproj"
+      ],
+      "source_links": [
+        "../../presentation/ui/UiMotionMode.cs",
+        "../../client/scripts/ui/ResultRevealTimeline.cs",
+        "../../client/scripts/ui/CalibrationStats.cs",
+        "../../client/scripts/ui/CalibrationSampling.cs",
+        "../../client/scripts/ui/NotePaletteDraft.cs",
+        "../../client/scripts/ui/SongBrowseState.cs",
+        "../../client/scripts/ui/SongCardMotion.cs",
+        "../../client/scripts/ui/UiEase.cs",
+        "../../client/scripts/ui/SongDetailRequest.cs"
+      ],
+      "packages": []
+    },
+    "tools/chart-editor-tests/ChartEditorTests.csproj": {
+      "references": [
+        "../chart-editor-core/ChartEditor.Core.csproj",
+        "../../shared/DynamiteUniverse.Shared.csproj"
+      ],
+      "source_links": [],
+      "packages": []
+    },
+    "tools/chart-tool/ChartTool.csproj": {
+      "references": [
+        "../../shared/DynamiteUniverse.Shared.csproj"
+      ],
+      "source_links": [],
+      "packages": []
+    },
+    "presentation/DynamiteUniverse.Presentation.csproj": {
+      "references": [
+        "../shared/DynamiteUniverse.Shared.csproj"
+      ],
+      "source_links": [],
+      "packages": []
+    }
+  }
+}

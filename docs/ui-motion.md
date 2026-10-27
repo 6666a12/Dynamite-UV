@@ -1,6 +1,6 @@
 # UI 动效规格
 
-> 状态核对：2026-10-08。原生客户端已接入游戏 UI 动效；[网页参考](<ui-mock/motion-preview.html>)不是现有功能完成清单。
+> 游戏动效基线与 token 日期：2026-10-08；2026-10-26 仅静态校正 §9 的编辑器能力注记，未调整时序或重做视觉验收。原生客户端已接入游戏 UI 动效；[网页参考](<ui-mock/motion-preview.html>)不是现有功能完成清单。
 > 本文保留有效 token、三种运动策略与场景约束；§9.1–§9.4 是编辑器设计目标，尚未全部接入。
 > 2026-10-08 增补：`--t-hover` 独立 token（§3.1）、结算组内数据动效（§2.3 第 6 条）、选曲 v2 局部动效（§2.4）。
 > 不改变固定 UI/游玩布局；历史原文见 [归档快照](<archive/2026-10-07-cleanup/ui-motion.before.md>)。
@@ -108,6 +108,13 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 4. Hover 全量覆盖 `--t-hover`（曲库行、模式行、全部设置行、按钮、预览传输键），
    端点色与原瞬时 hover 一致，只平滑中间过程。
 
+### 2.5 音符配色 v2
+
+2026-10-20 接入：页面仍走 TransitionDirector 的场景导航，内容进场按当前 UiMotionProfile 做整组淡入，Off 直接落终态。
+主态/观察态切换保持即时、同一草稿，不加入游玩轨道或循环落 note。按住比较为直接状态切换，松手/失焦立即恢复。
+“测试命中”是用户主动触发的材质/特效预览，按 HIT EFFECTS / 残影设置走真实效果，不把 UI Motion Off 误当关闭玩法特效。
+模态期间禁用背景输入，关闭恢复；预设、RGB 与确认弹窗不使用长时间动画。实机验收见 [配色 v2](<note-colors-v2.md>)。
+
 ## 3. Motion token
 
 ### 3.1 时间
@@ -183,7 +190,7 @@ hover 的统一实现档是 **100ms**（2026-10-08 拍板；editor 侧 `EditorMo
 | Demo | 确定性起点 | 目标与顺序 |
 | --- | --- | --- |
 | `MAIN ENTER` | MAIN 初始状态 | Signal Lock → 标题 → 副标题 → 三个菜单项 → 状态卡 |
-| `MAIN→SETTINGS` | MAIN 稳定状态 | 输入确认 → MAIN 冻结/离场 → Signal Lock → SETTINGS 行项目 → 详情卡单次局部扫描 |
+| `MAIN→SETTINGS` | MAIN 稳定状态 | 输入确认 → MAIN 冻结/离场 → Signal Lock → SETTINGS 行项目 → 详情卡单次局部扫描；**进场错峰只排当前 tab 的可见条目，总预算 0.3s**（隐藏 tab 不占序号；旧实现按全表 60ms/条累加，落在最后构建的 EFFECTS 时要 1.7s 才轮到页脚入口） |
 | `SONG SELECT ENTER` | SONG SELECT 初始状态 | 详情卡锁定 → 列表自上而下进入 → 底部难度/BEST/START |
 | `DETAIL LOADING` | SONG SELECT 稳定状态 | 只压暗详情卡 → 卡内单次扫描 → 元数据就绪；列表不移动 |
 | `START→GAMEPLAY` | SONG SELECT 稳定状态 | START 确认 → 独立不透明 TRACK HANDOFF（静态合成封面、path/state/title/difficulty/Lv/status/core）→ WAITING → READY → 地平线/轨道/判定线 → HUD |
@@ -232,11 +239,14 @@ motion-preview.html?scene=result
 - 客户端接入时不得把页面的合成轨道、封面或曲名当成产品资产。
 - 不以 CSS `backdrop-filter`、`clip-path` 等网页表现细节强制约束 Godot 实现；必须保留的是时长层级、状态顺序、运动策略、clean-room 边界与 Reduced/Off 行为。
 - 动效完成后控件必须处于唯一、可预测的最终状态；不得用动画结束事件承载存档、选曲提交、谱面加载或输入判定等业务事实。
+- 会被转场揭示的页面，入场元素必须在 `TransitionDirector.ReportSceneReady` **之前**就置为隐藏起点
+  （alpha 0，Full 再左移 `ContentShift`），由揭示完成回调再播放入场；否则转场覆盖层退场时会先露出
+  完整页面，随后又归零重播入场，表现为“先显示一下再渐入”。现有实现见各页 `PrepareEnterAnimation`。
 
 ## 9. 编辑器目标与游戏粒子规格
 
-§9.1–§9.4 是把游戏语言/token 扩展到制谱器的**设计目标**，不是已实现宣告。现有 Godot shell 无可用 Settings、保存或真实音频试玩链路，页面淡入/画布反馈并未完整接上本表。
-未来不新增缓动曲线或运动语言；Motion 三档需要实际接线后才能作为可用设置。当前能力见 [DynaMaker UV](<dyna-maker-uv.md>)。
+§9.1–§9.4 是把游戏语言/token 扩展到制谱器的**设计目标**，不是整体已实现宣告。2026-10-26 静态核对：Settings、SAVE/SAVE AS、部分淡入/hover/焦点反馈、滚动惯性、路径与放置导引已接入；真实音频/判定试玩仍不存在，Signal Lock/Track Relay、完整 stagger、放置爆发等不能据此视为完成。
+不新增缓动曲线或运动语言；Motion 设置当前有真实但局部的接点，REDUCED 与 FULL 尚无完整差异，OFF 也有待核查的局部反馈边界。详细能力及静态疑点见 [DynaMaker UV](<dyna-maker-uv.md>)，本表不覆盖其当前状态。
 §9.5 则记录已接入游戏的粒子参数，编辑器复用仍为目标。
 
 ### 9.1 手势与画布反馈
@@ -279,7 +289,8 @@ motion-preview.html?scene=result
 - 编辑器无循环氛围动画；用户不操作时界面稳定停住（同 §4 Full）。
 - 动效不得改变谱面时序、吸附结果、命中区、撤销栈或保存语义。
 - Reduced 去掉方向位移、stagger、爆发与滑动，保留不透明度状态切换；Off 全部立即提交，但同 §4 Off 一样先绘制稳定状态再开放输入。
-- 粒子特效属于纯视觉层，不承载业务事实；采用 §9.5 降级规则（Reduced 半量火花、无余烬，Off 不生成 GPU 粒子）。
+- 粒子特效属于纯视觉层，不承载业务事实；采用 §9.5 降级规则：该规则的 Reduced/Off 指的是游玩设置
+  `HIT EFFECTS` 档位（`HitEffectLevel`），UI MOTION（`UiMotionMode`）只负责界面与转场动效，不再影响游玩粒子。
 
 ### 9.5 已接入游戏的打击粒子规格（编辑器复用目标）
 
@@ -309,7 +320,8 @@ motion-preview.html?scene=result
 | 并发折算 | 第 1 条 ×1.0、第 2 条 ×0.85、第 3 条起 ×0.72 | 同左 |
 
 共同规则：Mine 不出粒子；断触/结束即停发、排空后自回收、宽限内接回重新发射；
-Reduced 火花半量、无余烬（拖尾与加法混合保留）；Off 两层都不生成；
+`HIT EFFECTS = REDUCED` 时火花半量、无余烬（拖尾与加法混合保留），`OFF` 时两层都不生成，
+爆发与接触效果同时关闭，只留判定残影与判定浮字；
 侧轨发射方向随带符号 Rotation（左 +π/2、右 −π/2）转向面板外侧。
 
 **编辑器目标**：放置提交确认拟复用缩小双层反馈（Strength≈0.4），未来试玩命中复用完整反馈。当前无真实音频/判定试玩链路，不能据本表称已接入。

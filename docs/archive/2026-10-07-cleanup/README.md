@@ -18,7 +18,7 @@
 | [blender-pipeline.before.md](<blender-pipeline.before.md>) | [评级资产管线](<../../blender-pipeline.md>) |
 | [ui-motion.before.md](<ui-motion.before.md>) | [动效规格](<../../ui-motion.md>) |
 | [result-v2-design.before.md](<result-v2-design.before.md>) | [结算 v2](<../../result-v2-design.md>) |
-| [storyboard-editor-proposal.before.md](<storyboard-editor-proposal.before.md>) | [Storyboard 提案](<../../storyboard-editor-proposal.md>) |
+| [storyboard-editor-proposal.before.md](<storyboard-editor-proposal.before.md>) | [Storyboard 提案](<../proposals/storyboard-editor-proposal.md>) |
 
 [manifest.json](<manifest.json>) 记录原路径、归档路径及原始 SHA-256；报告/检查点副本另附历史标识。
 相对链接保留原义，不为了适配归档目录修改快照正文。

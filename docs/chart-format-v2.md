@@ -5,7 +5,7 @@
 > 发布日期：2026-08-14。
 >
 > 当前 Godot 客户端已接 strict v2 目录包加载、validator、legacy→v2 适配与 Gameplay Digest 成绩身份；legacy 仍是兼容输入。
-> 原生 DynaMaker UV 已接包打开与基础编辑，保存/导出等尚未接入；当前能力见 [制谱器说明](<dyna-maker-uv.md>)，不能把本文最低要求当成 UI 完成证明。
+> 2026-10-26 能力注记：DynaMaker UV 已接 strict v2 包打开、基础编辑与 SAVE/SAVE AS；ZIP/XML/DY 导出、真实音频/波形和 Storyboard 未接入。当前能力见 [制谱器说明](<dyna-maker-uv.md>)，本文最低要求不等于 UI 完成证明；本次未修改下列冻结数据合同。
 > “正式”表示本文的数据合同与玩法语义已经冻结，客户端和工具必须按此 fail closed。
 
 本文是 Dynamite Universe 社区谱面包 v2 的权威规范。机器可读约束见

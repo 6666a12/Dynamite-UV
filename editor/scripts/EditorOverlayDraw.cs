@@ -1,3 +1,4 @@
+using DynamiteUniverse.ChartEditor.Core;
 using Godot;
 using DynamiteUniverse.Ui;
 
@@ -21,13 +22,13 @@ internal static class EditorOverlayDraw
 
     /// <summary>Note 类型的表面四色。BarLine 在板面上是 flat 色块（没有四色），按编辑器既有的
     /// 浅色推导兜底，且它本来也不会成为路径节点。</summary>
-    public static NoteSurface Surface(AuthoringCanvas.AuthoringNoteKind kind) => kind switch
+    public static NoteSurface Surface(AuthoringNoteKind kind) => kind switch
     {
-        AuthoringCanvas.AuthoringNoteKind.Chain => new(new("e0ffe8"), new("59ff8c"), new("1a8c47"), new("8cffc0")),
-        AuthoringCanvas.AuthoringNoteKind.Hold => new(new("fff2d1"), new("ffb84d"), new("ad660f"), new("ffcc59")),
-        AuthoringCanvas.AuthoringNoteKind.Mixer => new(new("ffd6e8"), new("ff4d8f"), new("a81f59"), new("ff9cc4")),
-        AuthoringCanvas.AuthoringNoteKind.ExTap => new(new("ffffff"), new("99e0ff"), new("368cc4"), new("c9f0ff")),
-        AuthoringCanvas.AuthoringNoteKind.Mine => new(new("c44a59"), new("752936"), new("36121c"), new("a84a55")),
+        AuthoringNoteKind.Chain => new(new("e0ffe8"), new("59ff8c"), new("1a8c47"), new("8cffc0")),
+        AuthoringNoteKind.Hold => new(new("fff2d1"), new("ffb84d"), new("ad660f"), new("ffcc59")),
+        AuthoringNoteKind.Mixer => new(new("ffd6e8"), new("ff4d8f"), new("a81f59"), new("ff9cc4")),
+        AuthoringNoteKind.ExTap => new(new("ffffff"), new("99e0ff"), new("368cc4"), new("c9f0ff")),
+        AuthoringNoteKind.Mine => new(new("c44a59"), new("752936"), new("36121c"), new("a84a55")),
         _ => new(new("d9f5ff"), new("4cbfff"), new("176bad"), new("8cd8ff")),
     };
 

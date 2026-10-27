@@ -10,7 +10,8 @@ public static class Res
     private const int MaxRawTextureWidth = 4096;
     private const int MaxRawTextureHeight = 4096;
     private const long MaxRawTexturePixels = 16_000_000;
-    private static readonly PathResourceCache<AudioStream> AudioCache = new();
+    private const int MaxCachedAudio = 4;
+    private static readonly PathResourceCache<AudioStream> AudioCache = new(MaxCachedAudio);
     private static readonly object AudioLock = new();
     private static readonly object VirtualFileLock = new();
 

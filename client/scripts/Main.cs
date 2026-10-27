@@ -161,8 +161,11 @@ public partial class Main : Node2D
 		};
 		UiLabels.Tech(ver, 16, UiFonts.Dim);
 		AddChild(ver);
+		// 版本串也是首页内容：不登记的话转场揭示时它会孤零零地先露出来。
+		RegisterEntrance(ver, 6);
 
 		SetProcess(false);
+		PrepareEnterAnimation();
 		TransitionDirector.ReportSceneReady(BeginEnterAnimation);
 	}
 
@@ -196,6 +199,24 @@ public partial class Main : Node2D
 	private void RegisterEntrance(Control item, int order) =>
 		_enterItems.Add((item, item.Position, order));
 
+	/// <summary>
+	/// 在把场景交给 TransitionDirector 之前先把入场元素藏起来。转场覆盖层退场时会露出整个
+	/// 场景：若此时元素还是终态，就会先完整显示一帧、再归零重播左侧渐入（从别的页面返回首页
+	/// 时看到的闪烁）。与 Settings / SongSelect / Calibration 的 PrepareEnterAnimation 同一约定。
+	/// </summary>
+	private void PrepareEnterAnimation()
+	{
+		var profile = UiMotionProfile.For(GameSession.Settings.MotionMode);
+		if (!profile.IsAnimated)
+			return;
+		foreach (var (item, basePosition, _) in _enterItems)
+		{
+			item.Modulate = new Color(1f, 1f, 1f, 0f);
+			if (profile.AllowDirectionalMotion)
+				item.Position = basePosition - new Vector2(profile.ContentShift, 0f);
+		}
+	}
+
 	private void BeginEnterAnimation()
 	{
 		var profile = UiMotionProfile.For(GameSession.Settings.MotionMode);
@@ -211,13 +232,6 @@ public partial class Main : Node2D
 
 		_enterProfile = profile;
 		_enterElapsed = 0.0;
-		foreach (var (item, basePosition, _) in _enterItems)
-		{
-			item.Position = profile.AllowDirectionalMotion
-				? basePosition - new Vector2(profile.ContentShift, 0f)
-				: basePosition;
-			item.Modulate = new Color(1f, 1f, 1f, 0f);
-		}
 		SetProcess(true);
 	}
 

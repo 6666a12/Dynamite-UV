@@ -46,6 +46,8 @@ class ReleaseContractTests(unittest.TestCase):
             "res://scenes/song_select.tscn",
             "res://scenes/gameplay.tscn",
             "res://scenes/settings.tscn",
+            "res://scenes/note_colors.tscn",
+            "res://shaders/note_material.gdshader",
             "res://shaders/note_surface.gdshader",
             "res://assets/fonts/SpaceGrotesk-Regular.woff2",
             "res://assets/fonts/SpaceGrotesk-Bold.woff2",
@@ -67,6 +69,23 @@ class ReleaseContractTests(unittest.TestCase):
             self.assertEqual(options[key], "false")
         self.assertEqual(options["dotnet/include_scripts_content"], "false")
         self.assertEqual(options["dotnet/include_debug_symbols"], "false")
+
+    def test_shared_note_visual_dependencies_stay_synchronized(self) -> None:
+        for project in ("editor/DynaMakerUv.Editor.csproj", "client/DynamiteUniverse.csproj"):
+            text = (REPO_ROOT / project).read_text(encoding="utf-8")
+            self.assertIn('../presentation/DynamiteUniverse.Presentation.csproj', text)
+            self.assertNotIn('<Compile Include="../client/', text)
+        for source in ("NotePalette.cs", "NoteMask.cs", "NoteView.cs"):
+            self.assertTrue((REPO_ROOT / "presentation" / "game" / source).is_file())
+            self.assertFalse((REPO_ROOT / "client" / "scripts" / "game" / source).exists())
+        self.assertEqual(
+            (REPO_ROOT / "client" / "shaders" / "note_material.gdshader").read_bytes(),
+            (REPO_ROOT / "editor" / "shaders" / "note_material.gdshader").read_bytes(),
+        )
+        required = self.policy["modes"]["public"]["required_nonempty_entry_suffixes"]
+        self.assertIn("scenes/note_colors.tscn.remap", required)
+        self.assertIn("shaders/note_material.gdshader", required)
+        self.assertIn(".godot/mono/publish/arm64/DynamiteUniverse.Presentation.dll", required)
 
     def test_internal_preset_has_distinct_identity(self) -> None:
         preset = self.presets["preset.1"]

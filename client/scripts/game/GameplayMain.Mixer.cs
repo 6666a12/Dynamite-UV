@@ -16,15 +16,19 @@ public partial class GameplayMain
 		var mixer = state.Mixer!;
 		_mixerSeeds.Clear();
 		_mixerTrackPointers.Clear();
-		foreach (var sample in _frameStartTouchSamples)
+		for (var i = 0; i < _pointerBuffer.InitialTouches.Count; i++)
+		{
+			var sample = _pointerBuffer.InitialTouches[i];
 			if (sample.Track == state.Path.Track)
 			{
 				_mixerSeeds.Add(sample);
 				_mixerTrackPointers.Add(sample.Id);
 			}
+		}
 		_mixerInputs.Clear();
-		foreach (var input in _framePointerInputs)
+		for (var i = 0; i < _pointerBuffer.Inputs.Count; i++)
 		{
+			var input = _pointerBuffer.Inputs[i];
 			if (input.Time > state.Path.EndTime) break;
 			var projection = ProjectHoldTouch(input.Id, input.ScreenPosition);
 			var sample = projection.On(state.Path.Track);
@@ -49,7 +53,7 @@ public partial class GameplayMain
 		state.Holding = mixer.Catching;
 		if (time < state.Path.StartTime && !mixer.Placed) return;
 		var bounds = state.Path.BoundsAtRuntime(state.LastContactUpdateTime);
-		UpdateMixerHeadView(state, bounds);
-		UpdateSustainEffect(state, mixer.Catching, bounds, mixer.Position);
+		_noteRenderer.UpdateMixerHeadView(state.Path, mixer.Placed, mixer.Position, bounds);
+		_noteRenderer.UpdateSustainEffect(state.Path, mixer.Catching, bounds, mixer.Position);
 	}
 }

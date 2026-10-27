@@ -10,17 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../shared/DynamiteUniverse.Shared.csproj" />
-    <Compile Include="../tools/chart-editor-core/*.cs" Link="Core/%(Filename)%(Extension)" />
-    <Compile Include="../client/scripts/ui/UiFonts.cs" Link="GameUi/UiFonts.cs" />
-    <Compile Include="../client/scripts/ui/UiMotionMode.cs" Link="GameUi/UiMotionMode.cs" />
-    <Compile Include="../client/scripts/ui/UiGeometry.cs" Link="GameUi/UiGeometry.cs" />
-    <Compile Include="../client/scripts/ui/CutPanel.cs" Link="GameUi/CutPanel.cs" />
-    <Compile Include="../client/scripts/ui/CoverPlaceholder.cs" Link="GameUi/CoverPlaceholder.cs" />
-    <Compile Include="../client/scripts/game/NoteVisualSpec.cs" Link="GameUi/NoteVisualSpec.cs" />
-    <Compile Include="../client/scripts/game/GameplayBackdrop.cs" Link="GameUi/GameplayBackdrop.cs" />
-    <Compile Include="../client/scripts/game/GameplayHitBloom.cs" Link="GameUi/GameplayHitBloom.cs" />
-    <Compile Include="../client/scripts/game/GameplayStageRenderer.cs" Link="GameUi/GameplayStageRenderer.cs" />
-    <Compile Include="../client/scripts/game/GameplayVisualMapper.cs" Link="GameUi/GameplayVisualMapper.cs" />
-    <Compile Include="../client/scripts/game/NoteView.cs" Link="GameUi/NoteView.cs" />
+    <ProjectReference Include="../presentation/DynamiteUniverse.Presentation.csproj" />
+    <ProjectReference Include="../tools/chart-editor-core/ChartEditor.Core.csproj" />
   </ItemGroup>
 </Project>

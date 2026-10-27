@@ -6,19 +6,19 @@
 ## 1. 分层与依赖方向
 
 ```text
-Godot scenes / client UI / gameplay adapters
-                 ↓
-     client game services and presentation
-                 ↓
-shared chart / v2 / judge / score semantics
-                 ↑
-       chart-tool / chart editor / core tests
+client Godot scenes / UI / gameplay ──► presentation ──► shared
+client services / input / audio ─────────────────────► shared
+editor shell ──► presentation + chart-editor-core ────► shared
+chart-tool / core tests ─────────────────────────────► shared
 ```
 
 - `shared/` 不依赖 Godot，拥有谱面模型、legacy/v2 语义、精确时间线、判定计划、判定规则、
   分数 identity、Gameplay Digest 和确定性 v2 JSON。
 - `client/` 是 Godot 适配层：读取本地包、创建节点和音频播放器、归一化输入、驱动 shared
   判定、保存用户设置与成绩、展示各场景。
+- `presentation/` 是共用 Godot 视觉程序集：字体、基础 UI、音符外观和舞台。它不引用 client/editor，
+  不读取其全局设置/会话；由调用方传入视觉参数。资源路径保持，两端各自提供资源。
+- `tools/chart-editor-core/` 是纯 C# 的可编辑文档、命令、文档会话、画布投影及草稿模型。
 - `tools/` 与 `tools/chart-editor*` 使用 shared 作为格式和规则来源；客户端不得引用 editor 项目。
 
 ## 2. 场景与会话流
@@ -86,7 +86,7 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 
 ## 5. 展示、成绩与发布不变量
 
-- `GameplayStageView`、HUD、Pause 和 Result 是展示层；成绩计算/写入仍由 gameplay 在显示
+- `GameplayStageView`、`GameplayHud`、Pause 和 Result 是展示层；HUD 接收显示值快照，成绩计算/写入仍由 gameplay 在显示
   Result 前执行。Result v2 用两扇不透明屏风合拢后才隐藏舞台，屏风背后先铺不透明
   结算背景，再拉开、播放评级帧、浮现各组信息。封面只在顶部小图中显示，缺图使用
   clean-room placeholder。Reduced/Off 同样先接管不透明背景，不能让游玩层透出。
@@ -99,8 +99,12 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 
 ## 6. 当前编辑器适配边界
 
-- 独立 Godot shell 的 Start/Pack/Create/Edit 负责页面和手势；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。
-- `AuthoringCanvas` 绑定 `EditorDocument` / `CanvasAuthoringController`，只投影数据；修改通过可撤销命令进入文档。
+- 独立 Godot shell 的 Start/Pack/Create/Edit 负责页流；Start/HUD/Settings/ContextMenu 已有独立组件，
+  shell 保留文档会话、对话框与导航。新的 editor 产品方向暂不实施或排期。
+- `EditorDocumentSession` 管理打开/草稿/保存；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。
+- `AuthoringCanvas` 绑定 `EditorDocument` / `CanvasAuthoringController`；`CanvasProjection` 建立可变预览，
+  `CanvasEditGesture` / `CanvasPlacementDraft` 管理已有对象手势与新建草稿。修改通过可撤销命令进入文档。
+  画布坐标中的 Center 仍为左缘；精确 BarTime、选择恢复和坐标换算不得借拆分改语义。
 - shared 的 `V2PackageWriter.Write/Create` 已由 shell SAVE/SAVE AS 调用；首次保存使用草稿的外部资源映射。ZIP/XML/DY 导出仍未接入。
 - 视觉计时预览不等同 `SongClock` 音频预览；Settings 已有部分真实设置，Storyboard 和更完整属性/类型 UI 仍未实现。
 - 能力范围与启动操作统一见 [DynaMaker UV](<dyna-maker-uv.md>)，历史完整 UI 记录不能跨阶段套用。
@@ -113,3 +117,28 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
   与包安全性。
 - **等价层**：涉及 legacy/v2 runtime 行为时，以 Internal deterministic trace / frame hash
   比较作为附加护栏；不用手工启动游戏替代自动回归。
+
+## 8. 当前拆分与结构检查（2026-10-25）
+
+文件导航与后续对象级拆分见 [模块地图](<module-map.md>)。
+`GameplayMain.Input` 注入投影函数给 shared `PointerInputBuffer`，帧快照和指针生命周期由后者维护。
+`SongDetailRequest` 与 `SongPreviewPlayer` 各自使用 shared `LatestRequestLoader` 管理详情/试听任务；
+主线程消费结果，仍由页面核对当前选择并更新控件。`SongCardMotion` 拥有卡片动画状态，
+`SongDetailCard` 拥有卡片控件与展示；页面保留列表、加载身份、缓存和导航。`CalibrationSampling`
+拥有采样相位、热身、入样和完成，`CalibrationBeatSource` 拥有合成节拍与零偏移时钟；页面保留展示和设置保存。
+`GameplayPauseOverlay` 拥有暂停状态、覆盖层和动效，宿主保留输入清理、播放暂停/恢复与导航。
+editor 使用 ChartEditor.Core 和 Presentation 程序集，已移除所有 client 源码链接。
+
+Godot 页面分部文件仍共享宿主状态，不能以单个入口变短认定整个类已解耦。
+`tools/architecture/check.py` 同时检查依赖方向、显式源码链接、文件长度和主要分部类总量；
+`tools/verify.py` 串起该检查、两端构建、两套 C# 回归、发布测试和 diff 检查。
+
+第二轮中 GameplayMain 把渲染与特效生命周期交给 `GameplayNoteRenderer` / `GameplayEffects`，
+`SustainRuntime` 仅保存判定状态；渲染只读取 `SustainVisualSnapshot` 值和判定结果。
+节点仍挂在原 `_noteRoot`，创建/回收顺序及每帧协调顺序保持。editor 的文档/草稿资源归
+`EditorDocumentSession`，已有对象的手势提交/取消归 `CanvasEditGesture`；选曲浏览归 `SongBrowseState`。
+详见 [第二轮行为核对](<archive/reports/2026-10-25-modularization-phase2.md>)，其中明确记录一次草稿保存行为修正。
+
+第三轮的公共视觉、HUD、音源、独立控件、editor 页面与画布模型见 [第三轮行为核对](<archive/reports/2026-10-25-modularization-phase3.md>)。
+控件通过 provider 获取当前动效/落速，不保存全局会话；公共视觉无应用级依赖。源码/分部类预算同时收紧。
+无窗口前后轨迹与桌面程序集发布验证不替代 APK 导出和设备视觉、触控、声音验收。

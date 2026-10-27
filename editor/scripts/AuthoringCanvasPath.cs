@@ -7,6 +7,8 @@ using DynamiteUniverse.Shared.Chart;
 using DynamiteUniverse.Shared.Chart.V2;
 using DynamiteUniverse.Ui;
 using ChartNote = DynamiteUniverse.Shared.Chart.Note;
+using Gesture = DynamiteUniverse.ChartEditor.Core.CanvasEditGesture;
+using GestureKind = DynamiteUniverse.ChartEditor.Core.CanvasGestureKind;
 
 namespace DynamiteUniverse.Editor;
 
@@ -40,7 +42,7 @@ public partial class AuthoringCanvas
 	private const float PathBodySlackPx = 6f;
 	// 细分像素系数与实机 V2RuntimeAdapter.RequiredSubdivisions 取同一组值：位置误差按轨道单位
 	// 像素，宽度误差按带宽像素（侧轨 102 与 GameplayVisualMapper 侧轨带宽同源）。
-	private const double SideNoteWidthUnitPx = 102d;
+	private const double SideNoteWidthUnitPx = GameplayStageGeometry.SideNoteLengthUnitPx;
 
 	/// <summary>指针当前所在的手柄（noteIndex, pointIndex；0 = 头），用于 hover 提亮。</summary>
 	private (int NoteIndex, int PointIndex)? _hoverHandle;
@@ -278,7 +280,7 @@ public partial class AuthoringCanvas
 			Kind = GestureKind.ResizeNode,
 			NoteIndex = noteIndex,
 			NodeIndex = nodeIndex,
-			StartPoint = pointer,
+			StartPoint = new System.Numerics.Vector2(pointer.X, pointer.Y),
 			Anchor = new CanvasDragAnchor(node.TimeExact, node.Time,
 				node.Center + node.Width * .5d, place.Time, place.Center),
 			OriginalCenter = note.Center,

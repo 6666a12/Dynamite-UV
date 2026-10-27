@@ -22,6 +22,8 @@ Release、网盘、应用商店或公开聊天群**。
   Public preset 保留对历史 `client` 编辑器路径的排除，并用资源白名单阻止任何非游戏资源；
   Internal preset 同样不包含 DynaMaker UV。编辑器导出只使用 `editor/export_presets.cfg`
   的 `DynaMaker UV Windows` preset。
+- 游戏和编辑器都依赖 `DynamiteUniverse.Presentation.dll`；Android 必需程序集清单已包含它，
+  editor 另依赖 `ChartEditor.Core.dll`。共享视觉 DLL 不代表可以把 editor 项目或源码打入游戏。
 - 社区曲绘由谱师随谱面包提供。公开客户端不内置 AI 生成曲绘。
 - Public 禁止 C# 源码内容和 PDB 调试符号；Internal 可保留 PDB 供诊断；
 - `tools/` 下研究/逆向工具、反编译输出、原版 APK、外部 JAR、调试 keystore 和生成缓存
@@ -141,9 +143,10 @@ Internal APK 可以从含 `client/testdata/` 的开发目录导出。启动 Godo
 - 对同一 Internal preset 用 `--export-release` 会因签名凭据缺失失败；可用 debug keystore
   手动补签做性能探针（`apksigner sign --ks <debug.keystore>`），产物只作内部实验，
   不替代正常流程、不通过 `--mode internal` 验包即不得分发。
-- Internal 政策要求 `debuggable=true`（`release/apk-policy.json`），即只能 Debug JIT
-  导出，低端设备帧率明显低于 Release 配置；实测 Release 探针包卡顿有缓解。政策与性能
-  的矛盾待拍板，见 [交接 §4](<handoff.md>)。
+- 当前验证过的 Internal 流程使用上面的 `--export-debug`；低端设备在历史 Release 配置探针上有改善。
+  Internal 政策中的 `debuggable=true`（[`apk-policy.json`](<../release/apk-policy.json>)）是 manifest 发布约束；
+  checker 核验该 manifest 值，不检查 C# JIT 配置，不能仅据此断言强制 Debug JIT。
+  替代配置仍待基准测量与政策核查，见 [当前交接](<handoff.md>)。
 
 导出后必须检查内部身份和 testdata 的存在：
 

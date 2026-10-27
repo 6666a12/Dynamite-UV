@@ -1,6 +1,6 @@
 # UI 设计稿与施工约定
 
-> 状态整理：2026-10-07。本文记录设计稿位置、当前采用方案、设计目标与施工规则，**不是功能完成清单**。
+> 2026-10-26 校正文档入口/归档引用；各板与决策的具体日期仍保留在正文。本文记录设计稿位置、采用方案、目标与施工规则，**不是功能完成或实机验收清单**；本次未读取/修改 Penpot 设计稿。
 > 当前编辑器能力见 [DynaMaker UV](<dyna-maker-uv.md>)；格式权威见 [v2 合同](<chart-format-v2.md>)，游戏动效权威见 [ui-motion.md](<ui-motion.md>)。
 > 下列 Editor UI 板与 §4 是设计目标，包含已接入的 Settings、曲线/judge、路径投影与
 > 双击路径节点插入，以及**尚未接入**的完整工具与试玩反馈；不可据画板认定已实现。
@@ -9,11 +9,18 @@
 ## 1. 设计稿在哪
 
 - Penpot 网页端，文件 **「Dynamaker UV UI design」**（账号 Natsume K）。
-- 接入方式：Penpot MCP（streamable HTTP），URL 带 userToken，配置在
-  `~/.kimi-code/mcp.json` 的 `mcpServers.penpot.url`。可配置于 Codex 的
-  `~/.codex/config.toml` → `mcp_servers.penpot`，使用 120s 启动超时、180s 工具超时与
-  `User-Agent: Codex-Penpot/1.0`；配置备份只放用户配置目录。
-  `.tmp/penpot_mcp.py` 现在优先读取 Codex 配置，缺少时回退 Kimi。**token 是密钥，不进仓库。**
+- 接入方式：Penpot MCP（streamable HTTP），URL 带 userToken。**历史本机连接记录（2026-10-17，本次未复验）**：当时 DSH Desktop 的 `web` profile 在
+  `%APPDATA%/dsh-desktop/harness/profiles/web/cordis.patch.yml` 插入
+  `@deepseek-ai/dsh-mcp-client`，`serverName: penpot`、`transport: streamable-http`、
+  `toolCallTimeoutMs: 180000`，请求头为 `User-Agent: DSH-Penpot/1.0`。
+  当时复用本机 Kimi 连接，备份保存在同一用户配置目录；当时验证过工具发现、原生 API
+  文档读取及一次只读文件/页面识别，**没有修改设计稿**。标签页休眠会阻止画布读取/写入，
+  使用时须打开该文件、启动 Penpot MCP Plugin 并保持标签页前台（见 §5）。
+- 本机既有凭据来源为 `~/.kimi-code/mcp.json` 的 `mcpServers.penpot.url`。也可配置于
+  Codex 的 `~/.codex/config.toml` → `mcp_servers.penpot`，使用 120s 启动超时、180s
+  工具超时与 `User-Agent: Codex-Penpot/1.0`；不要据历史配置记录推定当前仍有该条目。
+  `.tmp/penpot_mcp.py` 优先读取已启用的 Codex 配置，缺少时回退 Kimi。
+  **token 是密钥，不进仓库，不打印完整 URL。**
 - 驱动脚本（工作区 `.tmp/`，不入库，丢了可按本文 §5 重写）：
   - `.tmp/penpot_mcp.py` — JSON-RPC 客户端；必须带 `User-Agent` 头，否则 403。
   - `.tmp/penpot_build2.py` — `RESET`（按名字 reconcile 板子）+ SVG 助手。
@@ -43,8 +50,21 @@
 | Widget — Level States | 6360,1280 | 1100×660 | 等级输入五状态组件 |
 | Editor — Settings | 8480,0 | 1920×1080 | 设置页（GENERAL/EDITOR/AUDIO 三组） |
 | Editor — Placing | 0,2560 | 1920×1080 | 放置手势状态：幽灵 Note、导引十字线+线上数值、宽度拖拽、Hold 拖尾预览、对齐提示方块 |
+| Editor — Workbench Research · 01 | 0,3840 | 1920×1080 | 历史研究：密度/历史导航、三轨舞台、同纵轴属性轨与选择驱动 Inspector；非施工定稿 |
+| Editor — Single Lane Workbench · 03 | 2120,3840 | 1920×1080 | 新版研究：一次一个当前轨道编辑画布 + Left/Center/Right 切换 + 当前轨道时间轴 + Inspector；非施工定稿 |
+| Editor — Full Chart Preview · 03 | 4240,3840 | 1920×1080 | 与单轨编辑页同播放头的整谱只读演示；无选择、画布编辑或 Inspector；非施工定稿 |
 
-以上十板都在 **Page「Editor UI」**。
+以上板都在 **Page「Editor UI」**。`Editor — Workbench Research · 01` 是 2026-10-25 参考
+RPE Next 后的历史工作区探索，不替代当前 Main/Placing，也不是 Storyboard 设计定稿。它保留三轨舞台，
+用 PATH/BPM/SCROLL 验证同一纵向 BarTime 播放头和属性轨，补充密度导航、0/1/N 选择驱动 Inspector、
+选区循环预览与单次命令提交；这些属性轨不作为后续既定布局。
+
+同日的 `Single Lane Workbench · 03` / `Full Chart Preview · 03` 是重新核对 RPE 实现后的成对参考。
+编辑态只有**一个当前轨道画布**，通过 Left/Center/Right 或前后切换更换当前轨道，底部时间轴也只显示
+当前轨道；不能把 RPE 的判定线缩略切换器理解成多个编辑舞台同屏。RPE 对应实现是 session 的单一
+`lineIndex` / `selectLine()`，预览再由 `allLines` 决定合成全部判定线。BPM、流速及判定线 RGBA 收在右侧
+Inspector，不设常驻事件轨。整谱合成是独立只读演示状态，只用于查看三轨整体效果，不能编辑。
+两板仍是视觉与交互研究，不代表这些页面或状态切换已经实现；本轮不展开 Storyboard 工作区。
 
 **Page「Game UI」** 保留基础十四板及后续资产/结算/首页概念板。尺寸以 1920×1080 为主，x 间距 2120。
 基础板中的旧 Song Select 和 Result 仅作历史对照；当前分别采用 Song Select v2 与 Result v2。
@@ -52,7 +72,7 @@
 
 | 板 | 坐标 | 尺寸 | 内容 |
 | --- | --- | --- | --- |
-| Game — Settings (Gameplay) | 0,0 | 1920×1080 | GAMEPLAY tab 四行：JUDGE OFFSET / DROP SPEED 大步进器、HIT EFFECTS 大开关、MODE 二段器 |
+| Game — Settings (Gameplay) | 0,0 | 1920×1080 | GAMEPLAY tab 四行：JUDGE OFFSET / DROP SPEED 大步进器、JUDGE TEXT 大开关、MODE 二段器（原 HIT EFFECTS 大开关已由 EFFECTS 板的三段器取代） |
 | Game — Settings (Audio) | 2120,0 | 1920×1080 | AUDIO tab：三路音量粗滑条 + 底部 RESET DEFAULTS 行 |
 | Game — Signal Lock | 4240,0 | 1920×1080 | 过场：扫描线定格帧（斜线底纹 + 三分屏切角分片 + 扫描线 + 左下信号标记） |
 | Game — Track Handoff | 6360,0 | 1920×1080 | 过场「充电」：封面居中 + 四角斜对角电缆（25%），每缆 2 个亮脉冲；状态 `PLAYFIELD / LOCKING` |
@@ -68,6 +88,54 @@
 | Game — Song Select v2 Expanded | 2120,2560 | 1920×1080 | 选曲改版（展开态）：选中行就地长成 1280×392 详情卡（288 封面 / 曲名 / 曲师 / 本差分谱师 / 预览播放控件），下方行整体下推；底部操作条与收起态逐像素一致 |
 | Game — Calibration · 01 Live | 0,7680 | 1920×1080 | 校准向导（采样态）：左列相位块（无面板）+ 中央单轨试打台 + 右列信号分析板（目标样本步进器 / 中位数 / 离散度 / 采样进度条 / 建议偏移）+ 底部偏差条带 |
 | Game — Calibration · 02 Result | 2120,7680 | 1920×1080 | 校准向导（结束态）：轨道冻结压暗 + 右列确认面板（建议值 / 应用 / 再测 / 放弃）+ 条带定格 + MEDIAN 标记线 |
+| Game — Settings (Effects) | 0,8960 | 1920×1080 | EFFECTS tab 四行（HIT EFFECTS 三段器 / NOTE BRIGHTNESS / FLASH INTENSITY / HIT RESIDUAL）+ 页脚右侧「音符配色 ▶」入口（与 RESET DEFAULTS 同一行） |
+| Game — Note Colors · 01 Default | 2120,8960 | 1920×1080 | 独立配色页默认态：左 LIVE PREVIEW（样张区仍是旧 1:1 24px + 2× 48px 方块，实现已改为 320×24 条幅，待重画，见下文「预览尺寸」；Hold 链 / 判定线残影 / TEST HIT）+ 右 PALETTE（BURST 两段器 + 六类色行 + UNDO / RESET SLOT）+ 底部 10 槽预设栏（槽 1 DEFAULT，其余 + NEW PRESET） |
+| Game — Note Colors · 02 Edit | 4240,8960 | 1920×1080 | 编辑展开态：点色行就地长成通栏编辑卡（顶部六类切换 / 640×340 SV 面 + 色相条 + HEX + RGB / 右侧对比度·ΔE·STATUS 三读数 / 1×·2× 实时样张（旧板是 24px·48px 方块，同上待重画）+ TEST HIT / UNDO·RESET COLOR·DONE），预设栏保持可见 |
+| Game — Note Colors · 03 Warnings | 6360,8960 | 1920×1080 | 警告态：允许任意颜色但出提醒——低对比度行内 chip、EX 与 TAP 色差过近 chip、顶部「3 处可读性提醒」、预设槽警告点；BURST 切到 NOTE |
+| Game — Note Colors · 04 Empty Slots | 8480,8960 | 1920×1080 | 空槽态：槽 1 之外 9 个虚线空槽（+ NEW PRESET）、槽 1 动作菜单（RENAME / RESET TO DEFAULT / CLEAR SLOT）、底部空槽提示 |
+| Game — Note Colors · 05 Rename | 10600,8960 | 1920×1080 | 命名对话框（模态）：列表压暗 + 560×250 切角面板（标题 / 单行输入 + 光标 / `4 / 12` 计数 / 规则提示 / OK·CANCEL）；点空槽先命名再落槽，已有槽点 RENAME 复用同一框 |
+
+实现已新增第 4 个 **EFFECTS** tab（HIT EFFECTS 三段器 / NOTE BRIGHTNESS / FLASH INTENSITY /
+HIT RESIDUAL），并为它补了 Penpot 板 `Game — Settings (Effects)`；入口按「页脚动作」放在
+RESET DEFAULTS 同一行右侧。
+
+### Note Colors v2（2026-10-20 当前采用）
+
+上表 Note Colors 01–05 是旧版设计记录，不再作为施工目标；2026-10-20 实际连接的 Game UI 页未发现这五板。
+当前采用用户确认的 v2 R2 两板：
+
+| 当前板 | 坐标 / 尺寸 | ID |
+| --- | --- | --- |
+| Game — Note Colors v2 · 01 Hold / Draft | 0,10240 / 1920×1080 | `6d28ecc0-5fb3-80fe-8008-d18b991e5244` |
+| Game — Note Colors v2 · 02 Readability / Hold | 2120,10240 / 1920×1080 | `6d28ecc0-5fb3-80fe-8008-d190c69ad51e` |
+
+已接入独立路由 `scenes/note_colors.tscn`；同一场景内两个全屏状态共用草稿，**不是两个重载场景**。
+实现与验收说明见 [音符配色 v2](<note-colors-v2.md>)。本轮只构建/自动回归，没有启动游戏或导出 APK；不得将 Penpot 导出视为实机截图。
+
+- 主态左侧 1120px 为六类错落陈列，**无游玩舞台、轨道或判定线**；右侧 672px 固定调色台，间距 32px。
+  六类选择器、SV、48px 热区/24px 色带的 Hue、HEX/RGB、原色/新色、会话内最近颜色同屏。
+- 顶部预设选择器打开模态库；十槽容量保留，只显示占用槽和一个新建入口。槽 1 可改色/重命名、不可清空。
+  新建复制当前配色；12 位 ASCII 名称拒绝非法/重名，取消不创建；重置/清空需要确认。
+- **应用才保存**：颜色、命中特效跟随、预设库、当前槽统一纳入 `NotePaletteDraft`。20 步 undo/redo，单次拖拽一条历史；
+  原方案固定为进入页面时的快照。按住比较不进入历史，松开/失焦/切页恢复草稿；主态离开或切换预设时提供应用/放弃/取消。
+- “另存为预设”只修改草稿，并不绕过应用。保存失败保留草稿与原内存状态；设置先写同目录临时文件再替换，避免直接截断旧存档。
+- 观察态左侧为三个背景上的同一音符；右侧按 CIE76 色差选择最近类型并可手动更换。对比度只算基础色与背景，
+  `#05070F` 是现有游戏深色基准，`#18212D` / `#35424F` 是测试色而非实机采样。不以阈值宣称材质/色觉可读性通过。
+
+#### 预览材质与几何
+
+`NotePaletteSpecimen` 使用真实 `NoteView` / `note_material.gdshader`，不把 Penpot SVG 烘进游戏，不写 `NoteVisualSpec.Active`。
+
+- 主陈列条宽按类型为 260/290/240/320/260/220；非 Hold 高 24、Hold 高 26。Hold 尾宽 260、头尾间距 190。
+- 观察卡三份完全同尺寸：头宽 272，Hold 尾宽 240、间距 172。比较区同宽 272；类型选择器小图标用整节点缩放 .58，
+  不能单改高度使 Mine X、Mixer 徽章、EX 端标比例失真。
+- Hold 使用 `Polygon2D`（颜色 alpha=.28）和 3px 闭合 `Line2D`（alpha=.9），半宽=条宽×.421。
+  样张根层级 Z=1，条身/描边局部 Z=0、头尾局部 Z=1，不能用负绝对 Z 把条身画到不透明背景后。
+- `NoteView.Reuse` 会归零位置/缩放，样张复用后必须恢复头尾位置；外层缩放由样张节点承担。
+- 测试命中调用所选类型的真实 Bloom/Particles/残影路径，遵守 HIT EFFECTS、亮度、爆发尺度和残影设置；
+  Hold/Mixer 展示接触亮度和一次爆发，不把本页视为完整持续判定模拟。
+- 初始选中 Hold，但仍使用玩家已存颜色；设计示例 `#7BECC5` **不覆盖出厂色**。
+- 预设/命名/离开确认/RGB 为同风格补齐的实装弹窗，当前两张 Penpot 板未单独画这些状态。
 
 ### 当前方案与历史板位
 
@@ -250,10 +318,10 @@ Signal Lock 与 handoff 三板原样保留。
 
 ## 3. 视觉规范
 
-- 色板以 `client/scripts/ui/UiFonts.cs` 为准：bg `#0A0E1A`、panel `#141B33`、
+- 色板以 `presentation/ui/UiFonts.cs` 为准：bg `#0A0E1A`、panel `#141B33`、
   line `#2A3560`、cyan `#35E0FF`、pink `#FF4D8F`、text `#DFE6FF`、dim `#7C88B0`；
   难度色 casual `#4ADE80` / normal `#38BDF8` / hard `#FBBF24` / mega `#C084FC` /
-  giga `#F87171` / tech `#E879F9`；Note 配色看 `client/scripts/game/NoteVisualSpec.cs`。
+  giga `#F87171` / tech `#E879F9`；Note 配色看 `presentation/game/NoteVisualSpec.cs`。
 - 字体 Space Grotesk；切角语言：只切**左上 + 右下**。中文界面文案按源码原文写（游玩 / 设置 /
   谱面工坊 / 继续 / 重开 / 返回选曲 / 点击切换难度 …）——Penpot 端对 Space Grotesk 缺字会自动
   回退到 CJK 字面，不会出现豆腐块，所以不必为了排版把中文改成英文。
@@ -275,7 +343,7 @@ Signal Lock 与 handoff 三板原样保留。
 - 编辑器几何复用游玩客户端：中央判定线、侧轨位置等与 `GameplayMain.cs` 顶部常量一致。
 - 游戏页板的数值一律取客户端源码/常量：判定线 y=861、判定线跨 x=60..1800、侧轨 x=184/1736、
   Mixer 装饰条 y=620/642 跨 x=675..1244、中心轨 x=280+273.2·(P+W/2)、侧轨 x=184+剩余·k /
-  1736−剩余·k（k=SideDistScale，当前代码 691/790≈0.8747 实验值、待实机确认，原标定 0.75）、侧轨 y=840−115·(P+W/2)、Note 视觉缩放 0.95（`GameplayStageGeometry`）。
+  1736−剩余·k（k=SideDistScale，当前保留 691/790≈0.8747，2026-10-17 用户实机反馈基本通过）、侧轨 y=840−115·(P+W/2)、Note 视觉缩放 0.95（`GameplayStageGeometry`）。
 - **hover 统一过渡（2026-10-08 拍板）**：全部 hover 可点元素从瞬时换色改为约 0.10s 的颜色
   lerp（共享 helper `editor/scripts/EditorMotion.cs`：`HoverFade` 单值版给 hotspot 少而固定的
   页面，`HoverFadeMap` 键值版给动态/大量 hotspot 的页面；时长集中在 `HoverMotion.Seconds`），
@@ -338,7 +406,7 @@ Pack 板的实现边界与偏差（状态行省略时长、
    - 松开提交并**记忆宽度**（`preCoverWidth`），下一个对象以相同宽度起手。
    - Hold/Mixer 追加阶段：拖时间轴定尾（钳制不早于头）。
    - 双击路径插入 node：双击点定 time+center，第二击不松手直接进宽度拖拽；
-     落在路径身体上时 center/width 起手值**采样路径求值结果**（形状零跳变）。
+     落在路径身体上时 center/width 起手值**采样路径求值结果**（只保证插入采样点不跳变；非线性段切开后邻域可能形变，不承诺整段形状或通用亚像素误差，详见 [当前能力边界](<dyna-maker-uv.md#3-画布与编辑范围>)）。
    - 手势导引（对照原版 playView）：过 note 时间一条 pink 2px 全宽时间线（两端各
      200px 渐隐）、过 note 位置一条白色 3px 纵贯位置线；读数值（位置、宽度）贴在位置线
      两侧、分数式时间贴在时间线上方左侧，各带 1px 偏移的深色底衬充当原版的黑描边；
@@ -437,7 +505,7 @@ Pack 板的实现边界与偏差（状态行省略时长、
     包与差分的上下文进入平行工作室。占位为禁用态：220×52 切角框只有 `#2A3560` 2px
     描边不填色、连同文字整体压到 55%（与选曲筛选占位同一语言），不代表任何已实现的
     Storyboard 能力。首版不做 Storyboard，正式形态为未来单独冻结的谱面 sidecar，
-    决策与边界见 [Storyboard 提案](<storyboard-editor-proposal.md>)。
+    决策与边界见 [Storyboard 提案](<archive/proposals/storyboard-editor-proposal.md>)。
 14. **滚动惯性**（2026-10-08 拍板）：滚轮与触摸板滚动不再瞬时改位置，而是推一个"目标值"，
     显示值按帧率无关的指数趋近追上：
     `current += (target − current) × (1 − e^(−Δ/τ))`，因此同样一次滑动在 30fps 与 144fps 下

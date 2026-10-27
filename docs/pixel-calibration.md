@@ -25,9 +25,9 @@
 | Side BarLine 长度 | `W·190·0.95px` |
 | Center 可见行程 | 790px |
 | Side 可见行程 | 691px |
-| Side 距离尺度 | `691/790 ≈ 0.8747`（行程比，2026-10 实验值，待用户实机确认；原标定值 0.75） |
+| Side 距离尺度 | `691/790 ≈ 0.8747`（当前保留的行程比；2026-10-17 用户实机反馈基本通过） |
 
-Position 是条的左缘。Center 渲染中心为：
+下列 P/Position 指 legacy 条左缘，v2 文档使用 center+width，不可混用。Center 渲染中心为：
 
 ```text
 x = 280 + 273.2 * (P + W/2)
@@ -38,7 +38,7 @@ Side 渲染中心为：
 ```text
 Left:  x = 184 + remainingDistance * SideDistScale
 Right: x = 1736 - remainingDistance * SideDistScale
-（SideDistScale 当前代码为 691/790 ≈ 0.8747 实验值，原标定 0.75）
+SideDistScale = 691/790 ≈ 0.8747
 y = 840 - 115 * (P + W/2)
 ```
 
@@ -46,10 +46,12 @@ y = 840 - 115 * (P + W/2)
 
 | 屏幕范围 | Track |
 | --- | --- |
-| `y>771` | Center |
-| `y<=771 && x<400` | Left |
-| `y<=771 && x>1520` | Right |
-| 其余上部区域 | Center |
+| `y>771` | 加入 Center |
+| `x<400`（不限 y） | 加入 Left |
+| `x>1520`（不限 y） | 加入 Right |
+| 三条件均不满足 | 回落 Center |
+
+这些条件独立叠加，不是互斥分区：下方角落可同时属于 Center 与侧轨。权威实现为 [InputJudgeRules.ProjectedTrackMask](<../shared/Judge/InputJudgeRules.cs>)，2026-10-26 仅修正旧文档，不改变输入规则。
 
 转换后的触点 Position 与 note 的 `[P,P+W]` 做重叠判定。普通 note 使用
 `CommunityTouchWidth=0.40` 扩边（每侧 `0.20`），Mine 不扩边。
@@ -77,11 +79,11 @@ y = 840 - 115 * (P + W/2)
 | BarLine | 暗灰细线 |
 
 Hold/Mixer 连接体作为刚性形状整体运动，过判定线部分连续裁剪。侧轨 Hold 只调整远近
-alpha，不缩窄、不钳制远端。命中辉光持续约 0.34 秒，可向判定线下方延伸约 90px。
+alpha，不缩窄、不钳制远端。本文只规定几何；材质、残影/接触特效和设置倍率统一见 [玩法 §9.1](<gameplay-spec.md#91-note-材质与判定反馈>) 与 [动效规格](<ui-motion.md>)，不沿用早期固定辉光时长。
 
 ## HUD 与结果层
 
-- 顶部 pill 行依次显示 P/GR/GD/M、CLEAR、M.COMBO。
+- 顶部 pill 行显示 P/GR/GD/M、实时 ACC、M.COMBO；结算 CLEAR 是不同的统计分母，见 [计分规格](<gameplay-spec.md#82-clear-与评级>)。
 - 暂停按钮位于 pill 行下方中央。
 - 左下显示曲名与难度，右下显示百万分数。
-- 结算时隐藏舞台、音符和 HUD；结果层先显示不透明 fallback，再叠加封面背景。
+- Full 结算先合拢不透明屏风，完全遮住后才隐藏舞台/音符/HUD，再揭示结果；Reduced/Off 不透明接管。封面是顶端小图，不是整屏背景，见 [结算 v2](<result-v2-design.md>)。

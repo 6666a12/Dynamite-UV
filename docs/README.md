@@ -1,51 +1,56 @@
 # 文档导航与维护约定
 
-> 状态核对：2026-10-07。当前状态来自源码静态核对，不表示本次重新构建、运行测试或完成实机验收。
+> 2026-10-26 整理。按“接手入口 → 当前实现/操作 → 任务规格 → 历史/提案”阅读，不按文件日期把所有文档当作待办。
 
-## 推荐阅读顺序
+## 接手最短路径
 
-1. [项目 README](<../README.md>)：项目边界、目录与启动入口。
-2. [当前交接](<handoff.md>)：有效实现、固定决策、待办及验证流程。
-3. 按任务阅读下面的专题文档；需要追溯旧决策时才进入 [历史归档](<archive/README.md>)。
+1. [项目入口](<../README.md>) → [当前交接](<handoff.md>)：产品范围、硬约束、功能与验收边界、真实缺口。
+2. [模块地图](<module-map.md>)：当前依赖、文件职责、新功能落点和剩余耦合。
+3. [验证状态与操作](<verification.md>)：实际执行、历史通过、测试包、用户反馈与运行命令。
+4. 按下表进入专题。只有追溯决策/证据时才读 [历史归档](<archive/README.md>)。
 
-## 当前状态与操作
+## 当前说明与操作
 
-| 文档 | 职责 |
+| 文档 | 用途 / 单一维护职责 |
 | --- | --- |
-| [handoff.md](<handoff.md>) | 当前交接与待办；不再作为流水式更新日志 |
-| [dyna-maker-uv.md](<dyna-maker-uv.md>) | 现有 Godot 制谱器的能力、缺口、启动方式与资产边界 |
-| [runtime-architecture.md](<runtime-architecture.md>) | 分层、会话、加载、gameplay 帧顺序及发布不变量 |
-| [releasing.md](<releasing.md>) | Public/Internal APK 隔离、导出与最终产物强制检查 |
-| [blender-pipeline.md](<blender-pipeline.md>) | 当前采用的评级资产与重建/运行时打包管线 |
+| [handoff.md](<handoff.md>) | 当前实现摘要、约束、未完成/待决策/暂缓/静态风险，不累加阶段流水 |
+| [module-map.md](<module-map.md>) | 项目关系、源码职责、对象边界与拆分入口；不是行为合同 |
+| [模块化复审（2026-10-26）](<modularity-review-2026-10-26.md>) | 既往拆分的有效性、剩余大文件分类、对象提取建议和所需回归；分析而非实施排期 |
+| [runtime-architecture.md](<runtime-architecture.md>) | 运行时会话/加载、不可重排的帧顺序、适配边界 |
+| [verification.md](<verification.md>) | 最近实际检查、历史验证、测试包身份、用户验收和复验命令 |
+| [dyna-maker-uv.md](<dyna-maker-uv.md>) | 编辑器详细能力/占位/快捷键/持久化错误边界；[editor README](<../editor/README.md>) 只作入口 |
+| [releasing.md](<releasing.md>) | Public/Internal 隔离、clean worktree、签名和最终 APK 门禁 |
 
-## 有效规格与证据
+## 有效规格、安全与测量（按任务必读）
 
-| 文档 | 性质与权威边界 |
+| 文档 | 权威边界 |
 | --- | --- |
-| [gameplay-spec.md](<gameplay-spec.md>) | 当前判定/舞台与 legacy 兼容说明 |
-| [mixer-receiver.md](<mixer-receiver.md>) | Mixer 放置接收器实现、社区边界与实机清单 |
-| [chart-format-v2.md](<chart-format-v2.md>) | 冻结的正式 v2 合同，不因文档清理而改变格式 |
-| [v2 Schema 与 golden pack](<../schemas/chart-format-v2/>) | 机器可读合同和 clean-room 向量 |
-| [original-judgement-analysis.md](<original-judgement-analysis.md>) | 原版机制研究证据；不是社区产品待办或实现宣告 |
-| [video-geometry-analysis.md](<video-geometry-analysis.md>)、[pixel-calibration.md](<pixel-calibration.md>) | 当前布局的测量依据；不能作为过期日志删除 |
-| [ui-motion.md](<ui-motion.md>) | 当前游戏动效规格、网页参考边界与编辑器目标动效 |
-| [editor-ui-design.md](<editor-ui-design.md>) | Penpot 板位、当前/参考稿标记、设计决策与施工安全约定 |
-| [result-v2-design.md](<result-v2-design.md>) | 已接入并通过用户验收的结算 v2 几何、时间线与边界 |
+| [gameplay-spec.md](<gameplay-spec.md>) | 社区玩法、Legacy 兼容、空间/判定/计分；原版研究不能覆盖社区决策 |
+| [chart-format-v2.md](<chart-format-v2.md>) | 已冻结的 v2 合同，不因 UI 能力不足而降格；[Schema/golden pack](<../schemas/chart-format-v2/>) 是机器合同 |
+| [mixer-receiver.md](<mixer-receiver.md>) | Mixer 放置/保持/宽限、时间重放和专项设备边界 |
+| [pixel-calibration.md](<pixel-calibration.md>) / [video-geometry-analysis.md](<video-geometry-analysis.md>) | 当前坐标与测量依据；改布局前必读，不因日期旧而归档 |
+| [original-judgement-analysis.md](<original-judgement-analysis.md>) | 原版证据、UNKNOWN 和有意差异，不是社区产品实现清单 |
+| [editor-ui-design.md](<editor-ui-design.md>) | Penpot 板位、设计/已接入边界、UI 施工与 MCP 安全约定；不是功能验收表 |
+| [ui-motion.md](<ui-motion.md>) | 游戏现行动效与编辑器目标动效；注意章节内的已接入/目标标识 |
+| [result-v2-design.md](<result-v2-design.md>) | 已接入结算的层级、时序和交互；旧设计示例数据不能覆盖现评级门槛 |
+| [note-colors-v2.md](<note-colors-v2.md>) | 配色草稿/应用/比较、可读性限制与未完成的设备验收清单 |
+| [blender-pipeline.md](<blender-pipeline.md>) | 批准的八评级资产重建/打包、安全与设计源备份 |
+| [第三方通知](<../THIRD_PARTY_NOTICES.md>) / [APK policy](<../release/apk-policy.json>) / [资产来源](<../release/asset-provenance.json>) | 许可证、产品身份、发布内容和资产哈希；不能以文档整理放宽 |
 
-## 提案与历史参考
+## 只在追溯时阅读
 
-- [工作区盘点基线](<workspace-inventory-2026-10-14.md>)：83 项未提交文件归属、APK 哈希、验收状态、本地资产/产物与提交边界（计数为该文新增前快照）。
+- [历史归档总索引](<archive/README.md>)：按时间/类型查阶段报告、旧盘点、已完成美术交付和未排期提案。
+- [2026-10-26 整理说明与原文清单](<archive/2026-10-26-cleanup/README.md>)：本次移动清单、整理前字节快照与 SHA-256。
+- [Storyboard 历史提案](<archive/proposals/storyboard-editor-proposal.md>)：首版不做、未来 sidecar 方向；未冻结/未排期，不是当前开发计划。
+- [网页 UI 参考](<ui-mock/>)、本地 `design/` 是设计材料，不证明游戏/编辑器能力或设备效果；本次不搬动图片、网页、脚本或 Blender 工程。
+- 旧审计/重建入口中的跳转页只为兼容已有链接保留，不再列为接手必读。
 
-- [Storyboard 提案](<storyboard-editor-proposal.md>)：首版不做、已拍板 sidecar 方向的未来工作区，编辑器设计稿仅留禁用占位入口；不是现有编辑器能力。
-- [网页 UI 参考目录](<ui-mock/>)：历史视觉/交互稿；不能据其判断当前客户端或编辑器能力。
-- [历史归档](<archive/README.md>)：旧阶段审计、编辑器重建检查点和整理前原文快照。
-- [开发样本统计](<../tools/chart_stats_report.md>)：研究记录，不是 Type 语义或公开发行曲库。
+## 维护约定
 
-## 维护规则
-
-- **现状、目标、历史分开写。** 用“已接入/待验收”“底层已有但 UI 未接入”“设计目标/未实现”表达边界。
-- 当前交接只列有效约束、现有能力和真实剩余工作；完成后的修复经过移入带日期的归档。
-- 构建/测试结果必须附日期、范围与条件；不能把历史通过记录改写成最新验证。
-- 归档正文允许保留当时的错误判断或过期命令，但必须有历史标识；不能再列作当前待办。
-- 正式格式、测量依据、clean-room/签名安全约束和仍有效的施工规则不因“旧日期”而归档失效。
-- 网页/设计资产保留原路径以免破坏脚本；过时版本在文档索引中明确标为历史参考。
+1. **现状、目标、历史分开。** 明确“已接入/待验收”“底层支持但 UI 未接”“静态疑点未复现”“用户暂缓”“未排期”。
+2. 当前交接只维护摘要与真实缺口；详细 editor 能力放制谱器说明，结构放模块地图，验证执行与产物身份放 verification，不在多个 README 重复流水。
+3. 写执行日期、范围、配置和未覆盖项；更新某页不能把历史构建/用户反馈改写成当前工作区验证。旧警告不自动等于当前警告。
+4. 完成的阶段记录、旧盘点、已交付美术过程及暂不实施的长提案移到带类型/日期的 archive；在现行文档留必要结论和链接，不保留互相矛盾的“当前状态”。
+5. 冻结格式、测量依据、原版未闭环证据、clean-room、签名和施工安全规则不因日期旧而归档失效。归档不授权恢复旧架构、再次实施修复或改玩法。
+6. 移动时修相对链接/锚点，必要时保留兼容跳转；不可变原文快照不重写。不要因检验失败而放宽发布测试白名单。
+7. 忽略的设计源/本地证据不随克隆取得；缺失时明确前提，不能把本机工具配置视为下一台机器已配置。

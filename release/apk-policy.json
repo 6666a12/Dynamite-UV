@@ -46,6 +46,8 @@
         "scenes/gameplay.tscn.remap",
         "scenes/settings.tscn.remap",
         "scenes/calibration.tscn.remap",
+        "scenes/note_colors.tscn.remap",
+        "shaders/note_material.gdshader",
         "shaders/note_surface.gdshader",
         ".godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata",
         ".godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata",
@@ -53,6 +55,7 @@
         ".godot/mono/publish/arm64/DynamiteUniverse.dll",
         ".godot/mono/publish/arm64/DynamiteUniverse.runtimeconfig.json",
         ".godot/mono/publish/arm64/DynamiteUniverse.Shared.dll",
+        ".godot/mono/publish/arm64/DynamiteUniverse.Presentation.dll",
         ".godot/mono/publish/arm64/GodotSharp.dll",
         ".godot/mono/publish/arm64/.dotnet-publish-manifest",
         "lib/arm64-v8a/libgodot_android.so"

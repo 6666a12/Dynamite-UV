@@ -249,8 +249,12 @@ public static class V2RuntimeAdapter
     {
         const int maxSegments = 256;
         const double tolerancePx = 0.5;
-        var positionScale = track == Track.Center ? 273.2 : 115.0;
-        var widthScale = track == Track.Center ? 273.2 : 102.0;
+        var positionScale = track == Track.Center
+            ? GameplayStageGeometry.CenterUnitPx
+            : GameplayStageGeometry.SideUnitPx;
+        var widthScale = track == Track.Center
+            ? GameplayStageGeometry.CenterUnitPx
+            : GameplayStageGeometry.SideNoteLengthUnitPx;
         for (var segments = 2; segments <= maxSegments; segments *= 2)
         {
             if (SubdivisionErrorPx(evaluator, start, end, segments,

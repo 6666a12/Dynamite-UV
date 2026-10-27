@@ -3,6 +3,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.Game;
 using DynamiteUniverse.Ui;
 
 namespace DynamiteUniverse.Editor;
@@ -138,8 +139,7 @@ internal sealed class EditorSettings
         ClampValues();
         try
         {
-            using var file = Godot.FileAccess.Open(SavePath, Godot.FileAccess.ModeFlags.Write);
-            file.StoreString(JsonSerializer.Serialize(new SettingsData
+            var json = JsonSerializer.Serialize(new SettingsData
             {
                 MotionMode = SerializeMotionMode(MotionMode),
                 DefaultGridDivisor = DefaultGridDivisor,
@@ -148,7 +148,8 @@ internal sealed class EditorSettings
                 BackgroundDimPercent = BackgroundDimPercent,
                 ScrollInertiaPercent = ScrollInertiaPercent,
                 UiScalePercent = UiScalePercent,
-            }, new JsonSerializerOptions { WriteIndented = true }));
+            }, new JsonSerializerOptions { WriteIndented = true });
+            SettingsFilePersistence.Write(ProjectSettings.GlobalizePath(SavePath), json);
         }
         catch (Exception exception)
         {

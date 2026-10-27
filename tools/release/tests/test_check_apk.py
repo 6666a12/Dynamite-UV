@@ -179,6 +179,8 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
             "assets/scenes/gameplay.tscn.remap": b"[remap]\npath=\"res://.godot/exported/game.scn\"\n",
             "assets/scenes/settings.tscn.remap": b"[remap]\npath=\"res://.godot/exported/settings.scn\"\n",
             "assets/scenes/calibration.tscn.remap": b"[remap]\npath=\"res://.godot/exported/calibration.scn\"\n",
+            "assets/scenes/note_colors.tscn.remap": b"[remap]\npath=\"res://.godot/exported/note_colors.scn\"\n",
+            "assets/shaders/note_material.gdshader": b"shader_type canvas_item;",
             "assets/shaders/note_surface.gdshader": b"shader_type canvas_item;",
             "assets/assets/models/detonation-orrery-mk2.glb": (
                 REPO_ROOT / "client" / "assets" / "models" / "detonation-orrery-mk2.glb"
@@ -202,6 +204,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
             "assets/.godot/mono/publish/arm64/DynamiteUniverse.dll": b"dll",
             "assets/.godot/mono/publish/arm64/DynamiteUniverse.runtimeconfig.json": b"{}",
             "assets/.godot/mono/publish/arm64/DynamiteUniverse.Shared.dll": b"dll",
+            "assets/.godot/mono/publish/arm64/DynamiteUniverse.Presentation.dll": b"dll",
             "assets/.godot/mono/publish/arm64/GodotSharp.dll": b"dll",
             "assets/.godot/mono/publish/arm64/.dotnet-publish-manifest": b"manifest",
             "lib/arm64-v8a/libgodot_android.so": b"so",
@@ -403,6 +406,14 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
     def test_public_missing_font_license_is_rejected(self) -> None:
         apk = self.make_apk("dynamite-universe-public.apk", include_public_license=False)
         self.assert_rejected(self.run_gate("public", apk), "missing required entry suffix")
+
+    def test_public_empty_palette_resources_are_rejected(self) -> None:
+        for resource in ("scenes/note_colors.tscn.remap", "shaders/note_material.gdshader"):
+            with self.subTest(resource=resource):
+                apk = self.make_apk("dynamite-universe-public.apk", {f"assets/{resource}": b""})
+                completed = self.run_gate("public", apk)
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn(resource, completed.stderr)
 
     def test_public_filename_error(self) -> None:
         apk = self.make_apk("dynamite-universe.apk")

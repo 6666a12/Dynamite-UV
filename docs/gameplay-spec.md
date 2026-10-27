@@ -7,6 +7,7 @@
 > `original-judgement-analysis.md`，几何测量见 `video-geometry-analysis.md`。
 > 文中不包含任何原版素材或可发布原版谱面。
 > 2026-10-13 静态同步当前实现；本轮没有重跑构建/测试。历史原文见 [整理前快照](<archive/2026-10-07-cleanup/gameplay-spec.before.md>)。EX-Tap 二值判定与窗口倍率 1.0 已与冻结 v2 §12.1 对齐。
+> 2026-10-17 用户实机反馈：多指输入、短 Hold 手感、对象池修复及侧轨 `691/790` 距离比例均基本通过，侧轨保留该比例；仅同步文档，未重新构建或测试。验收范围与剩余专项见 [当前交接 §4](<handoff.md#4-仍需处理>)。
 
 ## 1. 当前 Legacy 谱面数据
 
@@ -104,7 +105,7 @@ bar = sections[i].BarTime + (sec - sections[i].Seconds) * sections[i].BPM / 240
 - Lv10、DropSpeed=1 的二维标尺恒为 150 BPM 基准的 `1026px/s`，不随谱面 BPM 改变。
   BPM 只负责 BarTime/秒换算和命中时刻。
 - Center/Side 的可见行程保持 790px/691px；Side 的屏幕移动距离额外乘 SideDistScale
-  （当前代码为行程比 `691/790 ≈ 0.8747`，2026-10 实验值、待用户实机确认；原标定 0.75）；
+  （当前保留行程比 `691/790 ≈ 0.8747`，2026-10-17 用户实机反馈基本通过）；
   位置直接映射到现有二维轨道，不做透视投影。
 - 空 BPM 时间线直接使用 `Baked_Second` 作为 note 命中秒，仍使用同一套固定秒速模型。
 
@@ -183,7 +184,7 @@ Perfect，落在输入窗内但超出 Good 窗（早侧或晚侧）立即按输�
 所有窗口都从当前难度的 JudgeSettings 实例读取，客户端不再硬编码扫描窗或接触窗。
 判定预设统一由客户端在加载时按「难度 + 游玩模式」解析（`V2Integration.PresetFor`），
 v2 包/转换产物里的 `entry.JudgePreset` 只反映语义难度、不含运行时模式；legacy→v2 转换时
-Hardcore 按 Hard、Tutorial 按 Casual 归档（score identity 与模式无关）。
+Hardcore 按 Hard、Tutorial 按 Casual 归档。成绩身份没有独立运行模式字段；legacy 转换可能间接改变语义预设与 Digest，这不构成完整模式隔离。另需核查预加载后切模式是否复用旧 Preset（2026-10-26 静态疑点，尚未运行复现），见 [当前交接](<handoff.md#4-仍需处理>)。
 
 Hold 的断触宽限为：
 
@@ -365,7 +366,7 @@ Godot viewport 固定 1920×1080，stretch mode 为 `canvas_items`，比例不�
 | 侧轨条视觉长度 | `W·102·0.95px` |
 | 侧轨 BarLine 长度 | `W·190·0.95px` |
 | Center/Side 可见行程 | `790px / 691px` |
-| Side 距离尺度 | `691/790 ≈ 0.8747`（2026-10 实验值、待实机确认；原 0.75） |
+| Side 距离尺度 | `691/790 ≈ 0.8747`（当前保留；2026-10-17 用户实机反馈基本通过） |
 
 连接体作为刚性形状整体下落，过判定线部分被连续裁剪。远端允许出屏，不钳制；侧轨
 Hold 不做远端缩窄，只按接近判定线的距离提高填充和描边 alpha。
@@ -374,19 +375,35 @@ HUD、背景和命中辉光均为程序化 UI。Full 结算先合拢不透明屏
 
 ### 9.1 Note 材质与判定反馈
 
-- 所有可见 Note 类型统一使用 `note_surface.gdshader` 的切角渐变材质，并用虚线、方向纹、
-  危险斜纹或扫描线区分类型；左右侧轨旋转同一套参数，亮度一致。
+- 可见 Note 使用 `client/shaders/note_material.gdshader`：与 `design/note-light-v1` 的 WebGL
+  实现逐像素对照通过的单色程序化材质（九宫格遮罩的体面明暗 + 发光核心 + 外光晕，`u_kind`
+  区分 EX 端标、Mixer 徽章、Mine 叉标）；左右侧轨由 mesh 子节点旋转 90° 复用同一套参数与
+  同一份遮罩（遮罩 PNG 字节内嵌在 `NoteMask.cs`，运行期解码，不走导入管线）。BarLine 继续
+  使用旧的 `note_surface.gdshader` 切角渐变材质。
+- 尺寸：Center 的 Tap/EX/Drag/Mine/Mixer 为 24px、Hold 26px、BarLine 6px，侧轨厚 17px。
+  Mixer 本体由 40px 改为 24px，使 38px 徽章按 `u_size.y/24` 只外扩 7px。
 - 成功判定按 Note 类型生成 12 帧式程序化爆发，并按 Note 宽度和轨道方向适配；统一亮度
   系数为 1.55，并叠加 GPU 火花/余烬层，参数见 [动效规格 §9.5](<ui-motion.md#95-已接入游戏的打击粒子规格编辑器复用目标>)。
 - Hold 与侧轨 Mixer 接通时使用 12 帧循环接触效果。亮度仅在接通后的 0.28 秒内从零爬升
   到亮度系数 0.72，随后保持不变，只有内部纹理继续循环；松开后立即消失。中心轨 Mixer 不显示
   这层侧面接触效果。
 
+玩家可在设置页 EFFECTS 调整以下表现参数（只影响视觉，不参与判定与计分，全部持久化到
+`user://settings.json`）：
+
+| 设置 | 行为 |
+| --- | --- |
+| `HIT EFFECTS` | FULL：爆发 + 火花 + 余烬 + Hold/Mixer 接触；REDUCED：爆发 + 半量火花（无余烬）+ 接触；OFF：只保留命中残影与判定浮字。粒子密度只由该档位决定，`motionMode` 只负责界面动效 |
+| `NOTE BRIGHTNESS` | 80–140%（5 步进），默认 130；100% 即本节三个 energy 设计原值 0.72 / 1.28 / 2.57，百分比同比例缩放下落、接触与残影峰值 |
+| `FLASH INTENSITY` | 60–150%（5 步进），默认 100；按比例缩放爆发的半径与展开范围（`GameplayHitBloom.Intensity`） |
+| `HIT RESIDUAL` | OFF / 0.20s / 0.30s / 0.45s，默认 0.30s；控制判定线上命中光斑的停留时长，0 即关闭残影（`hitResidualMs`） |
+| `JUDGE TEXT` | 开/关（GAMEPLAY 页），关闭后不再显示 PERFECT / GREAT / GOOD / MISS 浮字 |
+
 视觉运动与逻辑判定窗口相互独立，当前生命周期如下：
 
 | 类型 | 到线及越线 | 判定反馈 |
 | --- | --- | --- |
-| Tap / EX-Tap / Drag | 未判定时立即连续越线；0–24px 满亮，随后 40px 淡出，累计 64px 回收；完整 Late 窗仍有效 | 命中立即回收本体，只在线上生成爆发；最终 Miss 不回线、不重启动画 |
+| Tap / EX-Tap / Drag | 未判定时立即连续越线；0–24px 满亮，随后 40px 淡出，累计 64px 回收；完整 Late 窗仍有效 | 命中时本体当帧消失，判定线上生成残影（默认 0.30s，设置可调；峰值亮度 = 2.57 × 音符亮度，约 0.115s 指数衰减叠加线性淡出）与爆发；early/late 的残影也固定在判定线，不跟随命中瞬间的本体位置；最终 Miss 不回线、不重启动画 |
 | Hold | 未判定头部沿用普通下穿；Body 线外部分持续裁剪，Late 窗仍可接起 | Early/Exact/Late 命中后头部沿线跟随当前路径的位置和宽度；暂时断触时可恢复地下穿并淡出，宽限内接回则立即回线；正式 Miss / 确认断开后继续下落和裁剪，同时在 180ms 内渐淡回收，后续节点不再入场 |
 | Mixer | Body 正常渲染，不使用普通下穿 | 已放置动态头保留到尾，松手/漏接不隐藏，宽度随路径更新；接收特效只在实际接住时播放，宽限保分不冒充接触；Miss 不生成爆发 |
 | Mine | 不使用普通下穿 | 危险窗内触发时生成红色爆发并回收；安全到线直接回收，无爆发和残留 |
@@ -398,6 +415,10 @@ HUD、背景和命中辉光均为程序化 UI。Full 结算先合拢不透明屏
 | --- | --- |
 | 判定偏移 | −300..+300ms，5ms 步进，接入 `SongClock.UserOffsetMs`；除设置页步进器外，校准向导页是第二个写入方（建议值 = 当前 − 击打偏差中位数 → 5ms 取整 → ±300 钳制） |
 | 落速 | 1..20，默认 10，倍率 `level/10`；校准试打台沿用同一倍率，保证测量条件与实战一致 |
+| 打击特效 | `hitEffectLevel`（full/reduced/off，默认 full）；旧存档缺该字段时由 `gameplayEffectsEnabled` 迁移（false → off），新存档仍写该布尔以兼容旧客户端 |
+| 音符亮度 / 爆发尺度 | 80..140 / 60..150，5 步进，默认 130 / 100；100 即设计原值，见 §9.1 |
+| 命中残影 | 0 / 200 / 300 / 450 ms，默认 300；0 = 关闭 |
+| 判定浮字 | 开/关，默认开；关闭后 `FlashJudge` 不再出字 |
 | Music/Hit/UI 音量 | 0..100，写入对应 Audio Bus |
 | 校准目标样本 | 8..32、4 拍一档、默认 16（`calibrationTargetSamples`）；采样途中步进器锁定 |
 
@@ -434,16 +455,13 @@ Music/Hit/UI 音量总线已接，但完整 Hit/UI 资产链路仍未完成。
 
 ## 12. 复验入口（非本次通过声明）
 
-```powershell
-cd client
-dotnet build
-```
+从 **community 根目录**执行：
 
 ```powershell
-dotnet run --project tools/core-tests/CoreTests.csproj
+python -B tools/verify.py
+# 依赖已还原可加 --no-restore
 ```
 
-现有核心测试代码包含谱面加载、BarTime 换算、Auto 全 Perfect、主判定计数、窗口边界、EX-Tap、
-Mine、百万分、Early 时间组锁与 Late 放行、触摸范围与 phase、Hold 节点、Mixer 八分点、
-Hold 批量 Miss、按 release 时刻结算尾判、尾后 release 钳制、sustain 插值、Miss 分源、
-Health/Boost 缩放和原版数学策略。
+分项命令与最近实际执行/历史验证统一见 [验证状态与操作](<verification.md>)；两套核心/编辑器回归使用 `dotnet run`。
+现有核心回归包括谱面加载/精确时间、几何/镜像、Auto、窗口/EX-Tap/Mine、精确 double 同刻批次锁（含早/晚侧结算）、触点缓冲、Hold/Mixer 时间重放、归一化计分/成绩身份和界面纯状态。
+测试存在或历史通过不等于本次重新执行，也不能证明全设备触控、音频或性能通过。

@@ -1,7 +1,7 @@
 # 评级资产 Blender 管线
 
-> 当前状态核对：2026-10-07。采用 v5 + 表面电流五级评级，已于 2026-10-03 接入结算 v2，2026-10-07 通过用户实机验收。
-> 2026-10-14 接入扩展：用户批准 X/Ψ/D，美术扩展为 Ω/Ψ/X/S/A/B/C/D 八级；源交付分别来自 v5_current、v5_current_xy、v5_current_d，游戏内新档效果仍待实机确认。
+> 2026-10-26 静态校对：当前为 v5 + 表面电流 **Ω/Ψ/X/S/A/B/C/D 八级**，分别来自 v5_current、v5_current_xy、v5_current_d；本次未重新渲染、构建或验收。
+> 2026-10-07 既有结算流程通过用户实机验收；2026-10-14 用户认可已接入客户端的 X/Ψ/D。不扩大到所有设备或后续材质变化；最新边界见 [验证记录](<verification.md>)。
 > 方向比较、v4/v5 样片过程和历史构建结果见 [整理前原文](<archive/2026-10-07-cleanup/blender-pipeline.before.md>)。本文不宣称本次重新渲染或运行测试。
 > 入库策略：整个 `design/` 是 Git 忽略的本地美术工作区；源工程、交付序列和下列本地设计链接不随克隆取得。客户端最终 PNG/SVG、生成脚本和发布来源清单仍入库，普通构建/导出使用这些已有运行资源；完整重建前须另行备份并恢复本地设计输入。
 
@@ -38,9 +38,21 @@ S 的独立 `idle_current/` 是可选源序列，**当前 runtime 并未使用�
 python -B tools/grade-assets/compose_surface_current.py
 & 'Z:\blender\blender.exe' --background --python tools/grade-assets/render_grade_set.py
 python -B tools/grade-assets/package_grade_set.py
+
+# X / Ψ（文件键 Y），输出 v5_current_xy
+& 'Z:\blender\blender.exe' --background --python tools/grade-assets/render_grade_set.py -- --grade missing
+python -B tools/grade-assets/package_grade_set.py --grade missing
+python -B tools/grade-assets/review_missing_grades.py
+
+# D，输出 v5_current_d
+& 'Z:\blender\blender.exe' --background --python tools/grade-assets/render_grade_set.py -- --grade D
+python -B tools/grade-assets/package_grade_set.py --grade D
+python -B tools/grade-assets/review_missing_grades.py --grade D
 ```
 
-这些脚本会覆盖相应生成目录；有手工改动时先保存副本或使用脚本支持的其他输出目录。
+默认 `--grade all` 只覆盖旧五级，不能省略 `missing` 和 `D` 后声称已重建八级。渲染器支持 `--output`，合成器支持 `--source` / `--output`；仅渲染样片时不能直接执行要求完整 30 帧的交付合成。预览依赖 Pillow、NumPy、ffmpeg 与字体。
+
+这些脚本会覆盖相应生成目录；有手工改动时先保存副本或使用脚本支持的其他输出目录。生成的 delivery README 可能仍含制作当时的“待验收/未接入”文案，不能据它覆盖本页/验证记录中的当前状态。
 打包使用三个目录的已批准八级交付（Ψ 文件键为 Y），并抽取结算 Penpot vectors：
 
 ```powershell
@@ -67,9 +79,9 @@ ffmpeg -y -framerate 24 -i design/grades/v5_current/delivery/preview_frames/%04d
 
 ## 5. 保留的历史参考
 
-新补档 X / Ψ 的独立设计、重建命令与交付路径见 [X / Ψ 美术扩展](<grade-xy-art.md>)。
-其本地目录为 `design/grades/v5_current_xy/`；`--grade missing` 只生成这两档，待美术验收。
-低档 D 的独立交付见 [D 美术扩展](<grade-d-art.md>)，目录为 `design/grades/v5_current_d/`，使用 `--grade D`。
+新补档 X / Ψ 的独立设计、重建命令与交付路径见 [X / Ψ 美术扩展](<archive/art/2026-10-13-grade-xy-art.md>)。
+其本地目录为 `design/grades/v5_current_xy/`；`--grade missing` 只生成这两档。归档中的“待美术/实机验收”按制作当时解释，不覆盖 2026-10-14 的用户认可。
+低档 D 的独立交付见 [D 美术扩展](<archive/art/2026-10-13-grade-d-art.md>)，目录为 `design/grades/v5_current_d/`，使用 `--grade D`。
 
 | 目录/板组 | 状态 |
 | --- | --- |

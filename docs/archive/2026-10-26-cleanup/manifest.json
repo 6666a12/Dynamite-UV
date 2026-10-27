@@ -1,0 +1,193 @@
+{
+  "date": "2026-10-26",
+  "kind": "pre-documentation-cleanup",
+  "note": "Byte-preserving snapshots; relative links and factual claims are interpreted at originalPath and at the original date, not as current state. .snapshot files are not active Markdown.",
+  "files": [
+    {
+      "originalPath": "AGENTS.md",
+      "snapshotPath": "originals/AGENTS.md.snapshot",
+      "sha256": "833ba2f7fff8d65525cf09c627eb43e168258932d68ac3e7fd675a854abea6a3",
+      "bytes": 1756
+    },
+    {
+      "originalPath": "README.md",
+      "snapshotPath": "originals/README.md.snapshot",
+      "sha256": "4ef148d5f390d282228346c2198b1b81bd4ae1b653ffa0d462d08842f724b044",
+      "bytes": 6750
+    },
+    {
+      "originalPath": "editor/README.md",
+      "snapshotPath": "originals/editor/README.md.snapshot",
+      "sha256": "39eb37d56c0dce5fcbabe374bcdd80a7f76d1277ef1ec500a4a9af20b67553ab",
+      "bytes": 3101
+    },
+    {
+      "originalPath": "docs/blender-pipeline.md",
+      "snapshotPath": "originals/docs/blender-pipeline.md.snapshot",
+      "sha256": "0a424a7d213043690cd4bccb56613b03b29b1278356bf1ea750a3890a4ab6658",
+      "bytes": 7573
+    },
+    {
+      "originalPath": "docs/chart-format-v2.md",
+      "snapshotPath": "originals/docs/chart-format-v2.md.snapshot",
+      "sha256": "a85af591f06a28d1e7d122631dc3ef833e682fc3e3c6cde9059dda1f53c946d1",
+      "bytes": 36666
+    },
+    {
+      "originalPath": "docs/code-review-fix-handoff.md",
+      "snapshotPath": "originals/docs/code-review-fix-handoff.md.snapshot",
+      "sha256": "599ff5d5513e7bf6e94de0b435f3c7fcfb8084986b25dcc1e57965d2cd10cc86",
+      "bytes": 693
+    },
+    {
+      "originalPath": "docs/dyna-maker-uv.md",
+      "snapshotPath": "originals/docs/dyna-maker-uv.md.snapshot",
+      "sha256": "f1b1907272b95cc652bae1c9ce1f197a6783df4acd6518aafe25d6355ef9e1c6",
+      "bytes": 31305
+    },
+    {
+      "originalPath": "docs/editor-ui-design.md",
+      "snapshotPath": "originals/docs/editor-ui-design.md.snapshot",
+      "sha256": "00f1978b7cf042b82bb7bf85f0567d46166086f7934fd9d4a3d19a178248199c",
+      "bytes": 66595
+    },
+    {
+      "originalPath": "docs/gameplay-spec.md",
+      "snapshotPath": "originals/docs/gameplay-spec.md.snapshot",
+      "sha256": "8a8de190f3eae004dfb821f985a0cd268b012df9fdf2c138c167899765a42b66",
+      "bytes": 29419
+    },
+    {
+      "originalPath": "docs/grade-d-art.md",
+      "snapshotPath": "originals/docs/grade-d-art.md.snapshot",
+      "sha256": "a0ece2710f1c687914554571f9cac72d1bbc768c90e720463a34bea93e094435",
+      "bytes": 3897
+    },
+    {
+      "originalPath": "docs/grade-xy-art.md",
+      "snapshotPath": "originals/docs/grade-xy-art.md.snapshot",
+      "sha256": "7393ef2440db49baf05b9282ef304f9d58cb503d16470508960ec11eafee6574",
+      "bytes": 4665
+    },
+    {
+      "originalPath": "docs/handoff-editor-rebuild.md",
+      "snapshotPath": "originals/docs/handoff-editor-rebuild.md.snapshot",
+      "sha256": "7f4bbc4ac91aac5778655f8aff07b375a9459e2429d211edc25e9da90e1ab805",
+      "bytes": 560
+    },
+    {
+      "originalPath": "docs/handoff.md",
+      "snapshotPath": "originals/docs/handoff.md.snapshot",
+      "sha256": "ad02ad1a4c40e3433f07f3cdbfce4c5191ce98cf71c3834387fff54d2b4bf0b6",
+      "bytes": 39103
+    },
+    {
+      "originalPath": "docs/judgement-implementation-audit.md",
+      "snapshotPath": "originals/docs/judgement-implementation-audit.md.snapshot",
+      "sha256": "e44bb7f553730fe7a9dd82b45a860c9903c55ef837cafb238dc1c1bd61175382",
+      "bytes": 558
+    },
+    {
+      "originalPath": "docs/mixer-receiver.md",
+      "snapshotPath": "originals/docs/mixer-receiver.md.snapshot",
+      "sha256": "911a4329e174426f3b6eeefb82efb618470261a9ecbd33a0a50b2f1828f1f684",
+      "bytes": 3799
+    },
+    {
+      "originalPath": "docs/modularization-phase2.md",
+      "snapshotPath": "originals/docs/modularization-phase2.md.snapshot",
+      "sha256": "71bf8866762bdebd78b505b5da38ef41da4b864e9b897304d4843cbb2ff6e3ec",
+      "bytes": 6310
+    },
+    {
+      "originalPath": "docs/modularization-phase3.md",
+      "snapshotPath": "originals/docs/modularization-phase3.md.snapshot",
+      "sha256": "4af391d76b7c3c82188c462acf6954e2546d4e0774b88af7aec40ee93e335763",
+      "bytes": 7764
+    },
+    {
+      "originalPath": "docs/module-map.md",
+      "snapshotPath": "originals/docs/module-map.md.snapshot",
+      "sha256": "b04058dabf122426b9f04348dd8c0b9559cc9c2ee6386a0d908a8d2070eab4c0",
+      "bytes": 14134
+    },
+    {
+      "originalPath": "docs/note-colors-v2.md",
+      "snapshotPath": "originals/docs/note-colors-v2.md.snapshot",
+      "sha256": "d974e1651aeeec0936ce2fe87e791f30f588a308aa0770a813e11fddd2270b7e",
+      "bytes": 6042
+    },
+    {
+      "originalPath": "docs/original-judgement-analysis.md",
+      "snapshotPath": "originals/docs/original-judgement-analysis.md.snapshot",
+      "sha256": "66b76da512c2acad415392a23c111350f0a650ea220f85cacf86c052602f3c95",
+      "bytes": 35580
+    },
+    {
+      "originalPath": "docs/pixel-calibration.md",
+      "snapshotPath": "originals/docs/pixel-calibration.md.snapshot",
+      "sha256": "07de663e4a998add6212b3bb47effb20fa5d7ded6f9d72efef9b1b7db65bf98e",
+      "bytes": 2812
+    },
+    {
+      "originalPath": "docs/README.md",
+      "snapshotPath": "originals/docs/README.md.snapshot",
+      "sha256": "7eacf9f2f51b839df40467914dc92b73b03fb21ca1f6b0e655db20974f5e079b",
+      "bytes": 4582
+    },
+    {
+      "originalPath": "docs/releasing.md",
+      "snapshotPath": "originals/docs/releasing.md.snapshot",
+      "sha256": "ed8b89d74de79d4fe94db2d85736632b085b9146e99778a16dead74b018ec61d",
+      "bytes": 8840
+    },
+    {
+      "originalPath": "docs/result-v2-design.md",
+      "snapshotPath": "originals/docs/result-v2-design.md.snapshot",
+      "sha256": "1b9c5d7d48f78ea50dff2cb89c346eb15884280ea7efa22701dce730176677a5",
+      "bytes": 10111
+    },
+    {
+      "originalPath": "docs/runtime-architecture.md",
+      "snapshotPath": "originals/docs/runtime-architecture.md.snapshot",
+      "sha256": "8a97372fbdcf069deff48ba1f7791f77aee5fe0d3e1b56a9c75d023d33877364",
+      "bytes": 9789
+    },
+    {
+      "originalPath": "docs/storyboard-editor-proposal.md",
+      "snapshotPath": "originals/docs/storyboard-editor-proposal.md.snapshot",
+      "sha256": "46a941825c2e723ca6a496e7d7e8003abbeef66552f82e739e67d02415e7a189",
+      "bytes": 14788
+    },
+    {
+      "originalPath": "docs/ui-motion.md",
+      "snapshotPath": "originals/docs/ui-motion.md.snapshot",
+      "sha256": "322905a27c9d9707ba98fc80e9a9307621a06b5417290d24d891e81b6673b14c",
+      "bytes": 24478
+    },
+    {
+      "originalPath": "docs/video-geometry-analysis.md",
+      "snapshotPath": "originals/docs/video-geometry-analysis.md.snapshot",
+      "sha256": "3e2d3b37daf671180783d526f8b4ff94e42985a44a38db2d5fa48797548772a3",
+      "bytes": 4388
+    },
+    {
+      "originalPath": "docs/workspace-inventory-2026-10-14.md",
+      "snapshotPath": "originals/docs/workspace-inventory-2026-10-14.md.snapshot",
+      "sha256": "1487d4ae45328af33ce5b4364e2cd5eeac60cfc67ae2b9ebcad40663dcbf32cb",
+      "bytes": 15232
+    },
+    {
+      "originalPath": "docs/archive/README.md",
+      "snapshotPath": "originals/docs/archive/README.md.snapshot",
+      "sha256": "3519eafc5cc52e2990b30e87f9da1e953995d2b7a23f64c6dced64b1ea93cf00",
+      "bytes": 2254
+    },
+    {
+      "originalPath": "docs/archive/2026-10-07-cleanup/README.md",
+      "snapshotPath": "originals/docs/archive/2026-10-07-cleanup/README.md.snapshot",
+      "sha256": "e5522ecbb4363ab40e8b4db5ffcfb4a87559f94a4c67fca23c0114f8cfd83f28",
+      "bytes": 2249
+    }
+  ]
+}

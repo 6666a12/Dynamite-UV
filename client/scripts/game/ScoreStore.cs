@@ -1,4 +1,5 @@
 using Godot;
+using DynamiteUniverse.Game;
 using DynamiteUniverse.Shared.Score;
 
 namespace DynamiteUniverse;
@@ -52,8 +53,8 @@ public sealed class ScoreStore
     {
         try
         {
-            using var file = Godot.FileAccess.Open(SavePath, Godot.FileAccess.ModeFlags.Write);
-            file.StoreString(_core.SaveJson());
+            SettingsFilePersistence.Write(
+                ProjectSettings.GlobalizePath(SavePath), _core.SaveJson());
         }
         catch (Exception e)
         {

@@ -1,11 +1,12 @@
 # DynaMaker UV
 
 独立的 **Godot 4.7.1 Mono/.NET、C# / net9.0** Windows 桌面制谱器，不是游戏主菜单的“谱面工坊”，
-也不进入 Android APK。
+也不进入 Android APK。直接依赖 [shared](<../shared/>)、[presentation](<../presentation/>) 与
+[ChartEditor.Core](<../tools/chart-editor-core/>)，不引用 client 项目或链接 client 源码。
 
-**当前实现范围统一以 [DynaMaker UV 当前说明](<../docs/dyna-maker-uv.md>) 为准。**
-该说明基于 **2026-10-07 静态代码核对**，不是新的构建/测试通过记录；
-旧实现与历史验证见[历史归档索引](<../docs/archive/README.md>)。
+**详细能力、使用说明、UI 决策与已知边界只在 [DynaMaker UV 当前说明](<../docs/dyna-maker-uv.md>)维护。**
+该说明已按 **2026-10-26 工作区静态源码核对**更新；本页能力核对没有构建、C# 回归、启动 Godot 或实机验证。
+验证记录与复验流程见[验证状态与操作](<../docs/verification.md>)，阶段原文见[归档索引](<../docs/archive/README.md>)，不作为当前工作区通过声明。
 
 ## 构建与启动
 
@@ -22,22 +23,14 @@ taskkill /F /IM Godot_v4.7.1-stable_mono_win64.exe
 & "..\godot\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe" --path editor
 ```
 
-在 Start 页通过 **OPEN PACKAGE 大卡 → 选择 strict v2 包目录 → 路径行的 OPEN** 打开本地包，
-或用 NEW PROJECT 创建内存草稿。页面为 Start / Pack / Create / Edit / Settings；
-Settings 由 Start 页右下的 `SETTINGS` 文字键或 Edit 右键菜单的 `SETTINGS` 行进入（BACK 各回其处），
-行与控件按设计稿 `settings_board()` 自绘，真接点是 MOTION、DEFAULT GRID、SNAP、GRID OPACITY、BACKGROUND DIM，
-值写在 `user://editor-settings.json`；EFFECTS / AUTO SAVE / AUDIO 三组按占位惯例 55% 压暗且不响应。
-Pack 页按设计稿重建（`editor/scripts/PackPageOverlay.cs`）：左列当前包 + `IMPORT PACKAGE` 换包，
-右侧真实封面 / NO COVER 占位、难度 chips 与 DIGEST 盾标，差分行点选后由 `OPEN IN EDITOR` 进 Edit，
-底部状态行只放真实数据（难度 + 等级 + 主判定数，没有时长探测）。
-Create 页同样按设计稿落地（`editor/scripts/CreatePageOverlay.cs`）：AUDIO / METADATA / TIMING / FIRST CHART /
-COVER / MEMORY DRAFT 六块面板 + 底部操作条；BPM、音频偏移与可选封面已接进 draft 请求（默认 150 / 0 / 无封面），
-等级是 1..99 的十进制块编码控件（步进钳制、非法值红框拒绝、unrated 不出块）；中缝是实时前置校验，
-不过时禁用 `CREATE PACKAGE` 并写出原因。
-**保存已接通**：右键 SAVE 或 `Ctrl+S` 保存到当前包目录（未落盘草稿先选目标目录并首次创建），
-右键 SAVE AS 或 `Ctrl+Shift+S` 另存到新目录；**ZIP/XML/DY 导出仍未接入，
-Preview 仅为计时视觉预览，没有音频播放**。
-不要将现有菜单占位或共享写包底层能力当作已完成的功能。
+## 打开与能力速览
+
+- Start 页 **OPEN PACKAGE 大卡 → 选择 strict v2 包目录 → 路径行 OPEN/回车**；也可粘贴/拖入目录后确认。不要用旧工作台参数。
+- **NEW PROJECT** 创建内存草稿；Pack 页选差分后由 **OPEN IN EDITOR** 进入 Edit。
+- 右键 **SAVE** / `Ctrl+S` 已接保存（草稿先选目标目录）；**SAVE AS** / `Ctrl+Shift+S` 另存。新建/编辑不会自动写盘。
+- 当前有 Tap/Drag/两阶段 Hold/Select、BPM 添加/选择、既有路径节点编辑与撤销/重做；完整类型/属性工具及 ZIP/XML/DY 导出未完成。
+- Settings 的七项真接点为 MOTION、UI SCALE、DEFAULT GRID、SNAP、GRID OPACITY、BACKGROUND DIM、SCROLL INERTIA；EFFECTS / AUTO SAVE / AUDIO 仍占位。
+- **Preview 只有计时与舞台视觉，没有真实音乐/击音、波形或音频 mixer；Storyboard 未实现。** 保存音频格式、失败边界、快捷键差异与完整 UI 细节均见[当前说明](<../docs/dyna-maker-uv.md>)，不要由菜单或底层支持推定可用。
 
 ## 许可与发布
 

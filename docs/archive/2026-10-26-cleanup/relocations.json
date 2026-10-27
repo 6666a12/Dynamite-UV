@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-26",
+  "files": [
+    {
+      "originalPath": "docs/modularization-phase2.md",
+      "archivePath": "docs/archive/reports/2026-10-25-modularization-phase2.md",
+      "originalSha256": "71bf8866762bdebd78b505b5da38ef41da4b864e9b897304d4843cbb2ff6e3ec",
+      "archiveSha256": "512347c68727710e54e75f42e50eddefae06d46b129e398794e72681c7646dfa",
+      "rawBytesPreserved": false
+    },
+    {
+      "originalPath": "docs/modularization-phase3.md",
+      "archivePath": "docs/archive/reports/2026-10-25-modularization-phase3.md",
+      "originalSha256": "4af391d76b7c3c82188c462acf6954e2546d4e0774b88af7aec40ee93e335763",
+      "archiveSha256": "499a024e7db6d045e5fc55906646f1b74ca7c5b9674c481e6504aae37e25e5c2",
+      "rawBytesPreserved": false
+    },
+    {
+      "originalPath": "docs/workspace-inventory-2026-10-14.md",
+      "archivePath": "docs/archive/checkpoints/2026-10-14-workspace-inventory.md",
+      "originalSha256": "1487d4ae45328af33ce5b4364e2cd5eeac60cfc67ae2b9ebcad40663dcbf32cb",
+      "archiveSha256": "91a1118aa07f7cf7b8dc5d557e1902de6b87279997e24862d76a0c7a9909c606",
+      "rawBytesPreserved": false
+    },
+    {
+      "originalPath": "docs/grade-d-art.md",
+      "archivePath": "docs/archive/art/2026-10-13-grade-d-art.md",
+      "originalSha256": "a0ece2710f1c687914554571f9cac72d1bbc768c90e720463a34bea93e094435",
+      "archiveSha256": "c3e38b107a786c7412f3dbadefbcf4957243cd17f673f708e8c7d0f3b995bc82",
+      "rawBytesPreserved": false
+    },
+    {
+      "originalPath": "docs/grade-xy-art.md",
+      "archivePath": "docs/archive/art/2026-10-13-grade-xy-art.md",
+      "originalSha256": "7393ef2440db49baf05b9282ef304f9d58cb503d16470508960ec11eafee6574",
+      "archiveSha256": "0934c6d8a059fc696cdbc7487e17c7c05d1033cb3f92be3befa37d6283cf77e5",
+      "rawBytesPreserved": false
+    },
+    {
+      "originalPath": "docs/storyboard-editor-proposal.md",
+      "archivePath": "docs/archive/proposals/storyboard-editor-proposal.md",
+      "originalSha256": "46a941825c2e723ca6a496e7d7e8003abbeef66552f82e739e67d02415e7a189",
+      "archiveSha256": "eb8e979c35c42bfdfd71e42fb96d05d4dec054cdcfc397ac93a34c4db062491e",
+      "rawBytesPreserved": false
+    },
+    {
+      "originalPath": "result.json",
+      "archivePath": "docs/archive/reports/undated-code-review.json",
+      "originalSha256": "7f13333aac67bc3e787140e0992824cf2eb3e4f36269ec12548e47fe8efdf327",
+      "archiveSha256": "7f13333aac67bc3e787140e0992824cf2eb3e4f36269ec12548e47fe8efdf327",
+      "rawBytesPreserved": true
+    }
+  ]
+}

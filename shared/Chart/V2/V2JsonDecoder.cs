@@ -128,8 +128,16 @@ public static class V2JsonDecoder
                 CommentHandling = JsonCommentHandling.Disallow,
                 MaxDepth = 128,
             });
-            ValidateJsonTree(document.RootElement, sourceName, "");
-            return document;
+            try
+            {
+                ValidateJsonTree(document.RootElement, sourceName, "");
+                return document;
+            }
+            catch
+            {
+                document.Dispose();
+                throw;
+            }
         }
         catch (V2DiagnosticException)
         {

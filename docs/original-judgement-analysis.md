@@ -636,7 +636,7 @@ Mixer、Mine 与基础判定窗。
 
 ## 11. 与社区版现状的差异
 
-> 社区实现摘要于 2026-10-13 静态同步；原版证据/地址未因文档整理改变。
+> 社区实现摘要于 2026-10-26 静态校正池化/精确锁描述；本次未复验原版研究、原版证据/地址不变。最新构建与用户反馈见 [验证记录](<verification.md>)，不据本节推定设备已验收。
 > 原版每帧重算 Holding interval 的研究结论不等于社区 Hold 宽限策略；社区采用首次断触冻结 deadline，见 [v2 合同](<chart-format-v2.md>)。
 
 | 项目 | 原版 | 社区版当前实现 | 判断 |
@@ -650,10 +650,10 @@ Mixer、Mine 与基础判定窗。
 | Drag/Chain | phase 分段的连续接触 | Prefect/2 phase 分段 + 空间接触 | 已落地 |
 | Mine | 精确范围、到点前短危险窗 | Prefect/4 phase 分段、到点安全 Prefect | 已落地 |
 | Hold | 实时条体插值 + 动态断触宽限 + Holding tick + 按 release 时刻尾判 | 左右缘插值、首次断触冻结宽限、实际路径节点主判定、按 release 时刻尾判 | 主体参考原版；节点计数与冻结策略按社区 v2 合同 |
-| Hold Body 裁剪 | 固定拓扑，推进首截面并退化旧截面 | 每个 `NoteLink` 独立裁四边形，整段过线即 `QueueFree` | 视觉目标接近，拓扑与生命周期不同 |
+| Hold Body 裁剪 | 固定拓扑，推进首截面并退化旧截面 | `NoteLink` 分段裁剪，结束后归还连接体池 | 视觉目标接近，拓扑与池化生命周期不同 |
 | Mixer | 用户确认可放置、松手保持、八分宽限；另有 Holding 命中率尾判 | 可放置接收头、实际音乐时间宽限、每 1/8 bar 主判定、无额外尾判 | 宽限边界/多指优先级为社区决策，待实机验证 |
 | Mixer 视觉结构 | Body/Tail 与动态 Slider 头分离 | Body 连接段与运行时头分离 | 结构方向一致；Tail 拓扑和精确回收帧不同 |
-| 判定后生命周期 | OnJudged、视觉退休、Entity Dispose 分阶段 | Tap/Drag 等命中时立即 `QueueFree` 本体 | 明确不同；逻辑判定不受影响，视觉节奏可能受影响 |
+| 判定后生命周期 | OnJudged、视觉退休、Entity Dispose 分阶段 | Tap/Drag 等命中本体当帧消失，视图归池、判定线残影独立维护 | 社区生命周期不同，不能用回收方式推定原版视觉节奏 |
 | Miss 状态 | AutoMiss / 输入 Miss 分开 | `JudgeResolution` 分源，界面仍映射四档 | 已落地 |
 | Combo | 含 Holding tick，300 连击倍率封顶 | 所有社区主判定（含 Hold 路径节点与 Mixer 八分点）进入 Combo，无倍率 | 社区决策 + 差异 |
 | CLEAR | 主判定 100/70/50 权重 | raw score / 理论满分 | 产品口径不同 |
@@ -673,7 +673,7 @@ GameplayMain 输入适配与逐触点状态
 ```
 
 `OriginalJudgeMath` 单独保存原版 Combo/raw score/CLEAR 数学，不接入社区版百万分数和主
-Combo。现有 clean-room 回归代码包含窗口、BPM、phase/空间、sustain、毫秒目标锁、
+Combo。现有 clean-room 回归代码包含窗口、BPM、phase/空间、sustain、精确 double 同刻批次锁、
 Hold release 冻结 deadline、计分/身份和结算时间线；官方开发语料需显式启用，不是默认测试依赖。
 本次文档清理没有重跑测试；历史阶段结果见 [归档](<archive/README.md>)。
 

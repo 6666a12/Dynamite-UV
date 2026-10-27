@@ -191,7 +191,7 @@ public partial class AuthoringCanvas
 
     /// <summary>草稿的真实落点中心：吸附锚点决定宽度对称展开，但贴轨边时左缘被钳住，
     /// 提交用的中心会与锚点不同，所以读数与对齐判定都取这个值（与 <c>CommitDraft</c> 同一个算式）。</summary>
-    private static double DraftAnchorCenter(Draft draft) => draft.Center + draft.Width * .5d;
+    private static double DraftAnchorCenter(CanvasPlacementDraft draft) => draft.Center + draft.Width * .5d;
 
     /// <summary>幽灵 Note 的虚线描边（实色渐变由 shared 渲染器的 ghost 层给出，这里只补描边）：
     /// 切角多边形与 NoteView 着色器的切角同源，描边 dasharray 9 6、75% 不透明。</summary>
@@ -207,7 +207,7 @@ public partial class AuthoringCanvas
     /// 贴在幽灵上方；时间贴在时间线旁——吸附态是分数式 BarTime，时间自由态显示原始小数小节。
     /// 中轨按设计板几何（位置线两侧 ±22px、时间读数在中心轨左缘上方）；侧轨没有板面几何，
     /// 三个读数沿判定线外侧的空档竖排。</summary>
-    private void DrawDraftReadouts(CanvasItem target, Draft draft, Rect2 head, Color accent)
+    private void DrawDraftReadouts(CanvasItem target, CanvasPlacementDraft draft, Rect2 head, Color accent)
     {
         var positionText = EditorPlacementGuide.ValueText(DraftAnchorCenter(draft));
         var widthText = EditorPlacementGuide.ValueText(draft.Width);
@@ -246,7 +246,7 @@ public partial class AuthoringCanvas
     /// <summary>宽度拖拽指示（阶段 1）：从幽灵中心到光标的双向箭头线（沿宽度轴，两端箭头向外、
     /// 中段一根刻度）+ 光标十字。箭头只量宽度轴的位移，时间轴分量不参与，所以箭头保持轴向；
     /// 光标十字标在真实指针上（设计板那一帧两者重合）。</summary>
-    private void DrawWidthDragCue(CanvasItem target, Draft draft, Rect2 head)
+    private void DrawWidthDragCue(CanvasItem target, CanvasPlacementDraft draft, Rect2 head)
     {
         var origin = head.Position + head.Size * .5f;
         var cursor = _pointerPoint;
@@ -284,7 +284,7 @@ public partial class AuthoringCanvas
     /// <summary>Hold 拖尾预览（设计板 <c>HOLD · TAIL DRAG</c>）：从头沿时间轴到尾部时间的虚线
     /// 路径预览 + 尾端 20px 虚线菱形幽灵。头部在这一阶段是已放置实体外观，body 由前景层的虚线
     /// 预览代表，共享渲染器不画链接（见 <c>RefreshGameplayStage</c>）。</summary>
-    private void DrawHoldTailPreview(CanvasItem target, Draft draft, Rect2 head, Color accent)
+    private void DrawHoldTailPreview(CanvasItem target, CanvasPlacementDraft draft, Rect2 head, Color accent)
     {
         var side = draft.Side;
         var tail = NoteRect(side, draft.EndTime, draft.Center, draft.Width, NodeRuntimeType(draft.Kind));

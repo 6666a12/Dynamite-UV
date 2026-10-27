@@ -1,0 +1,14 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RollForward>LatestMajor</RollForward>
+    <RootNamespace>DynamiteUniverse.Presentation</RootNamespace>
+    <AssemblyName>DynamiteUniverse.Presentation</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../shared/DynamiteUniverse.Shared.csproj" />
+  </ItemGroup>
+</Project>

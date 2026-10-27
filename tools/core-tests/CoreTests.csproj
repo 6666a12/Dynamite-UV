@@ -11,10 +11,19 @@
   <ItemGroup>
     <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
     <!-- The result clock is deliberately Godot-free: verify opaque loading/skip semantics. -->
-    <Compile Include="../../client/scripts/ui/UiMotionMode.cs" Link="Ui/UiMotionMode.cs" />
+    <Compile Include="../../presentation/ui/UiMotionMode.cs" Link="Ui/UiMotionMode.cs" />
     <Compile Include="../../client/scripts/ui/ResultRevealTimeline.cs" Link="Ui/ResultRevealTimeline.cs" />
     <!-- The calibration statistics core is Godot-free too: verify median/spread/suggestion. -->
     <Compile Include="../../client/scripts/ui/CalibrationStats.cs" Link="Ui/CalibrationStats.cs" />
+    <!-- Calibration sampling owns the tap state machine without Godot: verify warmup/sampling rules. -->
+    <Compile Include="../../client/scripts/ui/CalibrationSampling.cs" Link="Ui/CalibrationSampling.cs" />
+    <!-- Palette editing transactions and snapshots are intentionally independent of Godot. -->
+    <Compile Include="../../client/scripts/ui/NotePaletteDraft.cs" Link="Ui/NotePaletteDraft.cs" />
+    <Compile Include="../../client/scripts/ui/SongBrowseState.cs" Link="Ui/SongBrowseState.cs" />
+    <Compile Include="../../client/scripts/ui/SongCardMotion.cs" Link="Ui/SongCardMotion.cs" />
+    <Compile Include="../../client/scripts/ui/UiEase.cs" Link="Ui/UiEase.cs" />
+    <!-- Detail request generation and single in-flight loading are Godot-free too. -->
+    <Compile Include="../../client/scripts/ui/SongDetailRequest.cs" Link="Ui/SongDetailRequest.cs" />
     <None Include="Fixtures/synthetic_chart.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />

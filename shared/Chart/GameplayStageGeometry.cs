@@ -8,18 +8,25 @@ public static class GameplayStageGeometry
     public const float DesignWidth = 1920f;
     public const float DesignHeight = 1080f;
     public const float CenterLineY = 861f;
+    public const float CenterTrackX = 960f;
     public const float CenterX0 = 280f;
     public const float CenterUnitPx = 273.2f;
     public const float LeftLineX = 184f;
     public const float RightLineX = 1736f;
     public const float SideY0 = 840f;
     public const float SideUnitPx = 115f;
-    public const float SideDistanceScale = .75f;
+    public const float SidePositionUnitPx = 190f;
+    public const float SideNoteLengthUnitPx = 102f;
+    public const float SideVisibleTravelPx = 691f;
+    public const float TravelPx = 790f;
+    public const float SideDistanceScale = SideVisibleTravelPx / TravelPx;
+    public const float SideLeadPx = TravelPx;
     public const float NoteVisualScale = .95f;
-    public const float CenterPreviewTravelPx = 790f;
+    public const float BaseFallSpeedPx = 1026f;
+    public const float CenterPreviewTravelPx = TravelPx;
     // Side coordinates are projected by SideDistanceScale, so this produces
     // the frozen 691px visible run at the left/right judgement rails.
-    public const float SidePreviewTravelPx = 691f / SideDistanceScale;
+    public const float SidePreviewTravelPx = TravelPx;
 
     public static float PreviewTravelPx(Track track) =>
         track == Track.Center ? CenterPreviewTravelPx : SidePreviewTravelPx;
