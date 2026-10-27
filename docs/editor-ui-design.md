@@ -229,7 +229,7 @@ HUD/结算明确标“不计成绩”；F1 仍可能是独立编辑器的预览�
   选中行，途中点别的行从半截高度干净反向）；`MOTION` 非 Full 时保持瞬时切换。
 - 切歌/切难度时卡内曲名/曲师/谱师 0.08s 淡出→换文→0.12s 淡入（换文由代际守卫，快速连切
   不会写回旧文本）；封面在谱面就绪后从 0 淡入 0.15s；`MOTION = OFF` 全部瞬时。
-- client 侧 hover 统一 0.10s 过渡：共享原语 `client/scripts/ui/UiHoverFade.cs`（与编辑器
+- client 侧 hover 统一 0.10s 过渡：共享原语 `client/scripts/ui/common/UiHoverFade.cs`（与编辑器
   `EditorMotion.HoverFade` 同思路；SongRow/CutButton 原 0.16s `HoverDuration` 已归一到
   `UiHoverMotion.Seconds`），覆盖曲库行、MODE 行、全部设置行、CutButton、预览传输键；
   `MOTION = OFF` 瞬时。
@@ -267,7 +267,7 @@ HUD/结算明确标“不计成绩”；F1 仍可能是独立编辑器的预览�
 封面居中 + 四角电缆充电释放；标题组 y=840/900。客户端实现以 `TransitionOverlay.cs` 为准。
 之前的左封面 / Relay 汇聚信号场方案已废弃。三块板共用同一套构图，只切换充电相位（充电 → 锁定 → 放电）。
 
-`Game — Signal Lock` 的**布局权威是 `client/scripts/ui/TransitionOverlay.cs`**（程序化绘制，非自由设计）；
+`Game — Signal Lock` 的**布局权威是 `client/scripts/ui/transitions/TransitionOverlay.cs`**（程序化绘制，非自由设计）；
 它按该文件的 `Label.Position` 取**左上角**锚点，所以用 top-anchored 的 `ttxt/rtxt_t`。
 handoff 三板（Track Handoff / Lock / Discharge）是**重做的新设计**，不再照搬源码坐标——只有
 `TRACK HANDOFF` / `CONTEXT LOCKED` 两个角标题沿用左上角锚点，其余文案一律居中锚定（`ctxt`）。
@@ -330,7 +330,7 @@ Signal Lock 与 handoff 三板原样保留。
   一律按仓库既有约定编码为 **2**；`ls 1 / ls 2 / ls 3 …` 照整数直取。不要去改板面的 ls 值来迁就
   实现，也不要为半像素字距另造逐字绘制。
 - **正文字重与字号偏差（2026-10-08 拍板）**：编辑器正文从 SpaceGrotesk Regular 升到 **Medium**，
-  设计稿字号统一经 `editor/scripts/EditorFonts.cs` 的 `Pt()` 先加一档（≤13 +2、14–18 +1、>18 不变）、
+  设计稿字号统一经 `editor/scripts/common/EditorFonts.cs` 的 `Pt()` 先加一档（≤13 +2、14–18 +1、>18 不变）、
   再乘用户可调的 **UI SCALE** 档（90 / 100 / 110 / 125%，默认 100% = 只加这一档），
   `UiFonts.TechBold` 等强调字不动。原因是编辑器视口固定 1920×1080 但窗口开 1600×900
   （`canvas_items` 等比缩放打 0.833 折），物理像素上字偏小，而 Regular 又偏细，实测可读性差。
@@ -345,12 +345,12 @@ Signal Lock 与 handoff 三板原样保留。
   Mixer 装饰条 y=620/642 跨 x=675..1244、中心轨 x=280+273.2·(P+W/2)、侧轨 x=184+剩余·k /
   1736−剩余·k（k=SideDistScale，当前保留 691/790≈0.8747，2026-10-17 用户实机反馈基本通过）、侧轨 y=840−115·(P+W/2)、Note 视觉缩放 0.95（`GameplayStageGeometry`）。
 - **hover 统一过渡（2026-10-08 拍板）**：全部 hover 可点元素从瞬时换色改为约 0.10s 的颜色
-  lerp（共享 helper `editor/scripts/EditorMotion.cs`：`HoverFade` 单值版给 hotspot 少而固定的
+  lerp（共享 helper `editor/scripts/common/EditorMotion.cs`：`HoverFade` 单值版给 hotspot 少而固定的
   页面，`HoverFadeMap` 键值版给动态/大量 hotspot 的页面；时长集中在 `HoverMotion.Seconds`），
   端点色与原瞬时 hover 一致，只有中间过程平滑；`MOTION=OFF`（设置真源）时推进直接跳终值。
   各页面在自己的 `_Process` 里推进、全部到终值即 `SetProcess(false)`，不空转；右键菜单 Open
   重建元素列表时 hover 值表整体清空（下标含义全变，残留值会画到错误元素上）。
-  client 侧同口径原语是 `client/scripts/ui/UiHoverFade.cs`（0.10s 同源），覆盖范围见 §2.1。
+  client 侧同口径原语是 `client/scripts/ui/common/UiHoverFade.cs`（0.10s 同源），覆盖范围见 §2.1。
   token 已落 `ui-motion.md` §3.1 `--t-hover`（100/100/0ms）。
 - **窗口拖放接线（2026-10-08 拍板）**：`GetWindow().FilesDropped` 在 shell（`StandaloneEditorMain`）
   接一次，按当前页面路由——Start 页只收目录（回填路径行、不直接打开，与 BROWSE 卡同语义），
@@ -372,7 +372,7 @@ CURVE/JUDGE/DELETE NODE 行已在 2026-10-07 接入（未实现的行按占位�
 （节点菜单 ADD NODE 因此改为真实动作，文案从 `ADD NODE · DBL-CLICK PATH` 改成 `ADD NODE · AT CURSOR`，
 它按游标插入而不是单纯提示手势）；手柄的「沿路径依次点亮」stagger 仍是动效目标，当前静态全部显示。
 **放置手势视觉**（§4 第 9、10 条，设计板 `Editor — Placing`）在 2026-10-08 接入
-`editor/scripts/AuthoringCanvasPlacement.cs`：导引十字线 + 线上三读数 + 虚线幽灵描边 + 阶段 1 的宽度
+`editor/scripts/authoring/AuthoringCanvasPlacement.cs`：导引十字线 + 线上三读数 + 虚线幽灵描边 + 阶段 1 的宽度
 双向箭头与光标十字 + 阶段标签；Hold 拖尾阶段头保持已放置实体外观、body 改由虚线拖尾预览 + 尾端虚线
 菱形表示；同轨已放对象锚点的 26×26 对齐提示方块（蓝/红/品红，搬运中转白）也一并接入。
 `ui-motion` §9.1 的「跨 0.05 档缘边亮闪」与放置提交确认的打击爆发仍是动效目标，本轮不做。
@@ -448,13 +448,13 @@ Pack 板的实现边界与偏差（状态行省略时长、
    左导航 GENERAL/EDITOR/AUDIO 三组。v1 内容：Motion 三档（与客户端同语义）、
    特效质量、自动保存、默认网格/吸附、网格与背景压暗、试听音量/节拍器/打击音。
    视觉沿用客户端设置页语言。
-   **已落地（2026-10-08）**：`editor/scripts/SettingsPageOverlay.cs` 按 §3 语言整页自绘，
+   **已落地（2026-10-08）**：`editor/scripts/pages/SettingsPageOverlay.cs` 按 §3 语言整页自绘，
    三组行与控件几何取 `.tmp/penpot_build4.py` 的 `settings_board()`。
    真接点七项——MOTION（关闭编辑器自己的淡入）、UI SCALE（正文字号倍率四档，见 §4 第 15 条）、
    DEFAULT GRID（新草稿与当前文档的网格分母）、
    SNAP（画布空间吸附步长）、GRID OPACITY（三档网格不透明度倍率）、BACKGROUND DIM
    （`GameplayBackdrop` 的 `Modulate` RGB 压暗）、SCROLL INERTIA（滚轮惯性强度，见 §4 第 14 条），
-   值落在 `editor/scripts/EditorSettings.cs`
+   值落在 `editor/scripts/common/EditorSettings.cs`
    （`user://editor-settings.json`），RESET DEFAULTS 回默认并落盘。
    EFFECTS、AUTO SAVE、AUDIO 三组没有实现可接，按设计稿示例值画 55% 占位、不响应交互，
    值也不进设置模型。相对板面的取值偏差：默认网格取 1/16（= 编辑器既有默认，板面示例是 1/32）、
@@ -543,7 +543,7 @@ Pack 板的实现边界与偏差（状态行省略时长、
     - **为什么是 90–125 这个窄区间**：编辑器几何全是设计稿的固定坐标，字号只改字的像素高度、
       **不缩放布局**（没有等比缩放画布）。125% 时最大的标题字已经贴住它那行固定的框，再往上就是顶框
       而不是更好读；90% 以下则把最小档（修正后 8–10px）压到看不清，失去这项设置的意义。
-    - **两个读取面与立即生效机制**（重点，见 `editor/scripts/EditorFonts.cs`）：
+    - **两个读取面与立即生效机制**（重点，见 `editor/scripts/common/EditorFonts.cs`）：
       ① **Control 侧**（Label / LineEdit / Button 的 `font_size` theme override）设一次就固定，
       所以统一走 `EditorFonts.ApplySize(control, designSize)`——设 override 并登记 `(控件, 设计稿字号)`；
       换档时 `ReapplySizes()` 重放全部登记项。登记的是**设计稿字号**而不是换算结果，否则注册表会把

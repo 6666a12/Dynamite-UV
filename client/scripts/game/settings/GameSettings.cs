@@ -1,5 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using DynamiteUniverse.Shared.Judge;
 using DynamiteUniverse.Ui;
 using Godot;
@@ -136,32 +134,8 @@ public sealed class GameSettings
         try
         {
             using var f = Godot.FileAccess.Open(SavePath, Godot.FileAccess.ModeFlags.Read);
-            var data = JsonSerializer.Deserialize<SettingsData>(f.GetAsText());
-            if (data != null)
-            {
-                TimingOffsetMs = data.TimingOffsetMs;
-                FallSpeedLevel = data.FallSpeedLevel;
-                MusicVolume = data.MusicVolume;
-                HitVolume = data.HitVolume;
-                UiVolume = data.UiVolume;
-                // 旧存档只有 gameplayEffectsEnabled：缺失新档位时按布尔迁移（false → OFF）。
-                HitEffectLevel = data.HitEffectLevel.ValueKind == JsonValueKind.Undefined
-                    ? data.GameplayEffectsEnabled == false ? HitEffectLevel.Off : HitEffectLevel.Full
-                    : ParseHitEffectLevel(data.HitEffectLevel);
-                NoteBrightnessPercent = data.NoteBrightnessPercent;
-                FlashIntensityPercent = data.FlashIntensityPercent;
-                HitResidualMs = data.HitResidualMs;
-                JudgeTextEnabled = data.JudgeTextEnabled;
-                MotionMode = ParseMotionMode(data.MotionMode);
-                GameplayMode = ParseGameplayMode(data.GameplayMode);
-                AutoEnabled = data.AutoEnabled;
-                BleedEnabled = data.BleedEnabled;
-                MirrorEnabled = data.MirrorEnabled;
-                CalibrationTargetSamples = data.CalibrationTargetSamples;
-                ActiveNotePaletteIndex = data.ActiveNotePalette;
-                BurstColorFollowsNote = data.BurstColorFollowsNote;
-                ApplyNotePalettes(data.NotePalettes);
-            }
+            var snapshot = GameSettingsCodec.Decode(f.GetAsText());
+            ApplySnapshot(snapshot);
         }
         catch (Exception e)
         {
@@ -180,34 +154,8 @@ public sealed class GameSettings
         ClampValues();
         try
         {
-            var json = JsonSerializer.Serialize(new SettingsData
-            {
-                TimingOffsetMs = TimingOffsetMs,
-                FallSpeedLevel = FallSpeedLevel,
-                MusicVolume = MusicVolume,
-                HitVolume = HitVolume,
-                UiVolume = UiVolume,
-                MotionMode = JsonSerializer.SerializeToElement(SerializeMotionMode(MotionMode)),
-                GameplayEffectsEnabled = HitEffectLevel != HitEffectLevel.Off,
-                HitEffectLevel = JsonSerializer.SerializeToElement(SerializeHitEffectLevel(HitEffectLevel)),
-                NoteBrightnessPercent = NoteBrightnessPercent,
-                FlashIntensityPercent = FlashIntensityPercent,
-                HitResidualMs = HitResidualMs,
-                JudgeTextEnabled = JudgeTextEnabled,
-                GameplayMode = JsonSerializer.SerializeToElement(SerializeGameplayMode(GameplayMode)),
-                AutoEnabled = AutoEnabled,
-                BleedEnabled = BleedEnabled,
-                MirrorEnabled = MirrorEnabled,
-                CalibrationTargetSamples = CalibrationTargetSamples,
-                ActiveNotePalette = ActiveNotePaletteIndex,
-                BurstColorFollowsNote = BurstColorFollowsNote,
-                NotePalettes = NotePalettes.Select((slot, index) => new NotePaletteData
-                {
-                    Name = slot.IsEmpty ? "" : NotePalette.NormalizeName(slot.Name, index),
-                    Empty = slot.IsEmpty,
-                    Colors = IndexColors(slot),
-                }).ToList(),
-            }, new JsonSerializerOptions { WriteIndented = true });
+            var json = GameSettingsCodec.Encode(CreateSnapshot());
+
             SettingsFilePersistence.Write(ProjectSettings.GlobalizePath(SavePath), json);
             return true;
         }
@@ -257,27 +205,94 @@ public sealed class GameSettings
         NormalizeNotePalettes();
     }
 
-    /// <summary>把读到的配色槽并回运行时列表；缺字段的槽按空槽处理，颜色解析失败保留工厂色。</summary>
-    private void ApplyNotePalettes(List<NotePaletteData>? data)
+    private void ApplySnapshot(GameSettingsSnapshot snapshot)
     {
-        NotePalettes.Clear();
-        for (var i = 0; i < NotePalette.SlotCount; i++)
+        TimingOffsetMs = snapshot.TimingOffsetMs;
+        FallSpeedLevel = snapshot.FallSpeedLevel;
+        MusicVolume = snapshot.MusicVolume;
+        HitVolume = snapshot.HitVolume;
+        UiVolume = snapshot.UiVolume;
+        MotionMode = snapshot.MotionMode switch
         {
-            var slot = NotePalette.CreateFactory(NotePalette.DefaultName(i));
-            var entry = data != null && i < data.Count ? data[i] : null;
-            slot.IsEmpty = i > 0 && (entry is null || entry.Empty);
-            if (!slot.IsEmpty && entry?.Colors is { Count: >= 6 } colors)
-            {
-                for (var channel = 0; channel < 6; channel++)
-                    if (NotePalette.TryParseHex(colors[channel], out var color))
+            "reduced" => UiMotionMode.Reduced,
+            "off" => UiMotionMode.Off,
+            _ => UiMotionMode.Full,
+        };
+        HitEffectLevel = snapshot.HitEffectLevel switch
+        {
+            "reduced" => HitEffectLevel.Reduced,
+            "off" => HitEffectLevel.Off,
+            _ => HitEffectLevel.Full,
+        };
+        NoteBrightnessPercent = snapshot.NoteBrightnessPercent;
+        FlashIntensityPercent = snapshot.FlashIntensityPercent;
+        HitResidualMs = snapshot.HitResidualMs;
+        JudgeTextEnabled = snapshot.JudgeTextEnabled;
+        GameplayMode = snapshot.GameplayMode switch
+        {
+            "hardcore" => GameplayMode.Hardcore,
+            "bleed" => GameplayMode.Bleed,
+            _ => GameplayMode.Standard,
+        };
+        AutoEnabled = snapshot.AutoEnabled;
+        BleedEnabled = snapshot.BleedEnabled;
+        MirrorEnabled = snapshot.MirrorEnabled;
+        CalibrationTargetSamples = snapshot.CalibrationTargetSamples;
+        ActiveNotePaletteIndex = snapshot.ActiveNotePalette;
+        BurstColorFollowsNote = snapshot.BurstColorFollowsNote;
+        NotePalettes.Clear();
+        foreach (var entry in snapshot.NotePalettes)
+        {
+            var slot = NotePalette.CreateFactory(entry.Name);
+            slot.IsEmpty = entry.Empty;
+            if (!entry.Empty)
+                for (var channel = 0; channel < 6 && channel < entry.Colors.Count; channel++)
+                    if (NotePalette.TryParseHex(entry.Colors[channel], out var color))
                         slot.Set((NoteColorChannel)channel, color);
-            }
-            if (!slot.IsEmpty)
-                slot.Name = NotePalette.NormalizeName(entry?.Name, i);
             NotePalettes.Add(slot);
         }
         NormalizeNotePalettes();
     }
+
+    private GameSettingsSnapshot CreateSnapshot() => new()
+    {
+        TimingOffsetMs = TimingOffsetMs,
+        FallSpeedLevel = FallSpeedLevel,
+        MusicVolume = MusicVolume,
+        HitVolume = HitVolume,
+        UiVolume = UiVolume,
+        MotionMode = MotionMode switch
+        {
+            UiMotionMode.Reduced => "reduced",
+            UiMotionMode.Off => "off",
+            _ => "full",
+        },
+        HitEffectLevel = HitEffectLevel switch
+        {
+            HitEffectLevel.Reduced => "reduced",
+            HitEffectLevel.Off => "off",
+            _ => "full",
+        },
+        NoteBrightnessPercent = NoteBrightnessPercent,
+        FlashIntensityPercent = FlashIntensityPercent,
+        HitResidualMs = HitResidualMs,
+        JudgeTextEnabled = JudgeTextEnabled,
+        GameplayMode = GameplayMode switch
+        {
+            GameplayMode.Hardcore => "hardcore",
+            GameplayMode.Bleed => "bleed",
+            _ => "standard",
+        },
+        AutoEnabled = AutoEnabled,
+        BleedEnabled = BleedEnabled,
+        MirrorEnabled = MirrorEnabled,
+        CalibrationTargetSamples = CalibrationTargetSamples,
+        ActiveNotePalette = ActiveNotePaletteIndex,
+        BurstColorFollowsNote = BurstColorFollowsNote,
+        NotePalettes = NotePalettes.Select(slot => new GameSettingsPaletteSlot(
+            slot.Name, slot.IsEmpty, Enum.GetValues<NoteColorChannel>()
+                .Select(channel => NotePalette.ToHex(slot.Get(channel))).ToArray())).ToArray(),
+    };
 
     private void NormalizeNotePalettes()
     {
@@ -295,18 +310,9 @@ public sealed class GameSettings
             ActiveNotePaletteIndex = 0;
     }
 
-    private static List<string> IndexColors(NotePalette slot)
-    {
-        var colors = new List<string>(6);
-        foreach (var channel in Enum.GetValues<NoteColorChannel>())
-            colors.Add(NotePalette.ToHex(slot.Get(channel)));
-        return colors;
-    }
-
     private static int ClampToStep(int value, int min, int max) =>
         Math.Clamp((int)Math.Round(value / 5.0) * 5, min, max);
 
-    /// <summary>残影时长只有四档，读档时把历史/越界值归到最近一档（0 = 关闭）。</summary>
     private static int NormalizeResidualMs(int ms) => ms switch
     {
         <= 100 => 0,
@@ -315,103 +321,9 @@ public sealed class GameSettings
         _ => 450,
     };
 
-    private static HitEffectLevel ParseHitEffectLevel(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.String)
-            return HitEffectLevel.Full;
-
-        return value.GetString() switch
-        {
-            "reduced" => HitEffectLevel.Reduced,
-            "off" => HitEffectLevel.Off,
-            _ => HitEffectLevel.Full,
-        };
-    }
-
-    private static string SerializeHitEffectLevel(HitEffectLevel level) => level switch
-    {
-        HitEffectLevel.Reduced => "reduced",
-        HitEffectLevel.Off => "off",
-        _ => "full",
-    };
-
-    /// <summary>Bleed 尚无实现，解析时接受但运行时等同 Standard（走难度映射）。</summary>
-    private static GameplayMode ParseGameplayMode(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.String)
-            return GameplayMode.Standard;
-
-        return value.GetString() switch
-        {
-            "hardcore" => GameplayMode.Hardcore,
-            "bleed" => GameplayMode.Bleed,
-            _ => GameplayMode.Standard,
-        };
-    }
-
-    private static string SerializeGameplayMode(GameplayMode mode) => mode switch
-    {
-        GameplayMode.Hardcore => "hardcore",
-        GameplayMode.Bleed => "bleed",
-        _ => "standard",
-    };
-
-    private static UiMotionMode ParseMotionMode(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.String)
-            return UiMotionMode.Full;
-
-        return value.GetString() switch
-        {
-            "reduced" => UiMotionMode.Reduced,
-            "off" => UiMotionMode.Off,
-            _ => UiMotionMode.Full,
-        };
-    }
-
-    private static string SerializeMotionMode(UiMotionMode mode) => mode switch
-    {
-        UiMotionMode.Reduced => "reduced",
-        UiMotionMode.Off => "off",
-        _ => "full",
-    };
-
     private static float PercentToDb(int percent) =>
         percent <= 0 ? -80f : 20f * (float)Math.Log10(percent / 100.0);
 
-    private sealed class SettingsData
-    {
-        [JsonPropertyName("timingOffsetMs")] public int TimingOffsetMs { get; set; }
-        [JsonPropertyName("fallSpeedLevel")] public int FallSpeedLevel { get; set; } = 10;
-        [JsonPropertyName("musicVolume")] public int MusicVolume { get; set; } = 80;
-        [JsonPropertyName("hitVolume")] public int HitVolume { get; set; } = 80;
-        [JsonPropertyName("uiVolume")] public int UiVolume { get; set; } = 80;
-        [JsonPropertyName("motionMode")] public JsonElement MotionMode { get; set; }
-        /// <summary>旧字段，仅用于读旧存档；新存档仍写它以兼容旧客户端。</summary>
-        [JsonPropertyName("gameplayEffectsEnabled")] public bool? GameplayEffectsEnabled { get; set; }
-        [JsonPropertyName("hitEffectLevel")] public JsonElement HitEffectLevel { get; set; }
-        [JsonPropertyName("noteBrightnessPercent")] public int NoteBrightnessPercent { get; set; } = 130;
-        [JsonPropertyName("flashIntensityPercent")] public int FlashIntensityPercent { get; set; } = 100;
-        [JsonPropertyName("hitResidualMs")] public int HitResidualMs { get; set; } = 300;
-        [JsonPropertyName("judgeTextEnabled")] public bool JudgeTextEnabled { get; set; } = true;
-        [JsonPropertyName("gameplayMode")] public JsonElement GameplayMode { get; set; }
-        [JsonPropertyName("autoEnabled")] public bool AutoEnabled { get; set; }
-        [JsonPropertyName("bleedEnabled")] public bool BleedEnabled { get; set; }
-        [JsonPropertyName("mirrorEnabled")] public bool MirrorEnabled { get; set; }
-        [JsonPropertyName("calibrationTargetSamples")]
-        public int CalibrationTargetSamples { get; set; } = Ui.CalibrationStats.DefaultTargetSamples;
-        [JsonPropertyName("activeNotePalette")] public int ActiveNotePalette { get; set; }
-        [JsonPropertyName("burstColorFollowsNote")] public bool BurstColorFollowsNote { get; set; }
-        [JsonPropertyName("notePalettes")] public List<NotePaletteData>? NotePalettes { get; set; }
-    }
-
-    private sealed class NotePaletteData
-    {
-        [JsonPropertyName("name")] public string? Name { get; set; }
-        [JsonPropertyName("empty")] public bool Empty { get; set; }
-        /// <summary>六类颜色，顺序 = NoteColorChannel（TAP / EX / DRAG / HOLD / MIXER / MINE）。</summary>
-        [JsonPropertyName("colors")] public List<string>? Colors { get; set; }
-    }
 }
 
 /// <summary>

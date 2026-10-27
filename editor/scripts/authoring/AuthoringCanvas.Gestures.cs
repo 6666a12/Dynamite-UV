@@ -45,7 +45,7 @@ public partial class AuthoringCanvas
 		{
 			// In the original mouse state machine a right click while writing or
 			// moving is a cancel/reset gesture; it never opens the menu.
-			if (_draft is not null || _gesture is not null || _marqueeActive)
+			if (_draft is not null || _gesture is not null || _selection.MarqueeActive)
 			{
 				CancelInteraction();
 				GetViewport().SetInputAsHandled();
@@ -95,7 +95,7 @@ public partial class AuthoringCanvas
 		if (pointerChanged && (_tool <= 3 || _draft is not null)) _stageDirty = true;
 		if (UpdateChipHover(p)) QueueRedraw();
 		if (UpdatePathHandleHover(p)) QueueRedraw();
-		if (_marqueeActive) { _marqueeCurrent = p; _marqueeMoved = _marqueeMoved || p.DistanceTo(_marqueeStart) >= 3f; QueueRedraw(); return; }
+		if (_selection.MarqueeActive) { _marqueeCurrent = p; _selection.UpdateMarquee(p.DistanceTo(_marqueeStart)); QueueRedraw(); return; }
 		if (_draft?.TailStage == true) UpdateHoldTail(p); else if (_draft is not null) UpdateWidthDraft(p); else if (_gesture is not null) UpdateGesture(p);
 		if (_draft is not null || _gesture is not null || CanBuildHoverGhost()) QueueRedraw();
 	}
@@ -116,23 +116,25 @@ public partial class AuthoringCanvas
 			{
 				if (Input.IsKeyPressed(Key.Shift))
 				{
-					if (!_selectedNotes.Add(hit.NoteIndex)) _selectedNotes.Remove(hit.NoteIndex);
-					_selectedNote = _selectedNotes.Count == 1 ? hit.NoteIndex : -1;
-					_selectedEvent = -1; _selectedNodeId = null; SelectionChanged?.Invoke(hit.NoteIndex); QueueRedraw(); return;
+					_selection.ToggleNote(Notes[hit.NoteIndex].Id);
+					SelectionChanged?.Invoke(hit.NoteIndex); QueueRedraw(); return;
 				}
 				SelectNote(hit.NoteIndex);
 				// 二级选中：点中路径节点方块时同时选中该节点（设计稿 §4.3），
 				// 右键菜单据此出 Node Menu。
-				_selectedNodeId = hit.NodeIndex >= 0 && hit.NodeIndex < Notes[hit.NoteIndex].Nodes.Count
-					? Notes[hit.NoteIndex].Nodes[hit.NodeIndex].Id
-					: null;
+				_selection.SelectNode(Notes[hit.NoteIndex].Id,
+					hit.NodeIndex >= 0 && hit.NodeIndex < Notes[hit.NoteIndex].Nodes.Count
+						? Notes[hit.NoteIndex].Nodes[hit.NodeIndex].Id : null);
 				BeginGesture(p, hit);
 			}
 			else if (_side == 3 && TryEvent(p, out var ei)) SelectEvent(ei);
 			else
 			{
-				_marqueeActive = true; _marqueeMoved = false; _marqueeStart = _marqueeCurrent = p; _marqueeAdditive = Input.IsKeyPressed(Key.Shift);
-				if (!_marqueeAdditive) ClearSelection();
+				var additive = Input.IsKeyPressed(Key.Shift);
+				var hadSelection = HasSelection;
+				_selection.BeginMarquee(additive);
+				_marqueeStart = _marqueeCurrent = p;
+				if (!additive && hadSelection) SelectionChanged?.Invoke(-1);
 			}
 			QueueRedraw(); return;
 		}
@@ -149,7 +151,7 @@ public partial class AuthoringCanvas
 	}
 	private void EndPrimary(Vector2 p)
 	{
-		if (_marqueeActive) { _marqueeCurrent = p; FinishMarquee(); QueueRedraw(); return; }
+		if (_selection.MarqueeActive) { _marqueeCurrent = p; FinishMarquee(); QueueRedraw(); return; }
 		if (_draft is not null)
 		{
 			if (_draft.TailStage) return;
@@ -242,25 +244,21 @@ public partial class AuthoringCanvas
 		if (_gesture.Kind == GestureKind.ResizeNode && _gesture.NodeIndex >= 0 && _gesture.NodeIndex < n.Nodes.Count)
 		{
 			var node = n.Nodes[_gesture.NodeIndex];
-			var time = _gesture.ResizeNodeWidth ? _gesture.Anchor.Time : _gesture.Anchor.TimeAt(
-				m.Time, bpms, GridDivisor, SnapEnabled && TimeSnapOverride, tolerance);
 			var previous = _gesture.NodeIndex == 0 ? n.TimeExact : n.Nodes[_gesture.NodeIndex - 1].TimeExact;
 			var next = _gesture.NodeIndex + 1 < n.Nodes.Count ? n.Nodes[_gesture.NodeIndex + 1] : null;
-			var seconds = EditorTime.BarToSeconds(time, bpms);
-			if (time == _gesture.Anchor.Time ||
-				(time > previous && (next is null || time < next.TimeExact) && seconds <= DurationSeconds))
+			var preview = CanvasGesturePreview.MoveNodeTime(_gesture, m.Time, bpms, GridDivisor,
+				SnapEnabled && TimeSnapOverride, tolerance, previous, next?.TimeExact, DurationSeconds);
+			if (preview is { } accepted)
 			{
-				node.TimeExact = time;
-				node.Time = seconds;
+				node.TimeExact = accepted.Time;
+				node.Time = accepted.Seconds;
 			}
 			if (_gesture.ResizeNodeWidth)
 			{
 				// 双击插入的宽度拖拽按位移相对起手采样宽度走（左缘不动），其余仍沿用
 				// 「光标即右缘」的绝对拖拽。
-				var width = _gesture.RelativeWidth
-					? _gesture.OriginalNodeWidth + (SnapSpatial(m.Center) - _gesture.WidthPointer)
-					: SnapSpatial(m.Center) - node.Center;
-				node.Width = Clamp(EditorStagePlacement.SnapWidth(width), .1, MaxChartCoordinate - node.Center);
+				node.Width = CanvasGesturePreview.ResizeNodeWidth(SnapSpatial(m.Center), node.Center,
+					_gesture.RelativeWidth, _gesture.OriginalNodeWidth, _gesture.WidthPointer);
 			}
 			else
 				node.Center = DraggedLeft(_gesture, m, n.Side, node.Width, _gesture.OriginalNodeCenter);
@@ -269,40 +267,19 @@ public partial class AuthoringCanvas
 		}
 		else if (_gesture.Kind == GestureKind.ResizeWidth)
 		{
-			if (_gesture.ResizeLeading)
-			{
-				var right = _gesture.OriginalCenter + _gesture.OriginalWidth;
-				var left = Clamp(SnapSpatial(m.Center), 0, right - .1);
-				n.Width = Clamp(EditorStagePlacement.SnapWidth(right - left), .1, MaxChartCoordinate - left);
-				n.Center = Clamp(right - n.Width, 0, MaxChartCoordinate - n.Width);
-			}
-			else
-			{
-				var right = Clamp(SnapSpatial(m.Center), n.Center + .1, MaxChartCoordinate);
-				n.Width = right - n.Center;
-			}
-			n.Width = Clamp(EditorStagePlacement.SnapWidth(n.Width), .1, MaxChartCoordinate - n.Center);
+			(n.Center, n.Width) = CanvasGesturePreview.ResizeNoteWidth(_gesture.ResizeLeading,
+				SnapSpatial(m.Center), n.Center, _gesture.OriginalCenter, _gesture.OriginalWidth);
 		}
 		else
 		{
-			var time = _gesture.Anchor.TimeAt(m.Time, bpms, GridDivisor,
-				SnapEnabled && TimeSnapOverride, tolerance);
-			if (time != _gesture.Anchor.Time)
-			{
-				var latest = EditorTime.SecondsToBar(DurationSeconds, bpms) - (n.EndExact - n.TimeExact);
-				if (time > latest) time = latest;
-				if (time < ExactBarTime.Zero) time = ExactBarTime.Zero;
-			}
-			var delta = time - n.TimeExact;
-			n.TimeExact = time;
-			n.Time = EditorTime.BarToSeconds(time, bpms);
+			var preview = CanvasGesturePreview.MoveNote(_gesture.Anchor, m.Time, bpms, GridDivisor,
+				SnapEnabled && TimeSnapOverride, tolerance, n.TimeExact, n.EndExact, DurationSeconds);
+			n.TimeExact = preview.Time;
+			n.Time = preview.Seconds;
 			n.Center = DraggedLeft(_gesture, m, n.Side, n.Width, _gesture.OriginalCenter);
 			foreach (var node in n.Nodes)
-			{
-				node.TimeExact += delta;
-				node.Time = EditorTime.BarToSeconds(node.TimeExact, bpms);
-			}
-			n.EndExact = n.Nodes.Count > 0 ? n.Nodes[^1].TimeExact : time;
+				(node.TimeExact, node.Time) = CanvasGesturePreview.ShiftPathTime(node.TimeExact, preview.Delta, bpms);
+			n.EndExact = n.Nodes.Count > 0 ? n.Nodes[^1].TimeExact : preview.Time;
 			n.EndTime = EditorTime.BarToSeconds(n.EndExact, bpms);
 		}
 		_rememberedWidth = n.Width;
@@ -343,22 +320,18 @@ public partial class AuthoringCanvas
 
 	private void FinishMarquee()
 	{
-		if (!_marqueeActive) return;
-		_marqueeActive = false;
+		if (!_selection.MarqueeActive) return;
 		var rect = new Rect2(_marqueeStart, Vector2.Zero).Expand(_marqueeCurrent);
-		if (_marqueeMoved)
+		var hits = new List<string>();
+		if (_selection.MarqueeMoved)
 		{
-			for (var i = 0; i < Notes.Count; i++)
-			{
-				var n = Notes[i];
-				if (n.Side == _side && rect.Intersects(NoteRect(n, n.Time))) _selectedNotes.Add(i);
-			}
-			_selectedNote = _selectedNotes.Count == 1 ? FirstSelectedNote() : -1;
-			_selectedEvent = -1;
-			_selectedNodeId = null;
-			EmitStatus(_selectedNotes.Count == 0 ? "SELECTION CLEARED" : $"{_selectedNotes.Count} NOTES SELECTED");
-			SelectionChanged?.Invoke(_selectedNote);
+			foreach (var note in Notes)
+				if (note.Side == _side && rect.Intersects(NoteRect(note, note.Time))) hits.Add(note.Id);
 		}
-		_marqueeMoved = false;
+		if (_selection.FinishMarquee(hits))
+		{
+			EmitStatus(_selection.NoteIds.Count == 0 ? "SELECTION CLEARED" : $"{_selection.NoteIds.Count} NOTES SELECTED");
+			SelectionChanged?.Invoke(SelectedNoteIndex);
+		}
 	}
 }

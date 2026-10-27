@@ -143,9 +143,9 @@ public partial class AuthoringCanvas
 	/// 整条路径仍然可见。</summary>
 	private (int Index, AuthoringNote Note)? PathTarget(bool includeInsertDrag)
 	{
-		if (_tool != 4 || _draft is not null || _marqueeActive) return null;
+		if (_tool != 4 || _draft is not null || _selection.MarqueeActive) return null;
 		if (_gesture is not null && !(includeInsertDrag && _gesture.RelativeWidth)) return null;
-		if (_selectedNotes.Count != 1) return null;
+		if (_selection.NoteIds.Count != 1) return null;
 		var index = FirstSelectedNote();
 		if (index < 0 || index >= Notes.Count) return null;
 		var note = Notes[index];
@@ -206,7 +206,7 @@ public partial class AuthoringCanvas
 	/// 一次插入手势，调用方仍按普通点击处理（双击空白处、头部、手柄都不插入）。</summary>
 	private bool TryInsertPathNodeAt(Vector2 p)
 	{
-		if (_tool != 4 || _side == 3 || _draft is not null || _gesture is not null || _marqueeActive)
+		if (_tool != 4 || _side == 3 || _draft is not null || _gesture is not null || _selection.MarqueeActive)
 			return false;
 		var hit = HitTest(p);
 		if (hit.NoteIndex < 0 || hit.NodeIndex >= 0) return false;
@@ -254,11 +254,7 @@ public partial class AuthoringCanvas
 		var index = FindNoteIndex(note.Id);
 		if (index < 0) return null;
 		// 两级选中：第二级直接落到新节点上，右键菜单据此进节点态。
-		_selectedNotes.Clear();
-		_selectedNotes.Add(index);
-		_selectedNote = index;
-		_selectedEvent = -1;
-		_selectedNodeId = nodeId;
+		_selection.SelectNode(note.Id, nodeId);
 		SelectionChanged?.Invoke(index);
 		EmitStatus($"NODE INSERTED · {ExactBarTimeText.Format(time)}");
 		QueueRedraw();
@@ -324,7 +320,7 @@ public partial class AuthoringCanvas
 	private bool TrySelectedPathNote(out AuthoringNote note)
 	{
 		note = null!;
-		if (_selectedNotes.Count != 1) return false;
+		if (_selection.NoteIds.Count != 1) return false;
 		var index = FirstSelectedNote();
 		if (index < 0 || index >= Notes.Count) return false;
 		var candidate = Notes[index];
@@ -352,7 +348,7 @@ public partial class AuthoringCanvas
 		var panelFill = new Color(UiFonts.Panel.R, UiFonts.Panel.G, UiFonts.Panel.B, 1f);
 		for (var index = 0; index < centers.Count; index++)
 		{
-			var selected = index > 0 && note.Nodes[index - 1].Id == _selectedNodeId;
+			var selected = index > 0 && note.Nodes[index - 1].Id == _selection.SelectedNodeId;
 			var hovered = _hoverHandle == (noteIndex, index);
 			var alpha = selected ? 1f : hovered ? HandleHoverAlpha : HandleBaseAlpha;
 			if (index == 0)

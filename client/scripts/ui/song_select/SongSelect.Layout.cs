@@ -27,8 +27,8 @@ public partial class SongSelect
     private const float SearchWidth = 336f;
     private const float SearchHeight = 52f;
     private const float SearchCut = 14f;
-
-    // 表头 / 搜索
+    private static Rect2 ListRect => new(ListX, ListY, ListWidth, ListHeight);
+    private VBoxContainer _rowBox = null!;
     private Label _libTitle = null!;
     private LineEdit _search = null!;
     private Label _emptyState = null!;
@@ -118,6 +118,8 @@ public partial class SongSelect
         };
         _rowBox.AddThemeConstantOverride("separation", (int)RowGap);
         _songScroll.AddChild(_rowBox);
+        _listViewport = new SongListViewport(_songScroll, () => ListRect, () => ScrollTau,
+            SelectVisibleRowAt);
 
         for (var i = 0; i < GameSession.Packs.Count; i++)
         {

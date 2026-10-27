@@ -29,10 +29,10 @@ public partial class AuthoringCanvas
 	private void DrawSelectionOverlay()
 	{
 		var pathTarget = PathTarget(true);
-		foreach (var index in _selectedNotes)
+		for (var index = 0; index < Notes.Count; index++)
 		{
-			if (index < 0 || index >= Notes.Count) continue;
 			var note = Notes[index];
+			if (!_selection.NoteIds.Contains(note.Id)) continue;
 			var pathEdit = pathTarget is { } target && target.Index == index && note.Nodes.Count > 0;
 			DrawSelectionHandle(NoteRect(note.Side, note.Time, note.Center, note.Width, HeadRuntimeType(note.Kind)));
 			if (pathEdit)
@@ -40,7 +40,7 @@ public partial class AuthoringCanvas
 			else foreach (var node in note.Nodes)
 				DrawSelectionHandle(NoteRect(note.Side, node.Time, node.Center, node.Width, NodeRuntimeType(note.Kind)));
 		}
-		if (_marqueeActive && _marqueeMoved)
+		if (_selection.MarqueeActive && _selection.MarqueeMoved)
 		{
 			var rect = new Rect2(_marqueeStart, Vector2.Zero).Expand(_marqueeCurrent);
 			DrawRect(rect, new Color(0.2f, 0.85f, 1f, .12f), true);
@@ -201,7 +201,7 @@ public partial class AuthoringCanvas
 			var e = BpmEvents[index];
 			var y = AxisAt(0, e.Time);
 			if (y < CenterTop - 20 || y > CenterJudgeY + 60) continue;
-			var alpha = index == _selectedEvent ? 1f : BpmEventLineAlpha;
+			var alpha = _selection.EventTime == e.TimeExact ? 1f : BpmEventLineAlpha;
 			var color = new Color(BpmEventColor, alpha);
 			DrawRect(new Rect2(CenterX, y, BpmEventSpanWidth, BpmEventLineWidth), color);
 			EditorOverlayDraw.LeftText(this, ChipFont,
@@ -250,7 +250,7 @@ public partial class AuthoringCanvas
 	}
 
 	private bool CanBuildHoverGhost() =>
-		_pointerInside && _draft is null && _gesture is null && !_marqueeActive &&
+		_pointerInside && _draft is null && _gesture is null && !_selection.MarqueeActive &&
 		_side != 3 && _tool is >= 1 and <= 3 && PointInsideTrack(_pointerPoint, _side);
 
 	private AuthoringNote? BuildHoverGhost()

@@ -19,7 +19,13 @@
 - 第三轮增加公共视觉、HUD、音源、独立控件和 editor 页面边界。presentation 不能引用两端应用状态，
   HUD 读取值快照，控件的动效/落速用 provider 注入，页面组件不引用 shell。
   GameplayMain/SongSelect/CalibrationScreen/SettingsScreen/StandaloneEditorMain/AuthoringCanvas 的总量预算
-  分别收紧为 1350/1300/1250/800/1350/2450 行；新增对象也有文件预算。没有以放宽预算完成拆分。
+  分别收紧为 1350/1150/1250/800/1250/2400 行；新增对象也有文件预算。没有以放宽预算完成拆分。
+- 选择与创建请求拆分增加 CanvasSelectionState、EditorCreateRequest/Preflight 纯核心边界及对应回归；
+  画布仍拥有 Godot 几何，shell 仍拥有文件查询、session 与页流。
+- 命中与转场拆分增加 CanvasHitTesting、TrackHandoffPresentation/State；命中几何与转场路由仍由宿主拥有，
+  TrackHandoffState 作为现有源码链接接入 core-tests，front 页面与独立放电 FX 不合并生命周期。
+- 手势预览、选曲视口与设置编解码分别进入 CanvasGesturePreview、SongListViewport/ScrollState、GameSettingsCodec；
+  纯状态回归接入现有 CLI。源码与两套测试均按功能族分组，场景/程序入口可留根，场景、测试链接与策略路径同步更新。
 - client 续拆增加校准采样、卡片动画/详情请求和暂停覆盖层边界：纯模型链接进 core-tests；
   详情卡不得回读会话/宿主，暂停组件只通过回调触发输入清理、播放和导航，不能取得场景、判定或会话对象。
 

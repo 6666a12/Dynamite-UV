@@ -45,13 +45,13 @@ public partial class AuthoringCanvas
     {
         get
         {
-            if (_selectedNotes.Count != 1) return null;
+            if (_selection.NoteIds.Count != 1) return null;
             var index = FirstSelectedNote();
             if (index < 0 || index >= Notes.Count) return null;
             var note = Notes[index];
-            var nodeIndex = _selectedNodeId is null
+            var nodeIndex = _selection.SelectedNodeId is null
                 ? -1
-                : note.Nodes.FindIndex(node => node.Id == _selectedNodeId);
+                : note.Nodes.FindIndex(node => node.Id == _selection.SelectedNodeId);
             var node = nodeIndex >= 0 ? note.Nodes[nodeIndex] : null;
             return new SelectedTarget(
                 note.Id, note.Kind, note.Side,
@@ -162,7 +162,7 @@ public partial class AuthoringCanvas
         }
         var removed = target.IsTail ? "TAIL NODE" : "PATH NODE";
         _controller.DeletePathNode(target.NoteId, target.NodeId);
-        _selectedNodeId = null;
+        _selection.SelectNote(target.NoteId);
         SyncFromDocument();
         EmitStatus($"{removed} REMOVED");
     }
@@ -186,7 +186,7 @@ public partial class AuthoringCanvas
     /// 所以这里用与选中描边同一个外扩矩形。</summary>
     private (SelectedTarget Target, Rect2 Chip, Rect2 Copy, Rect2 Delete)? ChipLayout()
     {
-        if (_tool != 4 || _draft is not null || _gesture is not null || _marqueeActive) return null;
+        if (_tool != 4 || _draft is not null || _gesture is not null || _selection.MarqueeActive) return null;
         var target = SingleSelection;
         if (target is null) return null;
         if (FindNote(target.NoteId) is not { } note) return null;

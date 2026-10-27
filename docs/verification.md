@@ -7,6 +7,10 @@
 
 | 日期 / 来源 | 已有结果 | 不能证明什么 |
 | --- | --- | --- |
+| 2026-10-27 全量功能族目录整理 | client UI/game、editor、chart-editor-core 与两套测试完成按功能族分组；场景/程序入口保留，UID、core-test 链接、策略和活跃文档同步。最终统一 `verify.py --no-restore` 通过：235 个 C# 文件、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 `git diff --check` | 未启动 Godot、导出或设备验收；构建与静态路径检查不证明场景实际加载、视觉或触控体验 |
+| 2026-10-27 手势/视口/设置拆分与目录整理 | 目录移动后统一 `verify.py --no-restore` 通过：结构门禁覆盖 235 个 C# 文件，两端 0 warning / 0 error，核心与编辑器回归、37 项发布测试及 `git diff --check` 通过；场景/自动加载、UID、core-test 链接和策略路径同步更新，新增手势预览、滚动与设置 codec 回归 | 未启动 Godot、导出或设备验收；场景实际加载、触控手感、动态行高命中、AudioServer 和视觉效果未覆盖；固定步距命中疑点未宣称复现或修复 |
+| 2026-10-27 命中与 Track Handoff 拆分 | 最终代码运行统一 `verify.py --no-restore` 通过：结构门禁覆盖 228 个 C# 文件，两端 0 warning / 0 error，核心与编辑器回归、37 项发布测试及 `git diff --check` 通过；新增命中优先级/边缘与 Full/Reduced/Off 相位、放电完成和重置回归 | 未启动 Godot、导出或设备验收；纯命中适配和相位测试不证明真实输入派发、节点层级、GPU 合成、coverage 淡出或放电尾巴的实际视觉效果 |
+| 2026-10-27 选择与创建请求拆分 | 最终代码运行统一 `verify.py --no-restore` 通过：结构门禁覆盖 223 个 C# 文件，两端 0 warning / 0 error，核心与编辑器回归、37 项发布测试及 `git diff --check` 通过；新增选择状态与创建请求核心回归，保留 Shift 主选择语义和 AddDifficulty 不查询外部资源的行为 | 未启动 Godot、导出或设备验收；纯核心测试不证明真实 Godot 输入派发、命中几何、焦点或视觉效果 |
 | 2026-10-26 模块化复审 | [进程/对象边界分析](<modularity-review-2026-10-26.md>)；重新运行结构报告通过（219 C# 源码文件），补统计 NoteColorsScreen 3 partial 共 895 行；219 个 C# 文件、八个项目、三个检查/策略文件及本轮审查保护指纹在建立后未变；未发现暂存项；新增分析及入口文档链接/源码行号核验与 `git diff --check` 通过 | 仅静态复审及文档检查；未运行 C# 构建/回归、Godot/headless 探针、导出/验包或设备验收；建议未实施，静态风险未复现 |
 | 2026-10-26 文档整理 | 源码/文档/项目引用静态核对；结构检查通过（219 源码文件）；37 项发布测试通过；35 份 Markdown / 378 个本地链接检查通过，31 份快照及 7 项归档哈希一致；417 个已跟踪非文档路径与 Git index 均未变；`git diff --check` 通过 | 未重跑 C# build/core/editor-tests，未启动 Godot、导出 APK/桌面包或做设备验收；发布测试不是实际 APK 验包 |
 | 2026-10-25 client 续拆历史记录 | 统一 `verify.py --no-restore` 通过：两端 0 warning / 0 error、核心/编辑回归、37 项发布测试；9 组 1980 帧状态比较一致（详情卡类型名归一化） | 探针固定试听完成顺序和 elapsed；不证明真实 I/O 时延、GPU 像素、触控或听感 |

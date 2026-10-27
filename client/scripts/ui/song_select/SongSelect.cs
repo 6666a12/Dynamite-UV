@@ -61,8 +61,7 @@ public partial class SongSelect : Node2D
 
     public override void _Process(double delta)
     {
-        // 列表滚动的惯性推进先做：滚轮的显示值要每帧追上目标（见 ScrollInertia）。
-        StepListScroll(delta);
+        _listViewport.Step(delta);
         if (_cardAnimating)
             StepCardAnimations(delta);
         CompleteChartDetailsLoad();

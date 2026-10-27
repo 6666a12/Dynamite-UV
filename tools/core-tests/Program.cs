@@ -64,6 +64,8 @@ public static class Program
             SustainJudgementTests.TestHoldReleaseFreezesGrace();
             ScoreIdentityTests.TestScoreStoreMigrationAndIdentity();
             ResultRevealTests.Run(Check);
+            TrackHandoffStateTests.Run(Check);
+            GameSettingsCodecTests.Run(Check);
             CalibrationStatsTests.Run(Check);
             CalibrationSamplingTests.Run(Check);
             NotePaletteDraftTests.Run(Check);
@@ -72,6 +74,7 @@ public static class Program
             PointerInputBufferTests.Run(Check);
             LatestRequestLoaderTests.Run(Check);
             SongBrowseStateTests.Run(Check);
+            SongListScrollStateTests.Run(Check);
             SongCardMotionTests.Run(Check);
             SongDetailRequestTests.Run(Check);
             BehaviorEquivalenceTests.Run(Check);

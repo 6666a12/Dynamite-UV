@@ -17,7 +17,7 @@ config/features=PackedStringArray("4.7", "C#", "Mobile")
 
 [autoload]
 
-TransitionDirector="*res://scripts/ui/TransitionDirector.cs"
+TransitionDirector="*res://scripts/ui/transitions/TransitionDirector.cs"
 
 [display]
 

@@ -34,7 +34,7 @@
 完整规则以 [玩法规格](<gameplay-spec.md>)、[v2 合同](<chart-format-v2.md>) 与 shared 为准；以下是接手时不能误改的边界：
 
 - 显式 v2 严格解码/跨文件校验/Digest，失败拒绝；普通 legacy 优先转 v2，不适用才保留 legacy-direct。开发/Internal 扫 `res://testdata/packs` 再扫 `user://charts`，同 id 用户包覆盖；Public/未分类导出只扫用户包。
-- **res:// 必须走 Godot 虚拟文件系统，不可引入 System.IO**：导出后原资源可能在 PCK/导入 remap 中。此分支 Digest 按空音频字节计算；user:// /绝对路径的真实文件分支含音频字节，两者不可混同。见 [加载适配](<../client/scripts/game/V2Integration.cs>)。
+- **res:// 必须走 Godot 虚拟文件系统，不可引入 System.IO**：导出后原资源可能在 PCK/导入 remap 中。此分支 Digest 按空音频字节计算；user:// /绝对路径的真实文件分支含音频字节，两者不可混同。见 [加载适配](<../client/scripts/game/charts/V2Integration.cs>)。
 - legacy `Position` 是左缘；v2 是 `center + width`。画布预览中的 Center 仍沿用左缘语义，提交文档命令时才转换；精确 BarTime 不经显示秒值往返。
 - 普通判定按固定 150BPM 换算；Standard 依难度选预设，Hardcore 使用 Hard 窗 ×0.5；Hold 首次断触冻结宽限 deadline，Mixer 则为实际音乐时间的 1/8 chart bar 宽限。当前 Mixer 无额外尾判。
 - 输入批次锁是精确 double 同刻锁，任何普通输入结算均可武装，Mine 不检查也不武装；触点可复用、跨轨投影可重叠。未知 id 的 Move 忽略，失焦清触点。短 Hold 保留头的晚判窗口，以带时间戳的联系快照处理同帧短点/换指。
@@ -76,7 +76,7 @@
 
 - Hold 无输入移动路径断触采样、同帧跨 deadline 的批量结算顺序：**静态疑点，临时探针没有成功运行，用户暂缓**。不能写成已复现 Bug，也不能用短 Hold 手感基本通过消除此疑点。
 - Mixer 原版有命中率尾判，社区当前没有；是否增加是玩法决策，不是默认补做事项。
-- 模式切换与预加载：静态发现 [SetGameplayMode](<../client/scripts/ui/SongSelect.QuickSettings.cs>) 只保存/刷新，而 [GameSession](<../client/scripts/game/GameSession.cs>) 预加载键仅 pack/chart；START 可复用带旧 Preset 的 LoadedChart。需回归“预加载后切 Standard/Hardcore 再开始”，**尚未执行复现/修复**，与成绩身份缺模式维度分开处理。
+- 模式切换与预加载：静态发现 [SetGameplayMode](<../client/scripts/ui/song_select/SongSelect.QuickSettings.cs>) 只保存/刷新，而 [GameSession](<../client/scripts/game/session/GameSession.cs>) 预加载键仅 pack/chart；START 可复用带旧 Preset 的 LoadedChart。需回归“预加载后切 Standard/Hardcore 再开始”，**尚未执行复现/修复**，与成绩身份缺模式维度分开处理。
 - Internal 当前验证过的流程使用 `--export-debug`，历史 Release 配置探针曾改善低端卡顿。政策 `debuggable=true` 是 APK manifest 约束，不单独证明 .NET 编译/JIT 配置；替代配置需基准和政策核查，见 [发布说明](<releasing.md>)。
 - UI 每帧分配/首页核心渲染预算优化（原“批次 D”）用户暂缓，不按旧建议自动实施。
 - 首页分区启灯只是设计探索。Storyboard **首版不做、未排期**，仅保留禁用入口；未来 sidecar 不改 v2/Digest，但 writer 落地时必须避免清除 sidecar。原提案在 [归档](<archive/proposals/storyboard-editor-proposal.md>)。

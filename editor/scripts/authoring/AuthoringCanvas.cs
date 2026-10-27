@@ -110,28 +110,17 @@ public partial class AuthoringCanvas : Control
 	public void SyncFromDocument()
 	{
 		var cursor = _cursorTime;
-		var selectedIds = new HashSet<string>(StringComparer.Ordinal);
-		foreach (var index in _selectedNotes)
-			if (index >= 0 && index < Notes.Count) selectedIds.Add(Notes[index].Id);
-		var selectedEventTime = _selectedEvent >= 0 && _selectedEvent < BpmEvents.Count
-			? BpmEvents[_selectedEvent].TimeExact : (ExactBarTime?)null;
-
 		_projection.Clear();
-		_selectedNotes.Clear(); _selectedNote = _selectedEvent = -1;
 		// 投影重建后旧的 (noteIndex, pointIndex) hover 可能指向别的对象，丢掉等下一次移动重算。
 		_hoverHandle = null;
 		_stageDirty = true;
-		if (_document is null) { QueueRedraw(); return; }
+		if (_document is null) { _selection.Clear(); QueueRedraw(); return; }
 
 		_projection.Rebuild(_document.SelectedChart);
 		DurationSeconds = _projection.DurationSeconds;
 		_cursorTime = Clamp(cursor, 0, DurationSeconds);
 		_gameplayStage?.SetPreviewTime(_cursorTime);
-		for (var i = 0; i < Notes.Count; i++)
-			if (selectedIds.Contains(Notes[i].Id)) _selectedNotes.Add(i);
-		_selectedNote = _selectedNotes.Count == 1 ? FirstSelectedNote() : -1;
-		if (selectedEventTime is { } eventTime)
-			_selectedEvent = BpmEvents.FindIndex(item => item.TimeExact == eventTime);
+		_selection.Restore(Notes, BpmEvents);
 		QueueRedraw();
 	}
 
@@ -148,26 +137,20 @@ public partial class AuthoringCanvas : Control
 		_controller.Redo();
 		SyncFromDocument();
 	}
-	public int SelectedCount => _selectedNotes.Count + (_selectedEvent >= 0 ? 1 : 0);
-	public bool HasSelection => _selectedNotes.Count > 0 || _selectedNote >= 0 || _selectedEvent >= 0;
+	public int SelectedCount => _selection.NoteIds.Count + (_selection.EventTime is not null ? 1 : 0);
+	public bool HasSelection => SelectedCount > 0;
 	public bool InputSuspended { get; set; }
-	public int SelectedNoteIndex => _selectedNote;
-	public int SelectedEventIndex => _selectedEvent;
+	public int SelectedNoteIndex => _selection.PrimaryNoteId is { } id ? FindNoteIndex(id) : -1;
+	public int SelectedEventIndex => _selection.EventTime is { } time ? BpmEvents.FindIndex(item => item.TimeExact == time) : -1;
 	public string SelectedSummary
 	{
 		get
 		{
-			if (_selectedNotes.Count > 1) return $"{_selectedNotes.Count} NOTES SELECTED";
-			if (_selectedNotes.Count == 1)
-			{
-				var index = -1;
-				foreach (var candidate in _selectedNotes) { index = candidate; break; }
-				if (index >= 0 && index < Notes.Count) return Notes[index].ToString();
-			}
-			if (_selectedNote >= 0 && _selectedNote < Notes.Count) return Notes[_selectedNote].ToString();
-			return _selectedEvent >= 0 && _selectedEvent < BpmEvents.Count
-				? $"BPM {BpmEvents[_selectedEvent].Bpm:0.##}"
-				: string.Empty;
+			if (_selection.NoteIds.Count > 1) return $"{_selection.NoteIds.Count} NOTES SELECTED";
+			var index = FirstSelectedNote();
+			if (index >= 0) return Notes[index].ToString();
+			var eventIndex = SelectedEventIndex;
+			return eventIndex >= 0 ? $"BPM {BpmEvents[eventIndex].Bpm:0.##}" : string.Empty;
 		}
 	}
 
@@ -175,15 +158,11 @@ public partial class AuthoringCanvas : Control
 	public event Action<int>? SelectionChanged;
 	public event Action<Vector2>? ContextMenuRequested;
 
-	private int _side, _tool = 1, _selectedNote = -1, _selectedEvent = -1;
-	// 二级选中：单选 Note 时再选中其中一个路径节点（设计稿 §4.3）。用 id 而不是下标保存，
-	// 这样命令执行后的 SyncFromDocument 投影重建不会丢选中。
-	private string? _selectedNodeId;
+	private int _side, _tool = 1;
+	private readonly CanvasSelectionState _selection = new();
 	// Original showD/showL/showR cycle hidden -> dim -> full (and repeat).
 	private readonly int[] _trackVisibility = { 2, 2, 2 };
-	private readonly HashSet<int> _selectedNotes = new();
 	private Vector2 _marqueeStart, _marqueeCurrent;
-	private bool _marqueeActive, _marqueeMoved, _marqueeAdditive;
 	private double _cursorTime;
 	// Original DynaMaker keeps one preCoverWidth for every surface and tool.
 	private double _rememberedWidth = 1d;
@@ -350,27 +329,17 @@ public partial class AuthoringCanvas : Control
 	{
 		if (_draft is not null || _gesture is not null) { EmitStatus("DELETE REJECTED"); return; }
 		if (_controller is null || _document is null) return;
-		if (_selectedNotes.Count > 0)
+		if (_selection.NoteIds.Count > 0)
 		{
-			var ids = new List<string>();
-			foreach (var index in _selectedNotes)
-				if (index >= 0 && index < Notes.Count) ids.Add(Notes[index].Id);
-			if (ids.Count == 0) return;
+			var ids = new List<string>(_selection.NoteIds);
 			_controller.DeleteNotes(ids);
 			SyncFromDocument();
 			EmitStatus(ids.Count == 1 ? "NOTE REMOVED" : $"{ids.Count} NOTES REMOVED");
 			return;
 		}
-		if (_selectedNote >= 0 && _selectedNote < Notes.Count)
+		if (SelectedEventIndex is var eventIndex && eventIndex >= 0)
 		{
-			var note = Notes[_selectedNote];
-			_controller.DeleteNotes([note.Id]);
-			SyncFromDocument();
-			EmitStatus($"{note.Kind.ToString().ToUpperInvariant()} REMOVED");
-		}
-		else if (_selectedEvent >= 0 && _selectedEvent < BpmEvents.Count)
-		{
-			var exact = BpmEvents[_selectedEvent].TimeExact;
+			var exact = BpmEvents[eventIndex].TimeExact;
 			try { _controller.DeleteBpm(exact); }
 			catch (InvalidOperationException) { EmitStatus("DELETE REJECTED · BASE BPM IS LOCKED"); return; }
 			SyncFromDocument();
@@ -380,9 +349,7 @@ public partial class AuthoringCanvas : Control
 	public void ClearSelection()
 	{
 		if (!HasSelection) return;
-		_selectedNotes.Clear();
-		_selectedNote = _selectedEvent = -1;
-		_selectedNodeId = null;
+		_selection.Clear();
 		SelectionChanged?.Invoke(-1); QueueRedraw();
 	}
 	public void CancelInteraction(bool announce = true)
@@ -391,7 +358,7 @@ public partial class AuthoringCanvas : Control
 		if (_gesture is not null)
 			_rememberedWidth = _gesture.OriginalWidth;
 		_gesture?.Cancel();
-		var active = _draft is not null || _gesture is not null || _marqueeActive; _draft = null; _gesture = null; _marqueeActive = false; _marqueeMoved = false; _stageDirty = true;
+		var active = _draft is not null || _gesture is not null || _selection.MarqueeActive; _draft = null; _gesture = null; _selection.CancelMarquee(); _stageDirty = true;
 		// Restore every path node from the document, including nodes shifted by a head drag.
 		if (restoreProjection) SyncFromDocument();
 		if (announce) EmitStatus(active ? "CANCELLED · READY" : "NOTHING TO CANCEL");
@@ -406,18 +373,39 @@ public partial class AuthoringCanvas : Control
 		_stageDirty = true;
 		QueueRedraw();
 	}
-	private int FirstSelectedNote() { foreach (var index in _selectedNotes) return index; return -1; }
-	private void SelectNote(int index) { _selectedNotes.Clear(); _selectedNotes.Add(index); _selectedNote = index; _selectedEvent = -1; _selectedNodeId = null; SelectionChanged?.Invoke(index); EmitStatus("NOTE SELECTED"); }
-	private void SelectEvent(int index) { _selectedNotes.Clear(); _selectedNote = -1; _selectedEvent = index; _selectedNodeId = null; SelectionChanged?.Invoke(-1); QueueRedraw(); }
+	private int FirstSelectedNote() => _selection.SingleNoteId is { } id ? FindNoteIndex(id) : -1;
+	private void SelectNote(int index) { _selection.SelectNote(Notes[index].Id); SelectionChanged?.Invoke(index); EmitStatus("NOTE SELECTED"); }
+	private void SelectEvent(int index) { if (index >= 0) _selection.SelectEvent(BpmEvents[index].TimeExact); else _selection.Clear(); SelectionChanged?.Invoke(-1); QueueRedraw(); }
 	private bool TryEvent(Vector2 p, out int index) { for (var i = BpmEvents.Count - 1; i >= 0; i--) { if (Math.Abs(p.Y - AxisAt(0, BpmEvents[i].Time)) <= 15 && p.X >= CenterX && p.X <= CenterX + 260) { index = i; return true; } } index = -1; return false; }
-	/// <summary>命中顺序：路径节点 → 头部（含左右缘的宽度/移动带）→ 尾部 → 路径身体带状。
-	/// 身体判定让长 Hold/Mixer 的任意一点都能选中整条 Note（设计稿 §4 第 3 条），
-	/// 因此宽曲线路径不再只有头尾两个可点区域。</summary>
+	private readonly struct HitGeometry : ICanvasHitGeometry
+	{
+		private readonly AuthoringCanvas _canvas;
+		private readonly Vector2 _point;
+
+		public HitGeometry(AuthoringCanvas canvas, Vector2 point) { _canvas = canvas; _point = point; }
+		public int NoteCount => _canvas.Notes.Count;
+		public int SideAt(int noteIndex) => _canvas.Notes[noteIndex].Side;
+		public int NodeCount(int noteIndex) => _canvas.Notes[noteIndex].Nodes.Count;
+		public CanvasHitRect NodeRect(int noteIndex, int nodeIndex) => Adapt(_canvas.NoteRect(
+			_canvas.Notes[noteIndex].Side, _canvas.Notes[noteIndex].Nodes[nodeIndex].Time,
+			_canvas.Notes[noteIndex].Nodes[nodeIndex].Center, _canvas.Notes[noteIndex].Nodes[nodeIndex].Width,
+			NodeRuntimeType(_canvas.Notes[noteIndex].Kind)));
+		public CanvasHitRect HeadRect(int noteIndex) => Adapt(_canvas.NoteRect(_canvas.Notes[noteIndex], _canvas.Notes[noteIndex].Time));
+		public CanvasHitRect TailRect(int noteIndex)
+		{
+			var note = _canvas.Notes[noteIndex];
+			return Adapt(_canvas.NoteRect(note.Side, note.EndTime, note.Center, note.Width, NodeRuntimeType(note.Kind)));
+		}
+		public bool HasTail(int noteIndex) => _canvas.Notes[noteIndex].Kind == AuthoringNoteKind.Hold;
+		public bool HasPathBody(int noteIndex) => _canvas.HitPathBody(noteIndex, _point);
+		private static CanvasHitRect Adapt(Rect2 rect) => new(rect.Position.X, rect.Position.Y, rect.Size.X, rect.Size.Y);
+	}
+
 	private Hit HitTest(Vector2 p)
 	{
-		if (_side == 3) return new Hit(-1, -1, false, false, false);
-		for (var i = Notes.Count - 1; i >= 0; i--) { var n = Notes[i]; if (n.Side != _side) continue; for (var j = 0; j < n.Nodes.Count; j++) { var nr = NoteRect(n.Side, n.Nodes[j].Time, n.Nodes[j].Center, n.Nodes[j].Width, NodeRuntimeType(n.Kind)); if (nr.Grow(9).HasPoint(p)) { var nodeEdge = n.Side == 0 ? Math.Abs(p.X - nr.End.X) < 12 : Math.Abs(p.Y - nr.End.Y) < 12; return new Hit(i, j, false, false, nodeEdge); } } var r = NoteRect(n, n.Time); if (r.Grow(9).HasPoint(p)) { var leading = n.Side == 0 ? Math.Abs(p.X - r.Position.X) < 12 : Math.Abs(p.Y - r.Position.Y) < 12; var resizing = n.Side == 0 ? Math.Abs(p.X - r.Position.X) < 12 || Math.Abs(p.X - r.End.X) < 12 : Math.Abs(p.Y - r.Position.Y) < 12 || Math.Abs(p.Y - r.End.Y) < 12; return new Hit(i, -1, resizing, leading, false); } if (n.Kind == AuthoringNoteKind.Hold && NoteRect(n.Side, n.EndTime, n.Center, n.Width, NodeRuntimeType(n.Kind)).Grow(9).HasPoint(p)) return new Hit(i, -1, false, false, false); if (HitPathBody(i, p)) return new Hit(i, -1, false, false, false); }
-		return new Hit(-1, -1, false, false, false);
+		var geometry = new HitGeometry(this, p);
+		var hit = CanvasHitTesting.Hit(in geometry, _side, p.X, p.Y);
+		return new Hit(hit.NoteIndex, hit.NodeIndex, hit.Resize, hit.ResizeLeading, hit.ResizeNodeWidth);
 	}
 
 	/// <summary>标尺与标尺刻度映射的整曲小节数（沿用画布的时长估算）。</summary>

@@ -44,6 +44,10 @@ internal static class Program
             CanvasEditGestureTests.Run();
             CanvasProjectionTests.Run();
             CanvasPlacementDraftTests.Run();
+            CanvasSelectionStateTests.Run();
+            CanvasHitTestingTests.Run();
+            CanvasGesturePreviewTests.Run();
+            EditorCreateRequestTests.Run();
             Console.WriteLine("EDITOR TESTS PASS");
             return 0;
         }

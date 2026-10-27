@@ -1,10 +1,10 @@
 # 模块地图与拆分边界
 
-2026-10-26 按当前项目引用和结构报告复核；职责拆分在 2026-10-25 落地，既有未提交功能改动保留。
+2026-10-27 按当前项目引用和结构报告复核；已提取画布选择/命中/手势预览、创建请求、Track Handoff、选曲视口和设置编解码边界，并按功能族整理源码目录。
 本文只维护当前代码导航与对象边界；玩法合同见 [gameplay-spec](<gameplay-spec.md>) 与 [chart-format-v2](<chart-format-v2.md>)，执行结果统一见 [验证记录](<verification.md>)。
 
 目前已建立纯规则核心、纯编辑核心、共享 Godot 视觉、游戏和编辑器适配五个边界。
-渲染/特效、文档会话、浏览、试听、校准音源、HUD 和部分编辑器页面已独立成对象。
+渲染/特效、文档会话、浏览、试听、校准音源、HUD、画布选择/命中/手势预览、创建请求、Track Handoff、选曲视口、设置编解码和部分编辑器页面已独立成对象。
 应用层仍有大类，尤其是画布交互；当前属于核心层分离较好、应用层持续拆分的状态。
 第三轮范围与行为证据见 [第三轮模块化](<archive/reports/2026-10-25-modularization-phase3.md>)；此前的草稿保存修正见
 [第二轮模块化](<archive/reports/2026-10-25-modularization-phase2.md>)。新的 editor 产品想法暂不实施或排期。
@@ -56,6 +56,13 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `SongSelectWidgets` / `SettingsWidgets` / `CalibrationWidgets` | 控件输入、信号、绘制和局部动效 | 页面接线、设置保存；当前动效/落速用 provider 注入 |
 | `EditorStartPage` / `EditorHudView` / `EditorSettingsPage` / `EditorContextMenu` | Start 控件和事件、HUD 展示、设置接线与原保存节奏、菜单展示 | 页流、文档会话、对话框、预览播放与菜单命令路由 |
 | `CanvasProjection` / `CanvasPlacementDraft` | 文档到可变预览数据的映射 / 新建音符宽度与 Hold 两阶段草稿 | Godot 输入、坐标/吸附、选择恢复；提交仍走文档命令 |
+| `CanvasSelectionState` | Note.Id 多选、主选择/实际单选、BPM 精确时间、二级 Node.Id 与框选生命周期 | Godot 输入与几何、选择事件、重绘和文档命令 |
+| `CanvasHitTesting` | 逆序遮挡、节点/头/尾/身体优先级与边缘 typed hit | Godot 矩形、路径求值、坐标换算及 Hit 适配 |
+| `CanvasGesturePreview` | 移动、宽度、节点时间/宽度与路径精确时间平移的纯预览计算 | Godot 输入、屏幕几何、Projection 回写和一次命令提交 |
+| `TrackHandoffPresentation` / `TrackHandoffState` | relay UI、front/fx、相位推进与独立放电尾巴 | Signal Lock、路由、ready timeout、输入锁和转场完成时机 |
+| `SongListViewport` / `SongListScrollState` | 列表触摸/滚轮输入、滚动读写、惯性与选择意图 | Browse、展开/收起、搜索、详情试听和页面导航 |
+| `GameSettingsCodec` | 设置快照、JSON、旧字段迁移和配色恢复 | 唯一运行态、user://、原子写入、警告和 AudioServer |
+| `EditorCreateRequest` / `EditorCreatePreflight` | New/Add 的纯请求组装、前置校验和 Add 的固定默认时间线 | 控件与文本解析、文件可用性查询、session、错误显示和页流 |
 
 未落盘草稿新增难度时必须保留外部音频/封面映射；会话成功保存后才 MarkSaved。磁盘发布后的清理错误不保证回滚，不能把异常等同于“完全没写盘”。
 
@@ -78,29 +85,34 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | 类 | 第三轮前 | 当前 |
 | --- | ---: | ---: |
 | GameplayMain | 1823 | 1317 |
-| SongSelect | 2137 | 1296 |
+| SongSelect | 2137 | 1122 |
 | CalibrationScreen | 1835 | 1213 |
-| StandaloneEditorMain（含 EditorFlow） | 2566 | 1297 |
-| AuthoringCanvas | 2495 | 2402 |
+| StandaloneEditorMain（含 EditorFlow） | 2566 | 1230 |
+| AuthoringCanvas | 2495 | 2359 |
 
-其他当前总量：SettingsScreen 789、CreatePageOverlay 1330、GameplayNoteRenderer 762。以上数值于 2026-10-26 结构报告复核。
+其他当前总量：SettingsScreen 789、CreatePageOverlay 1330、GameplayNoteRenderer 762；TransitionOverlay 239、TrackHandoffPresentation 583、TrackHandoffState 72。以上数值于 2026-10-27 结构报告复核。
 后续代码规模以 `tools/architecture/check.py --report` 的实际输出为准。
 
 对既往进程、剩余大文件与后续优先级的分析见 [2026-10-26 模块化复审](<modularity-review-2026-10-26.md>)：补充了 TransitionOverlay、NoteColorsScreen 等观察对象，并区分职责提取、文件整理与合理保留的协调宿主。该文是建议，不是已实施拆分或新排期。
 
 Godot 场景绑定继续使用原入口文件及类名。以下分部文件用于局部整理，仍属于同一个类，
 不能当作已完成对象级隔离；字段随所属职责移动，也不新增“万能上下文”对象。
+物理目录按功能族组织：client UI 分为 `song_select/`、`transitions/`、`calibration/`、`settings/`、`note_colors/`、`results/`、`home/`、`common/`；
+client game 分为 `gameplay/`、`charts/`、`session/`、`settings/`、`common/`、`verification/`；editor 分为 `authoring/`、`flow/`、`pages/`、`common/`。
+chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Commands/`；两套测试也按功能分组。场景/程序入口可留根，移动不改变 namespace 或类名。
 
 | 入口 | 职责文件 |
 | --- | --- |
-| `GameplayMain.cs` | 启动、选择、测量常量和每帧协调；`.Input` 输入适配，`.Judgement` 判定编排，`.Sustain` 持续状态，`.Mixer` 时间重放，`.Views` 转交渲染；`.Presentation` 协调 HUD、暂停回调和结果；暂停对象在 `GameplayPauseOverlay.cs` |
-| `SongSelect.cs` | 会话、选中与导航；`.Library` 列表/搜索/滚动，`.Loading` 详情与试听接线，`.QuickSettings` 快捷设置，`.Motion` 卡片推进/页面进场，`.Layout` 页面布局；卡片在 `SongDetailCard.cs`，动画在 `SongCardMotion.cs`，详情代际在 `SongDetailRequest.cs` |
-| `CalibrationScreen.cs` | 采样展示、设置应用与导航；`.Audio` 校准时间/音符投影，`.Layout` 几何与构建；采样在 `CalibrationSampling.cs`，音源在 `CalibrationBeatSource.cs`，控件在 `CalibrationWidgets.cs` |
-| `SettingsScreen.cs` | 页面状态、保存与动效；`.Layout` 字段布局；独立控件在 `SettingsWidgets.cs` |
+| `game/GameplayMain.cs` | 启动、选择、测量常量和每帧协调；其余分部、渲染/HUD/暂停/特效位于 `game/gameplay/` |
+| `ui/song_select/SongSelect.cs` | 会话、选中与导航；`.Library` 列表/搜索，`.Loading` 详情与试听接线，`.QuickSettings` 快捷设置，`.Motion` 卡片推进/页面进场，`.Layout` 页面布局；滚动/触摸在 `SongListViewport.cs`，惯性在 `SongListScrollState.cs`，卡片/动画/详情代际各自独立 |
+| `ui/CalibrationScreen.cs` | 页面协调；其余分部、采样、音源和控件位于 `ui/calibration/` |
+| `ui/SettingsScreen.cs` | 页面状态、保存与动效；字段布局与控件位于 `ui/settings/` |
+| `game/settings/GameSettings.cs` | 唯一运行态、Godot 读写与音频适配；JSON/迁移在同目录 `GameSettingsCodec.cs` |
+| `ui/transitions/TransitionOverlay.cs` | Signal Lock 与 Track Handoff 转发；relay/front/fx 在 `ui/transitions/TrackHandoffPresentation.cs`，纯相位在 `ui/transitions/TrackHandoffState.cs` |
 | `StandaloneEditorMain.cs` | 编辑器启动、输入、预览和菜单命令路由；`EditorContextMenu` 负责菜单展示 |
-| `EditorFlow.cs` | 页流与对话框协调；`.Start/.Settings/.Hud` 接入独立组件，`.Pack/.Create` 仍负责页接线，`.Digest` 哈希状态，`.Persistence` 会话保存结果 |
-| `AuthoringCanvas.cs` | 文档投影接线、画布状态和坐标换算；`.Gestures` 手势，`.Drawing` 舞台/网格；Path/Placement/Selection 按专题维护，投影与放置草稿位于 chart-editor-core |
-| `CreatePageOverlay.cs` | 表单与交互；`.Drawing` 自绘，`.Fields` 数值输入与等级控件 |
+| `flow/EditorFlow.cs` | 页流与对话框协调；`.Start/.Settings/.Hud` 接入独立组件，`.Pack/.Create` 负责页接线，创建请求/预检位于 chart-editor-core；`.Digest` 哈希状态，`.Persistence` 会话保存结果 |
+| `authoring/AuthoringCanvas.cs` | 文档投影接线、画布状态和坐标换算；`.Gestures` 手势，`.Drawing` 舞台/网格；Path/Placement/Selection 按专题维护，投影、放置草稿、选择、命中与手势预览计算位于 chart-editor-core |
+| `pages/CreatePageOverlay.cs` | 表单与交互；`.Drawing` 自绘，`.Fields` 数值输入与等级控件 |
 | `EditorCommands.cs` | `IEditorCommand` 与组合事务；具体命令位于 `Commands/`，命名空间/API 保持 |
 
 ## 后续功能放哪里
@@ -117,9 +129,9 @@ Godot 场景绑定继续使用原入口文件及类名。以下分部文件用�
 
 | 优先级 | 对象 | 下一步边界与验证 |
 | --- | --- | --- |
-| 1 | AuthoringCanvas | 绘制、命中、框选、路径交互仍共享较多状态；已有投影/手势/放置草稿作为边界，后续以选择与撤销回归保护拆分 |
-| 2 | CreatePageOverlay | 表单值/校验、输入焦点和绘制仍在同一类；先明确表单结果合同，不引入新的 editor 产品流程 |
-| 3 | SongSelect | 列表布局、滚动命中和页面协调仍在场景；卡片动画/展示、详情代际、浏览和试听已独立，后续验证快速切曲/收起/离页 |
+| 1 | AuthoringCanvas | 绘制与路径交互仍共享较多状态；选择、命中、投影/手势/放置草稿与预览计算已有独立边界，后续按变更压力处理绘制/路径 |
+| 2 | CreatePageOverlay | 文本解析、输入焦点和绘制仍在同一类；请求组装/预检已独立，不引入新的 editor 产品流程 |
+| 3 | SongSelect | 视口、滚动、卡片动画/展示、详情代际、浏览和试听已独立；动态行高/过滤场景的固定步距触摸命中仍是未复现疑点，需真实输入刻画 |
 | 4 | GameplayMain | 暂停已独立，结算与成绩保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定 |
 
 上述拆分不授权顺带更改 JudgeEngine、v2 读写、判定窗口、时钟公式、成绩身份或布局数值。

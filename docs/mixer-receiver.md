@@ -13,7 +13,7 @@
 - `shared/Judge/MixerContactGeometry.cs`：候选位置与实际接收使用同一几何条件，枚举 legacy/v2 接收边界。
 - `shared/Judge/MixerTimeline.cs`：v2 精确元数据运行时映射、legacy BPM 映射、无 BPM 时的烘焙路径回退。
 - `V2PathEvaluator.AddReceiverBoundaries`：中心±半宽的多项式零点；在导数根处拆段后 52 次二分，支持 EaseInOut 分段、PCHIP 和 Hold 跳变。
-- `client/scripts/game/GameplayMain.Mixer.cs`：唯一屏幕逆映射、物理触点合法性过滤后的事件适配、提前成功头判授权、节点结果缓存、视图更新。
+- `client/scripts/game/gameplay/GameplayMain.Mixer.cs`：唯一屏幕逆映射、物理触点合法性过滤后的事件适配、提前成功头判授权、节点结果缓存、视图更新。
 - `GameplayMain.JudgeHoldingPoint`：按原全局 sweep 顺序应用预计算结果，避免按 Mixer 分组结算改变 Combo。
 
 输入与节点之间，收集已放置位置和所有活动触点的接收边界，逐个开区间推进；区间内接收归属不变，漏接起点取区间左边界而非发现它的渲染帧。
@@ -21,7 +21,7 @@
 
 ## 验证与实机清单
 
-`tools/core-tests/MixerTests.cs` 直接调用生产状态机，覆盖短按/松手/无效点击、拖动与抢占、未知 Move、提前成功头判、自动演示、多指接力、帧内完整漏接恢复、30/60/144fps、变 BPM 宽限、六种曲线以及变宽 PCHIP 多项式分段。
+`tools/core-tests/Gameplay/MixerTests.cs` 直接调用生产状态机，覆盖短按/松手/无效点击、拖动与抢占、未知 Move、提前成功头判、自动演示、多指接力、帧内完整漏接恢复、30/60/144fps、变 BPM 宽限、六种曲线以及变宽 PCHIP 多项式分段。
 旧测试中的 MixerCursor 镜像实现已删除，避免旧语义自我比较继续冒充当前行为验证。
 
 实机待确认：

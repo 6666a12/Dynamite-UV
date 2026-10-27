@@ -18,9 +18,9 @@ DynaMaker UV 是独立的 Windows 桌面制谱器，使用 **Godot 4.7.1 Mono/.N
 
 | 当前职责 | 源码入口 |
 | --- | --- |
-| Godot shell：输入/视觉预览时钟、页面流与目录对话框 | [StandaloneEditorMain](<../editor/scripts/StandaloneEditorMain.cs>)、[EditorFlow](<../editor/scripts/EditorFlow.cs>)及同名分部文件；Start/Settings/HUD 等视图已独立为对象 |
-| 文档会话：打开、新建、加差分、保存及首次保存的外部资源所有权 | [EditorDocumentSession](<../tools/chart-editor-core/EditorDocumentSession.cs>)；页面/对话框/错误展示仍由 editor 负责 |
-| 权威文档、命令、精确时间、投影与编辑手势 | [EditorDocument](<../tools/chart-editor-core/EditorDocument.cs>)、[CanvasAuthoringController](<../tools/chart-editor-core/CanvasAuthoringController.cs>)、[CanvasProjection](<../tools/chart-editor-core/CanvasProjection.cs>)、[CanvasEditGesture](<../tools/chart-editor-core/CanvasEditGesture.cs>)、[CanvasPlacementDraft](<../tools/chart-editor-core/CanvasPlacementDraft.cs>)；均属于不依赖 Godot 的 ChartEditor.Core |
+| Godot shell：输入/视觉预览时钟、页面流与目录对话框 | [StandaloneEditorMain](<../editor/scripts/StandaloneEditorMain.cs>)、[EditorFlow](<../editor/scripts/flow/EditorFlow.cs>)及同名分部文件；Start/Settings/HUD 等视图已独立为对象 |
+| 文档会话：打开、新建、加差分、保存及首次保存的外部资源所有权 | [EditorDocumentSession](<../tools/chart-editor-core/Documents/EditorDocumentSession.cs>)；页面/对话框/错误展示仍由 editor 负责 |
+| 权威文档、命令、精确时间、投影与编辑手势 | [EditorDocument](<../tools/chart-editor-core/Documents/EditorDocument.cs>)、[CanvasAuthoringController](<../tools/chart-editor-core/Canvas/CanvasAuthoringController.cs>)、[CanvasProjection](<../tools/chart-editor-core/Canvas/CanvasProjection.cs>)、[CanvasEditGesture](<../tools/chart-editor-core/Canvas/CanvasEditGesture.cs>)、[CanvasPlacementDraft](<../tools/chart-editor-core/Canvas/CanvasPlacementDraft.cs>)；均属于不依赖 Godot 的 ChartEditor.Core |
 | 两端公共 Godot 视觉 | [presentation](<../presentation/>)：舞台、Note 视觉与公共 UI；不读取 client/editor 的全局设置或会话 |
 | 格式、时间/路径求值、判定与安全写包语义 | [shared](<../shared/>)：纯 C# 核心，不依赖 Godot；底层支持不等于编辑器 UI 已接入 |
 
@@ -48,7 +48,7 @@ Start 页不接收单个音频/封面文件，当前打开流程以 UI 为入口
 
 ## 2. 当前页面与包流程
 
-[页面流程代码](<../editor/scripts/EditorFlow.cs>)当前是 **Start / Pack / Create / Edit / Settings** 五页：
+[页面流程代码](<../editor/scripts/flow/EditorFlow.cs>)当前是 **Start / Pack / Create / Edit / Settings** 五页：
 
 | 页面 | 当前行为 |
 | --- | --- |
@@ -59,12 +59,12 @@ Start 页不接收单个音频/封面文件，当前打开流程以 UI 为入口
 | Settings | 设计稿版设置页（Editor — Settings）：左导航 GENERAL / EDITOR / AUDIO，右侧切角面板按组列出设置行；GENERAL **四行**（MOTION 三段器、**UI SCALE 四段器**——板面没有这一行，2026-10-08 随 UI 缩放新增、EFFECTS 两段器、AUTO SAVE 开关 + 秒步进），EDITOR **五行**（DEFAULT GRID 三段器、SNAP 步进器、GRID OPACITY 滑条、BACKGROUND DIM 滑条、**SCROLL INERTIA 滑条**——板面没有这一行，2026-10-08 随滚动惯性新增），AUDIO 三行（PREVIEW VOLUME 滑条、METRONOME 开关、HITSOUND 开关）；底部 `RESET DEFAULTS` 与 `BACK`。两个入口进同一页（Start 页右下 SETTINGS 文字键、Edit 右键菜单的 `SETTINGS` 行），BACK 各回其处。**只画当前选中的那一个组**（左导航分页），这是 2026-10-08 拍板的页形态，不铺成长面板；同日进一步明确**三组各自是从同一组顶（y=240）起排的独立面板**，面板高度随组行数，不是一块长板按组累进后切窗口。 |
 
 **strict v2 本地目录包打开已经真实接入**：路径行的 **OPEN** / 回车调用
-[EditorPackageRepository.Open](<../tools/chart-editor-core/PackageRepository.cs>)，进行目录与普通资源文件的安全检查、
+[EditorPackageRepository.Open](<../tools/chart-editor-core/Documents/PackageRepository.cs>)，进行目录与普通资源文件的安全检查、
 包/谱面严格解码和跨文件语义校验；失败不进入 Pack 页。这不等于 legacy XML/DY 或 ZIP 导入，
 当前打开流程也没有音频解码、时长探测或试听能力。格式合同见[Chart Format v2](<chart-format-v2.md>)。
 Pack 页的 `IMPORT PACKAGE` 行是同一套打开流程（选完目录直接解析），失败只回报并保留当前已打开的包。
 
-**Pack 页（设计稿 Pack Select）已按稿落地**：[PackPageOverlay](<../editor/scripts/PackPageOverlay.cs>) 整页自绘
+**Pack 页（设计稿 Pack Select）已按稿落地**：[PackPageOverlay](<../editor/scripts/pages/PackPageOverlay.cs>) 整页自绘
 （切角、虚线描边、密度条、细滚动条都是控件树表达不了的自绘形状），元素坐标与设计稿 1:1。
 左列只有当前这一个已打开的包（单包会话，不伪造多包列表）；封面取包内 `cover` 引用，经
 `V2PackageWriter.ResolveRegularFile` 的严格包内解析后解码，无引用或解码失败时回落到 presentation 的公共
@@ -79,12 +79,12 @@ note 数取 shared 的主判定数（`V2SemanticValidator.CountMainJudgements`�
 `难度 等级 · N NOTES`（unrated 写 `UNRATED`），保存/打开回报复用同一条。
 `DIGEST OK` 不是读包里的存档 digest（v2 不把 digest 写进包元数据，writer 只计算并返回 digest），
 而是用当前编辑状态的谱面快照 + 音频 SHA-256 真算 gameplay-v1 digest，与保存时 writer 同一算法。
-[EditorFlow.Digest](<../editor/scripts/EditorFlow.Digest.cs>)在后台读取音频字节算哈希，按路径 + 最后写入时间 + 长度缓存；
+[EditorFlow.Digest](<../editor/scripts/flow/EditorFlow.Digest.cs>)在后台读取音频字节算哈希，按路径 + 最后写入时间 + 长度缓存；
 换包/保存会失效，回调会检查期望路径与元数据。首次哈希未就绪、音频缺失或谱面当前校验不过
 （例如还没有主判定）时显示压暗的 `DIGEST —`，就绪后刷新盾标；这不是音频解码、完整保存校验或实机验收。
 底部 `STORYBOARD` 仍是已拍板的禁用占位（只有描边、整体 55% 压暗、不响应点击）。
 
-**Create 页（设计稿 Create Project）已按稿落地**：[CreatePageOverlay](<../editor/scripts/CreatePageOverlay.cs>)
+**Create 页（设计稿 Create Project）已按稿落地**：[CreatePageOverlay](<../editor/scripts/pages/CreatePageOverlay.cs>)
 整页自绘（面板切角、字段框、难度 chips、封面虚线区与底部操作条都是控件树表达不了的自绘形状），
 文本输入仍是真实的 LineEdit 子节点，坐标与设计稿 1:1。AUDIO 面板右上写**真实**音频校验态
 （文件存在 / 扩展名受 draft factory 支持 / 落盘探测只吃 WAV），编辑器没有时长与采样率探测，
@@ -104,7 +104,7 @@ AddDifficulty 模式下包元数据、音频与封面属于已打开的包，改
 非 CUSTOM 难度会收起 DIFF KEY 行：FIRST CHART 面板从 340px 缩到 276px，LEVEL、COVER、MEMORY DRAFT
 一起上移 64px；页内切 chips 播 0.18s CubicOut，进页/预填直接落终值，MOTION=OFF 也直接落终值。
 Start 路径框与 Create 输入框另有约 0.12s 焦点描边反馈；页面可点热点的 hover 颜色过渡走
-[EditorMotion](<../editor/scripts/EditorMotion.cs>)（约 0.10s），不是把已有放置手势改成插值跟随。
+[EditorMotion](<../editor/scripts/common/EditorMotion.cs>)（约 0.10s），不是把已有放置手势改成插值跟随。
 
 **等级输入（设计稿 §4 第 5 条 + Widget — Level States）**：`‹ ›` 步进钳制在 1..99（99 时 `›` 与描边一起
 压暗禁用）；数字是 LineEdit、**永远是权威值**——输入 0 / -1 / 100 或非数字时被拒（短暂红框后回到上一个
@@ -112,10 +112,10 @@ Start 路径框与 Create 输入框另有约 0.12s 焦点描边反馈；页面�
 等距 18 不分组），0 位不出块；
 勾选 `UNRATED` 后数字禁用显示 `--`、不出块、`level` 写 null。
 
-**Settings 页已按稿落地**（[SettingsPageOverlay](<../editor/scripts/SettingsPageOverlay.cs>)整页自绘，行与控件几何取设计稿
+**Settings 页已按稿落地**（[SettingsPageOverlay](<../editor/scripts/pages/SettingsPageOverlay.cs>)整页自绘，行与控件几何取设计稿
 `settings_board()`）：左导航三组切换、行分隔线与切角面板都是自绘形状。
-[EditorSettingsPage](<../editor/scripts/EditorSettingsPage.cs>)把页面事件接到
-[EditorSettings](<../editor/scripts/EditorSettings.cs>)（内存单例 + `user://editor-settings.json`，启动加载）。
+[EditorSettingsPage](<../editor/scripts/pages/EditorSettingsPage.cs>)把页面事件接到
+[EditorSettings](<../editor/scripts/common/EditorSettings.cs>)（内存单例 + `user://editor-settings.json`，启动加载）。
 **真接点共七项**，其中 SCROLL INERTIA 与 UI SCALE 是板面没有的新增行；离散档位立即落盘，滑条拖动实时改画面、松手才写盘：
 
 | 项 | 状态 | 接点 |
@@ -151,7 +151,7 @@ Edit 主态不再有常驻的选中摘要文字行（2026-10-08 移除，连同�
 
 ## 3. 画布与编辑范围
 
-[AuthoringCanvas](<../editor/scripts/AuthoringCanvas.cs>)采用固定 1920×1080 坐标，
+[AuthoringCanvas](<../editor/scripts/authoring/AuthoringCanvas.cs>)采用固定 1920×1080 坐标，
 主场景中的 `ChartCanvas/SharedGameplayStage` 负责 clean-room 舞台视觉；画布输入叠加在视觉层上，
 不是游戏完整判定运行时。
 
@@ -160,7 +160,7 @@ Edit 主态不再有常驻的选中摘要文字行（2026-10-08 移除，连同�
 - Center / Left / Right 三个音符编辑侧，以及 Events 事件侧。
 - **Normal → Tap、Chain → Drag、Hold、Select** 四种画布工具；Hold 为先定头部/宽度、再定尾部的两阶段放置。
 - 对象选择、Shift 多选、框选、移动、宽度调整、已有路径节点的时间/位置/宽度编辑，以及删除和取消手势。
-- **真实路径 body**：Hold/Mixer 在舞台上的投影经 [EditorPathProjection](<../tools/chart-editor-core/EditorPathProjection.cs>)
+- **真实路径 body**：Hold/Mixer 在舞台上的投影经 [EditorPathProjection](<../tools/chart-editor-core/Canvas/EditorPathProjection.cs>)
   调 shared `V2PathEvaluator` 逐段求值，按曲线类型自适应细分；弦高误差的目标容差为 0.5px，
   编辑器每段上限 64 段，达到上限不代表任意路径都满足此容差（runtime 上限为 256）。
   与 `V2RuntimeAdapter` 共用路径数学/像素尺度，视觉由 presentation 的公共舞台渲染器提供，
@@ -182,7 +182,7 @@ Edit 主态不再有常驻的选中摘要文字行（2026-10-08 移除，连同�
   + `时刻 · x 中心` / `w 宽度` 两行读数（读数画在压在 Note 之上的前景层，幽灵本体留在画布层）。双击空白处、
   头部或手柄都不插入；菜单 `ADD NODE` 行是同一入口的菜单形式（在游标时刻插入，游标不在路径内部时禁用）。
 - **放置手势视觉**（设计板 `Editor — Placing`，设计稿 §4 第 9、10 条，
-  [AuthoringCanvasPlacement](<../editor/scripts/AuthoringCanvasPlacement.cs>)）：
+  [AuthoringCanvasPlacement](<../editor/scripts/authoring/AuthoringCanvasPlacement.cs>)）：
   - 导引十字线：过幽灵时间的 pink 2px 全宽时间线（两端各 200px 渐隐）与过幽灵位置、从屏幕/可放置端
     到判定线的 3px 白 60% 位置线；画在画布自己的 `_Draw`，也就是 presentation 舞台 Note **之下**（设计板
     要求导引压在 Note 下，幽灵与已放对象保持可读）。
@@ -239,8 +239,8 @@ Edit 主态不再有常驻的选中摘要文字行（2026-10-08 移除，连同�
 - 设置页的七项真接点（MOTION / **UI SCALE** / DEFAULT GRID / SNAP / GRID OPACITY / BACKGROUND DIM / **SCROLL INERTIA**）见 §2 的 Settings 行，
   值持久化在 `user://editor-settings.json`；`RESET DEFAULTS` 会同时把当前文档网格与画面接点拉回默认。
 - 文档权威编辑链路：画布经
-  [CanvasAuthoringController](<../tools/chart-editor-core/CanvasAuthoringController.cs>)提交命令给
-  [EditorDocument](<../tools/chart-editor-core/EditorDocument.cs>)，再由文档重建画布投影。
+  [CanvasAuthoringController](<../tools/chart-editor-core/Canvas/CanvasAuthoringController.cs>)提交命令给
+  [EditorDocument](<../tools/chart-editor-core/Documents/EditorDocument.cs>)，再由文档重建画布投影。
   已接入 dirty 跟踪和撤销/重做，精确 BarTime 属于文档，而不是把显示秒数当作唯一权威数据。
 
 ### 尚未完整接入
@@ -250,7 +250,7 @@ Edit 主态不再有常驻的选中摘要文字行（2026-10-08 移除，连同�
 - 已有路径节点可编辑，路径预览也按曲线逐段求值；但双击插入只覆盖「在既有路径上加点」这一种形态，
   没有为路径新增独立工具，插入点的出向曲线只继承区间左端。插入点精确采样不代表整段曲线形状不变：
   非线性段切开后邻域可能形变，没有通用的亚像素保证；线性段切开保持原直线。
-  [路径插入回归](<../tools/chart-editor-tests/EditorPathTests.cs>)中平滑 fixture 的形变断言是 ≤4px，
+  [路径插入回归](<../tools/chart-editor-tests/Documents/EditorPathTests.cs>)中平滑 fixture 的形变断言是 ≤4px，
   不是所有曲线的误差合同，本轮也没有重新运行该测试。
 - 节点菜单能改已有节点的曲线与 judge，也能在游标处插入 node，但没有 Note 级 duplicate 或 Scroll 事件 UI；
   已有 BPM 事件也没有数值编辑 UI（Create 页的初始 BPM 输入不等于事件属性编辑）。CURVE 段只作用于选中节点的出向段。
@@ -301,9 +301,9 @@ hispeed / rate 只影响预览计时，没有音频处理或包参数保存。
   **当前 shell 没有提供 host probe**：虽然 Create 接受 .wav/.mp3/.flac/.ogg/.opus/.m4a/.aac 路径作为草稿，
   当前 SAVE/SAVE AS 的音频验证仍只有该 WAV probe，不能把“允许选择扩展名”当作“可成功保存所有格式”。
   这是写盘阶段的音频校验，不是 UI 试听或时长显示。
-- [EditorFlow.Persistence](<../editor/scripts/EditorFlow.Persistence.cs>)负责保存对话框和回报，实际调用
-  [EditorDocumentSession.Save](<../tools/chart-editor-core/EditorDocumentSession.cs>)；
-  [EditorProjectDraft](<../tools/chart-editor-core/EditorProjectDraft.cs>)提供外部资源映射和创建请求生成能力。
+- [EditorFlow.Persistence](<../editor/scripts/flow/EditorFlow.Persistence.cs>)负责保存对话框和回报，实际调用
+  [EditorDocumentSession.Save](<../tools/chart-editor-core/Documents/EditorDocumentSession.cs>)；
+  [EditorProjectDraft](<../tools/chart-editor-core/Documents/EditorProjectDraft.cs>)提供外部资源映射和创建请求生成能力。
   会话保留完整 draft，首次落盘用 `BuildPackageCreateRequest` 生成请求，外部音频/封面会一起发布；
   **未保存草稿新增差分不会清掉 draft**，因此仍保留首次保存所需的外部资源来源。
 - 保存目标目录来自 `FileDialog(OpenDir)`，空目录通过 `AllowEmptyDestination` 放行；
@@ -312,7 +312,7 @@ hispeed / rate 只影响预览计时，没有音频处理或包参数保存。
   校验在发布前完成，替换发布失败有备份/回滚逻辑；但不能承诺所有异常都已回滚：
   **同目录保存可能已发布成功、随后临时文件清理失败而抛错**，此时磁盘保留新版包、会话却尚未标为已保存。
   遇到这类错误应保留内存现场并核对磁盘/备份，不把“保存失败”文字等同于“磁盘一定未变”。
-- 编辑器自身的设置写在 `user://editor-settings.json`（[EditorSettings](<../editor/scripts/EditorSettings.cs>)），
+- 编辑器自身的设置写在 `user://editor-settings.json`（[EditorSettings](<../editor/scripts/common/EditorSettings.cs>)），
   与谱面包无关，也不参与 v2 校验或 digest；设置页里没有实现可接的行不写进这个文件。
 - 音频播放/同步、波形与 UI 时长显示、完整属性/类型/路径工具及 Storyboard 属于未完成范围；
   已有路径投影、节点编辑与 TIME/CENTER/WIDTH 步进不在此重复列作“全未接入”。
@@ -320,7 +320,7 @@ hispeed / rate 只影响预览计时，没有音频处理或包参数保存。
 
 ### 本轮静态核对仍保留的边界
 
-- MOTION=OFF 的普通 Create 文本框失焦 glow 仍按帧渐退（[CreatePageOverlay](<../editor/scripts/CreatePageOverlay.cs>)的 `_Process`），
+- MOTION=OFF 的普通 Create 文本框失焦 glow 仍按帧渐退（[CreatePageOverlay](<../editor/scripts/pages/CreatePageOverlay.cs>)的 `_Process`），
   与 Start 路径框、Create 数值/等级框的瞬时 OFF 分支不同；这是静态观察，未做窗口复现或修复。
 - 菜单 glyph/物理 `M`、`R` 的差异与播放态/AUTO 不完全同源见 §4；没有擅改快捷键或据此宣称已经验收。
 - 64 段路径投影上限、非线性插入形变、异步 digest 首次状态与保存清理异常的实际窗口体验仍需专项验证；

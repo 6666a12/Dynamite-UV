@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/StandaloneEditorMain.cs" id="1_main"]
-[ext_resource type="Script" path="res://scripts/AuthoringCanvas.cs" id="2_canvas"]
+[ext_resource type="Script" path="res://scripts/authoring/AuthoringCanvas.cs" id="2_canvas"]
 
 [node name="DynaMakerUv" type="Control"]
 layout_mode = 3

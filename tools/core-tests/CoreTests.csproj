@@ -12,18 +12,22 @@
     <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
     <!-- The result clock is deliberately Godot-free: verify opaque loading/skip semantics. -->
     <Compile Include="../../presentation/ui/UiMotionMode.cs" Link="Ui/UiMotionMode.cs" />
-    <Compile Include="../../client/scripts/ui/ResultRevealTimeline.cs" Link="Ui/ResultRevealTimeline.cs" />
+    <Compile Include="../../client/scripts/ui/results/ResultRevealTimeline.cs" Link="Ui/ResultRevealTimeline.cs" />
+    <Compile Include="../../client/scripts/ui/transitions/TrackHandoffState.cs" Link="Ui/TrackHandoffState.cs" />
+    <Compile Include="../../client/scripts/game/settings/GameSettingsCodec.cs" Link="Game/GameSettingsCodec.cs" />
     <!-- The calibration statistics core is Godot-free too: verify median/spread/suggestion. -->
-    <Compile Include="../../client/scripts/ui/CalibrationStats.cs" Link="Ui/CalibrationStats.cs" />
+    <Compile Include="../../client/scripts/ui/calibration/CalibrationStats.cs" Link="Ui/CalibrationStats.cs" />
     <!-- Calibration sampling owns the tap state machine without Godot: verify warmup/sampling rules. -->
-    <Compile Include="../../client/scripts/ui/CalibrationSampling.cs" Link="Ui/CalibrationSampling.cs" />
+    <Compile Include="../../client/scripts/ui/calibration/CalibrationSampling.cs" Link="Ui/CalibrationSampling.cs" />
     <!-- Palette editing transactions and snapshots are intentionally independent of Godot. -->
-    <Compile Include="../../client/scripts/ui/NotePaletteDraft.cs" Link="Ui/NotePaletteDraft.cs" />
-    <Compile Include="../../client/scripts/ui/SongBrowseState.cs" Link="Ui/SongBrowseState.cs" />
-    <Compile Include="../../client/scripts/ui/SongCardMotion.cs" Link="Ui/SongCardMotion.cs" />
-    <Compile Include="../../client/scripts/ui/UiEase.cs" Link="Ui/UiEase.cs" />
+    <Compile Include="../../client/scripts/ui/note_colors/NotePaletteDraft.cs" Link="Ui/NotePaletteDraft.cs" />
+    <Compile Include="../../client/scripts/ui/song_select/SongBrowseState.cs" Link="Ui/SongBrowseState.cs" />
+    <Compile Include="../../client/scripts/ui/song_select/SongListScrollState.cs" Link="Ui/SongListScrollState.cs" />
+    <Compile Include="../../client/scripts/ui/common/ScrollInertia.cs" Link="Ui/ScrollInertia.cs" />
+    <Compile Include="../../client/scripts/ui/song_select/SongCardMotion.cs" Link="Ui/SongCardMotion.cs" />
+    <Compile Include="../../client/scripts/ui/common/UiEase.cs" Link="Ui/UiEase.cs" />
     <!-- Detail request generation and single in-flight loading are Godot-free too. -->
-    <Compile Include="../../client/scripts/ui/SongDetailRequest.cs" Link="Ui/SongDetailRequest.cs" />
+    <Compile Include="../../client/scripts/ui/song_select/SongDetailRequest.cs" Link="Ui/SongDetailRequest.cs" />
     <None Include="Fixtures/synthetic_chart.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />

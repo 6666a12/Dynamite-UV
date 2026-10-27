@@ -110,7 +110,7 @@ Off 直接显示稳定页，遮住 Gameplay，避免短暂透层。
 可恢复的六板构建 JS、helpers 与 fixup 保存在 `design/result-v2/source/`，不含凭据。
 
 设计重建时必须检查导出尺寸、文字边界、示例数值、零判定条宽，以及非目标画板结构清单不变；历史检查记录不代表本次重跑。
-客户端实现位于 `client/scripts/ui/ResultScreen.cs`、`ResultShutter.cs`、
+客户端实现位于 `client/scripts/ui/results/ResultScreen.cs`、`ResultShutter.cs`、
 `ResultRevealTimeline.cs` 与 `ResultGradeArt.cs`。`GameplayMain` 仍负责计算/保存成绩，
 并在保存前读取旧最佳分数用于 NEW RECORD 增量。新 UI 不改变 legacy/v2 成绩身份。
 数据揭示动效（SCORE 计数、判定计数/分布条、NEW RECORD 盖印）集中在
