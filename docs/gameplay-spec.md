@@ -168,7 +168,20 @@ Perfect，落在输入窗内但超出 Good 窗（早侧或晚侧）立即按输�
 `GameSettings.BleedEnabled`（`bleedEnabled`，默认 false，选曲页的 `BLEED` 开关）是**游玩修饰
 而非档位**：Standard 下自由开关，Hardcore 下强制开启并锁定（开关压暗、方块停右侧 60%、挂锁、
 副文案 `HARDCORE 下强制开启`）；锁定期**不改写**持久化值，切回 Standard 恢复用户此前的选择。
-机制本身仍是预留——该开关只持久化，没有任何判定运行逻辑。
+机制已生效：BLEED 血量初始/上限 **100**，按每次真实判定结算（`shared/Judge/BleedHealth.cs`）：
+
+| 判定 | Standard（`BleedEnabled`） | Hardcore（强制开启） |
+| --- | --- | --- |
+| Miss | −2 | −4 |
+| Perfect | +0.2 | +0.1 |
+| Great / Good | +0.05 | 不回血 |
+| Mine | 不参与 | 不参与 |
+
+血量钳制在 `[0, 100]`；降到 0 即暂停谱面音乐并强制结算。**当前耗尽复用普通结算作为占位**，
+专用耗尽/失败结算后续扩展（待扩展），因此不改分数、不新增失败标识，既有保存规则照旧。
+自然完成结算仍保留既有音乐尾奏，不套用耗尽的暂停行为。
+Bleed 血条 UI 本轮未设计。Mine 走 `_engine.ApplyMine`，不经 `ApplyUnit`，不参与 BLEED 扣血。
+Hold 中途断触/头 Miss 的批量结算在 shared 规则内部落判定，客户端在两处批量结果上同样各计一次。
 
 `GameSettings.MirrorEnabled`（`mirrorEnabled`，默认 false，选曲页的 `MIRROR` 开关）开启后游玩
 画面左右镜像。它只改**屏幕映射**，判定窗口、Position、Note 数据一律不变：侧轨 Left↔Right 互换

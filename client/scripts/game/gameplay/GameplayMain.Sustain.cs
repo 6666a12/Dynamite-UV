@@ -142,6 +142,8 @@ public partial class GameplayMain
 		foreach (var settlement in SustainJudgementRules.SettleReleasedHold(
 			_plan.Units, state.Path.HeadId, releaseTime, _engine))
 		{
+			// 批量结算在 shared 内部直接落 engine，这里补齐 BLEED 血量。
+			_bleed?.Apply(settlement.Grade);
 			state.Broken |= settlement.Grade == JudgeGrade.Miss;
 			if (settlement.Unit.Category == ScoreCategory.HoldEnd)
 				tail = settlement;
@@ -159,7 +161,9 @@ public partial class GameplayMain
 		if (state.EndResolved)
 			return;
 		state.Broken = true;
-		SustainJudgementRules.FailRemainingHold(_plan.Units, state.Path.HeadId, _engine);
+		foreach (var unit in SustainJudgementRules.FailRemainingHold(
+			_plan.Units, state.Path.HeadId, _engine))
+			_bleed?.Apply(JudgeGrade.Miss); // 同上：批量 Miss 也计 BLEED 扣血
 		FinishHoldViews(state, JudgeGrade.Miss);
 	}
 

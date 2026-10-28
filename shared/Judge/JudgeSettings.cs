@@ -20,8 +20,8 @@ public enum GameplayMode
     Standard = 0,
     Hardcore = 1,
     /// <summary>
-    /// 预留：Hardcore 的变体（Bleed），具体数值与机制待用户拍板，见
-    /// docs/gameplay-spec.md「游玩模式」与 docs/handoff.md §2.2。当前没有任何运行逻辑。
+    /// 预留：旧模式枚举位，当前没有任何运行逻辑——BLEED 由 <c>GameSettings.BleedEffective</c>
+    /// 修饰项驱动（HARDCORE 强制开启），数值与机制见 docs/gameplay-spec.md §4.3。
     /// </summary>
     Bleed = 2,
 }

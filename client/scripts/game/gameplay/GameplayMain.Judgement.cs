@@ -337,6 +337,7 @@ public partial class GameplayMain
 			return;
 		_engine.Apply(unit.Category, grade, unit.AffectsCombo,
 			unit.AffectsJudgeCounts, resolution);
+		_bleed?.Apply(grade);
 		unit.Judged = true;
 	}
 }

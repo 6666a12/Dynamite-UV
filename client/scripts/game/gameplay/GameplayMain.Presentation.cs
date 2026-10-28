@@ -194,8 +194,8 @@ public partial class GameplayMain
 		if (isNewRecord)
 			GameSession.Scores.SaveDeferred();
 		var texture = CoverTextureCache.Current(_run.CoverPath) ?? CoverTextureCache.Load(_run.CoverPath);
-		// Force-close only hides the pause layer; the paused flag stays untouched so the song
-		// tail keeps playing and playback still stops through navigation.
+		// Force-close only hides the pause layer and keeps its paused flag untouched. Natural
+		// completion retains the song tail; BLEED depletion pauses playback before entering here.
 		_pause.ForceCloseForResult();
 		var selection = GameSession.CurrentSelection;
 		var packs = GameSession.Packs;

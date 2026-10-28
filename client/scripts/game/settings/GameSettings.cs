@@ -41,7 +41,8 @@ public sealed class GameSettings
     public bool AutoEnabled { get; set; } = false;
 
     /// <summary>
-    /// BLEED 游玩修饰（选曲页开关）。机制本身仍是预留，没有判定逻辑；HARDCORE 下强制开启并锁定，
+    /// BLEED 游玩修饰（选曲页开关）。已生效：100 血，Miss −2、Perfect +0.2、Great/Good +0.05；
+    /// HARDCORE 下强制开启并锁定（Miss −4、Perfect +0.1、Great/Good 不回血），
     /// 锁定期不改写本值，切回 STANDARD 时恢复用户此前的选择。见 docs/gameplay-spec.md「游玩模式」。
     /// </summary>
     public bool BleedEnabled { get; set; } = false;

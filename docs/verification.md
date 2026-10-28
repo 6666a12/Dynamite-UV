@@ -7,6 +7,8 @@
 
 | 日期 / 来源 | 已有结果 | 不能证明什么 |
 | --- | --- | --- |
+| 2026-10-27 结果前奏交接文档 | 新增 `docs/result-outcomes.md` 并接入文档导航、handoff 与结算规格；区分当前正常结束取早、未来取晚方案及静态候选。本次 4 份相关文档本地链接检查 0 缺失，最新 expressive 对照图与生成器存在，`git diff --check` 通过 | 仅文档整理，没有实施正常结束取晚、前奏、音效或客户端资产接入；未重跑 C#/发布测试、未启动 Godot，候选视觉尚未最终定稿。全量链接扫描另发现模块化旧审查中的 31 个历史源码链接失效，本次未扩大范围处理 |
+| 2026-10-27 BLEED 数值与耗尽结算 | 新增 `shared/Judge/BleedHealth.cs`（Standard/Hardcore 数值、100 封顶、0 钳制、耗尽幂等），`GameplayMain` 在 `ApplyUnit` 同步血量、`_Process` 判定与 Mixer 收尾后检查耗尽，先 `_playback.Pause()` 再复用 `ShowResults`，自然完成仍保留尾奏；核心回归新增 `[21] BLEED health rules and depletion`；Hold 中途断触/头 Miss 的 shared 批量结算另在客户端两处补齐血量。最终统一 `verify.py --no-restore` 通过：结构门禁 237 个 C# 文件、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 `git diff --check` | 未启动 Godot、导出或设备验收；耗尽暂停调用与正常尾奏路径经代码审核及构建回归确认，实际听感未测；未设计 Bleed 血条 UI，耗尽专用结算仍是复用普通结算的占位；Mine 不参与扣血、Auto 不写成绩等既有行为只按调用点静态确认 |
 | 2026-10-27 全量功能族目录整理 | client UI/game、editor、chart-editor-core 与两套测试完成按功能族分组；场景/程序入口保留，UID、core-test 链接、策略和活跃文档同步。最终统一 `verify.py --no-restore` 通过：235 个 C# 文件、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 `git diff --check` | 未启动 Godot、导出或设备验收；构建与静态路径检查不证明场景实际加载、视觉或触控体验 |
 | 2026-10-27 手势/视口/设置拆分与目录整理 | 目录移动后统一 `verify.py --no-restore` 通过：结构门禁覆盖 235 个 C# 文件，两端 0 warning / 0 error，核心与编辑器回归、37 项发布测试及 `git diff --check` 通过；场景/自动加载、UID、core-test 链接和策略路径同步更新，新增手势预览、滚动与设置 codec 回归 | 未启动 Godot、导出或设备验收；场景实际加载、触控手感、动态行高命中、AudioServer 和视觉效果未覆盖；固定步距命中疑点未宣称复现或修复 |
 | 2026-10-27 命中与 Track Handoff 拆分 | 最终代码运行统一 `verify.py --no-restore` 通过：结构门禁覆盖 228 个 C# 文件，两端 0 warning / 0 error，核心与编辑器回归、37 项发布测试及 `git diff --check` 通过；新增命中优先级/边缘与 Full/Reduced/Off 相位、放电完成和重置回归 | 未启动 Godot、导出或设备验收；纯命中适配和相位测试不证明真实输入派发、节点层级、GPU 合成、coverage 淡出或放电尾巴的实际视觉效果 |

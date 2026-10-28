@@ -75,6 +75,8 @@ public partial class GameplayMain : Node2D
 	private LoadedChart _loaded = null!;
 	private JudgePlan.Plan _plan = null!;
 	private JudgeEngine _engine = null!;
+	// BLEED 血量：仅 BleedEffective 时创建（HARDCORE 强制开启并取 Hardcore 数值）。
+	private BleedHealth? _bleed;
 	private SongPlayback _playback = null!;
 	private V2IntegrationVerification? _verification;
 	private V2IntegrationTrace? _trace;
@@ -154,6 +156,10 @@ public partial class GameplayMain : Node2D
 		_plan = JudgePlan.Build(_chart, JudgeSettings.ForPreset(preset));
 		BuildRuntimeJudgeIndex();
 		_engine = new JudgeEngine(preset, _plan.HeadlineUnitCount);
+		_bleed = GameSession.Settings.BleedEffective
+			? new BleedHealth(GameSession.Settings.GameplayMode == GameplayMode.Hardcore
+				? BleedRule.Hardcore : BleedRule.Standard)
+			: null;
 		foreach (var path in _plan.Sustains.Values)
 		{
 			_sustainStates[path.HeadId] = new SustainRuntime
@@ -245,6 +251,13 @@ public partial class GameplayMain : Node2D
 		UpdateSustainStates(t);
 		SweepJudges(t);
 		FinalizeEndedMixers(t);
+		// BLEED 耗尽：本帧判定与 Mixer 收尾都已完成，暂停音乐后进结算（占位：复用普通结算）。
+		if (_bleed is { IsDepleted: true })
+		{
+			_playback.Pause();
+			ShowResults();
+			return;
+		}
 		UpdateHud(t);
 		_trace?.Write(t, currentBar, _noteRenderer.ActiveViews, _plan, _engine);
 		if (_verification?.CompleteFrame() == true)

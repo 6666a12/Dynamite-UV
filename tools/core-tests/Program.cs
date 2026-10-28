@@ -81,6 +81,7 @@ public static class Program
             ShortHoldTests.Run(Check);
             GradeTests.Run(Check);
             MixerTests.Run(Check);
+            BleedHealthTests.Run(Check);
         }
         catch (Exception ex)
         {
