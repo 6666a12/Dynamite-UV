@@ -116,7 +116,8 @@ public partial class GameplayMain : Node2D
 		{
 			var pack = selection.Pack;
 			var diff = selection.Diff;
-			_loaded = selection.LoadedChart ?? pack.LoadChart(diff);
+			_loaded = selection.LoadedChart is { } cached &&
+				cached.Preset == V2Integration.PresetFor(diff.Difficulty) ? cached : pack.LoadChart(diff);
 			GameSession.CommitSelection(pack, diff, _loaded);
 			ApplyLoadedSelection(pack, diff, _loaded);
 			songPath = _loaded.ResolvedAudioPath;

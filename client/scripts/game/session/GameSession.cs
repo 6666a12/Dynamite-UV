@@ -64,7 +64,9 @@ public static class GameSession
     public static LoadedChart? GetPreload(ChartPack pack, ChartDiff diff)
     {
         var key = (pack.Id, diff.ChartId);
-        if (!Preloads.TryGetValue(key, out var preload))
+        // Mode changes keep the cache, but cannot reuse a different judge preset.
+        if (!Preloads.TryGetValue(key, out var preload) ||
+            preload.LoadedChart.Preset != V2Integration.PresetFor(diff.Difficulty))
             return null;
         PreloadOrder.Remove(key);
         PreloadOrder.AddLast(key);

@@ -37,6 +37,7 @@ internal static class Program
             PackagePersistenceTests.TestPackageWriter();
             PackageTransactionTests.TestSameDirectoryResourceReplacement();
             PackageTransactionTests.TestSameDirectoryPublicationRollback();
+            PackageTransactionTests.TestIncompleteRollbackContinues();
             PackageTransactionTests.TestSameDirectoryCleanupFailure();
             PackagePersistenceTests.TestFirstPackageCreation();
             PackagePersistenceTests.TestEditorSaveSequence();

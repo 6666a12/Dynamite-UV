@@ -43,6 +43,7 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `shared/Judge/PointerInputBuffer.cs` | 指针存活、帧首/帧末快照、原始按下时间、同帧短点、Hold 联系快照与清理 | Godot 事件读取、屏幕/镜像投影、暂停区域、判定/计分顺序 |
 | `shared/Judge/BleedHealth.cs` | BLEED 血量数值表（Standard/Hardcore）、100 上限与 0 钳制、耗尽后幂等 | 判定调用点、模式选择、耗尽后的结算/导航与 UI |
 | `shared/IO/LatestRequestLoader.cs` | 单并发后台加载、最新请求、取消排队、丢弃过期完成、异常传递、释放 | 曲库选择、缓存身份、播放器、封面/按钮更新 |
+| `shared/Score/ScoreFilePersistence.cs` | 成绩文件加载、失败后首次保存前保留原始字节、原子写入 | ScoreStore 拥有内存成绩库、Godot 路径、延后保存与警告；不改变成绩身份和比较规则 |
 | `tools/chart-editor-core/Commands/` | 现有命令按 Pack/Chart/Note/Path/Timing 与验证规则分组 | EditorDocument 的 history/dirty、shared 的格式和写包合同 |
 | 两套测试目录 | 分成独立的场景测试类，公共 fixture/断言收在各自 TestSupport | Program 只解析参数、按原顺序调用测试并返回退出码 |
 | `GameplayNoteRenderer` / `GameplayEffects` | 音符/连接段/残影/持续接收头与特效池生命周期 | 场景拥有判定状态与成绩，按原顺序传入值快照和结果 |

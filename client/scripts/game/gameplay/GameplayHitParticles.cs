@@ -22,6 +22,7 @@ public partial class GameplayHitParticles : Node2D
     private double _age;
     private double _lifetime;
     private bool _playing;
+    private bool _prewarm;
 
     public bool IsExpired => _playing && _age >= _lifetime + RecycleTail;
 
@@ -45,6 +46,7 @@ public partial class GameplayHitParticles : Node2D
         Visible = true;
         Modulate = prewarm ? Colors.Transparent : Colors.White;
         _playing = true;
+        _prewarm = prewarm;
         _lifetime = mode == UiMotionMode.Full ? EmberLifetime : SparkLifetime;
         var tinted = HitParticleAssets.Tint(accent, kind);
         var amountScale = Mathf.Clamp(strength, 0.4f, 1.3f) * KindAmountFactor(kind);
@@ -88,6 +90,7 @@ public partial class GameplayHitParticles : Node2D
         _age = 0.0;
         _lifetime = SparkLifetime;
         _playing = false;
+        _prewarm = false;
         Visible = false;
         Modulate = Colors.White;
         Position = Vector2.Zero;
@@ -96,6 +99,15 @@ public partial class GameplayHitParticles : Node2D
         Skew = 0f;
         ZIndex = 2;
         SetProcess(false);
+    }
+
+    public override void _Process(double delta)
+    {
+        _age += delta;
+        if (!IsExpired) return;
+        SetProcess(false);
+        // Normal bursts are returned by GameplayEffects; the standalone warm-up has no pool owner.
+        if (_prewarm) QueueFree();
     }
 
     public static void Prewarm(Node parent)

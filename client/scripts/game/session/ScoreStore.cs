@@ -12,6 +12,9 @@ public sealed class ScoreStore
 {
     private const string SavePath = "user://scores.json";
     private readonly ScoreStoreCore _core = new();
+    private ScoreFilePersistence? _persistence;
+    private ScoreFilePersistence Persistence => _persistence ??= new(
+        ProjectSettings.GlobalizePath(SavePath), _core);
 
     public static string KeyOf(string packId, string diff) => ScoreStoreCore.KeyOf(packId, diff);
     public static string GradeOf(double clearPercent) => ScoreStoreCore.GradeOf(clearPercent);
@@ -29,18 +32,13 @@ public sealed class ScoreStore
 
     public void Load()
     {
-        _core.Clear();
-        if (!Godot.FileAccess.FileExists(SavePath))
-            return;
         try
         {
-            using var file = Godot.FileAccess.Open(SavePath, Godot.FileAccess.ModeFlags.Read);
-            _core.LoadJson(file.GetAsText());
+            Persistence.Load();
         }
         catch (Exception e)
         {
-            _core.Clear();
-            GD.PushWarning($"ScoreStore: 读取 {SavePath} 失败，按空成绩库处理。{e.Message}");
+            GD.PushWarning($"ScoreStore: 读取 {SavePath} 失败，保留当前成绩；下次保存前备份原文件。{e.Message}");
         }
     }
 
@@ -53,8 +51,7 @@ public sealed class ScoreStore
     {
         try
         {
-            SettingsFilePersistence.Write(
-                ProjectSettings.GlobalizePath(SavePath), _core.SaveJson());
+            Persistence.Save();
         }
         catch (Exception e)
         {

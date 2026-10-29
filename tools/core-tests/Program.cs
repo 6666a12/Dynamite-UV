@@ -72,6 +72,7 @@ public static class Program
             CalibrationSamplingTests.Run(Check);
             NotePaletteDraftTests.Run(Check);
             SettingsFilePersistenceTests.Run(Check);
+            ScoreFilePersistenceTests.Run(Check);
             PathResourceCacheTests.Run(Check);
             PointerInputBufferTests.Run(Check);
             LatestRequestLoaderTests.Run(Check);

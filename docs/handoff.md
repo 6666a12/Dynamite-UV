@@ -80,7 +80,7 @@
 
 - Hold 无输入移动路径断触采样、同帧跨 deadline 的批量结算顺序：**静态疑点，临时探针没有成功运行，用户暂缓**。不能写成已复现 Bug，也不能用短 Hold 手感基本通过消除此疑点。
 - Mixer 原版有命中率尾判，社区当前没有；是否增加是玩法决策，不是默认补做事项。
-- 模式切换与预加载：静态发现 [SetGameplayMode](<../client/scripts/ui/song_select/SongSelect.QuickSettings.cs>) 只保存/刷新，而 [GameSession](<../client/scripts/game/session/GameSession.cs>) 预加载键仅 pack/chart；START 可复用带旧 Preset 的 LoadedChart。需回归“预加载后切 Standard/Hardcore 再开始”，**尚未执行复现/修复**，与成绩身份缺模式维度分开处理。
+- 模式切换与预加载：2026-10-29 已在缓存读取和游玩入口按当前模式的 Preset 检查复用，旧预设会重新加载；非图形验证通过，真实 UI 切换仍待回归。与成绩身份缺模式维度分开处理，见 [验证记录](<verification.md>)。
 - Internal 当前验证过的流程使用 `--export-debug`，历史 Release 配置探针曾改善低端卡顿。政策 `debuggable=true` 是 APK manifest 约束，不单独证明 .NET 编译/JIT 配置；替代配置需基准和政策核查，见 [发布说明](<releasing.md>)。
 - UI 每帧分配/首页核心渲染预算优化（原“批次 D”）用户暂缓，不按旧建议自动实施。
 - 首页分区启灯只是设计探索。Storyboard **首版不做、未排期**，仅保留禁用入口；未来 sidecar 不改 v2/Digest，但 writer 落地时必须避免清除 sidecar。原提案在 [归档](<archive/proposals/storyboard-editor-proposal.md>)。

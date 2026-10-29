@@ -258,21 +258,25 @@ public static class V2PackageWriter
                 published.Add(target);
             }
         }
-        catch
+        catch (Exception publicationFailure)
         {
+            var failures = new List<Exception> { publicationFailure };
             foreach (var target in published.AsEnumerable().Reverse())
             {
-                if (File.Exists(target))
-                    File.Delete(target);
+                try { File.Delete(target); }
+                catch (Exception exception) { failures.Add(exception); }
             }
             foreach (var (target, backup) in backups.AsEnumerable().Reverse())
             {
-                if (File.Exists(backup))
+                try
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                     File.Move(backup, target);
                 }
+                catch (Exception exception) { failures.Add(exception); }
             }
+            if (failures.Count > 1)
+                throw new AggregateException("Package publication failed and rollback was incomplete; remaining backups were preserved.", failures);
             throw;
         }
 

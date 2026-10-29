@@ -170,6 +170,55 @@ internal static class PackageTransactionTests
         }
     }
 
+    internal static void TestIncompleteRollbackContinues()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "du-incomplete-rollback-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var source = Path.Combine(root, "source");
+            CopyDirectory(Path.Combine(AppContext.BaseDirectory, "Fixtures", "golden-pack"), source);
+            var document = LoadDocument(source);
+            AddDirtyNote(document);
+            var audioPath = Path.Combine(source, "audio.wav");
+            var originalAudio = File.ReadAllBytes(audioPath);
+            var chartPath = Path.Combine(source, "chart_hard.json");
+            var originalChart = File.ReadAllBytes(chartPath);
+            var originalMeta = File.ReadAllBytes(Path.Combine(source, "meta.json"));
+            var publicationFailure = new IOException("forced publication failure before meta");
+            V2PackageWriter.PublicationInterceptor = relative =>
+            {
+                if (relative != "meta.json") return;
+                // A directory at a published file path prevents both deletion and restoration.
+                File.Delete(chartPath);
+                Directory.CreateDirectory(chartPath);
+                throw publicationFailure;
+            };
+            try
+            {
+                V2PackageWriter.Write(BuildWriteRequest(document, source, source));
+                Check(false, "incomplete rollback must report failure");
+            }
+            catch (AggregateException exception)
+            {
+                Check(ReferenceEquals(exception.InnerExceptions[0], publicationFailure) &&
+                      exception.InnerExceptions.Count >= 2,
+                    "incomplete rollback retains publication and rollback errors");
+            }
+            Check(File.ReadAllBytes(audioPath).SequenceEqual(originalAudio) &&
+                  File.ReadAllBytes(Path.Combine(source, "meta.json")).SequenceEqual(originalMeta),
+                "rollback continues restoring other files after one restore fails");
+            var backup = Directory.GetFiles(source, "chart_hard.json.dynamite-universe-backup-*").Single();
+            Check(File.ReadAllBytes(backup).SequenceEqual(originalChart),
+                "unrestored chart backup remains available for recovery");
+        }
+        finally
+        {
+            V2PackageWriter.PublicationInterceptor = null;
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     internal static byte[] MutateWave(byte[] original)
     {
         var mutated = (byte[])original.Clone();
