@@ -1,79 +1,166 @@
-# 结果前奏与正常结束条件
+# 结果前奏、七类结果与正常结束条件
 
-> 本文交接 BLEED 耗尽、正常游玩结束和结果标识前奏。当前代码行为、用户已确认但尚未实施的方案、静态设计候选分开记录；不要把候选图当成已接入功能。
+> 2026-10-28 已接入客户端源码（本文件与源码同轮更新）。本文区分**已实现**、**已实际执行的检查**、
+> **待用户最终视觉/设备验收**，三者不能互相替代；主代理已完成 Godot 窗口验收，没有公开包导出或 Android 验收记录。
+> 设计源仍在被 Git 忽略的 `design/result-outcomes/surge/`，发行资产已复制到 `client/assets/results/outcomes/`。
 
-## 1. 当前代码行为（已接入）
+## 1. 正常完成：谱末 +2 秒与音频自然结束取晚（已实现）
 
-### 正常完成
+正常完成必须**同时**满足两个条件，两者分别单调锁存，先到的一方只能等待另一方：
 
-`client/scripts/game/GameplayMain.cs` 当前在以下任一条件先成立时调用 `ShowResults()`：
+1. 已到达 `JudgePlan.Plan.EndTime + 2` 秒；
+2. 音频流已自然播放结束。
 
-- 当前音乐时间超过 `JudgePlan.Plan.EndTime + 2 秒`；
-- `SongPlayback.HasNaturallyEnded` 检测到音频自然结束。
+实现位于 `client/scripts/game/gameplay/GameplayEndCondition.cs`，由 `GameplayMain._Process`
+第 10 步（结束检测）每次传入 `songTime`、`SongPlayback.HasNaturallyEnded` 和本帧 `delta`：
 
-**当前是两者取早，不是取晚，也不检查所有 Note 是否已判定。** `Plan.EndTime` 取最后判定单元与持续音符尾部的最晚时间（`shared/Judge/JudgeEngine.cs`）。
+- **谱面时间**：采样到的最小/最大值里取最大（单调），用于谱末锁存；
+- **音频结束后的真实时间**：音频自然结束那一刻记下当时的谱面时间作为锚点，
+  之后按每帧 `delta` 累加（单帧最多 0.5 秒，避免一次长停顿把等待快进掉）；
+- 有效时间取两者较大值，谱末锁存只看有效时间。
 
-`ShowResults()`（`client/scripts/game/gameplay/GameplayMain.Presentation.cs`）在当前判定状态上计算并保存成绩，然后显示游玩场景内的 `ResultScreen`。现有揭晓为 600ms 合屏、320ms 停顿、480ms 拉屏及后续信息入场，完整约 2650ms；它不是一次场景跳转。自然完成后音乐尾奏继续播放，离开或重开才停止。
+这条设计是必须的：音频流播完后 `AudioStreamPlayer.GetPlaybackPosition()` 归零，
+`SongClock` 的单向过滤把位置冻结在最后一次读数，`songTime` 不会再增长。
+若写成瞬时条件 `songTime >= EndTime + 2 && audioEnded`，谱末条件可能永远不再成立。
+因此**禁止**用 `audioEnded && t >= EndTime` 之类的瞬时判断替代。
 
-### BLEED 耗尽
+回退路径：固定帧验证时钟和 headless 手动回退时钟不产生自然结束信号
+（`SongPlayback.TracksNaturalEnd == false`），此时结束条件只等谱末锁存——
+这是自动回归实际走的路径，不会因为等不到 `audioEnded` 而死锁。
 
-- 规则位于 `shared/Judge/BleedHealth.cs`：100 血；Standard 下 Miss −2、Perfect +0.2、Great/Good +0.05；Hardcore 下 Miss −4、Perfect +0.1、Great/Good 不回血。Hardcore 强制启用 BLEED。
-- 普通判定经 `GameplayMain.ApplyUnit` 同步血量；Hold 头 Miss 与中途断触的 shared 批量结算也在客户端同步，Mine 不额外扣血。
-- 血量耗尽后，当前帧判定和 Mixer 收尾完成，先 `_playback.Pause()`，再复用正常 `ShowResults()`。暂停是 2026-10-27 的修复；正常自然完成的尾奏不变。
-- 当前没有专用失败结算页、结果前奏或 BLEED 血条 UI。失败仍复用正常结算页占位。
+长音乐尾段因此在谱末 +2 秒后继续播放，Storyboard 尾段不会被提前遮住。
 
-## 2. 用户已确认、尚未实施的方案
+已知取舍：若音频流完全无法加载（`AudioStreamPlayer.Stream == null`），首帧起就没有"正在播"，
+`audioEnded` 会立即成立、`songTime` 停在 0，结束条件退化为**按真实时间等满谱末 +2 秒**
+（期间音符不动，可暂停返回）。这是取晚方案的直接后果，不为坏音频开"取早"的特例；
+该路径只按代码推演，未在坏包上实测。
 
-### 正常结束改为两者取晚
+## 2. BLEED 耗尽（已实现）
 
-正常完成必须同时满足：
+- 规则仍是 `shared/Judge/BleedHealth.cs`（100 血；Standard Miss −2、Perfect +0.2、Great/Good +0.05；
+  Hardcore Miss −4、Perfect +0.1、Great/Good 不回血）。
+- 耗尽当帧：本帧判定与 Mixer 收尾完成 → `_playback.Pause()` → 立即 `ShowResults(stageFailure: true)`，
+  **不等待**谱末或音频结束，字标为 `STAGE FAILURE`。
+- 仍然复用普通结算页；专用失败结算页、Bleed 血条与失败音效仍是后续独立设计，本轮没有实现。
 
-1. 已到达谱面结束时间 +2 秒；
-2. 音频已自然播放结束。
+## 3. 结果字标前奏（已实现）
 
-目的：长音乐尾段中的 Storyboard 不应被谱末 +2 秒的结算屏风提前遮住。实现时分别锁存 `chartEndReached` 与 `audioEnded`，再判断二者都成立。**不能只写瞬时 `t > end && HasNaturallyEnded`**：音频自然结束后播放位置可能归零，谱末条件会因此无法再次成立。
+统一流程：**游玩结束 → 背景压暗 → 中央黑色斜纹区 → 对应字标拍入并同步提亮 → 短停留 →
+现有 `ResultShutter` / `ResultScreen` 揭晓**。前奏在屏风之前，不是结算页播完之后。
 
-当前 `HasNaturallyEnded` 在 fixed-frame 和部分手动回退时钟下不产生自然音频结束信号；修改时需要同步验证路径/测试时钟，不能让自动回归永远等不到结束。
+| 阶段（Full，相对前奏开始） | 画面 |
+| --- | --- |
+| 0–0.30s | 全屏压暗到 0.80 不透明度（游玩画面、HUD 仍可辨） |
+| 0.04–0.28s | 中央斜纹区淡入并扫过 |
+| 0.20–0.60s | 字标从 1.58 倍拍入到 1.0（easeOutBack `c1=1.35`），0.20–0.29s 淡入，能量 0.18→2.25 |
+| 0.52s | 命中辉光峰值（`impact`），字标与斜纹区同步提亮 |
+| 0.60s 起 | 能量按 `exp(-(t-0.60)×7)` 衰减回 1.0，进入短停留 |
+| 1.55s | 交付给现有屏风：600ms 合拢 → 320ms 停顿 → 480ms 拉开 → 评级与信息浮现 |
 
-若以后 Storyboard 在音频结束后仍有独立内容，再单独讨论第三个完成条件，本轮不预设。
+参数与几何直接取自独立预览 `design/result-outcomes/surge/godot/preview.gd`：
 
-### 结果前奏放在屏风转场之前
+- 字标用 1600×400 源图按 **80%** 显示：`TextureRect` 1280×320 @ (320,380)，中心 (960,540)，
+  `PivotOffset` 取自身中心；
+- 斜纹区同样按预览原坐标 80%：`translate(192,108)`、`scale(0.80)`，多边形与 72px 斜纹步距同预览；
+- 字标辉光用 `client/shaders/wordmark_diffuse.gdshader`（`u_energy` / `u_glow` / `u_halo_color`），
+  近/远两级弥散系数与预览一致；各结果的光晕色也与预览一致。
 
-统一流程为“游玩结束 → 结果标识前奏 → 现有屏风转场 → 结算页”。
+三档动效：
 
-- 正常完成：两个结束条件都满足后计算一次本局结果，按结果显示 `ALL PERFECT`、`FULL COMBO` 等标识，再进入现有结算转场。AP 优先于 FC，与现有结算徽章口径一致。
-- BLEED 失败：不等待谱面或音乐结束；耗尽当帧锁定判定、暂停音乐，显示 `STAGE FAILURE`，再进入现有结算转场。
-- “正常完成后显示标识”指正常游玩结束条件满足后、结算页出现前，不是结算页展示完毕后再显示。
-- 成绩只计算/保存一次；前奏和屏风复用同一个结果快照，不能在各阶段重复 `TryUpdate` 或改变判定数据。
-- 专用失败结算页与 BLEED 血条仍是后续独立设计，不由前奏任务顺带实现。
+| Motion | 前奏 |
+| --- | --- |
+| Full | 1.55s（所有有效结果，含普通完成的 TRACK COMPLETE）；仅无有效成绩数据的保护路径为 0.68s |
+| Reduced | 0.26s 静态短淡入；无方向位移、无砸入缩放、无强闪（能量与辉光恒定） |
+| Off | 0 帧前奏，直接显示稳定结算页；不留一帧前奏 |
 
-音乐与音效本轮只保留接入点，不制作或接入资产。以后 Failure 可搭配倒塌音效与音乐淡出，成功也可配置标识音效；淡出不能直接复用当前立即停流的 `Pause()`，音效应与 Music 通道分离。
+其他行为：
 
-## 3. 最新静态候选（未接客户端）
+- **普通完成**：不满足 AP、FC、ONE GOOD、ONE MISS、DOUBLE ONE 的有效正常成绩显示
+  `TRACK COMPLETE`，沿用同样的拍入、提亮和停留，不再留下空白斜纹区。
+- **无有效成绩数据**：只有压暗与斜纹区，随后直接进入屏风；不复用任何错误字标。
+- **跳过**：前奏期间任意左键/触摸按下或 Enter/Space/Escape 视为跳过，当前事件被
+  `SetInputAsHandled()` 消费，字标直接落稳定终值并交付屏风；交付后 120ms 内按压不会落到
+  结算按钮上（`ResultInputGuard`，与屏风揭晓共用同一条规则）。
+- **只一次**：`ResultRunSequence` 保证一次结算只进入一次前奏、只交付一次结算页，
+  计时到点与跳过重复触发都会被忽略；`GameplayMain._finished` 仍是最外层闸门。
+- **成绩只算一次**：`ShowResults` 计算、`TryUpdate`、`SaveDeferred` 与前次最好成绩读取保持原样，
+  只在这一处发生；前奏与屏风消费同一份 `ResultScreenData`/`ScoreRecord`。AUTO 仍不写成绩，
+  但仍按 AUTO 的判定计数显示 AP 字标。
+- 音乐尾音继续播放（正常完成不暂停）；离开或重开仍由既有导航停止播放；BLEED 失败保持暂停。
+- 本方案不含音效、专用失败页与血条。
 
-最新目录：[`design/result-outcomes/expressive/`](../design/result-outcomes/expressive/)，包含六种结果：
+节点与职责：`client/scripts/ui/results/ResultFlow.cs` 拥有“前奏 → 结算页”的交付顺序，
+`ResultOutcomePrelude.cs` 拥有前奏节点与自己的 `_Process`（游玩场景结算后不再推进帧逻辑）、
+`ResultPreludeTimeline.cs` 是纯时钟，`ResultOutcome.cs` 是纯分类器，
+`ResultInputGuard.cs` 是纯防穿透算术。前奏 `ZIndex = 90`，位于结算页（100）之下、HUD（20）之上，
+并且是后加入的兄弟节点，因此 `_Input` 先于结算页收到跳过事件。
 
-- `all-perfect`
-- `full-combo`
-- `one-miss`
-- `one-good`
-- `double-one`
-- `stage-failure`
+## 4. 七类结果与结算页徽章同源（已实现）
 
-每种均有独立透明 SVG、1600×400 透明 PNG 和 1920×1080 暗底 preview；[contact.png](../design/result-outcomes/expressive/contact.png) 是全套对照。`build_expressive.py` 可重复生成全部产物，SVG 为纯 path，无系统字体依赖；本机渲染器为 `rsvg-convert`。
+`ResultOutcome.Classify(ScoreRecord, totalUnits, stageFailure)` 是唯一分类器，判定顺序即优先级：
 
-最新设计方向：删除徽记、底线和统计字符，只保留字标；以笔画变形、字高、宽窄、倾角和基线错落形成个性。用户要求“更激进、不要保守字形、不要多余装饰”，这是当前最新候选，**动态效果尚未设计，用户尚未做最终视觉定稿**。
+| 类别 | 条件 | 字标资产 |
+| --- | --- | --- |
+| ALL PERFECT | `Perfect == totalUnits && Great == Good == Miss == 0` | `all-perfect.png` |
+| DOUBLE ONE | `Good == 1 && Miss == 1` | `double-one.png` |
+| ONE GOOD | `Good == 1 && Miss == 0` | `one-good.png` |
+| ONE MISS | `Miss == 1`（已排除 double-one） | `one-miss.png` |
+| FULL COMBO | `Miss == 0 && MaxCombo >= totalUnits` | `full-combo.png` |
+| TRACK COMPLETE | 其他有效正常完成（例如 Miss ≥ 2、或未满连） | `track-complete.png` |
+| STAGE FAILURE | BLEED 耗尽，不参与判定计数推导 | `stage-failure.png` |
+| 无字标 | 成绩为空或谱面总判定数无效的保护路径 | — |
 
-早期草案 `ap-fc/`、`judgements/`、`failure/` 与统一版 `family/` 仅作对照，不应覆盖或误当成最新版本。参考图 `D:/Dynamite app/cankao/Dynamite ui pics/StdEffect_full.png` 只用于理解上一代结果类型与变形思路，不直接复制其像素字资产。
+- AP 最高；专属字标优先普通 FC；普通完成由 TRACK COMPLETE 兜底；BLEED 耗尽一律 STAGE FAILURE。
+- `ResultScreen` 的成就徽章复用同一分类器（`ResultOutcome.BadgeOf`）：AP 显示 ALL PERFECT，
+  FULL COMBO 与 ONE GOOD 显示 FULL COMBO（ONE GOOD 没有 Miss 且满连，本就属于 FC 家族），
+  TRACK COMPLETE / ONE MISS / DOUBLE ONE / STAGE FAILURE 不显示 AP/FC 徽章，避免与刚播放的字标矛盾。
+  因此徽章可见性与改动前一致，只有 BLEED 失败被显式排除。
 
-`design/` 是被 Git 忽略的本地设计目录，不是发行资产；接入时需明确复制/生成到允许的客户端资源目录并更新资产来源与发布清单。生成脚本中的 rsvg 路径是本机配置，其他机器需调整，不能假定工具已安装。
+## 5. 资产与发行清单（已实现）
 
-## 4. 后续实施与回归边界
+- 运行时资产：`client/assets/results/outcomes/{track-complete,all-perfect,full-combo,one-miss,one-good,double-one,stage-failure}.png`
+  （保留 1600×400 源尺寸，由显示层做 80%）与 `client/shaders/wordmark_diffuse.gdshader`。
+- 生成/更新脚本：`tools/grade-assets/build_runtime_outcomes.py`（复制、按现有格式写 `.import`
+  （稳定 uid + 与 Godot 一致的 ctex 缓存名 md5）、追加 Public 导出白名单、刷新
+  `release/asset-provenance.json` 中 `client/assets/results/outcomes/` 的七条记录）。
+  它只管理 `outcomes/` 子树；`build_runtime_results.py` 现在显式跳过该子树，避免把七张字标
+  贴成 Blender 评级来源。（`build_runtime_results.py` 自身字节变化后，其 29 条 `generatorSha256`
+  已同步刷新。）
+- 七个 PNG 的 `kind` 为 `project-generated-ui-asset`，`source` 指向 clean-room 字形生成器
+  `design/result-outcomes/surge/build_surge.py`，不含原版像素。
 
-1. 先实现并测试正常结束的双锁存条件，再接入结果前奏；不要在前奏任务中改判定窗口、分数或成绩身份。
-2. 正常结束回归：长音频在谱末 +2 秒后继续；音频先结束时等待谱末；音频结束导致时间归零后仍能完成；固定帧验证能正常收尾。
-3. BLEED 回归：耗尽立即暂停并进入 Failure 前奏，不等待正常结束；前奏只触发一次，随后只进入一次结算。
-4. 前奏结束后接现有 `ResultScreen`，保留跳过、输入防穿透及 Full/Reduced/Off 行为；前奏自身也需要明确三档动效策略。
-5. 实机确认长音乐 Storyboard 尾段不被截断，以及失败/成功前奏的视觉与后续音效混音。静态检查不能替代这些验收。
+## 6. 实际执行的检查（2026-10-28）
 
-最近 BLEED 实现与暂停修复的完整非图形验证记录见 [verification.md](<verification.md>)；本文所述未来方案尚未因此获得构建或实机验证。
+- `dotnet run --project tools/core-tests/CoreTests.csproj`：新增
+  `[22]` 双锁存（音频先结束且时钟冻结/归零仍真实等到谱末 +2、谱末先到时等音频、
+  固定帧回退走谱末路径、长帧上限、锁存单调）、`[23]` 七类分类与徽章同源、`[24]` 前奏三档与
+  跳过/防穿透/只一次；原有 `Result reveal timing / loading / skip` 用例保持不变并通过。
+- `dotnet build client/DynamiteUniverse.csproj`：0 warning / 0 error。
+- `python -B tools/architecture/check.py --report`：结构门禁通过（含新增纯文件与 core-tests 源码链接）。
+- `python -B tools/verify.py --no-restore`：完整非图形验证（见 [验证记录](<verification.md>)）。
+
+- 主代理另以 Godot 4.7.1 Mono 完成真实导入与窗口验收：七张 `.ctex` 实际生成，着色器无编译错误；
+  Full / Reduced / Off 的 Hold Recovery Test 全程 AUTO 均为 `P=6 / M=0 / outcome=AllPerfect`，
+  BLEED 耗尽为 `StageFailure`。新增普通完成验收以受控验证入口指定同一短谱、AUTO=false，
+  日志为 `P=0 / M=6 / outcome=TrackComplete`，无资源或着色器错误。已逐段查看
+  `tmp_shots/result-{ap,failure,reduced,off,track-complete}-client.mp4` 与日志，确认 80% 比例、弥散光、
+  屏风衔接以及 Off 无前奏帧；临时设置已通过 UI 恢复为 Full / BLEED 开 / AUTO 关。
+
+**未覆盖**：Android 设备或触控、公开 APK 导出验包、坏音频包、音效、专用失败页与血条；
+最终视觉验收仍待用户。
+
+## 7. 设计源与历史候选
+
+- 最新设计源：`design/result-outcomes/surge/`（七种字标的 SVG、1600×400 PNG、1920×1080 预览、
+  Godot 预览工程与 `build_surge.py`）。`contact.png` 为全套对照。
+- 早期草案 `ap-fc/`、`judgements/`、`failure/`、`family/`、`expressive/` 仅作对照，不是当前版本。
+  参考图 `D:/Dynamite app/cankao/Dynamite ui pics/StdEffect_full.png` 只用于理解上一代结果类型思路。
+- `design/` 是被 Git 忽略的本地设计目录；生成脚本里的 `rsvg-convert` 路径是本机配置。
+
+## 8. 仍待处理
+
+1. 失败/成功字标音效与音乐淡出：本轮只保留接入点，`SongClock.Pause()` 仍立即停流，
+   不能用它做淡出；音效应与 Music 通道分离。
+2. 专用 BLEED 失败结算页与血条 UI。
+3. 用户最终视觉与设备验收（主代理窗口检查已完成）。
+4. 若以后 Storyboard 在音频结束后仍有独立内容，再单独讨论第三个完成条件。

@@ -7,7 +7,7 @@ namespace DynamiteUniverse.Ui;
 
 internal sealed record ResultScreenData(GameplayRunContext Track, ScoreRecord Score,
     int TotalUnits, int? PreviousBest, bool NewRecord, bool Auto,
-    bool Hardcore, bool Bleed, bool Mirror, Texture2D? Cover);
+    bool Hardcore, bool Bleed, bool Mirror, Texture2D? Cover, ResultOutcomeKind Outcome);
 
 /// <summary>Penpot Result v2. Owns presentation and input gating, never score persistence.</summary>
 public partial class ResultScreen : Control
@@ -50,26 +50,57 @@ public partial class ResultScreen : Control
     internal void Present(ResultScreenData data, UiMotionProfile motion,
         Action covered, Action back, Action next, Action retry, bool canNext)
     {
+        ResetForPresent();
         _motion = motion;
         _covered = covered;
         _canNext = canNext;
         _timeline = new ResultRevealTimeline(motion.Mode);
         _art = new ResultGradeArt(data.Score.Grade, motion.Mode == UiMotionMode.Full);
-        _lastFrame = -1;
-        _lastAmbientFrame = -1;
-        _ambientElapsed = 0;
         Size = new Vector2(1920, 1080);
         ClipContents = true;
         MouseFilter = MouseFilterEnum.Stop;
-        _scoreValue = null!;
-        _scoreFinal = 0;
+        Build(data, back, next, retry);
+        _active = true;
+        // 前奏交付的同一帧不能同时按到刚出现的按钮。
+        _unlockAt = ResultInputGuard.Until(Time.GetTicksMsec());
+        Visible = true;
+        ApplyFrame();
+    }
+
+    /// <summary>
+    /// 每次 Present 都从干净状态开始：旧子树、分组、覆盖回调和按钮闸门全部重置，
+    /// 避免重复展示时保留上一次的 covered/unlock 结果。
+    /// </summary>
+    private void ResetForPresent()
+    {
+        foreach (var child in GetChildren())
+        {
+            RemoveChild(child);
+            child.QueueFree();
+        }
+        _groups.Clear();
+        _buttons.Clear();
         _judgeCounts.Clear();
         _judgeBars.Clear();
         _recordStamp = null;
-        Build(data, back, next, retry);
-        _active = true;
-        Visible = true;
-        ApplyFrame();
+        _scoreValue = null!;
+        _scoreFinal = 0;
+        _page = null!;
+        _grade = null!;
+        _shutter = null!;
+        _art = null!;
+        _timeline = null!;
+        _motion = null!;
+        _covered = null;
+        _coveredCalled = false;
+        _actionInFlight = false;
+        _active = false;
+        _actionsEnabled = false;
+        _unlockAt = 0;
+        _lastFrame = -1;
+        _lastAmbientFrame = -1;
+        _ambientElapsed = 0;
+        SetProcess(true);
     }
 
     public override void _Process(double delta)
@@ -92,11 +123,12 @@ public partial class ResultScreen : Control
         {
             // Handle before GUI dispatch so this same press cannot activate a newly exposed button.
             GetViewport().SetInputAsHandled();
-            _unlockAt = Time.GetTicksMsec() + 120;
+            _unlockAt = ResultInputGuard.Until(Time.GetTicksMsec());
             _timeline.Skip(_art.Ready);
             ApplyFrame();
         }
-        else if (Time.GetTicksMsec() < _unlockAt && e is InputEventMouseButton or InputEventScreenTouch)
+        else if (ResultInputGuard.Blocks(Time.GetTicksMsec(), _unlockAt) &&
+            e is InputEventMouseButton or InputEventScreenTouch)
             GetViewport().SetInputAsHandled();
     }
 
@@ -138,7 +170,8 @@ public partial class ResultScreen : Control
             node.Position = new Vector2(0, _motion.AllowDirectionalMotion ? 18 * (1 - alpha) : 0);
         }
         ApplyDataMotion();
-        var enabled = _timeline.IsComplete && !_actionInFlight && Time.GetTicksMsec() >= _unlockAt;
+        var enabled = _timeline.IsComplete && !_actionInFlight &&
+            !ResultInputGuard.Blocks(Time.GetTicksMsec(), _unlockAt);
         if (enabled != _actionsEnabled)
         {
             _actionsEnabled = enabled;
@@ -236,10 +269,11 @@ public partial class ResultScreen : Control
 
     private void BuildAchievement(Control parent, ResultScreenData d)
     {
-        var all = d.TotalUnits > 0 && d.Score.Perfect == d.TotalUnits && d.Score.Great == 0 && d.Score.Good == 0 && d.Score.Miss == 0;
-        var fc = d.TotalUnits > 0 && d.Score.Miss == 0 && d.Score.MaxCombo >= d.TotalUnits;
-        if (all || fc)
+        // 与结果字标同源：AP 优先，其次 FC；失败与专属字标不占徽章位，避免与刚播放的字标矛盾。
+        var badge = ResultOutcome.BadgeOf(d.Outcome);
+        if (badge != ResultOutcomeKind.None)
         {
+            var all = badge == ResultOutcomeKind.AllPerfect;
             var accent = all ? UiFonts.Pink : UiFonts.Cyan;
             Panel(parent, 900, 506, 530, 104, new Color("141b33"), new Color(accent, .38f), 16);
             Texture(parent, 924, 526, 64, 64, GD.Load<Texture2D>($"res://assets/results/{(all ? "ap" : "fc")}.svg"));

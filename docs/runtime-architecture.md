@@ -65,6 +65,12 @@ main.tscn ── PLAY ──> song_select.tscn ── START ──> gameplay.tsc
 9. 刷新 HUD 并写 Internal verification trace；
 10. 判断结束并展示结算。
 
+第 10 步的结束判断是 `GameplayEndCondition` 的双锁存：`songTime` 到达谱末 +2 秒与
+`SongPlayback.HasNaturallyEnded` 分别单调锁存，两者都成立才 `ShowResults`；
+音频自然结束后 `songTime` 会冻结/归零，因此该对象用音频结束后的真实帧 `delta`
+（单帧上限 0.5 秒）补足谱末条件，回退/固定帧时钟没有自然结束信号时只走谱末路径。
+BLEED 耗尽在本帧第 8 步之后、第 9 步之前单独短路：先 `Pause()` 再以 `stageFailure` 进结算。
+
 `JudgePlan`、`JudgeEngine`、`InputJudgeRules`、`V2InputProtection`、
 `SustainJudgementRules`、`VisualScrollMath` 和 `DropSpeedMap` 是 shared 权威规则，客户端
 只编排它们，不复制规则。
@@ -87,11 +93,14 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 ## 5. 展示、成绩与发布不变量
 
 - `GameplayStageView`、`GameplayHud`、Pause 和 Result 是展示层；HUD 接收显示值快照，成绩计算/写入仍由 gameplay 在显示
-  Result 前执行。Result v2 用两扇不透明屏风合拢后才隐藏舞台，屏风背后先铺不透明
-  结算背景，再拉开、播放评级帧、浮现各组信息。封面只在顶部小图中显示，缺图使用
-  clean-room placeholder。Reduced/Off 同样先接管不透明背景，不能让游玩层透出。
-  `ResultScreen` 只展示数据，`ResultRevealTimeline` 管理时序/加载等待/跳过，
-  `GameplayMain.ShowResults` 继续拥有成绩快照与保存职责。
+  Result 前执行。结算的展示顺序是 `ResultFlow`（前奏 → 结算页）：`ResultOutcomePrelude`
+  以压暗/斜纹区/结果字标做 1.55s（Reduced 0.26s、Off 0）前奏，自带 `_Process`，因为
+  `ShowResults` 之后游玩场景不再推进帧逻辑；随后现有 Result v2 用两扇不透明屏风合拢才隐藏舞台，
+  屏风背后先铺不透明结算背景，再拉开、播放评级帧、浮现各组信息。封面只在顶部小图中显示，
+  缺图使用 clean-room placeholder。Reduced/Off 同样先接管不透明背景，不能让游玩层透出。
+  `ResultScreen` 只展示数据（含与字标同源的 AP/FC 徽章），`ResultRevealTimeline` 管理屏风时序/加载等待/跳过，
+  `ResultPreludeTimeline` 管理前奏时序，`ResultOutcome` 是唯一分类器，
+  `GameplayMain.ShowResults` 继续拥有成绩快照与保存职责，并且只执行一次。
 - AUTO 演示绝不写成绩。v2 使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy 仍使用
   历史 `packId:diff` 兼容键。两者不能合并或删除。
 - 玩法坐标固定为 1920×1080。不能引入自适应游玩布局，且改布局数值前必须先更新相应测量依据。
@@ -112,7 +121,8 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 ## 7. 回归层级
 
 - **构建层**：`cd client && dotnet build` 必须 0 error。
-- **shared 行为层**：`tools/core-tests` 覆盖 timing、input、sustain、score、legacy/v2 语义。
+- **shared 行为层**：`tools/core-tests` 覆盖 timing、input、sustain、score、legacy/v2 语义，
+  以及结算相关纯逻辑（屏风揭示、字标前奏三档、结果分类、结束双锁存）。
 - **格式层**：chart-tool self-test、editor tests 和 schema validator 验证 v2 转换、编码、Digest
   与包安全性。
 - **等价层**：涉及 legacy/v2 runtime 行为时，以 Internal deterministic trace / frame hash
@@ -127,6 +137,9 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 `SongDetailCard` 拥有卡片控件与展示；页面保留列表、加载身份、缓存和导航。`CalibrationSampling`
 拥有采样相位、热身、入样和完成，`CalibrationBeatSource` 拥有合成节拍与零偏移时钟；页面保留展示和设置保存。
 `GameplayPauseOverlay` 拥有暂停状态、覆盖层和动效，宿主保留输入清理、播放暂停/恢复与导航。
+`ResultFlow` 拥有“字标前奏 → 结算页”的交付顺序与“只一次”闸门，`ResultOutcomePrelude` 拥有前奏节点与
+自己的 `_Process`，`ResultOutcome` / `ResultPreludeTimeline` / `ResultInputGuard` / `GameplayEndCondition`
+是纯 C#（core-tests 直接链接）；`GameplayMain` 只保留成绩快照、归档节奏与导航回调。
 editor 使用 ChartEditor.Core 和 Presentation 程序集，已移除所有 client 源码链接。
 
 Godot 页面分部文件仍共享宿主状态，不能以单个入口变短认定整个类已解耦。

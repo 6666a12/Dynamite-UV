@@ -22,7 +22,7 @@
       "required_entry_suffixes": [
         "assets/fonts/SpaceGrotesk-Regular.woff2",
         "assets/fonts/SpaceGrotesk-Bold.woff2",
-        "assets/models/detonation-orrery-mk2.glb",
+        "assets/models/detonation-orrery-mk6.glb",
         "assets/licenses/SpaceGrotesk-OFL-1.1.txt",
         "assets/licenses/Godot-LICENSE.txt",
         "assets/licenses/DotNet-LICENSE.txt",
@@ -49,6 +49,7 @@
         "scenes/note_colors.tscn.remap",
         "shaders/note_material.gdshader",
         "shaders/note_surface.gdshader",
+        "shaders/home_diffuse.gdshader",
         ".godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata",
         ".godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata",
         ".godot/mono/publish/arm64/DynamiteUniverse.deps.json",

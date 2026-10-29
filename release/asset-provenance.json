@@ -3,12 +3,12 @@
   "policy": "Dynamite Universe release asset provenance",
   "assets": [
     {
-      "path": "client/assets/models/detonation-orrery-mk2.glb",
-      "sha256": "89f87551d04a5a9b6d3bbb2da1820ee3538d5aadf5d8689313c444f6c3543e6f",
+      "path": "client/assets/models/detonation-orrery-mk6.glb",
+      "sha256": "877ceefff4544346e01dc361398a973424f06beda36ce7294c1f70a3501e8774",
       "kind": "project-generated-model",
-      "source": "Clean-room Blender 5.2 export from Z:\\DynamiteUniverse\\visual-tools\\blender-orrery\\detonation-orrery-mk2.blend",
-      "generator": "Z:/DynamiteUniverse/visual-tools/blender-orrery/build_orrery.py",
-      "generatorSha256": "3538f8c43312ea3f0f172463d04bdcb5813a508b5eef8f2f7644dea36b069275"
+      "source": "Clean-room Blender 5.2 export from design/home-orrery-v6/detonation-orrery-mk6.blend (git-ignored local design source, not shipped); 3756 triangles, 14 materials, one 4 s clip, no embedded images",
+      "generator": "design/home-orrery-v6/build_orrery_mk6.py",
+      "generatorSha256": "a42b8791cfe35803f34323146afdbcc5a05b11d8d30cca3c33318076566f279e"
     },
     {
       "path": "client/assets/fonts/Orbitron.woff2",
@@ -160,7 +160,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/back.svg",
@@ -168,7 +168,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_A.svg",
@@ -176,7 +176,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_B.svg",
@@ -184,7 +184,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_C.svg",
@@ -192,7 +192,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_D.svg",
@@ -200,7 +200,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_omega.svg",
@@ -208,7 +208,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_S.svg",
@@ -216,7 +216,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_X.svg",
@@ -224,7 +224,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/background_Y.svg",
@@ -232,7 +232,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/cover_placeholder.svg",
@@ -240,7 +240,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/fc.svg",
@@ -248,7 +248,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/A.png",
@@ -256,7 +256,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/A_entry.png",
@@ -264,7 +264,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/B.png",
@@ -272,7 +272,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/B_entry.png",
@@ -280,7 +280,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/C.png",
@@ -288,7 +288,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/C_entry.png",
@@ -296,7 +296,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/D.png",
@@ -304,7 +304,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/D_entry.png",
@@ -312,7 +312,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/omega.png",
@@ -320,7 +320,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/omega_entry.png",
@@ -328,7 +328,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/S.png",
@@ -336,7 +336,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/S_entry.png",
@@ -344,7 +344,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/X.png",
@@ -352,7 +352,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/X_entry.png",
@@ -360,7 +360,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/Y.png",
@@ -368,7 +368,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/grades/Y_entry.png",
@@ -376,7 +376,7 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
     },
     {
       "path": "client/assets/results/retry.svg",
@@ -384,7 +384,63 @@
       "kind": "project-generated-ui-asset",
       "source": "Approved original v5_current, v5_current_xy and v5_current_d Blender renders and project Penpot result-v2 design; no original-game pixels",
       "generator": "tools/grade-assets/build_runtime_results.py",
-      "generatorSha256": "05f1237187cc11707b2500a56182413250bb8986dcd528266cb30e46e53892d8"
+      "generatorSha256": "12d83b489182084789ec12b6ffe8170cee6fae2bbc19915efd6a9b067f30abf5"
+    },
+    {
+      "path": "client/assets/results/outcomes/all-perfect.png",
+      "sha256": "b2f763c62ff2e5d2631ff996b0476ba6b21039c74e0fb64e199e65d7c8d86aaa",
+      "kind": "project-generated-ui-asset",
+      "source": "Clean-room SURGE result wordmarks: original geometric glyph SVG/PNG generated by design/result-outcomes/surge/build_surge.py; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_outcomes.py",
+      "generatorSha256": "b3a812b388dec02a5bad5725244728f8bf86731e5d982f47fc25ec54786907f7"
+    },
+    {
+      "path": "client/assets/results/outcomes/double-one.png",
+      "sha256": "403d1b6fef11bf63370dbacd60d1ebe0a9a71a2794efa70fddfae5de58887ed9",
+      "kind": "project-generated-ui-asset",
+      "source": "Clean-room SURGE result wordmarks: original geometric glyph SVG/PNG generated by design/result-outcomes/surge/build_surge.py; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_outcomes.py",
+      "generatorSha256": "b3a812b388dec02a5bad5725244728f8bf86731e5d982f47fc25ec54786907f7"
+    },
+    {
+      "path": "client/assets/results/outcomes/full-combo.png",
+      "sha256": "b02b035edb37b7bd58c0ad1d88253ea1d62e4b420e502069cef982770c9e6eff",
+      "kind": "project-generated-ui-asset",
+      "source": "Clean-room SURGE result wordmarks: original geometric glyph SVG/PNG generated by design/result-outcomes/surge/build_surge.py; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_outcomes.py",
+      "generatorSha256": "b3a812b388dec02a5bad5725244728f8bf86731e5d982f47fc25ec54786907f7"
+    },
+    {
+      "path": "client/assets/results/outcomes/one-good.png",
+      "sha256": "81f9c5b9add41d3584b829ac6f8b0901b87d88e5d7f6d94e9bbf22a8046018a9",
+      "kind": "project-generated-ui-asset",
+      "source": "Clean-room SURGE result wordmarks: original geometric glyph SVG/PNG generated by design/result-outcomes/surge/build_surge.py; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_outcomes.py",
+      "generatorSha256": "b3a812b388dec02a5bad5725244728f8bf86731e5d982f47fc25ec54786907f7"
+    },
+    {
+      "path": "client/assets/results/outcomes/one-miss.png",
+      "sha256": "991f6bc5767a3eac98cfca009eaf676a3923c29edf826cecbfab1bf17307ba44",
+      "kind": "project-generated-ui-asset",
+      "source": "Clean-room SURGE result wordmarks: original geometric glyph SVG/PNG generated by design/result-outcomes/surge/build_surge.py; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_outcomes.py",
+      "generatorSha256": "b3a812b388dec02a5bad5725244728f8bf86731e5d982f47fc25ec54786907f7"
+    },
+    {
+      "path": "client/assets/results/outcomes/stage-failure.png",
+      "sha256": "24611ef0d16d9cb8b9fa451b4aa138334b7dd29929801e738a088c221497d577",
+      "kind": "project-generated-ui-asset",
+      "source": "Clean-room SURGE result wordmarks: original geometric glyph SVG/PNG generated by design/result-outcomes/surge/build_surge.py; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_outcomes.py",
+      "generatorSha256": "b3a812b388dec02a5bad5725244728f8bf86731e5d982f47fc25ec54786907f7"
+    },
+    {
+      "path": "client/assets/results/outcomes/track-complete.png",
+      "sha256": "dd2ee5c5662d1dad71d535d5e8ae47781e860fe94aacbde561215d2e6f20c28b",
+      "kind": "project-generated-ui-asset",
+      "source": "Clean-room SURGE result wordmarks: original geometric glyph SVG/PNG generated by design/result-outcomes/surge/build_surge.py; no original-game pixels",
+      "generator": "tools/grade-assets/build_runtime_outcomes.py",
+      "generatorSha256": "b3a812b388dec02a5bad5725244728f8bf86731e5d982f47fc25ec54786907f7"
     }
   ],
   "excluded": [

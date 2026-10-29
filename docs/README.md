@@ -33,7 +33,7 @@
 | [editor-ui-design.md](<editor-ui-design.md>) | Penpot 板位、设计/已接入边界、UI 施工与 MCP 安全约定；不是功能验收表 |
 | [ui-motion.md](<ui-motion.md>) | 游戏现行动效与编辑器目标动效；注意章节内的已接入/目标标识 |
 | [result-v2-design.md](<result-v2-design.md>) | 已接入结算的层级、时序和交互；旧设计示例数据不能覆盖现评级门槛 |
-| [result-outcomes.md](<result-outcomes.md>) | 当前正常/BLEED结束行为、已确认但未实施的双条件与前奏方案、最新静态字标候选 |
+| [result-outcomes.md](<result-outcomes.md>) | 已接入的正常结束双锁存、BLEED 失败、七类结果字标前奏（含 TRACK COMPLETE、三档/跳过/防穿透）与资产清单 |
 | [note-colors-v2.md](<note-colors-v2.md>) | 配色草稿/应用/比较、可读性限制与未完成的设备验收清单 |
 | [blender-pipeline.md](<blender-pipeline.md>) | 批准的八评级资产重建/打包、安全与设计源备份 |
 | [第三方通知](<../THIRD_PARTY_NOTICES.md>) / [APK policy](<../release/apk-policy.json>) / [资产来源](<../release/asset-provenance.json>) | 许可证、产品身份、发布内容和资产哈希；不能以文档整理放宽 |

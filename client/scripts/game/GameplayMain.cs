@@ -78,6 +78,8 @@ public partial class GameplayMain : Node2D
 	// BLEED 血量：仅 BleedEffective 时创建（HARDCORE 强制开启并取 Hardcore 数值）。
 	private BleedHealth? _bleed;
 	private SongPlayback _playback = null!;
+	// 正常结束双锁存：谱末 +2 秒与音频自然结束分别单调锁存，两者都到才结算。
+	private GameplayEndCondition _endCondition = null!;
 	private V2IntegrationVerification? _verification;
 	private V2IntegrationTrace? _trace;
 
@@ -184,6 +186,7 @@ public partial class GameplayMain : Node2D
 
 		_playback = new SongPlayback(this, songPath, GameSession.Settings.TimingOffsetMs,
 			_verification);
+		_endCondition = new GameplayEndCondition(_plan.EndTime + 2.0, _playback.TracksNaturalEnd);
 		// 调试：DYNAMITE_UNIVERSE_START_SEC=起始秒（用于与录屏做同刻对比截图）
 		_startSecond = 0.0;
 		if (double.TryParse(System.Environment.GetEnvironmentVariable("DYNAMITE_UNIVERSE_START_SEC"),
@@ -251,11 +254,12 @@ public partial class GameplayMain : Node2D
 		UpdateSustainStates(t);
 		SweepJudges(t);
 		FinalizeEndedMixers(t);
-		// BLEED 耗尽：本帧判定与 Mixer 收尾都已完成，暂停音乐后进结算（占位：复用普通结算）。
+		// BLEED 耗尽：本帧判定与 Mixer 收尾都已完成，先暂停音乐再立即进入失败字标前奏，
+		// 不等待谱末/音频结束；专用失败页与血条 UI 仍是后续独立设计。
 		if (_bleed is { IsDepleted: true })
 		{
 			_playback.Pause();
-			ShowResults();
+			ShowResults(stageFailure: true);
 			return;
 		}
 		UpdateHud(t);
@@ -274,11 +278,11 @@ public partial class GameplayMain : Node2D
 					 $"hp={_engine.Health} activeViews={_noteRenderer.ActiveViews.Count}");
 		}
 
-		// 结束检测：时间超过谱面末尾 +2s，或音频流自然播完。
-		// 注意：流播完后 GetPlaybackPosition 归零，t 塌缩，不能用 t 做前提——
-		// 用时钟自身的 IsPlaying（Play 后恒 true 直到 Pause/Seek）判断"确实在播"。
-		var audioEnded = _playback.HasNaturallyEnded;
-		if (t > _plan.EndTime + 2.0 || audioEnded)
+		// 结束检测（取晚，不取早）：谱末 +2s 与音频自然结束分别锁存，两者都满足才结算。
+		// 音频自然结束后 SongTime 会冻结/归零，因此由 GameplayEndCondition 用音频结束后的
+		// 真实帧 delta 补足到谱末 +2s；回退/固定帧时钟只走可测试的谱末路径，不会死锁。
+		_endCondition.Observe(t, _playback.HasNaturallyEnded, delta);
+		if (_endCondition.ShouldFinish)
 			ShowResults();
 	}
 }

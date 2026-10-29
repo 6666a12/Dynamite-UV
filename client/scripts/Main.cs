@@ -4,7 +4,10 @@ using DynamiteUniverse.Ui;
 
 namespace DynamiteUniverse;
 
-/// <summary>Branded home screen with a fixed 1920x1080 action rail.</summary>
+/// <summary>
+/// Branded home screen: Penpot「Game — Home v2 · 01 Compact」的固定 1920×1080 布局，
+/// 右侧 Mk VI 核心模型 + 弥散光，左侧品牌块与动作区。只协调装配与入场，控件细节在 ui/home。
+/// </summary>
 public partial class Main : Node2D
 {
 	private readonly List<(Control Item, Vector2 BasePosition, int Order)> _enterItems = new();
@@ -18,151 +21,26 @@ public partial class Main : Node2D
 
 		UiLayout.AddBackground(this);
 
+		// 参考环先画，模型与其弥散光覆盖在上面。
+		var reticle = new HomeReticle
+		{
+			Position = new Vector2(870, 70),
+			Size = new Vector2(1050, 960),
+		};
+		AddChild(reticle);
+		RegisterEntrance(reticle, 0);
+
 		var energyCore = new HomeEnergyReactor
 		{
-			Position = new Vector2(915, 92),
-			Size = new Vector2(900, 830),
+			Position = new Vector2(900, 90),
+			Size = new Vector2(1000, 920),
 		};
 		AddChild(energyCore);
 		RegisterEntrance(energyCore, 0);
 
-		var eyebrow = new Label
-		{
-			Position = new Vector2(176, 194),
-			Size = new Vector2(600, 34),
-			Text = "COMMUNITY RHYTHM SYSTEM  /  DU-01",
-		};
-		UiLabels.Tech(eyebrow, 18, UiFonts.Cyan);
-		AddChild(eyebrow);
-		RegisterEntrance(eyebrow, 0);
-
-		var titlePrimary = new Label
-		{
-			Position = new Vector2(166, 238),
-			Size = new Vector2(790, 126),
-			Text = "DYNAMITE",
-		};
-		UiLabels.TechBold(titlePrimary, 112, UiFonts.Text);
-		AddChild(titlePrimary);
-		RegisterEntrance(titlePrimary, 1);
-
-		var titleSecondary = new Label
-		{
-			Position = new Vector2(166, 342),
-			Size = new Vector2(790, 112),
-			Text = "UNIVERSE",
-		};
-		UiLabels.TechBold(titleSecondary, 96, UiFonts.Cyan);
-		AddChild(titleSecondary);
-		RegisterEntrance(titleSecondary, 1);
-
-		var accentRail = new ColorRect
-		{
-			Position = new Vector2(176, 466),
-			Size = new Vector2(176, 4),
-			Color = UiFonts.Pink,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		AddChild(accentRail);
-		RegisterEntrance(accentRail, 2);
-
-		var sub = new Label
-		{
-			Position = new Vector2(176, 486),
-			Size = new Vector2(700, 34),
-			Text = "CLEAN-ROOM COMMUNITY RHYTHM GAME",
-		};
-		UiLabels.Tech(sub, 22, UiFonts.Dim);
-		AddChild(sub);
-		RegisterEntrance(sub, 2);
-
-		var actionPanel = new CutPanel
-		{
-			Position = new Vector2(152, 548),
-			Size = new Vector2(746, 390),
-			Cut = 28,
-			Fill = new Color(0.025f, 0.045f, 0.105f, 0.88f),
-			Border = new Color(UiFonts.Line, 0.92f),
-			BorderWidth = 2f,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		AddChild(actionPanel);
-		RegisterEntrance(actionPanel, 3);
-
-		var actionLabel = new Label
-		{
-			Position = new Vector2(190, 576),
-			Size = new Vector2(650, 28),
-			Text = "SELECT DESTINATION",
-		};
-		UiLabels.Tech(actionLabel, 16, UiFonts.Dim);
-		AddChild(actionLabel);
-		RegisterEntrance(actionLabel, 3);
-
-		var play = new CutButton
-		{
-			Position = new Vector2(188, 620),
-			Size = new Vector2(674, 112),
-			Text = "游玩",
-			SubText = "PLAY  /  ENTER SONG LIBRARY",
-			StyleKind = CutButton.ButtonStyle.Solid,
-			FontSize = 36,
-			TechFont = true,
-			AlignLeft = true,
-		};
-		play.Pressed += () => TransitionDirector.Navigate(
-			UiRoutes.SongSelect,
-			TransitionKind.Standard,
-			"OPEN CHANNEL",
-			"SONG LIBRARY");
-		AddChild(play);
-		RegisterEntrance(play, 4);
-
-		var workshop = new CutButton
-		{
-			Position = new Vector2(188, 752),
-			Size = new Vector2(325, 142),
-			Text = "谱面工坊",
-			SubText = "WORKSHOP  /  SERVER LIBRARY",
-			FontSize = 28,
-			TechFont = true,
-			AlignLeft = true,
-			// The game shell reserves this route for a future server chart library.
-			// Local authoring belongs to the separate DynaMaker UV project.
-			Disabled = true,
-		};
-		AddChild(workshop);
-		RegisterEntrance(workshop, 5);
-
-		var settings = new CutButton
-		{
-			Position = new Vector2(537, 752),
-			Size = new Vector2(325, 142),
-			Text = "设置",
-			SubText = "SETTINGS  /  SYSTEM",
-			FontSize = 28,
-			TechFont = true,
-			AlignLeft = true,
-		};
-		settings.Pressed += () => TransitionDirector.Navigate(
-			UiRoutes.Settings,
-			TransitionKind.Standard,
-			"OPEN CHANNEL",
-			"SETTINGS");
-		AddChild(settings);
-		RegisterEntrance(settings, 5);
-
-		var ver = new Label
-		{
-			Position = new Vector2(1240, 1014),
-			Size = new Vector2(620, 30),
-			Text = BuildDescription(),
-			HorizontalAlignment = HorizontalAlignment.Right,
-		};
-		UiLabels.Tech(ver, 16, UiFonts.Dim);
-		AddChild(ver);
-		// 版本串也是首页内容：不登记的话转场揭示时它会孤零零地先露出来。
-		RegisterEntrance(ver, 6);
+		HomeBrandBlock.Build(this, RegisterEntrance);
+		HomeActions.Build(this, RegisterEntrance);
+		HomeUtilityRow.Build(this, BuildDescription(), RegisterEntrance);
 
 		SetProcess(false);
 		PrepareEnterAnimation();

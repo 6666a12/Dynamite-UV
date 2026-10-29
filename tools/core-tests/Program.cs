@@ -64,6 +64,8 @@ public static class Program
             SustainJudgementTests.TestHoldReleaseFreezesGrace();
             ScoreIdentityTests.TestScoreStoreMigrationAndIdentity();
             ResultRevealTests.Run(Check);
+            ResultOutcomeTests.Run(Check);
+            ResultPreludeTimelineTests.Run(Check);
             TrackHandoffStateTests.Run(Check);
             GameSettingsCodecTests.Run(Check);
             CalibrationStatsTests.Run(Check);
@@ -82,6 +84,7 @@ public static class Program
             GradeTests.Run(Check);
             MixerTests.Run(Check);
             BleedHealthTests.Run(Check);
+            GameplayEndConditionTests.Run(Check);
         }
         catch (Exception ex)
         {

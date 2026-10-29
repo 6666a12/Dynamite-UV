@@ -54,7 +54,14 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `SongCardMotion` / `SongDetailCard` | 展开/收拢/文字/封面状态机 / 卡片控件子树和展示 | 列表位置、行可见性、底部操作、加载与页面导航 |
 | `SongDetailRequest` | 详情请求代际、独立 loader、作废、完成消费和释放 | 当前 pack/chart、展开状态、缓存、试听身份和页面生命周期 |
 | `GameplayPauseOverlay` | 暂停状态、覆盖层、按钮和三档动效 | 输入清理、播放暂停/恢复、导航、结算与成绩保存 |
+| `GameplayEndCondition` | 谱末 +2 秒与音频自然结束的双锁存、音频结束后的真实帧补时；纯 C# | 结束条件成立后的 `ShowResults`、判定/AudioStreamPlayer 状态、固定帧推进 |
+| `ResultFlow` | 一次结算的“字标前奏 → 结算页”交付顺序与“只一次”闸门 | 成绩快照与保存、结算回调（隐藏舞台、返回/下一首/重开）、结算数据 |
+| `ResultOutcomePrelude` / `ResultPreludeTimeline` | 前奏节点（压暗/斜纹区/字标/着色器）与其纯时钟（Full/Reduced/Off、跳过落终值） | 何时进入前奏、结算页本身、音效与导航 |
+| `ResultOutcome` / `ResultInputGuard` | 七类结果分类（普通完成为 TRACK COMPLETE）与徽章映射 / 120ms 防穿透算术；纯 C# | 展示字标与徽章、结算页输入派发 |
 | `SongSelectWidgets` / `SettingsWidgets` / `CalibrationWidgets` | 控件输入、信号、绘制和局部动效 | 页面接线、设置保存；当前动效/落速用 provider 注入 |
+| `HomeEnergyReactor` / `HomeReticle` | Mk VI 透明子视口渲染（FOV 32 / 18° / 22° / margin 0.90）、单 4 秒 clip 的三档速度与 canvas 弥散光能量 / 模型后方参考环绘制 | 首页布局、入场登记、当前位置与尺寸；不接管导航 |
+| `HomeActionTile` / `HomeActions` | 单个动作底板（切角、中文/英文两行、可选箭头、禁用态与 hover/按下反馈）/ SELECT DESTINATION 区接线 | 真实路由（游玩→选曲、设置）与三个占位禁用入口 |
+| `HomeBrandBlock` / `HomeUtilityRow` / `HomePalette` | 品牌块、顶部工具入口与版本串、Home v2 颜色与字距 token | 入场登记、`Main.BuildDescription()` 构建身份串 |
 | `EditorStartPage` / `EditorHudView` / `EditorSettingsPage` / `EditorContextMenu` | Start 控件和事件、HUD 展示、设置接线与原保存节奏、菜单展示 | 页流、文档会话、对话框、预览播放与菜单命令路由 |
 | `CanvasProjection` / `CanvasPlacementDraft` | 文档到可变预览数据的映射 / 新建音符宽度与 Hold 两阶段草稿 | Godot 输入、坐标/吸附、选择恢复；提交仍走文档命令 |
 | `CanvasSelectionState` | Note.Id 多选、主选择/实际单选、BPM 精确时间、二级 Node.Id 与框选生命周期 | Godot 输入与几何、选择事件、重绘和文档命令 |
@@ -85,13 +92,14 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 
 | 类 | 第三轮前 | 当前 |
 | --- | ---: | ---: |
-| GameplayMain | 1823 | 1317 |
+| GameplayMain | 1823 | 1338 |
 | SongSelect | 2137 | 1122 |
 | CalibrationScreen | 1835 | 1213 |
 | StandaloneEditorMain（含 EditorFlow） | 2566 | 1230 |
 | AuthoringCanvas | 2495 | 2359 |
 
-其他当前总量：SettingsScreen 789、CreatePageOverlay 1330、GameplayNoteRenderer 762；TransitionOverlay 239、TrackHandoffPresentation 583、TrackHandoffState 72。以上数值于 2026-10-27 结构报告复核。
+其他当前总量：SettingsScreen 789、CreatePageOverlay 1330、GameplayNoteRenderer 762；TransitionOverlay 239、TrackHandoffPresentation 583、TrackHandoffState 72。结算新增部分：ResultScreen 443、ResultOutcomePrelude 173、ResultPreludeTimeline 162、ResultOutcome 66、ResultFlow 54、ResultInputGuard 15、GameplayEndCondition 68。GameplayMain 一行于 2026-10-28 按当前结构报告更新（双锁存 + 前奏接线净 +3 行，预算 1350）。
+首页 v2 部分（2026-10-29 结构报告）：Main 126、HomeEnergyReactor 365、HomeActionTile 222、HomeActions 83、HomeBrandBlock 61、HomeUtilityRow 44、HomePalette 47、HomeReticle 52；旧 HomeEnergyCore 170 行仍保留但未被引用。
 后续代码规模以 `tools/architecture/check.py --report` 的实际输出为准。
 
 对既往进程、剩余大文件与后续优先级的分析见 [2026-10-26 模块化复审](<modularity-review-2026-10-26.md>)：补充了 TransitionOverlay、NoteColorsScreen 等观察对象，并区分职责提取、文件整理与合理保留的协调宿主。该文是建议，不是已实施拆分或新排期。
@@ -104,7 +112,9 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 
 | 入口 | 职责文件 |
 | --- | --- |
-| `game/GameplayMain.cs` | 启动、选择、测量常量和每帧协调；其余分部、渲染/HUD/暂停/特效位于 `game/gameplay/` |
+| `game/GameplayMain.cs` | 启动、选择、测量常量和每帧协调；其余分部、渲染/HUD/暂停/特效位于 `game/gameplay/`，结束双锁存在 `gameplay/GameplayEndCondition.cs` |
+| `Main.cs` | 首页场景装配与入场动画；Home v2 布局、品牌块、动作区、顶部工具行、参考环与 Mk VI 核心都在 `ui/home/`（旧 `HomeEnergyCore.cs` 已不被引用） |
+| `ui/results/ResultScreen.cs` | 结算页数据展示与输入闸门；屏风在 `ResultShutter.cs`，屏风时钟在 `ResultRevealTimeline.cs`，交付顺序在 `ResultFlow.cs`，字标前奏在 `ResultOutcomePrelude.cs` / `ResultPreludeTimeline.cs`，分类在 `ResultOutcome.cs` |
 | `ui/song_select/SongSelect.cs` | 会话、选中与导航；`.Library` 列表/搜索，`.Loading` 详情与试听接线，`.QuickSettings` 快捷设置，`.Motion` 卡片推进/页面进场，`.Layout` 页面布局；滚动/触摸在 `SongListViewport.cs`，惯性在 `SongListScrollState.cs`，卡片/动画/详情代际各自独立 |
 | `ui/CalibrationScreen.cs` | 页面协调；其余分部、采样、音源和控件位于 `ui/calibration/` |
 | `ui/SettingsScreen.cs` | 页面状态、保存与动效；字段布局与控件位于 `ui/settings/` |
@@ -124,6 +134,8 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 - 两端共用的 Godot 视觉进入 presentation；通过参数传外观，不在此读取 GameSession/EditorSettings。
 - 画布预览映射放 CanvasProjection，新增对象草稿放 CanvasPlacementDraft；它们的 `Center` 沿用旧画布的左缘语义，提交命令时才转回文档中心，精确 BarTime 不经秒值往返。
 - 布局值留在 Layout/视觉规格；场景入口只协调，不逐步堆回控件构建或后台任务。
+- 结算相关的新阶段（前奏、失败页、音效接线）落在 `client/scripts/ui/results/`：纯时序/分类放纯 C# 文件并接入 core-tests，
+  Godot 节点用自带 `_Process` 的独立对象；`GameplayMain.ShowResults` 只算一次成绩并交出快照。
 - 新回归按主题放独立测试类，并接入 Program。保留测试数量与调用顺序，不能用移动文件掩盖漏跑。
 
 ## 剩余对象边界
@@ -133,7 +145,7 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 | 1 | AuthoringCanvas | 绘制与路径交互仍共享较多状态；选择、命中、投影/手势/放置草稿与预览计算已有独立边界，后续按变更压力处理绘制/路径 |
 | 2 | CreatePageOverlay | 文本解析、输入焦点和绘制仍在同一类；请求组装/预检已独立，不引入新的 editor 产品流程 |
 | 3 | SongSelect | 视口、滚动、卡片动画/展示、详情代际、浏览和试听已独立；动态行高/过滤场景的固定步距触摸命中仍是未复现疑点，需真实输入刻画 |
-| 4 | GameplayMain | 暂停已独立，结算与成绩保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定 |
+| 4 | GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定（分部族 1338/1350，剩余空间很小，新阶段应继续落在 `ui/results/` 或纯对象） |
 
 上述拆分不授权顺带更改 JudgeEngine、v2 读写、判定窗口、时钟公式、成绩身份或布局数值。
 AuthoringCanvas 总体仍超过 2000 行；不宣称所有上帝类已消除。继续拆分以状态拥有者、输入输出、

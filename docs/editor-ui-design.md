@@ -78,8 +78,8 @@ Inspector，不设常驻事件轨。整谱合成是独立只读演示状态，�
 | Game — Track Handoff | 6360,0 | 1920×1080 | 过场「充电」：封面居中 + 四角斜对角电缆（25%），每缆 2 个亮脉冲；状态 `PLAYFIELD / LOCKING` |
 | Game — Handoff Lock | 8480,0 | 1920×1080 | 过场「充满锁定」：电缆 100%、四节点点亮、封面描边 100% + 内侧 8% 辉光；无判定线 |
 | Game — Handoff Discharge | 10600,0 | 1920×1080 | 过场「放电」：电缆 12% 余辉、四节点小爆闪、封面白热闪光 + 双圈冲击波、判定线 25% |
-| Game — Home | 0,1280 | 1920×1080 | 首页（`Main.cs`）：左列 eyebrow / DYNAMITE UNIVERSE 两行 wordmark / pink 短轨 / 副题，切角 SELECT DESTINATION 面板内 1 大 2 小切角按钮（游玩实心青、谱面工坊禁用、设置描边）；右侧 3D 能量核心（`HomeEnergyReactor` 示意）；右下版本串 |
-| Game — Home v2 · 01 Compact | 0,11520 | 1920×1080 | 首页紧凑化候选：96px 主边距、无外框操作区、原版切角按钮配弱化描边、近全高右侧主视觉及 CREDITS / LOGIN 轻入口；核心仅为构图占位，未接入客户端，动态模型另行审查 |
+| Game — Home | 0,1280 | 1920×1080 | 旧首页板（已被 Home v2 取代）：左列 eyebrow / DYNAMITE UNIVERSE 两行 wordmark / pink 短轨 / 副题，切角 SELECT DESTINATION 面板内 1 大 2 小切角按钮；右侧 3D 能量核心示意；右下版本串 |
+| Game — Home v2 · 01 Compact | 0,11520 | 1920×1080 | **当前首页**：96px 主边距、无外框操作区、弱化描边切角底板、近全高右侧主视觉；CREDITS / LOGIN 置灰，副按钮两行，段位模式与联机大厅为新增禁用占位。2026-10-29 已接入客户端（`Main.cs` + `ui/home/`），核心是 Mk VI 动态模型与 canvas 弥散光；具体省略项和实施取舍见下文与 [交接](<handoff.md>) |
 | Game — Song Select | 2120,1280 | 1920×1080 | 选曲（`SongSelect.cs`）：顶栏 logo + 返回；左详情板（封面占位 + NO COVER、曲名 / 曲师·谱师 / 时长·Note）；右曲库板（列表头 + 6 行 SongRow + 视口裁切的第 7 行残片）；底部难度实心键 + BEST/CLEAR 条 + 等级字 + START |
 | Game — Gameplay | 4240,1280 | 1920×1080 | 游玩 HUD 定格帧：程序化背景纵深、∪ 形判定线（y=861 + 两侧竖轨）、Mixer 装饰粉条与光标、三轨 Note（Tap/Drag/ExTap/Hold+body/Mixer/BarLine）、顶部六 pill + 暂停钮、判定线进度段、左下曲目信息板、右下分数、线下 Combo、线上判定字 |
 | Game — Pause | 6360,1280 | 1920×1080 | 暂停浮层：同一游玩帧 + 全屏压暗 72% + 700×480 切角面板（PAUSED + 继续 / 重开 / 返回选曲） |
@@ -160,12 +160,26 @@ Result v2 六板后缀为 `01 Shutter Close 300ms`、`02 Shutter Hold 800ms`、`
 首页仍保留已经实现的 3D `HomeEnergyReactor`。新概念改为电影式分区启亮：待机核心 → 主光/填充 →
 粉色轮廓、底部反弹与灯舱；不是横向扫光，不代表客户端已经改。脚本 `.tmp/penpot_home_power.py`。
 
+### 当前首页 v2 实施边界
+
+- Penpot 板已在 SELECT DESTINATION 下增加第二行「段位模式 / RANK MODE / OFFLINE」与
+  「联机大厅 / ONLINE LOBBY / OFFLINE」，并修正主按钮文字被不透明底板遮盖的层级。
+  客户端只有游玩、设置接真实导航；谱面工坊、段位模式、联机大厅和 CREDITS / LOGIN 均为禁用展示。
+- 不实现模型右下的 DETONATION ORRERY / CORE ONLINE、左上 COMMUNITY RHYTHM SYSTEM / DU-01、
+  左下 DU / COMMUNITY EDITION 三组注释小字；右下版本串继续使用 `Main.BuildDescription()`。
+- 参考环已接入。稿内模型背景的径向环境辉光与 Utility / separators 两个刻度线未复制；
+  LOGIN 去掉 `↗`，避免禁用入口仍暗示外链。
+- Mk VI 使用当前立体折梁模型与近/远双层 canvas 弥散光，默认 `u_glow=1.6`。
+  本机设计源、Blender 重建、独立 Godot 预览和渲染器差异见
+  [Mk VI 设计源与预览说明](<../design/home-orrery-v6/README.md>)；独立预览不证明客户端或 Android 效果。
+
 ### 2.1 当前选曲 v2
 
 **模式关系**：MODE 只有 **STANDARD / HARDCORE 两档，互斥二选一**；
 **BLEED 是游玩修饰开关，不是平级档位**——STANDARD 下可自由开/关，**HARDCORE 下强制开启且不可关**
 （锁定态：轨道保持 cyan 但整体压到 55%、方块停在右侧 60%、左侧空位放 20px 挂锁图标，副文案换成
-`HARDCORE 下强制开启`）。后续的「段位模式」= STANDARD + BLEED，本轮不为其出控件。
+`HARDCORE 下强制开启`）。后续的「段位模式」= STANDARD + BLEED；首页只有其禁用入口，
+不代表该模式已经实现，也不因此给当前选曲页增加控件。
 
 左列 (40,112,480×828) 采用 **QUICK SETTINGS**：
 

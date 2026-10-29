@@ -77,7 +77,9 @@ def main():
     presets.write_text(data,encoding='utf-8')
     provenance_path=ROOT/'release/asset-provenance.json'
     provenance=json.loads(provenance_path.read_text(encoding='utf-8'))
-    provenance['assets']=[a for a in provenance['assets'] if not a['path'].startswith('client/assets/results/')]
+    provenance['assets']=[a for a in provenance['assets']
+                          if not a['path'].startswith('client/assets/results/')
+                          or a['path'].startswith('client/assets/results/outcomes/')]
     generator=Path(__file__).resolve()
     for asset in sorted(DEST.rglob('*')):
         if asset.suffix not in ('.png','.svg'):continue

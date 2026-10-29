@@ -210,6 +210,10 @@
         "../../shared/DynamiteUniverse.Shared.csproj"
       ],
       "source_links": [
+        "../../client/scripts/game/gameplay/GameplayEndCondition.cs",
+        "../../client/scripts/ui/results/ResultOutcome.cs",
+        "../../client/scripts/ui/results/ResultPreludeTimeline.cs",
+        "../../client/scripts/ui/results/ResultInputGuard.cs",
         "../../presentation/ui/UiMotionMode.cs",
         "../../client/scripts/ui/results/ResultRevealTimeline.cs",
         "../../client/scripts/ui/transitions/TrackHandoffState.cs",

@@ -18,7 +18,7 @@ public partial class GameplayMain
 	private Node2D _noteRoot = null!;
 	private Node2D _hudRoot = null!;
 	private GameplayPauseOverlay _pause = null!;
-	private ResultScreen _resultScreen = null!;
+	private ResultFlow _results = null!;
 
 
 	private GameplayHud _hud = null!;
@@ -74,11 +74,8 @@ public partial class GameplayMain
 	private void ResumeFromPause() => _playback.Resume();
 
 
-	private void BuildResultLayer()
-	{
-		_resultScreen = new ResultScreen { Name = "ResultV2", Visible = false, ZIndex = 100 };
-		AddChild(_resultScreen);
-	}
+	private void BuildResultLayer() =>
+		_results = new ResultFlow(this, PresentationMotionProfile);
 
 	private static UiMotionProfile PresentationMotionProfile() =>
 		UiMotionProfile.For(GameSession.Settings.MotionMode);
@@ -167,7 +164,8 @@ public partial class GameplayMain
 					RelaySource.NextSong));
 		}
 
-	private void ShowResults()
+	/// <summary>结算唯一入口：成绩只算/存一次，再把同一份快照交给前奏与结算页。</summary>
+	private void ShowResults(bool stageFailure = false)
 	{
 		if (_finished) return;
 		_finished = true;
@@ -193,6 +191,7 @@ public partial class GameplayMain
 			: GameSession.Scores.TryUpdate(_run.PackId, _run.LegacyScoreKey, record));
 		if (isNewRecord)
 			GameSession.Scores.SaveDeferred();
+		var outcome = ResultOutcome.Classify(record, _plan.HeadlineUnitCount, stageFailure);
 		var texture = CoverTextureCache.Current(_run.CoverPath) ?? CoverTextureCache.Load(_run.CoverPath);
 		// Force-close only hides the pause layer and keeps its paused flag untouched. Natural
 		// completion retains the song tail; BLEED depletion pauses playback before entering here.
@@ -201,11 +200,11 @@ public partial class GameplayMain
 		var packs = GameSession.Packs;
 		var canNext = selection != null && packs.Count > 0 &&
 			packs[(packs.IndexOf(selection.Pack) + 1) % packs.Count].Charts.Count > 0;
-		_resultScreen.Present(new ResultScreenData(_run, record, _plan.HeadlineUnitCount,
+		_results.Begin(new ResultScreenData(_run, record, _plan.HeadlineUnitCount,
 			previousBest, isNewRecord, _auto,
 			GameSession.Settings.GameplayMode == GameplayMode.Hardcore,
-			GameSession.Settings.BleedEffective, GameSession.Settings.MirrorEnabled, texture),
-			PresentationMotionProfile(), () =>
+			GameSession.Settings.BleedEffective, GameSession.Settings.MirrorEnabled, texture, outcome),
+			() =>
 			{
 				_stageRoot.Visible = false;
 				_noteRoot.Visible = false;
@@ -216,7 +215,7 @@ public partial class GameplayMain
 		GD.Print($"=== RESULT === {_run.SongTitle} [{_run.LegacyScoreKey} Lv{_run.DifficultyLevel}] " +
 			$"score={normalizedScore} rawScore={_engine.Score} clear={pct:F2}% grade={grade} " +
 			$"P={_engine.CountPerfect} Gr={_engine.CountGreat} Gd={_engine.CountGood} M={_engine.CountMiss} " +
-			$"maxCombo={_engine.MaxCombo} newRecord={isNewRecord}");
+			$"maxCombo={_engine.MaxCombo} newRecord={isNewRecord} outcome={outcome}");
 	}
 
 }

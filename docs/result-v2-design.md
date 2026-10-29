@@ -84,11 +84,16 @@
 Reduced 使用 260ms 短淡入，取消砸入、分数滚动、强爆闪与外部电弧；
 Off 直接显示稳定页，遮住 Gameplay，避免短暂透层。
 音乐尾音不因屏风动作主动截断；离开/重开由既有导航停止播放。
-**真实触发边界**：当前 `GameplayMain` 在谱末后约 2 秒或音频自然结束时调用 `ShowResults`。
-上述揭晓时钟从该调用开始，不表示最后一个判定瞬间启动。若以后要求判定结束即开始，需单独改代码与回归，不能只改文档。
+**真实触发边界**：`GameplayMain` 现在只在“谱末 +2 秒”与“音频自然结束”两个单调锁存**都成立**后
+调用 `ShowResults`（取晚，不取早）；调用后先播结果字标前奏，再进入本文的屏风揭晓。
+上述屏风时钟从屏风开始时算起，不表示最后一个判定瞬间启动。若以后要求判定结束即开始，需单独改代码与回归，不能只改文档。
 音效资产与混音仍未在本方案完成。
 
-后续正常结束条件与结果前奏见 [结果前奏交接](<result-outcomes.md>)：已确认正常结束将改为谱末 +2 秒与音频自然结束两者取晚，AP/FC 等标识放在屏风之前；这些方案尚未接入。最新静态字标为 `design/result-outcomes/expressive/`，不代表客户端已实现。
+屏风之前的结果字标前奏（1.55s / Reduced 0.26s / Off 无前奏）、七类分类与资产见
+[结果前奏与正常结束条件](<result-outcomes.md>)；实现在 `client/scripts/ui/results/`
+（`ResultFlow`、`ResultOutcomePrelude`、`ResultPreludeTimeline`、`ResultOutcome`）与
+`client/scripts/game/gameplay/GameplayEndCondition.cs`。前奏与结算页共用同一份 `ResultScreenData`，
+成绩仍只计算/保存一次；`ResultScreen` 的 AP/FC 徽章与字标使用同一个分类器。
 
 ## 示例数据与状态规则
 
@@ -99,6 +104,8 @@ Off 直接显示稳定页，遮住 Gameplay，避免短暂透层。
   ALL PERFECT。旧纪录 976,800，增量 +23,200。
 - `PERFECT` 沿用项目既有拼写。判定配色沿用旧结算：青/金/绿/灰紫。
 - AP 与 FC 共用一个徽章位，AP 优先；普通完成保留成绩区对齐，隐藏成就徽章，不显示假 FC。
+  徽章现在与屏风前的字标共用 `ResultOutcome.BadgeOf` 分类器：ONE GOOD 仍算 FULL COMBO，
+  ONE MISS / DOUBLE ONE / STAGE FAILURE 不显示 AP/FC 徽章。
 - 只有破纪录才显示 NEW RECORD 与正增量；非纪录可显示既有 BEST，不强制增加警示颜色。
 - AUTO 必须显示「AUTO · 不计成绩」，不写成绩，也不显示 NEW RECORD；本组画板展示手动游玩。
 - BLEED 已按 100 血实时扣血/回血（数值见 [玩法规格 §4.3](<gameplay-spec.md#43-游玩模式>)）。画板里的模式标签反映所选配置；耗尽当前复用普通结算为占位，专用耗尽结算与血条 UI 待扩展。
@@ -129,9 +136,15 @@ directional motion 仅 Full 播放，计数/擦入在 Reduced/Off 直接显示�
 Full 入场期间单击/触摸或 Enter/Space/Escape 可跳过；当前事件被消费，另有 120ms
 防穿透间隔。按钮入场时不接收输入。返回、下一首、再来一次继续调用既有导航。
 Reduced/Off 只加载静态评级；音乐尾音不中断，离开或重开时按既有导航停止播放。
-Public export 按当前八评级及结果背景白名单纳入 PNG/SVG；具体集合以导出配置和策略为准，不沿用旧五级的 20 项计数。来源与哈希记录在
+Public export 按当前八评级及结果背景白名单纳入 PNG/SVG；具体集合以导出配置和策略为准，不沿用旧五级的 20 项计数。七张结果字标
+（`client/assets/results/outcomes/*.png`）与 `client/shaders/wordmark_diffuse.gdshader` 也已加入白名单，
+由 `tools/grade-assets/build_runtime_outcomes.py` 管理；该脚本只写 `outcomes/` 子树与自己的来源记录，
+`build_runtime_results.py` 显式跳过它，避免贴错 Blender 来源。来源与哈希记录在
 `release/asset-provenance.json`，不包括设计预览、Blender 工程或原版参考资源。
 
-当前回归入口：`ResultRevealTests` 已注册在 core-tests，覆盖开合顺序、慢加载闭合等待、跳过与 Reduced/Off；
+当前回归入口：`ResultRevealTests` 覆盖开合顺序、慢加载闭合等待、跳过与 Reduced/Off；
+`ResultOutcomeTests` 覆盖七类分类与徽章同源，`ResultPreludeTimelineTests` 覆盖前奏三档、
+跳过落终值、防穿透间隔与“只交付一次”，`GameplayEndConditionTests` 覆盖双锁存取晚与回退路径；
 图集生成器含逐帧 RGBA 校验。复验流程见 [当前交接](<handoff.md>)。
-历史构建/测试/无界面导入记录保留在归档；本次整理没有重跑，也没有启动游戏替用户目测。
+历史构建/测试/无界面导入记录保留在归档；本轮代码有统一非图形验证记录。主代理已完成
+Godot 窗口检查（含普通完成 TRACK COMPLETE），用户最终视觉与设备验收仍待处理，详见验证记录。

@@ -28,6 +28,12 @@
     <Compile Include="../../client/scripts/ui/common/UiEase.cs" Link="Ui/UiEase.cs" />
     <!-- Detail request generation and single in-flight loading are Godot-free too. -->
     <Compile Include="../../client/scripts/ui/song_select/SongDetailRequest.cs" Link="Ui/SongDetailRequest.cs" />
+    <!-- Result outcome classification, prelude clock and input guard are pure C#. -->
+    <Compile Include="../../client/scripts/ui/results/ResultOutcome.cs" Link="Ui/ResultOutcome.cs" />
+    <Compile Include="../../client/scripts/ui/results/ResultPreludeTimeline.cs" Link="Ui/ResultPreludeTimeline.cs" />
+    <Compile Include="../../client/scripts/ui/results/ResultInputGuard.cs" Link="Ui/ResultInputGuard.cs" />
+    <!-- Normal-completion latch is Godot-free: verify the late-take dual latch and fallbacks. -->
+    <Compile Include="../../client/scripts/game/gameplay/GameplayEndCondition.cs" Link="Gameplay/GameplayEndCondition.cs" />
     <None Include="Fixtures/synthetic_chart.json"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
