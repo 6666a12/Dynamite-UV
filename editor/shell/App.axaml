@@ -1,0 +1,61 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fluent="using:Avalonia.Themes.Fluent"
+             xmlns:semi="using:Semi.Avalonia"
+             xmlns:ursa="using:Ursa.Themes.Semi"
+             xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
+             x:Class="DynamiteUniverse.Editor.Shell.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <Color x:Key="OfficialBg">#080C18</Color>
+    <Color x:Key="OfficialSurface">#0E1528</Color>
+    <Color x:Key="OfficialRaised">#141E36</Color>
+    <Color x:Key="OfficialHover">#1A2947</Color>
+    <Color x:Key="OfficialLine">#2A3560</Color>
+    <Color x:Key="OfficialCyan">#35E0FF</Color>
+    <Color x:Key="OfficialPink">#FF4D8F</Color>
+    <Color x:Key="OfficialText">#DFE6FF</Color>
+    <Color x:Key="OfficialDim">#7C88B0</Color>
+    <SolidColorBrush x:Key="Bg" Color="{StaticResource OfficialBg}" />
+    <SolidColorBrush x:Key="Surface" Color="{StaticResource OfficialSurface}" />
+    <SolidColorBrush x:Key="Raised" Color="{StaticResource OfficialRaised}" />
+    <SolidColorBrush x:Key="Hover" Color="{StaticResource OfficialHover}" />
+    <SolidColorBrush x:Key="Line" Color="{StaticResource OfficialLine}" />
+    <SolidColorBrush x:Key="Cyan" Color="{StaticResource OfficialCyan}" />
+    <SolidColorBrush x:Key="Pink" Color="{StaticResource OfficialPink}" />
+    <SolidColorBrush x:Key="Ink" Color="{StaticResource OfficialText}" />
+    <SolidColorBrush x:Key="Dim" Color="{StaticResource OfficialDim}" />
+    <FontFamily x:Key="OfficialFont">avares://DynaMakerUv.Editor.Shell/Assets/SpaceGrotesk-Medium.ttf#Space Grotesk</FontFamily>
+    <ControlRecycling x:Key="ControlRecyclingKey" TryToUseIdAsKey="True" />
+    <Color x:Key="SystemBaseHighColor">#DFE6FF</Color>
+    <Color x:Key="SystemAltHighColor">#0E1528</Color>
+    <Color x:Key="SystemBaseMediumLowColor">#2A3560</Color>
+    <Color x:Key="SystemAccentColor">#35E0FF</Color>
+    <Color x:Key="RegionColor">#0E1528</Color>
+    <SolidColorBrush x:Key="DockThemeBorderLowBrush" Color="#2A3560" />
+    <SolidColorBrush x:Key="DockThemeBackgroundBrush" Color="#0E1528" />
+    <SolidColorBrush x:Key="DockThemeAccentBrush" Color="#35E0FF" />
+    <SolidColorBrush x:Key="DockThemeForegroundBrush" Color="#DFE6FF" />
+    <SolidColorBrush x:Key="DockThemeControlBackgroundBrush" Color="#080C18" />
+    <SolidColorBrush x:Key="DockApplicationAccentBrushLow">#173B50</SolidColorBrush>
+    <SolidColorBrush x:Key="DockApplicationAccentBrushMed">#25617A</SolidColorBrush>
+    <SolidColorBrush x:Key="DockApplicationAccentBrushHigh">#FF4D8F</SolidColorBrush>
+    <SolidColorBrush x:Key="DockApplicationAccentForegroundBrush">#DFE6FF</SolidColorBrush>
+    <SolidColorBrush x:Key="DockApplicationAccentBrushIndicator">#35E0FF</SolidColorBrush>
+    <SolidColorBrush x:Key="DockTabHoverBackgroundBrush">#141E36</SolidColorBrush>
+    <SolidColorBrush x:Key="DockTabActiveBackgroundBrush">#14273D</SolidColorBrush>
+    <SolidColorBrush x:Key="DockTabActiveIndicatorBrush">#35E0FF</SolidColorBrush>
+    <SolidColorBrush x:Key="DockTabActiveForegroundBrush">#35E0FF</SolidColorBrush>
+    <SolidColorBrush x:Key="DockDocumentTabSelectedForegroundBrush">#35E0FF</SolidColorBrush>
+  </Application.Resources>
+  <Application.Styles>
+    <fluent:FluentTheme />
+    <semi:SemiTheme />
+    <ursa:UrsaSemiTheme />
+    <dock:DockFluentTheme />
+    <StyleInclude Source="avares://DynaMakerUv.Editor.Shell/OfficialTheme.axaml" />
+    <Style Selector="DockControl">
+      <Setter Property="(ControlRecyclingDataTemplate.ControlRecycling)" Value="{StaticResource ControlRecyclingKey}" />
+    </Style>
+  </Application.Styles>
+</Application>

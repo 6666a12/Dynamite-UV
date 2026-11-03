@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DynamiteUniverse.Editor.Shell"
+             xmlns:u="https://irihi.tech/ursa"
+             xmlns:animations="clr-namespace:SukiUI.ControlsAnimation;assembly=SukiUI"
+             x:Class="DynamiteUniverse.Editor.Shell.ToolsView">
+  <ScrollViewer Padding="12">
+    <StackPanel Spacing="8">
+      <TextBlock Classes="section" Text="{local:Tr Tools.Authoring}" Margin="4,4,0,8" />
+      <u:IconButton Content="{local:Tr Tools.Select}" Classes="active" HorizontalAlignment="Stretch" Click="ToolClicked" Tag="SELECT" animations:SukiPressMotion.Enable="True" />
+      <u:IconButton Content="{local:Tr Tools.Place}" HorizontalAlignment="Stretch" Click="ToolClicked" Tag="PLACE" animations:SukiPressMotion.Enable="True" />
+      <u:IconButton Content="{local:Tr Tools.Path}" HorizontalAlignment="Stretch" Click="ToolClicked" Tag="PATH" animations:SukiPressMotion.Enable="True" />
+      <u:IconButton Content="{local:Tr Tools.Pan}" HorizontalAlignment="Stretch" Click="ToolClicked" Tag="PAN" animations:SukiPressMotion.Enable="True" />
+      <TextBlock Classes="caption" Text="1 / 2 / 3 / 4" Margin="5,0,0,8" />
+      <Border Height="1" Background="{DynamicResource Line}" Margin="0,8" />
+      <TextBlock Classes="section" Text="{local:Tr Tools.Placement}" Margin="4,4,0,0" />
+      <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.NoteType}" />
+      <ComboBox x:Name="PlacementTypeChoice" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="OnAuthoringChanged">
+        <ComboBoxItem Content="{local:Tr Inspector.Tap}" />
+        <ComboBoxItem Content="{local:Tr Inspector.Drag}" />
+        <ComboBoxItem Content="{local:Tr Inspector.ExTap}" />
+        <ComboBoxItem Content="{local:Tr Inspector.Hold}" />
+        <ComboBoxItem Content="{local:Tr Inspector.Mixer}" />
+        <ComboBoxItem Content="{local:Tr Inspector.Mine}" />
+        <ComboBoxItem Content="{local:Tr Inspector.BarLine}" />
+      </ComboBox>
+      <TextBlock Classes="eyebrow" Text="{local:Tr Tools.Track}" />
+      <ComboBox x:Name="PlacementTrackChoice" SelectedIndex="1" HorizontalAlignment="Stretch" SelectionChanged="OnAuthoringChanged">
+        <ComboBoxItem Content="{local:Tr Inspector.LeftStage}" />
+        <ComboBoxItem Content="{local:Tr Inspector.CenterStage}" />
+        <ComboBoxItem Content="{local:Tr Inspector.RightStage}" />
+      </ComboBox>
+      <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.Width}" />
+      <NumericUpDown x:Name="PlacementWidthValue" Minimum="0.1" Maximum="5" Value="1" Increment="0.1" FormatString="0.0" ValueChanged="OnAuthoringChanged" />
+      <TextBlock Classes="caption" Text="{local:Tr Tools.GestureHint}" TextWrapping="Wrap" Margin="4,2" />
+      <Border Height="1" Background="{DynamicResource Line}" Margin="0,8" />
+      <TextBlock Classes="section" Text="{local:Tr Tools.Workspace}" Margin="4,4,0,8" />
+      <u:IconButton Content="{local:Tr Tools.Chart}" Classes="active" HorizontalAlignment="Stretch" />
+      <u:IconButton Content="{local:Tr Tools.Review}" HorizontalAlignment="Stretch" Click="NoticeClicked" />
+      <u:IconButton Content="{local:Tr Tools.Package}" HorizontalAlignment="Stretch" Click="NoticeClicked" />
+      <Border Height="1" Background="{DynamicResource Line}" Margin="0,8" />
+      <TextBlock Classes="section" Text="{local:Tr Tools.Extensions}" Margin="4,4,0,8" />
+      <u:IconButton Content="{local:Tr Tools.AudioAnalysis}" HorizontalAlignment="Stretch" Click="AddPanelClicked" animations:SukiPressMotion.Enable="True" />
+      <TextBlock Classes="caption" Text="{local:Tr Tools.PluginHint}" TextWrapping="Wrap" Margin="4,4" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

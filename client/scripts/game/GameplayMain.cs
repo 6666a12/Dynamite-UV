@@ -21,11 +21,14 @@ public partial class GameplayMain : Node2D
 	private const string FallbackSongPath = "res://testdata/song_tablear.wav";
 
 	// ---- 布局（1920x1080，16:9，用户 2026-08-10 拍板：4:3 上方空间太大；
-	//      x 向常量 = 1440 值 ×4/3，y 向不变。几何依据见 docs/gameplay-spec.md §8.6、
+	//      x 向常量 = 1440 值 ×4/3，共享 y 基准见下述客户端偏移。几何依据见 docs/gameplay-spec.md §9、
 	//      docs/video-geometry-analysis.md §8、_rev/notes/NOTE_POSITION_ANALYSIS.md）----
-	// Center 判定线：隐形水平线 y=861（谱面确认视频直出实测：亮线体 y 860–862；
+	// 客户端在共享基准几何上整体下移 40px；顶部 HUD 下移 8px，判定栏居中于屏幕顶部与蓝线之间。
+	internal const float StageOffsetY = 40f;
+	internal const float TopHudOffsetY = 8f;
+	// Center 判定线：共享基准 y=861，客户端实际 y=901（谱面确认视频直出实测：亮线体 y 860–862；
 	// 21:9 时代的拍板下移值 985 已废弃，勿回退）。
-	// 粉色横条（y=632, x 675..1244）是 Mixer 装饰 UI，不是判定线（同视频实测）。
+	// 粉色横条（基准 y=632, x 675..1244）是 Mixer 装饰 UI，不是判定线（同视频实测）。
 	private const float CenterLineY = GameplayStageGeometry.CenterLineY;
 	private const float CenterTrackX = GameplayStageGeometry.CenterTrackX; // Center 轨横向中心（P=2.0 处）
 	// Center x 映射（用户拍板：note 在边上的位置 = 谱面数值的比例映射，分辨率无关）：
@@ -42,7 +45,7 @@ public partial class GameplayMain : Node2D
 	// 生成提前量因此与正面一致（691/(691/790)=790px ≈0.77s），正侧同刻 note 同时入场。
 	private const float SideDistScale = GameplayStageGeometry.SideDistanceScale;
 	private const float SideLeadPx = GameplayStageGeometry.SideLeadPx; // = 790，与 TravelPx 相同
-	// 侧轨命中 y 使用当前固定的左右对称二维映射：y = 840 - 115 * (P + W/2)。
+	// 侧轨命中 y 使用当前固定的左右对称二维映射：y = 880 - 115 * (P + W/2)。
 	private const float SideY0 = GameplayStageGeometry.SideY0;
 	private const float SideUnit = GameplayStageGeometry.SideUnitPx;
 	// 侧小节线（T9）视觉长度仍按满跨域渲染的换算单位（装饰，非实测映射）
@@ -61,14 +64,14 @@ public partial class GameplayMain : Node2D
 
 	// Touch projection intentionally allows overlapping track candidates.
 	// A lower corner can therefore judge both the Center and adjacent side track.
-	private const float CenterRegionMinY = 771f; // 判定线上 90px
+	private const float CenterRegionMinY = 771f + StageOffsetY; // 判定线上 90px
 	private const float LeftRegionMaxX = 400f;
 	private const float RightRegionMinX = 1520f;
 	// 原版空间扩边公式已确认，但 NSTouchWidth 的设备运行值仍未知。这里集中使用一个
 	// 试玩后提高的社区值（谱面 Position 单位）；每侧扩 0.20，Mine 仍不扩边。
 	private const double CommunityTouchWidth = 0.40;
 	private const int MousePointerId = -1;
-	private static readonly Rect2 PauseButtonRect = new(900f, 60f, 120f, 64f);
+	private static readonly Rect2 PauseButtonRect = new(900f, 60f + TopHudOffsetY, 120f, 64f);
 	private static readonly Color JudgeLineColor = new(0.9f, 0.9f, 0.9f);
 
 	private DynamiteUniverse.Shared.Chart.Chart _chart = null!;

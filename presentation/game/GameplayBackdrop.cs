@@ -12,6 +12,7 @@ public partial class GameplayBackdrop : Node2D
     private static readonly Color Bg = new(0.025f, 0.032f, 0.065f);
     private static readonly Color Cyan = new(0.21f, 0.88f, 1.0f);
     private static readonly Color Pink = new(1.0f, 0.30f, 0.58f);
+    public float TopPadding { get; set; }
 
     public override void _Draw()
     {
@@ -21,7 +22,7 @@ public partial class GameplayBackdrop : Node2D
         const float judgeLineY = GameplayStageGeometry.CenterLineY;
         var vanishing = new Vector2(GameplayStageGeometry.CenterTrackX, horizonY);
 
-        DrawRect(new Rect2(0, 0, width, height), Bg);
+        DrawRect(new Rect2(0, -TopPadding, width, height + TopPadding), Bg);
 
         // 中央纵深辉光：多层半透明梯形叠加，最亮处仍低于 12%。
         for (var i = 7; i >= 1; i--)

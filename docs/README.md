@@ -18,7 +18,7 @@
 | [模块化复审（2026-10-26）](<modularity-review-2026-10-26.md>) | 既往拆分的有效性、剩余大文件分类、对象提取建议和所需回归；分析而非实施排期 |
 | [runtime-architecture.md](<runtime-architecture.md>) | 运行时会话/加载、不可重排的帧顺序、适配边界 |
 | [verification.md](<verification.md>) | 最近实际检查、历史验证、测试包身份、用户验收和复验命令 |
-| [dyna-maker-uv.md](<dyna-maker-uv.md>) | 编辑器详细能力/占位/快捷键/持久化错误边界；[editor README](<../editor/README.md>) 只作入口 |
+| [dyna-maker-uv.md](<dyna-maker-uv.md>) | 制谱器 Avalonia + Godot 主线、文件/命令接线、核心依赖与持久化边界；[editor README](<../editor/README.md>) 提供启动入口 |
 | [releasing.md](<releasing.md>) | Public/Internal 隔离、clean worktree、签名和最终 APK 门禁 |
 
 ## 有效规格、安全与测量（按任务必读）

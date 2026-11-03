@@ -29,6 +29,8 @@ internal static class EditorCommandRules
         ValidateId(note.Id, "Note");
         ValidateTime(note.Time, "Note time");
         ValidatePoint(note.Center, note.Width, "Note");
+        if (!double.IsFinite(note.ScrollSpeedMultiplier) || note.ScrollSpeedMultiplier <= 0.0)
+            throw new InvalidOperationException("Note scroll speed multiplier must be finite and greater than zero.");
         if (note.CurveToNext is not null && !Enum.IsDefined(note.CurveToNext.Value))
             throw new InvalidOperationException($"Unknown path curve '{note.CurveToNext}'.");
         if (note.Type is not (V2NoteType.Hold or V2NoteType.Mixer))
@@ -69,6 +71,7 @@ internal static class EditorCommandRules
             Time = note.Time,
             Center = note.Center,
             Width = note.Width,
+            ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
             CurveToNext = note.CurveToNext,
             Nodes = note.Nodes.Select((node, index) => new V2PathNode
             {

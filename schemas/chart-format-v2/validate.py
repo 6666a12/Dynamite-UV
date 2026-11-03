@@ -54,6 +54,8 @@ def canonical_json(value: object) -> str:
 
 def project_note(note: dict[str, object]) -> dict[str, object]:
     result = {key: note[key] for key in ("type", "time", "center", "width")}
+    if note.get("scrollSpeedMultiplier", 1.0) != 1.0:
+        result["scrollSpeedMultiplier"] = note["scrollSpeedMultiplier"]
     if note["type"] not in ("hold", "mixer"):
         return result
 
@@ -167,6 +169,28 @@ def validate_schema_and_examples() -> None:
     case = deepcopy(hard)
     case["scrollSpeeds"][0]["curveToNext"] = "smooth"
     expect_rejected("smooth scroll", chart_validator, case)
+    # 新增的六种缓动曲线在 path 与 scroll 两条通路上都必须被 schema 接受。
+    for curve in (
+        "easeInOutQuad",
+        "easeInCubic",
+        "easeOutCubic",
+        "easeInSine",
+        "easeOutSine",
+        "easeInOutSine",
+    ):
+        case = deepcopy(hard)
+        case["scrollSpeeds"][0]["curveToNext"] = curve
+        chart_validator.validate(case)
+        case = deepcopy(hard)
+        case["notesCenter"][1]["curveToNext"] = curve
+        case["notesCenter"][1]["nodes"][0]["curveToNext"] = curve
+        chart_validator.validate(case)
+    case = deepcopy(hard)
+    case["scrollSpeeds"][0]["curveToNext"] = "easeInOutBack"
+    expect_rejected("unknown scroll curve", chart_validator, case)
+    case = deepcopy(hard)
+    case["notesCenter"][1]["curveToNext"] = "easeInOutBack"
+    expect_rejected("unknown path curve", chart_validator, case)
     case = deepcopy(hard)
     center_mixer = deepcopy(case["notesLeft"][0])
     center_mixer["id"] = "center-mixer"
@@ -183,6 +207,13 @@ def validate_schema_and_examples() -> None:
     case = deepcopy(hard)
     case["notesLeft"][0]["nodes"][0]["judge"] = True
     expect_rejected("Mixer judge", chart_validator, case)
+    for value in (0, -1):
+        case = deepcopy(hard)
+        case["notesCenter"][0]["scrollSpeedMultiplier"] = value
+        expect_rejected(f"note scroll speed multiplier {value}", chart_validator, case)
+    case = deepcopy(hard)
+    case["notesLeft"][0]["nodes"][0]["scrollSpeedMultiplier"] = 2.0
+    expect_rejected("path node scroll speed multiplier", chart_validator, case)
 
 
 def validate_semantics() -> None:
@@ -236,6 +267,8 @@ def validate_semantics() -> None:
                 ids.append(note["id"])
                 assert math.isfinite(note["center"])
                 assert math.isfinite(note["width"]) and note["width"] > 0
+                multiplier = note.get("scrollSpeedMultiplier", 1.0)
+                assert math.isfinite(multiplier) and multiplier > 0
                 if note["type"] != "barLine":
                     main_times.append(bar_value(note["time"]))
                 if note["type"] not in ("hold", "mixer"):

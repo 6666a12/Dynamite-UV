@@ -82,6 +82,11 @@ internal static class GameplayGeometryTests
         Check(Math.Abs(VisualScrollMath.FallthroughSpeedPixelsPerSecond(
             basePixelsPerSecond, -0.5, 1.0) - 513.0) < 1e-12,
             "fallthrough keeps moving outward at the absolute scroll speed");
+        Check(Math.Abs(VisualScrollMath.DistancePixels(
+            2.0, 1.0, basePixelsPerSecond, 1.25, 0.5, 0.25) - 160.3125) < 1e-12 &&
+            Math.Abs(VisualScrollMath.FallthroughSpeedPixelsPerSecond(
+                basePixelsPerSecond, 1.25, 0.5, 2.0) - 1282.5) < 1e-12,
+            "per-note scroll multiplier compounds approach and fallthrough speed");
     }
 
     internal static void TestGameplayStageGeometry()

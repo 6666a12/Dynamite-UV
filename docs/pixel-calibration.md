@@ -13,14 +13,18 @@
 
 ## 三轨判定几何
 
-| 项目 | 当前值 |
+共享基准仍为 Center `y=861`、Side `y=840`。客户端游玩舞台与下方 HUD 整体下移 40px，
+顶部统计与暂停按钮独立下移 8px；判定栏位于 `y=20..60`，居中于屏幕顶部与 `y=80` 蓝线之间。
+编辑器和校准页继续使用共享基准，不跟随这次客户端布局偏移。
+
+| 项目 | 客户端当前值 |
 | --- | --- |
-| Center 判定线 | `y=861` |
+| Center 判定线 | `y=901` |
 | Center 轨中心 | `x=960` |
 | Center 左缘映射 | `x=280+273.2·P` |
 | Center 视觉宽 | `W·273.2·0.95` |
 | Left/Right 判定线 | `x=184/1736` |
-| Side 命中 y | `840−115·(P+W/2)` |
+| Side 命中 y | `880−115·(P+W/2)` |
 | Side note 长度 | `W·102·0.95px` |
 | Side BarLine 长度 | `W·190·0.95px` |
 | Center 可见行程 | 790px |
@@ -39,32 +43,32 @@ Side 渲染中心为：
 Left:  x = 184 + remainingDistance * SideDistScale
 Right: x = 1736 - remainingDistance * SideDistScale
 SideDistScale = 691/790 ≈ 0.8747
-y = 840 - 115 * (P + W/2)
+y = 880 - 115 * (P + W/2)
 ```
 
 ## 输入区域
 
 | 屏幕范围 | Track |
 | --- | --- |
-| `y>771` | 加入 Center |
+| `y>811` | 加入 Center |
 | `x<400`（不限 y） | 加入 Left |
 | `x>1520`（不限 y） | 加入 Right |
 | 三条件均不满足 | 回落 Center |
 
-这些条件独立叠加，不是互斥分区：下方角落可同时属于 Center 与侧轨。权威实现为 [InputJudgeRules.ProjectedTrackMask](<../shared/Judge/InputJudgeRules.cs>)，2026-10-26 仅修正旧文档，不改变输入规则。
+这些条件独立叠加，不是互斥分区：下方角落可同时属于 Center 与侧轨。权威实现为 [InputJudgeRules.ProjectedTrackMask](<../shared/Judge/InputJudgeRules.cs>)，客户端在调用时传入下移后的 Center 阈值，并同步偏移 Side 的纵向反查。
 
 转换后的触点 Position 与 note 的 `[P,P+W]` 做重叠判定。普通 note 使用
 `CommunityTouchWidth=0.40` 扩边（每侧 `0.20`），Mine 不扩边。
 
 ## 固定舞台元素
 
-- Mixer 粉色装饰条：`x=675..1244`、`y=632`，不是判定线。
-- Center 判定反馈基准：`y=696`，命中后轻微上浮并淡出。
-- Combo 数字：`y=872`；`COMBO` 小字：`y=944`。
-- 左下曲名/难度：基准 `y=920`。
-- 右下分数：基准 `y=879`。
-- 侧判定线从顶栏下方 `y=70` 延伸到 Center 判定线。
-- 前景地板和透视参照线继续绘制到 `y=1080`。
+- Mixer 粉色装饰条：`x=675..1244`、`y=672`，不是判定线。
+- Center 判定反馈基准：`y=736`，命中后轻微上浮并淡出。
+- Combo 数字：`y=912`；`COMBO` 小字：`y=984`。
+- 左下曲名/难度：基准 `y=960`。
+- 右下分数：基准 `y=919`。
+- 侧判定线从 `y=110` 延伸到 Center 判定线。
+- 前景地板和透视参照线随舞台下移，超出画面的部分正常裁剪。
 
 ## 音符视觉
 

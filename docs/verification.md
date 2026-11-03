@@ -7,6 +7,13 @@
 
 | 日期 / 来源 | 已有结果 | 不能证明什么 |
 | --- | --- | --- |
+| 2026-11-03 空草稿放置与鼠标松开修复 | 修复新建空草稿被预览编码/解码/RuntimeAdapter 的计分 Note 校验阻断：仅编辑预览显式 `requireMainJudgement:false`，默认 strict 行为不变，并有默认拒绝回归。Godot 根控制器补收全局左键松开，避免嵌入窗口的放置/路径提交丢失；空草稿与完整 smoke 分窗口隔离。统一 `verify.py --no-restore` 再次全部通过：266 个源码文件、三端 0 warning / 0 error、核心与编辑器回归、25 项 Shell headless、37 项发布测试和 diff 检查。真实 `--smoke-empty` 通过空舞台加载、首次原生点击放置和首次保存；真实 `--smoke` 通过 Note 选择、Q/E/W/S、播放、Ctrl+S、Hold 放置、路径双击/拖动、Dock 与中英文 | 自动窗口验证不是用户最终手感/视觉验收；普通 Note 拖动/调宽、Pan、其他 DPI、长谱性能、音乐听感和合并桌面包仍未覆盖。截图在 `builds/editor-shell-empty-smoke/empty-first-note.png` 与 `builds/editor-shell-smoke/05-authoring.png` |
+| 2026-11-03 制谱器新建/差分与舞台手势 | 接入新建包/添加差分表单、差分切换、七类 Note 点击放置/拖动加宽、路径双击插点/拖动头与节点、节点曲线和删除；全部修改复用文档命令。Godot 4.7.1 Mono `--headless --path editor --import` 成功并生成新脚本 UID。统一 `verify.py --no-restore` 通过：结构门禁 266 个源码文件，client/editor/shell 均 0 warning / 0 error，核心与编辑器回归、25 项 Shell headless（含双差分 strict 写包重读）、37 项发布测试和 diff 检查 | 本轮 Windows smoke 在原有 Note 点击步骤失败；截图显示系统处于锁屏界面，原生输入未进入编辑器，因此新建表单的原生鼠标和新增放置/路径实机手势均未验收，不能沿用 11-02 的窗口通过记录替代。普通 Note 拖动/调宽、Pan、真实波形、完整手动 Dock、其他 DPI、长谱性能、音乐听感和合并桌面包仍未覆盖 |
+| 2026-11-02 制谱器 Avalonia + Godot 主线 | 新增 `editor/shell` Avalonia/Dock/Ursa/Suki 外壳与现有 Godot 原生舞台 IPC；接入 strict v2 打开、保存/另存为、真实 Note 选择/差速/删除/撤销重做、中英文和 Q/E、W/S。统一 `verify.py --no-restore` 通过：结构门禁 264 个源码文件，client/editor/shell 均 0 warning / 0 error，核心与编辑器回归、16 项 Shell headless 文件/命令/UI 检查、37 项发布测试和 diff 检查。Windows 1.25× DPI smoke 通过真实包/WAV 加载、Note 点击、倍率/播放快捷键、Ctrl+S 重读验证、Dock 浮动还原和中文指南；截图在 `builds/editor-shell-smoke/` | 未覆盖新建/加差分、放置/移动/路径手势、真实波形、完整手动 Dock、其他 DPI、长谱性能与音乐听感；没有合并桌面安装包。自动播放到时钟/状态，不作为听感验收；用户最终 UI 验收仍待进行 |
+| 2026-11-02 Note 差速、缓动与音频格式扩展 | v2 新增可选父 Note `scrollSpeedMultiplier`（缺省 1 且不改旧 Digest），Scroll/路径新增六种 Quad/Cubic/Sine 缓动并覆盖跨帧接触求根；编辑命令、strict 编解码、运行时视觉与差速生成窗口已接入。默认写包 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis，客户端以托管解码支持原生 FLAC。`python -B tools/verify.py --no-restore` 通过：结构门禁 247 个 C# 文件、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 diff 检查；清理测试警告后编辑器回归再次通过。Schema/golden pack 校验通过，golden Digest 保持 `5f3cafcfa02097b555c860e0da9ca8e8a55ce428df8d69fcb263e080a7249a1f` | 未启动 Godot 做视觉/听感验收，未覆盖 Android、真实设备性能或制谱 UI；FLAC 客户端限常见 8/16/24-bit、1–2 声道并有输入/PCM 预算，24-bit 转 16-bit。Opus/M4A/AAC 仍不支持 |
+| 2026-10-30 制谱器旧 UI 移除 | 旧页面、画布、菜单、输入和设置宿主已删除，入口仅保留空白 `StandaloneEditorMain`；文档/命令/会话/投影等纯核心保留，新增 `EditorGameplayDigest` 及与 shared 结果一致的回归。`python -B tools/verify.py --no-restore` 通过：结构门禁 225 个 C# 文件、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 diff 检查。Godot 4.7.1 Mono `--headless --path editor --quit` 实际加载空白场景成功，无脚本或资源错误 | 当前没有制谱 UI 可供功能或视觉验收；headless 只证明场景可加载，不证明窗口观感、新 UI 交互、音频或设备行为。旧核心能力仍由自动回归覆盖，后续需重新接线 |
+| 2026-10-30 顶部判定栏居中 | `TopHudOffsetY` 从 16px 调整为 8px，顶部判定栏由 `y=28..68` 上移到 `y=20..60`，中心 `y=40` 位于屏幕顶部与 `y=80` 蓝线正中；暂停按钮及其触控区域同步上移 8px，舞台与下方 HUD 不变。`python -B tools/verify.py --no-restore` 通过：结构门禁、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 diff 检查 | 本次为确定坐标的小幅位移，未重新启动 Godot 或捕获新截图；未覆盖 Android 和真实暂停触控，最终观感仍由用户确认 |
+| 2026-10-30 游玩页面纯位移 | 客户端舞台、音符、特效与下方 HUD 下移 40px，顶部统计和暂停按钮下移 16px；Center 输入阈值同步为 `y>811`，Side 纵向反查与暂停触控区域同步偏移。共享基准、编辑器、校准页、元素尺寸、落速和侧轨距离比不变；背景增加顶部覆盖以避免偏移后露出透明条带。最终 `python -B tools/verify.py --no-restore` 通过：结构门禁 254 个 C# 文件、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 diff 检查 | Godot 4.7.1 Mono / Forward Mobile 以 Hold Recovery Test 录制 1920×1080@60 并检查 `tmp_shots/gameplay-layout40-preview.png`：判定线 y=901、底部信息板余量 52px、Hold/特效随舞台移动，顶部无透明条带且底部无裁切。未做 Android、真实触控/暂停点击或用户最终视觉验收；自动回归不直接覆盖新的客户端屏幕偏移 |
 | 2026-10-29 命中粒子回收 | `GameplayHitParticles._Process` 推进 `_age`，寿命加尾段结束后停止处理；普通实例仍由 `GameplayEffects.RecycleExpired` 重置归池，独立预热实例到期 `QueueFree`。不改粒子数量、材质、寿命参数与持续粒子。`python -B tools/verify.py --no-restore` 通过：结构检查、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 diff 检查 | 未启动 Godot；现有纯逻辑回归不覆盖 GPU 粒子节点的实际归池与预热释放，运行时及视觉仍待验证 |
 | 2026-10-29 审查高优先级修复 | GameSession 缓存读取与 GameplayMain 入口按当前模式 Preset 决定复用；ScoreFilePersistence 接管文件恢复，读取失败不清空已有内存成绩，首次保存前复制原始字节到 `scores.json.recovery-<guid>`，复制失败则不发布新存档；同目录写包回滚逐项尝试，聚合发布与回滚错误，保留未恢复备份。新增成绩文件正常往返/损坏恢复/重复保存/备份失败回归，以及目录阻塞文件恢复的写包故障注入，证明仍恢复其他文件并保留原错误和备份。`python -B tools/verify.py --no-restore` 通过：结构门禁、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试、diff 检查 | 未启动 Godot、导出或做设备验收；模式缓存链路为源码检查及客户端编译，尚未覆盖真实 UI 的 Standard→Hardcore→Standard 操作；没有改变成绩模式隔离，也未修复本次审查的中低优先级项目 |
 | 2026-10-29 首页 Home v2 + Mk VI | 首页按 Penpot「Game — Home v2 · 01 Compact」（MCP 读取几何/颜色/字距；此前已在板内新增“段位模式 / 联机大厅”并修正主按钮文字层级，本轮接入未再改 Penpot）重做：`Main.cs` 只装配与入场，布局在 `ui/home/`（`HomePalette`、`HomeBrandBlock`、`HomeActions`、`HomeActionTile`、`HomeUtilityRow`、`HomeReticle`）。`detonation-orrery-mk6.glb`（3756 三角面、14 材质、单个 4 秒 clip）替代 Mk II：FOV 32 / 18° 仰角 / 22° 方位角 / margin 0.90，1000×920 子视口；Environment glow 关闭，近/远双层 canvas 弥散光默认 `u_glow=1.6` 且开启；Full 原速循环、Reduced 0.45 倍速与 0.06 脉动、Off 停帧且弥散能量固定 1.0；删除 Mk II 的 8 秒归一化、轨道脉冲灯与材质名调优。新增“段位模式 / 联机大厅”禁用底板，保留谱面工坊禁用与游玩/设置真实导航，顶部 CREDITS / LOGIN 置灰无导航；三处注释小字未添加，右下版本串仍走 `Main.BuildDescription()`。发布合同同步：`export_presets.cfg` 与 `apk-policy.json` 用 mk6 取代 mk2 并把 `shaders/home_diffuse.gdshader` 列为必需，`asset-provenance.json` 记录真实哈希（模型 `877ceeff…e8774`，生成器 `design/home-orrery-v6/build_orrery_mk6.py` `a42b8791…f279e`），发布测试改为断言 mk6 必需且 mk2 不再必需。Godot 4.7.1 Mono `--headless --import` 正式生成 `.glb.import`、着色器与 6 个新 `.cs` 的 `.uid`。最终 `python -B tools/verify.py --no-restore` 通过：结构门禁 252 个 C# 文件、两端 0 warning / 0 error、核心与编辑器回归、37 项发布测试及 `git diff --check` | 主代理用 Movie Maker 在 1920×1080@60 离屏窗口录制并抽帧：布局与 Penpot 主按钮底板 bbox 完全一致（96,616–745,723），入场错峰可见，Full/Reduced/Off 第 60 帧与第 120 帧差异分别为 52.71 / 24.42 / 0.00（Off 完全静帧）；弥散开/关 A/B 在模型区差均值 0.66（最大约 0.17 的单通道 8-bit 亮度）；用真实点击核对了游玩→选曲、设置两处导航；后续启动日志与进程核对确认本机 F5 使用 Vulkan 1.4.329 + Forward Mobile，Compatibility 仅用于独立预览。未覆盖：Android/APK 导出与设备、低端帧率、hover/按下手感、CREDITS/LOGIN 与三个禁用入口的触控端到端、Penpot 稿本身；Forward Mobile 下 canvas 弥散比独立预览（gl_compatibility）更收敛，最终视觉与是否加压待用户判断 |
@@ -74,8 +81,10 @@ python -B tools/verify.py
 python -B tools/architecture/check.py --report
 dotnet build client/DynamiteUniverse.csproj
 dotnet build editor/DynaMakerUv.Editor.csproj
+dotnet build editor/shell/DynaMakerUv.Editor.Shell.csproj
 dotnet run --project tools/core-tests/CoreTests.csproj
 dotnet run --project tools/chart-editor-tests/ChartEditorTests.csproj
+dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --headless
 python -B -m unittest discover -s tools/release/tests -p "test_*.py"
 git diff --check
 ```
@@ -100,12 +109,16 @@ dotnet run --project tools/core-tests/CoreTests.csproj -- --dev-testdata client/
 taskkill /F /IM Godot_v4.7.1-stable_mono_win64_console.exe
 taskkill /F /IM Godot_v4.7.1-stable_mono_win64.exe
 
-# 游戏与编辑器择一启动
+# 游戏；编辑器从 Avalonia Shell 启动并嵌入 Godot
 & "..\godot\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe" --path client
-& "..\godot\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe" --path editor
+dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj
+
+# 制谱器真实窗口回归（分窗口隔离，会启动/结束本次 Godot 并保存截图）
+dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --smoke-empty builds/editor-shell-empty-smoke
+dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --smoke builds/editor-shell-smoke
 ```
 
-编辑器从 Start 页 UI 打开 strict v2 目录包，不用旧 `--editor-package` / `--editor-workbench` 参数。
+制谱器直接使用 Godot `--path editor` 仅用于原生舞台调试，不包含文件菜单和 Avalonia 工作台。
 在同一受控操作中启动、采集、结束本次进程；输出放被忽略的 `tmp_shots/`，不残留窗口污染下次截图。
 
 以下仅以窗口位于 (0,0)、1600×900 为例，实际需调整 gdigrab 偏移和尺寸：

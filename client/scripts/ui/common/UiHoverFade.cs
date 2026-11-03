@@ -3,15 +3,15 @@ using DynamiteUniverse.Game;
 
 namespace DynamiteUniverse.Ui;
 
-/// <summary>hover 统一 0.10s 过渡的共享轻量值（与编辑器 editor/scripts/common/EditorMotion.cs 的
-/// HoverFade 同思路）：单元素一份 0..1 过渡值，绘制处对现有配色做 lerp，hover 终态视觉不变。
+/// <summary>hover 统一 0.10s 过渡的共享轻量值：单元素一份 0..1 过渡值，
+/// 绘制处对现有配色做 lerp，hover 终态视觉不变。
 /// 用法约定：hover 态变更处调 <c>SetProcess(true)</c> 并请求一帧重绘，_Process 里
 /// <c>if (fade.Update(hovered, delta)) QueueRedraw(); if (fade.Settled(hovered)) SetProcess(false);</c>——
 /// 「值变了才重绘」与「到终值才停表」是两个独立条件：合并成一个会要么漏画落终值帧，
 /// 要么条件写反退化成空闲无限重绘。</summary>
 public static class UiHoverMotion
 {
-    /// <summary>0.08–0.12s 档位的中值，与编辑器侧 hover 过渡同一档。</summary>
+    /// <summary>0.08–0.12s 档位的中值。</summary>
     public const float Seconds = 0.10f;
 }
 

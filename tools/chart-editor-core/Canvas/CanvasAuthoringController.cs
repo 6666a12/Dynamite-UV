@@ -21,7 +21,8 @@ public sealed class CanvasAuthoringController
 
     /// <summary>Adds a note and returns its document-assigned id.</summary>
     public string AddNote(V2NoteType type, EditorTrack track, ExactBarTime time,
-        double center, double width, ExactBarTime? tailTime = null)
+        double center, double width, ExactBarTime? tailTime = null,
+        double scrollSpeedMultiplier = 1.0)
     {
         var id = Document.AllocateId(IdPrefix(type));
         var note = new EditableNote
@@ -32,6 +33,7 @@ public sealed class CanvasAuthoringController
             Time = time,
             Center = center,
             Width = width,
+            ScrollSpeedMultiplier = scrollSpeedMultiplier,
         };
         if (type is V2NoteType.Hold or V2NoteType.Mixer)
         {
@@ -60,6 +62,9 @@ public sealed class CanvasAuthoringController
             ? new MoveNoteCommand(noteId, time, center, width)
             : new MovePathNoteCommand(noteId, time, center, width));
     }
+
+    public void SetNoteScrollSpeedMultiplier(string noteId, double multiplier) =>
+        Document.Execute(new SetNoteScrollSpeedMultiplierCommand(noteId, multiplier));
 
     /// <summary>在既有 Hold/Mixer 路径上插入一个控制节点（画布双击路径身体、菜单 ADD NODE
     /// 的公共入口）。center/width 由调用方按路径求值结果给出，所以插入点几何与路径逐位一致。

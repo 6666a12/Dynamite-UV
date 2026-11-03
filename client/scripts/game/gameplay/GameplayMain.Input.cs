@@ -135,7 +135,7 @@ public partial class GameplayMain
 	private static double DisplayPositionOf(Track track, Vector2 pos) => track switch
 	{
 		Track.Center => (pos.X - CenterX0) / PosUnitPx,
-		_ => (SideY0 - pos.Y) / SideUnit,
+		_ => (SideY0 + StageOffsetY - pos.Y) / SideUnit,
 	};
 
 	/// <summary>

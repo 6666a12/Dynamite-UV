@@ -1,0 +1,106 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:DynamiteUniverse.Editor.Shell"
+        x:Class="DynamiteUniverse.Editor.Shell.CreateChartDialog"
+        Width="700" SizeToContent="Height" MaxHeight="900" MinHeight="420"
+        WindowStartupLocation="CenterOwner" CanResize="False"
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}"
+        FontFamily="{DynamicResource OfficialFont}">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="18">
+    <StackPanel Spacing="5">
+      <TextBlock x:Name="DialogTitle" Classes="section" FontSize="20" />
+      <TextBlock x:Name="DialogSubtitle" Classes="caption" TextWrapping="Wrap" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" MaxHeight="650">
+      <StackPanel Spacing="16">
+        <StackPanel x:Name="PackageFields" Spacing="12">
+          <TextBlock Classes="cyan" Text="{local:Tr Create.PackageSection}" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.PackId}" />
+              <TextBox x:Name="PackIdValue" Text="community-pack" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Charter}" />
+              <TextBox x:Name="CharterValue" Text="Community" />
+            </StackPanel>
+          </Grid>
+          <StackPanel Spacing="5">
+            <TextBlock Classes="eyebrow" Text="{local:Tr Create.Title}" />
+            <TextBox x:Name="TitleValue" Text="Untitled" />
+          </StackPanel>
+          <StackPanel Spacing="5">
+            <TextBlock Classes="eyebrow" Text="{local:Tr Create.Artist}" />
+            <TextBox x:Name="ArtistValue" Text="Unknown Artist" />
+          </StackPanel>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <StackPanel Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Audio}" />
+              <TextBox x:Name="AudioPathValue" PlaceholderText="{local:Tr Create.AudioWatermark}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="{local:Tr Create.Browse}" VerticalAlignment="Bottom" Click="BrowseAudio" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <StackPanel Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Cover}" />
+              <TextBox x:Name="CoverPathValue" PlaceholderText="{local:Tr Create.CoverWatermark}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="{local:Tr Create.Browse}" VerticalAlignment="Bottom" Click="BrowseCover" />
+          </Grid>
+        </StackPanel>
+        <StackPanel Spacing="12">
+          <TextBlock Classes="cyan" Text="{local:Tr Create.ChartSection}" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.ChartId}" />
+              <TextBox x:Name="ChartIdValue" Text="main" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Difficulty}" />
+              <ComboBox x:Name="DifficultyChoice" SelectedIndex="2" HorizontalAlignment="Stretch" SelectionChanged="DifficultyChanged">
+                <ComboBoxItem Content="CASUAL" />
+                <ComboBoxItem Content="NORMAL" />
+                <ComboBoxItem Content="HARD" />
+                <ComboBoxItem Content="MEGA" />
+                <ComboBoxItem Content="GIGA" />
+                <ComboBoxItem Content="TERA" />
+                <ComboBoxItem Content="CUSTOM" />
+              </ComboBox>
+            </StackPanel>
+          </Grid>
+          <StackPanel x:Name="CustomKeyField" Spacing="5" IsVisible="False">
+            <TextBlock Classes="eyebrow" Text="{local:Tr Create.CustomKey}" />
+            <TextBox x:Name="CustomKeyValue" MaxLength="24" />
+          </StackPanel>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Level}" />
+              <NumericUpDown x:Name="LevelValue" Minimum="1" Maximum="99" Value="12" Increment="1" />
+            </StackPanel>
+            <CheckBox x:Name="UnratedValue" Grid.Column="1" Content="{local:Tr Create.Unrated}" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+          </Grid>
+          <StackPanel x:Name="AddCharterField" Spacing="5" IsVisible="False">
+            <TextBlock Classes="eyebrow" Text="{local:Tr Create.Charter}" />
+            <TextBox x:Name="AddCharterValue" Text="Community" />
+          </StackPanel>
+          <Grid x:Name="TimingFields" ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Bpm}" />
+              <NumericUpDown x:Name="BpmValue" Minimum="0.001" Maximum="1000" Value="150" Increment="1" FormatString="0.###" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="5">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Offset}" />
+              <NumericUpDown x:Name="OffsetValue" Minimum="-600" Maximum="600" Value="0" Increment="0.01" FormatString="0.###" />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+        <TextBlock x:Name="ErrorText" Classes="pink" TextWrapping="Wrap" IsVisible="False" />
+      </StackPanel>
+    </ScrollViewer>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+      <TextBlock x:Name="SaveHint" Classes="caption" VerticalAlignment="Center" Text="{local:Tr Create.SaveHint}" TextWrapping="Wrap" Margin="0,0,16,0" />
+      <Button Grid.Column="1" Content="{local:Tr Create.Cancel}" Classes="ghost" Click="Cancel" />
+      <Button x:Name="ConfirmButton" Grid.Column="2" Classes="accent" Click="Confirm" />
+    </Grid>
+  </Grid>
+</Window>

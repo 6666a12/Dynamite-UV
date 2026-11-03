@@ -1,5 +1,3 @@
-using System.Buffers.Binary;
-
 namespace DynamiteUniverse.Shared.Chart.V2;
 
 /// <summary>Input for transactional writes of one fully resolved local v2 package.</summary>
@@ -15,8 +13,9 @@ public sealed record V2PackageWriteRequest
     /// <summary>Optional external resources to replace at package-relative paths during staging.</summary>
     public IReadOnlyList<V2ExternalResourceMapping> ExternalResources { get; init; } = [];
     /// <summary>
-    /// Optional host decoder used to validate and measure staged audio. Null preserves the built-in
-    /// PCM/IEEE-float RIFF/WAVE-only behavior.
+    /// Optional host decoder used to validate and measure staged audio. Null uses the built-in
+    /// probe (<see cref="V2BuiltInAudioProbe"/>), which validates RIFF/WAVE, MP3, FLAC and Ogg
+    /// Vorbis and rejects every other extension.
     /// </summary>
     public IV2PackageAudioProbe? AudioProbe { get; init; }
     /// <summary>Allows Save As to target an existing empty directory only.</summary>
@@ -39,8 +38,9 @@ public sealed record V2PackageCreateRequest
     /// <summary>External regular files copied to safe package-relative resource paths.</summary>
     public required IReadOnlyList<V2ExternalResourceMapping> ExternalResources { get; init; }
     /// <summary>
-    /// Optional host decoder used to validate and measure staged audio. Null preserves the built-in
-    /// PCM/IEEE-float RIFF/WAVE-only behavior.
+    /// Optional host decoder used to validate and measure staged audio. Null uses the built-in
+    /// probe (<see cref="V2BuiltInAudioProbe"/>), which validates RIFF/WAVE, MP3, FLAC and Ogg
+    /// Vorbis and rejects every other extension.
     /// </summary>
     public IV2PackageAudioProbe? AudioProbe { get; init; }
     public bool AllowEmptyDestination { get; init; }
@@ -170,7 +170,7 @@ public static class V2PackageWriter
             try
             {
                 result = audioProbe?.Probe(absolute, relative) ??
-                    new V2PackageAudioInfo(ProbeWaveDuration(staging, relative));
+                    V2BuiltInAudioProbe.ProbeFile(absolute, relative);
             }
             catch (V2DiagnosticException)
             {
@@ -679,59 +679,5 @@ public static class V2PackageWriter
         if (requireFile && !File.Exists(full))
             throw new FileNotFoundException("package file does not exist", relative);
         return full;
-    }
-
-    private static double ProbeWaveDuration(string root, string relative)
-    {
-        if (!Path.GetExtension(relative).Equals(".wav", StringComparison.OrdinalIgnoreCase))
-            throw new V2DiagnosticException(relative, "/",
-                "editor v2 writer currently requires RIFF/WAVE audio for duration validation");
-        var path = Resolve(root, relative, requireFile: true);
-        using var stream = File.OpenRead(path);
-        Span<byte> header = stackalloc byte[12];
-        if (stream.Read(header) != header.Length ||
-            BinaryPrimitives.ReadUInt32LittleEndian(header) != 0x46464952 ||
-            BinaryPrimitives.ReadUInt32LittleEndian(header[8..]) != 0x45564157)
-            throw new V2DiagnosticException(relative, "/", "invalid RIFF/WAVE audio file");
-
-        uint? byteRate = null;
-        long dataBytes = 0;
-        Span<byte> chunkHeader = stackalloc byte[8];
-        Span<byte> format = stackalloc byte[16];
-        while (stream.Position + chunkHeader.Length <= stream.Length)
-        {
-            if (stream.Read(chunkHeader) != chunkHeader.Length)
-                break;
-            var id = BinaryPrimitives.ReadUInt32LittleEndian(chunkHeader);
-            var size = BinaryPrimitives.ReadUInt32LittleEndian(chunkHeader[4..]);
-            var end = stream.Position + size;
-            if (end > stream.Length)
-                throw new V2DiagnosticException(relative, "/", "truncated RIFF/WAVE chunk");
-            if (id == 0x20746d66)
-            {
-                if (size < 16)
-                    throw new V2DiagnosticException(relative, "/", "invalid WAVE fmt chunk");
-                format.Clear();
-                stream.ReadExactly(format);
-                var tag = BinaryPrimitives.ReadUInt16LittleEndian(format);
-                var channels = BinaryPrimitives.ReadUInt16LittleEndian(format[2..]);
-                var sampleRate = BinaryPrimitives.ReadUInt32LittleEndian(format[4..]);
-                var rate = BinaryPrimitives.ReadUInt32LittleEndian(format[8..]);
-                if (tag is not (1 or 3) || channels == 0 || sampleRate == 0 || rate == 0)
-                    throw new V2DiagnosticException(relative, "/", "unsupported WAVE format (PCM/IEEE float required)");
-                byteRate = rate;
-            }
-            else if (id == 0x61746164)
-            {
-                dataBytes = checked(dataBytes + size);
-            }
-            stream.Position = end + (size & 1);
-        }
-        if (byteRate is null || dataBytes == 0)
-            throw new V2DiagnosticException(relative, "/", "WAVE fmt or data chunk is missing");
-        var duration = dataBytes / (double)byteRate.Value;
-        if (!double.IsFinite(duration) || duration < 0)
-            throw new V2DiagnosticException(relative, "/", "invalid WAVE duration");
-        return duration;
     }
 }

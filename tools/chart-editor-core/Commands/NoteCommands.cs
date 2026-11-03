@@ -86,6 +86,33 @@ public sealed class MoveNoteCommand(string noteId, ExactBarTime time, double cen
     }
 }
 
+public sealed class SetNoteScrollSpeedMultiplierCommand(string noteId, double multiplier) : IEditorCommand
+{
+    private double _before;
+    private bool _captured;
+
+    public void Execute(EditorDocument document)
+    {
+        var note = document.RequireNote(noteId);
+        var candidate = note.Clone();
+        candidate.ScrollSpeedMultiplier = multiplier;
+        EditorCommandRules.ValidateNote(candidate);
+        if (!_captured)
+        {
+            _before = note.ScrollSpeedMultiplier;
+            _captured = true;
+        }
+        note.ScrollSpeedMultiplier = multiplier;
+    }
+
+    public void Undo(EditorDocument document)
+    {
+        if (!_captured)
+            throw new InvalidOperationException("Scroll speed multiplier command has not executed.");
+        document.RequireNote(noteId).ScrollSpeedMultiplier = _before;
+    }
+}
+
 /// <summary>Moves a Hold/Mixer head and all of its path nodes by the same exact bar delta.</summary>
 public sealed class MovePathNoteCommand(string noteId, ExactBarTime time, double center,
     double width) : IEditorCommand

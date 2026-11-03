@@ -1,0 +1,158 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dock="using:Dock.Avalonia.Controls"
+        xmlns:local="using:DynamiteUniverse.Editor.Shell"
+        xmlns:animations="clr-namespace:SukiUI.ControlsAnimation;assembly=SukiUI"
+        xmlns:motion="clr-namespace:SukiUI.Theme;assembly=SukiUI"
+        xmlns:u="https://irihi.tech/ursa"
+        x:Class="DynamiteUniverse.Editor.Shell.MainWindow"
+        Title="DynaMaker UV"
+        Width="1600" Height="1000" MinWidth="1280" MinHeight="800"
+        Background="{DynamicResource Bg}"
+        FontFamily="{DynamicResource OfficialFont}" Foreground="{DynamicResource Ink}"
+        motion:SukiAnimation.Profile="Normal">
+  <Grid RowDefinitions="66,44,*,142,28">
+    <Border Grid.Row="0" Background="{DynamicResource Bg}" Padding="20,10">
+      <Grid ColumnDefinitions="190,*,Auto,Auto,Auto,Auto" ColumnSpacing="12">
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="DYNAMAKER" FontSize="22" FontWeight="Bold" />
+          <TextBlock Classes="cyan" Text="UV / EDITOR" FontSize="10" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0">
+          <TextBlock x:Name="SongTitle" Text="{local:Tr Document.None}" FontSize="16" />
+          <TextBlock x:Name="SongMeta" Classes="caption" Text="{local:Tr Header.Prototype}" FontSize="10" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+          <TextBlock Classes="eyebrow" Text="{local:Tr Header.Motion}" />
+          <ComboBox x:Name="MotionChoice" Width="104" SelectedIndex="0" SelectionChanged="MotionChanged">
+            <ComboBoxItem Content="{local:Tr Motion.Normal}" />
+            <ComboBoxItem Content="{local:Tr Motion.Lite}" />
+            <ComboBoxItem Content="{local:Tr Motion.Minimal}" />
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
+          <TextBlock Classes="eyebrow" Text="{local:Tr Header.Language}" />
+          <ComboBox x:Name="LanguageChoice" Width="104" SelectedIndex="0" SelectionChanged="LanguageChanged">
+            <ComboBoxItem Content="ENGLISH" />
+            <ComboBoxItem Content="简体中文" />
+          </ComboBox>
+        </StackPanel>
+        <u:IconButton Grid.Column="4" Content="{local:Tr Header.Official}" Classes="active" VerticalAlignment="Center"
+                      animations:SukiPressMotion.Enable="True" Click="ThemeClicked" />
+        <u:IconButton Grid.Column="5" Content="{local:Tr Header.Save}" Classes="accent" VerticalAlignment="Center"
+                      animations:SukiPressMotion.Enable="True" Click="SaveClicked" />
+      </Grid>
+    </Border>
+    <Border Grid.Row="1" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1" Padding="10,4">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Content="{local:Tr Menu.File}" Classes="ghost">
+            <Button.Flyout>
+              <MenuFlyout>
+                <MenuItem Header="{local:Tr File.New}" InputGesture="Ctrl+N" Click="NewClicked" />
+                <MenuItem Header="{local:Tr File.Open}" InputGesture="Ctrl+O" Click="OpenClicked" />
+                <MenuItem Header="{local:Tr File.AddChart}" Click="AddChartClicked" />
+                <Separator />
+                <MenuItem Header="{local:Tr File.Save}" InputGesture="Ctrl+S" Click="SaveClicked" />
+                <MenuItem Header="{local:Tr File.SaveAs}" InputGesture="Ctrl+Shift+S" Click="SaveAsClicked" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <Button Content="{local:Tr Menu.Edit}" Classes="ghost">
+            <Button.Flyout>
+              <MenuFlyout>
+                <MenuItem Header="{local:Tr Edit.Undo}" InputGesture="Ctrl+Z" Click="UndoClicked" />
+                <MenuItem Header="{local:Tr Edit.Redo}" InputGesture="Ctrl+Y" Click="RedoClicked" />
+                <MenuItem Header="{local:Tr Edit.Delete}" InputGesture="Delete" Click="DeleteClicked" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <Button Content="{local:Tr Menu.View}" Classes="ghost" Click="RestoreClicked" />
+          <Button Content="{local:Tr Menu.Help}" Classes="ghost" Click="ShortcutsClicked" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0" Spacing="8">
+          <TextBlock Classes="eyebrow" VerticalAlignment="Center" Text="{local:Tr Header.Chart}" />
+          <ComboBox x:Name="ChartChoice" Width="190" SelectionChanged="ChartChanged" />
+          <Button Content="{local:Tr File.AddChartShort}" Classes="ghost" Click="AddChartClicked" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+          <TextBlock x:Name="ReadyBadge" Classes="cyan" Text="{local:Tr Status.StartingGodot}" VerticalAlignment="Center" FontSize="11" />
+          <Button Content="{local:Tr Header.AddPanel}" Classes="ghost" Click="AddPanelClicked" />
+        </StackPanel>
+      </Grid>
+    </Border>
+    <dock:DockControl x:Name="Dock" Grid.Row="2" />
+    <Border Grid.Row="3" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="104,*" Margin="12,6">
+        <StackPanel VerticalAlignment="Center" Spacing="8">
+          <u:IconButton x:Name="TransportButton" Content="{local:Tr Transport.Play}" Classes="active" Width="92"
+                        animations:SukiPressMotion.Enable="True" Click="PlayClicked" />
+          <TextBlock x:Name="SnapText" Classes="eyebrow" Text="1/16 SNAP" HorizontalAlignment="Center" />
+        </StackPanel>
+        <Grid Grid.Column="1" RowDefinitions="30,*">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="22">
+            <TextBlock x:Name="TimeLabel" Text="00:00.000 / BAR 000.00" FontSize="12" VerticalAlignment="Center" />
+            <TextBlock x:Name="PlayerSpeedText" Grid.Column="1" Classes="cyan" VerticalAlignment="Center" ToolTip.Tip="Q / E" />
+            <TextBlock x:Name="PlaybackRateText" Grid.Column="2" Classes="pink" VerticalAlignment="Center" ToolTip.Tip="W / S" />
+          </Grid>
+          <local:TimelineView x:Name="Timeline" Grid.Row="1" SeekRequested="TimelineSeek" />
+        </Grid>
+      </Grid>
+    </Border>
+    <Border Grid.Row="4" Background="{DynamicResource Bg}" Padding="14,2">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="StatusText" Classes="caption" VerticalAlignment="Center" Text="{local:Tr Status.Preparing}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="NativeText" Grid.Column="1" Classes="cyan" VerticalAlignment="Center" FontSize="10" Text="{local:Tr Status.NativeWaiting}" />
+      </Grid>
+    </Border>
+    <Border x:Name="ShortcutOverlay" Grid.Row="0" Grid.RowSpan="5" IsVisible="False" Background="#E6080C18" ZIndex="100" Padding="24">
+      <Border Classes="panel" Width="650" MaxHeight="710" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+              <TextBlock Classes="section" Text="{local:Tr Help.Title}" FontSize="20" />
+              <TextBlock Classes="caption" Text="{local:Tr Help.Subtitle}" TextWrapping="Wrap" Margin="0,5,0,0" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="{local:Tr Help.Close}" Classes="ghost" Click="ShortcutsClicked" VerticalAlignment="Top" />
+          </Grid>
+          <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="14">
+              <TextBlock Classes="cyan" Text="{local:Tr Help.Transport}" />
+              <Grid ColumnDefinitions="190,*" RowDefinitions="28,28,28,28,28,28">
+                <TextBlock Text="SPACE" Classes="cyan" /><TextBlock Grid.Column="1" Text="{local:Tr Help.PlayPause}" />
+                <TextBlock Grid.Row="1" Text="R" Classes="cyan" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Tr Help.Start}" />
+                <TextBlock Grid.Row="2" Text="A / D" Classes="cyan" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Tr Help.Seek}" />
+                <TextBlock Grid.Row="3" Text="SHIFT + A / D" Classes="cyan" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{local:Tr Help.SeekFine}" />
+                <TextBlock Grid.Row="4" Text="Q / E" Classes="cyan" /><TextBlock Grid.Row="4" Grid.Column="1" Text="{local:Tr Help.PlayerSpeed}" />
+                <TextBlock Grid.Row="5" Text="W / S" Classes="cyan" /><TextBlock Grid.Row="5" Grid.Column="1" Text="{local:Tr Help.PlaybackRate}" />
+              </Grid>
+              <TextBlock Classes="cyan" Text="{local:Tr Help.Tools}" />
+              <Grid ColumnDefinitions="190,*" RowDefinitions="28,28,28,28">
+                <TextBlock Text="1" Classes="cyan" /><TextBlock Grid.Column="1" Text="{local:Tr Help.ToolSelect}" />
+                <TextBlock Grid.Row="1" Text="2" Classes="cyan" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Tr Help.ToolPlace}" />
+                <TextBlock Grid.Row="2" Text="3" Classes="cyan" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Tr Help.ToolPath}" />
+                <TextBlock Grid.Row="3" Text="4" Classes="cyan" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{local:Tr Help.ToolPan}" />
+              </Grid>
+              <TextBlock Classes="cyan" Text="{local:Tr Help.Snapping}" />
+              <Grid ColumnDefinitions="190,*" RowDefinitions="28,28,28,28,28">
+                <TextBlock Text="C / V" Classes="cyan" /><TextBlock Grid.Column="1" Text="{local:Tr Help.SnapCoarse}" />
+                <TextBlock Grid.Row="1" Text="SHIFT + C / V" Classes="cyan" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Tr Help.SnapFine}" />
+                <TextBlock Grid.Row="2" Text="CTRL + Z / Y" Classes="cyan" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Tr Help.Undo}" />
+                <TextBlock Grid.Row="3" Text="DELETE / BACKSPACE" Classes="cyan" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{local:Tr Help.Delete}" />
+                <TextBlock Grid.Row="4" Text="CTRL + O / S" Classes="cyan" /><TextBlock Grid.Row="4" Grid.Column="1" Text="{local:Tr Help.File}" />
+              </Grid>
+              <TextBlock Classes="cyan" Text="{local:Tr Help.Workspace}" />
+              <Grid ColumnDefinitions="190,*" RowDefinitions="28,28,28">
+                <TextBlock Text="CTRL + SHIFT + F / D" Classes="cyan" /><TextBlock Grid.Column="1" Text="{local:Tr Help.Float}" />
+                <TextBlock Grid.Row="1" Text="CTRL + SHIFT + A" Classes="cyan" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Tr Help.AddPanel}" />
+                <TextBlock Grid.Row="2" Text="F1" Classes="cyan" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Tr Help.Show}" />
+              </Grid>
+              <TextBlock Classes="caption" Text="{local:Tr Help.Note}" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+          <TextBlock Grid.Row="2" Classes="caption" Text="DYNAMAKER UV  /  EDITOR" HorizontalAlignment="Right" />
+        </Grid>
+      </Border>
+    </Border>
+  </Grid>
+</Window>

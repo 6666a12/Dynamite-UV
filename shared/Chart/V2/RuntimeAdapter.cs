@@ -11,6 +11,7 @@ public sealed record V2RuntimeNoteMetadata
     public required V2NoteType SourceType { get; init; }
     public required bool IsPathNode { get; init; }
     public V2PathCurve? CurveToNext { get; init; }
+    public double ScrollSpeedMultiplier { get; init; } = 1.0;
     /// <summary>Resolved Hold judgement state; null for non-Hold points.</summary>
     public bool? HoldJudge { get; init; }
 }
@@ -88,9 +89,9 @@ public static class V2SyncAccentDeriver
 public static class V2RuntimeAdapter
 {
     public static V2RuntimeAdapterResult Adapt(
-        V2Chart chart, string? title = null, int difficulty = 0)
+        V2Chart chart, string? title = null, int difficulty = 0, bool requireMainJudgement = true)
     {
-        V2SemanticValidator.ValidateChart(chart);
+        V2SemanticValidator.ValidateChart(chart, requireMainJudgement: requireMainJudgement);
         var timeline = new V2BpmTimeline(chart.Bpms, chart.AudioOffsetSec);
         var scroll = new V2ScrollMap(chart.ScrollSpeeds);
         var sourceIdsByRuntimeId = new Dictionary<int, string>();
@@ -171,7 +172,8 @@ public static class V2RuntimeAdapter
             {
                 result.Add(RuntimeNote(note.Id, note.Id, headId, -1,
                     RuntimeType(note.Type, pathNode: false), track, note.Time,
-                    note.Center, note.Width, timeline, note.Type, false, null, null));
+                    note.Center, note.Width, timeline, note.Type, false, null, null,
+                    note.ScrollSpeedMultiplier));
                 continue;
             }
 
@@ -183,7 +185,7 @@ public static class V2RuntimeAdapter
                 RuntimeType(path.Type, pathNode: false), track, path.Time,
                 path.Center, path.Width, timeline, path.Type, false,
                 path.CurveToNext ?? V2PathCurve.Linear,
-                path.Type == V2NoteType.Hold ? true : null));
+                path.Type == V2NoteType.Hold ? true : null, path.ScrollSpeedMultiplier));
             for (var i = 0; i < flattenedPoints.Count; i++)
             {
                 var point = flattenedPoints[i];
@@ -192,7 +194,7 @@ public static class V2RuntimeAdapter
                 result.Add(RuntimeNote(point.SourceId, path.Id, point.RuntimeId, subId,
                     RuntimeType(path.Type, pathNode: true), track, point.Time,
                     point.Center, point.Width, timeline, path.Type, true,
-                    point.CurveToNext, point.HoldJudge));
+                    point.CurveToNext, point.HoldJudge, path.ScrollSpeedMultiplier));
             }
         }
         result.Sort(static (left, right) =>
@@ -292,7 +294,7 @@ public static class V2RuntimeAdapter
     private static Note RuntimeNote(string sourceId, string parentSourceId, int runtimeId,
         int subId, NoteType type, Track track, ExactBarTime time, double center, double width,
         V2BpmTimeline timeline, V2NoteType sourceType, bool pathNode,
-        V2PathCurve? curve, bool? holdJudge)
+        V2PathCurve? curve, bool? holdJudge, double scrollSpeedMultiplier)
     {
         var second = timeline.ToSeconds(time);
         return new Note
@@ -315,6 +317,7 @@ public static class V2RuntimeAdapter
                 SourceType = sourceType,
                 IsPathNode = pathNode,
                 CurveToNext = curve,
+                ScrollSpeedMultiplier = scrollSpeedMultiplier,
                 HoldJudge = holdJudge,
             },
         };

@@ -30,6 +30,7 @@ public sealed class AuthoringNote
     public double EndTime { get; set; }
     public double Center { get; set; }
     public double Width { get; set; }
+    public double ScrollSpeedMultiplier { get; set; } = 1.0;
     public V2PathCurve? CurveToNext { get; set; }
     public List<AuthoringPathNode> Nodes { get; } = new();
     public override string ToString() => $"{Kind} · {Id} · {Time:0.###}s";

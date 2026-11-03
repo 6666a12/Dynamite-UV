@@ -9,6 +9,9 @@
     <AssemblyName>DynaMakerUv.Editor</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="shell/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../shared/DynamiteUniverse.Shared.csproj" />
     <ProjectReference Include="../presentation/DynamiteUniverse.Presentation.csproj" />
     <ProjectReference Include="../tools/chart-editor-core/ChartEditor.Core.csproj" />

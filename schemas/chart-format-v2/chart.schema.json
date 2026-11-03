@@ -126,7 +126,13 @@
         "hold",
         "easeInQuad",
         "easeOutQuad",
-        "easeInOutCubic"
+        "easeInOutQuad",
+        "easeInCubic",
+        "easeOutCubic",
+        "easeInOutCubic",
+        "easeInSine",
+        "easeOutSine",
+        "easeInOutSine"
       ]
     },
     "pathCurve": {
@@ -135,7 +141,13 @@
         "hold",
         "easeInQuad",
         "easeOutQuad",
+        "easeInOutQuad",
+        "easeInCubic",
+        "easeOutCubic",
         "easeInOutCubic",
+        "easeInSine",
+        "easeOutSine",
+        "easeInOutSine",
         "smooth"
       ]
     },
@@ -166,6 +178,11 @@
     "width": {
       "type": "number",
       "exclusiveMinimum": 0
+    },
+    "noteScrollSpeedMultiplier": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "default": 1.0
     },
     "normalNote": {
       "type": "object",
@@ -198,6 +215,9 @@
         },
         "width": {
           "$ref": "#/$defs/width"
+        },
+        "scrollSpeedMultiplier": {
+          "$ref": "#/$defs/noteScrollSpeedMultiplier"
         }
       }
     },
@@ -227,6 +247,9 @@
         },
         "width": {
           "$ref": "#/$defs/width"
+        },
+        "scrollSpeedMultiplier": {
+          "$ref": "#/$defs/noteScrollSpeedMultiplier"
         },
         "curveToNext": {
           "$ref": "#/$defs/pathCurve"
@@ -266,6 +289,9 @@
         },
         "width": {
           "$ref": "#/$defs/width"
+        },
+        "scrollSpeedMultiplier": {
+          "$ref": "#/$defs/noteScrollSpeedMultiplier"
         },
         "curveToNext": {
           "$ref": "#/$defs/pathCurve"

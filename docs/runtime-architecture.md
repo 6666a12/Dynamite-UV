@@ -108,15 +108,11 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 
 ## 6. 当前编辑器适配边界
 
-- 独立 Godot shell 的 Start/Pack/Create/Edit 负责页流；Start/HUD/Settings/ContextMenu 已有独立组件，
-  shell 保留文档会话、对话框与导航。新的 editor 产品方向暂不实施或排期。
-- `EditorDocumentSession` 管理打开/草稿/保存；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。
-- `AuthoringCanvas` 绑定 `EditorDocument` / `CanvasAuthoringController`；`CanvasProjection` 建立可变预览，
-  `CanvasEditGesture` / `CanvasPlacementDraft` 管理已有对象手势与新建草稿。修改通过可撤销命令进入文档。
-  画布坐标中的 Center 仍为左缘；精确 BarTime、选择恢复和坐标换算不得借拆分改语义。
-- shared 的 `V2PackageWriter.Write/Create` 已由 shell SAVE/SAVE AS 调用；首次保存使用草稿的外部资源映射。ZIP/XML/DY 导出仍未接入。
-- 视觉计时预览不等同 `SongClock` 音频预览；Settings 已有部分真实设置，Storyboard 和更完整属性/类型 UI 仍未实现。
-- 能力范围与启动操作统一见 [DynaMaker UV](<dyna-maker-uv.md>)，历史完整 UI 记录不能跨阶段套用。
+- `editor/shell` 的 Avalonia 进程拥有文件对话框、i18n、Dock 和快捷键；现有 Godot `editor` 进程通过 JSON-lines IPC 接收 Chart 快照并回传选择/时钟/按键，Win32 HWND 嵌入 Dock 文档。
+- `EditorDocumentSession` 管理打开/草稿/保存；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。外壳已接打开、保存/另存为、dirty 与目录选择。
+- Godot 预览通过 `V2RuntimeAdapter`、`V2BpmTimeline`、`V2ScrollMap` 和 `VisualScrollMath` 使用游戏几何；音频预览支持 WAV/MP3/Ogg/FLAC。玩家流速与音乐倍率是会话外预览状态，不进入谱面 Digest。仅预览调用显式豁免空草稿的计分 Note 要求，默认 strict 与写包不变。
+- `EditorStageAuthoring` 负责游戏舞台的放置、路径命中和坐标/时间反查；Shell 将事件转成可撤销文档命令。双击插点使用 shared 路径采样，拖动以原始精确 BarTime 加位移；根控制器补收全局左键松开，普通 Note 拖动/调宽和 Pan 尚未接线。
+- `EditorGameplayDigest` 保持纯核心；shared 的 `V2PackageWriter.Write/Create` 只由文档会话调用。保存成功才 MarkSaved，失败保留 dirty 与内存文档。能力范围与启动操作见 [DynaMaker UV](<dyna-maker-uv.md>)。
 
 ## 7. 回归层级
 

@@ -2,6 +2,7 @@
   "source_roots": [
     "client/scripts",
     "editor/scripts",
+    "editor/shell",
     "presentation",
     "shared",
     "tools/chart-editor-core",
@@ -76,16 +77,6 @@
     },
     {
       "files": [
-        "editor/scripts/pages/EditorStartPage.cs",
-        "editor/scripts/pages/EditorHudView.cs",
-        "editor/scripts/pages/EditorSettingsPage.cs",
-        "editor/scripts/pages/EditorContextMenu.cs"
-      ],
-      "forbidden": "\\bStandaloneEditorMain\\b",
-      "reason": "editor page components must not depend on the shell"
-    },
-    {
-      "files": [
         "presentation/**/*.cs"
       ],
       "forbidden": "\\b(?:GameSession|GameSettings|GameplayMain|StandaloneEditorMain|EditorSettings|ChartPack)\\b",
@@ -95,8 +86,7 @@
   "file_limits": {
     "client/scripts/game/GameplayMain.cs": 320,
     "client/scripts/ui/song_select/SongSelect.cs": 260,
-    "editor/scripts/flow/EditorFlow.cs": 360,
-    "editor/scripts/StandaloneEditorMain.cs": 420,
+    "editor/scripts/StandaloneEditorMain.cs": 120,
     "tools/chart-editor-core/EditorCommands.cs": 100,
     "tools/core-tests/Program.cs": 160,
     "tools/chart-editor-tests/Program.cs": 100,
@@ -115,10 +105,6 @@
     "client/scripts/ui/song_select/SongDetailRequest.cs": 120,
     "client/scripts/ui/settings/SettingsWidgets.cs": 400,
     "client/scripts/ui/calibration/CalibrationWidgets.cs": 450,
-    "editor/scripts/pages/EditorStartPage.cs": 350,
-    "editor/scripts/pages/EditorHudView.cs": 190,
-    "editor/scripts/pages/EditorSettingsPage.cs": 150,
-    "editor/scripts/pages/EditorContextMenu.cs": 675,
     "tools/chart-editor-core/Canvas/CanvasProjection.cs": 120,
     "tools/chart-editor-core/Canvas/CanvasPlacementDraft.cs": 100,
     "tools/chart-editor-core/Canvas/CanvasSelectionState.cs": 140,
@@ -157,17 +143,7 @@
     "StandaloneEditorMain": {
       "root": "editor/scripts",
       "class": "StandaloneEditorMain",
-      "max_lines": 1250
-    },
-    "AuthoringCanvas": {
-      "root": "editor/scripts",
-      "class": "AuthoringCanvas",
-      "max_lines": 2400
-    },
-    "CreatePageOverlay": {
-      "root": "editor/scripts",
-      "class": "CreatePageOverlay",
-      "max_lines": 1350
+      "max_lines": 120
     },
     "GameplayNoteRenderer": {
       "root": "client/scripts",
@@ -204,6 +180,27 @@
       ],
       "source_links": [],
       "packages": []
+    },
+    "editor/shell/DynaMakerUv.Editor.Shell.csproj": {
+      "references": [
+        "../../shared/DynamiteUniverse.Shared.csproj",
+        "../../tools/chart-editor-core/ChartEditor.Core.csproj"
+      ],
+      "source_links": [],
+      "packages": [
+        "Avalonia",
+        "Avalonia.Desktop",
+        "Avalonia.Headless",
+        "Avalonia.Themes.Fluent",
+        "Semi.Avalonia",
+        "Dock.Avalonia",
+        "Dock.Model.Avalonia",
+        "Dock.Avalonia.Themes.Fluent",
+        "SukiUI",
+        "SukiUI.Motion",
+        "Irihi.Ursa",
+        "Irihi.Ursa.Themes.Semi"
+      ]
     },
     "tools/core-tests/CoreTests.csproj": {
       "references": [

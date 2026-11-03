@@ -167,9 +167,17 @@ public static class V2Curves
         V2PathCurve.Hold => u >= 1.0 ? 1.0 : 0.0,
         V2PathCurve.EaseInQuad => u * u,
         V2PathCurve.EaseOutQuad => 1.0 - (1.0 - u) * (1.0 - u),
+        V2PathCurve.EaseInOutQuad => u < 0.5
+            ? 2.0 * u * u
+            : 1.0 - (-2.0 * u + 2.0) * (-2.0 * u + 2.0) / 2.0,
+        V2PathCurve.EaseInCubic => u * u * u,
+        V2PathCurve.EaseOutCubic => 1.0 - Math.Pow(1.0 - u, 3.0),
         V2PathCurve.EaseInOutCubic => u < 0.5
             ? 4.0 * u * u * u
             : 1.0 - Math.Pow(-2.0 * u + 2.0, 3.0) / 2.0,
+        V2PathCurve.EaseInSine => 1.0 - Math.Cos(u * Math.PI / 2.0),
+        V2PathCurve.EaseOutSine => Math.Sin(u * Math.PI / 2.0),
+        V2PathCurve.EaseInOutSine => -(Math.Cos(Math.PI * u) - 1.0) / 2.0,
         _ => throw new ArgumentException("Smooth paths require the PCHIP evaluator.", nameof(curve)),
     };
 
@@ -179,9 +187,17 @@ public static class V2Curves
         V2ScrollCurve.Hold => u >= 1.0 ? 1.0 : 0.0,
         V2ScrollCurve.EaseInQuad => u * u,
         V2ScrollCurve.EaseOutQuad => 1.0 - (1.0 - u) * (1.0 - u),
+        V2ScrollCurve.EaseInOutQuad => u < 0.5
+            ? 2.0 * u * u
+            : 1.0 - (-2.0 * u + 2.0) * (-2.0 * u + 2.0) / 2.0,
+        V2ScrollCurve.EaseInCubic => u * u * u,
+        V2ScrollCurve.EaseOutCubic => 1.0 - Math.Pow(1.0 - u, 3.0),
         V2ScrollCurve.EaseInOutCubic => u < 0.5
             ? 4.0 * u * u * u
             : 1.0 - Math.Pow(-2.0 * u + 2.0, 3.0) / 2.0,
+        V2ScrollCurve.EaseInSine => 1.0 - Math.Cos(u * Math.PI / 2.0),
+        V2ScrollCurve.EaseOutSine => Math.Sin(u * Math.PI / 2.0),
+        V2ScrollCurve.EaseInOutSine => -(Math.Cos(Math.PI * u) - 1.0) / 2.0,
         _ => throw new ArgumentOutOfRangeException(nameof(curve)),
     };
 }
@@ -260,8 +276,9 @@ public sealed class V2ScrollMap
     }
 
     public double VisualDistanceSeconds(
-        double noteSecond, double currentSecond, ExactBarTime currentTime, double playerSpeed) =>
-        (noteSecond - currentSecond) * SpeedAt(currentTime) * playerSpeed;
+        double noteSecond, double currentSecond, ExactBarTime currentTime, double playerSpeed,
+        double noteSpeedMultiplier = 1.0) =>
+        (noteSecond - currentSecond) * SpeedAt(currentTime) * playerSpeed * noteSpeedMultiplier;
 }
 
 /// <summary>A center/width path sample. Overscan is intentionally retained.</summary>
@@ -387,9 +404,10 @@ public sealed class V2PathEvaluator
         _centerSlopes[smoothRunStart];
 
     /// <summary>
-    /// Exact polynomial partition for a stationary receiver against center ± width/2.
-    /// Splits at derivative roots before bisection, so even a brief exit/reentry inside
-    /// one render frame is found. Hold jumps and ease-in-out midpoints are explicit.
+    /// Exact partition for a stationary receiver against center ± width/2. Polynomial curves are
+    /// solved by splitting at derivative roots before bisection; monotone transcendental easings
+    /// use guarded bisection on the monotone progress piece. Hold jumps and ease-in-out midpoints
+    /// are explicit, so even a brief exit/reentry inside one render frame is found.
     /// </summary>
     public void AddReceiverBoundaries(double from, double to, double receiver, List<double> output)
     {
@@ -412,9 +430,20 @@ public sealed class V2PathEvaluator
                     case V2PathCurve.Linear: Roots(new(0, 0, d, y0), 0, 1); break;
                     case V2PathCurve.EaseInQuad: Roots(new(0, d, 0, y0), 0, 1); break;
                     case V2PathCurve.EaseOutQuad: Roots(new(0, -d, 2 * d, y0), 0, 1); break;
+                    case V2PathCurve.EaseInOutQuad:
+                        Roots(new(0, 2 * d, 0, y0), 0, .5);
+                        Roots(new(0, -2 * d, 4 * d, y0 - d), .5, 1);
+                        break;
+                    case V2PathCurve.EaseInCubic: Roots(new(d, 0, 0, y0), 0, 1); break;
+                    case V2PathCurve.EaseOutCubic: Roots(new(d, -3 * d, 3 * d, y0), 0, 1); break;
                     case V2PathCurve.EaseInOutCubic:
                         Roots(new(4 * d, 0, 0, y0), 0, .5);
                         Roots(new(4 * d, -12 * d, 12 * d, y0 - 3 * d), .5, 1);
+                        break;
+                    case V2PathCurve.EaseInSine:
+                    case V2PathCurve.EaseOutSine:
+                    case V2PathCurve.EaseInOutSine:
+                        MonotoneRoot(_curves[i], sign);
                         break;
                     case V2PathCurve.Smooth:
                         var (run, _) = SmoothRun(i);
@@ -424,6 +453,32 @@ public sealed class V2PathEvaluator
                             _centerSlopes[run][j + 1] + sign * _widthSlopes[run][j + 1], end - start), 0, 1);
                         break;
                 }
+            }
+
+            // Sine easings have no polynomial form, but progress is strictly increasing on [0,1],
+            // so the edge offset is monotone as well and a sign change brackets one crossing.
+            void MonotoneRoot(V2PathCurve curve, double edgeSign)
+            {
+                double Edge(double u)
+                {
+                    var p = V2Curves.Progress(curve, u);
+                    return Lerp(_points[i].Center, _points[i + 1].Center, p) + edgeSign *
+                        Lerp(_points[i].Width, _points[i + 1].Width, p) - receiver;
+                }
+
+                var a = 0.0;
+                var b = 1.0;
+                var va = Edge(a);
+                var vb = Edge(b);
+                if (!double.IsFinite(va) || !double.IsFinite(vb) ||
+                    va == 0.0 || vb == 0.0 || Math.Sign(va) == Math.Sign(vb)) return;
+                for (var n = 0; n < 52; n++)
+                {
+                    var mid = (a + b) * .5;
+                    if (Math.Sign(Edge(mid)) == Math.Sign(va)) a = mid;
+                    else b = mid;
+                }
+                AddTime(start + (end - start) * ((a + b) * .5));
             }
 
             void Roots(Cubic polynomial, double lo, double hi)

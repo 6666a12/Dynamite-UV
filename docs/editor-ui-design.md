@@ -1,10 +1,11 @@
 # UI 设计稿与施工约定
 
 > 2026-10-26 校正文档入口/归档引用；各板与决策的具体日期仍保留在正文。本文记录设计稿位置、采用方案、目标与施工规则，**不是功能完成或实机验收清单**；本次未读取/修改 Penpot 设计稿。
-> 当前编辑器能力见 [DynaMaker UV](<dyna-maker-uv.md>)；格式权威见 [v2 合同](<chart-format-v2.md>)，游戏动效权威见 [ui-motion.md](<ui-motion.md>)。
-> 下列 Editor UI 板与 §4 是设计目标，包含已接入的 Settings、曲线/judge、路径投影与
-> 双击路径节点插入，以及**尚未接入**的完整工具与试玩反馈；不可据画板认定已实现。
+> 当前制谱器 Avalonia + Godot 主线与核心接线见 [DynaMaker UV](<dyna-maker-uv.md>)；格式权威见 [v2 合同](<chart-format-v2.md>)，游戏动效权威见 [ui-motion.md](<ui-motion.md>)。
+> 下列 Editor UI 板与 §4 记录当时的施工目标和接入状态，只供追溯；不可据画板或这些旧状态认定当前已实现。
 > 旧版比较过程、已解决项与阶段状态已存 [原文快照](<archive/2026-10-07-cleanup/editor-ui-design.before.md>)。
+>
+> **2026-11-02 主线更新：正式制谱器采用 Avalonia Shell + Godot 原生舞台。本文 Editor 板清单、§4 施工目标及“已接入”描述只保留为历史设计参考，不再代表当前代码、页面或快捷键；游戏 UI 章节不受此变更影响。**
 
 ## 1. 设计稿在哪
 
@@ -81,7 +82,7 @@ Inspector，不设常驻事件轨。整谱合成是独立只读演示状态，�
 | Game — Home | 0,1280 | 1920×1080 | 旧首页板（已被 Home v2 取代）：左列 eyebrow / DYNAMITE UNIVERSE 两行 wordmark / pink 短轨 / 副题，切角 SELECT DESTINATION 面板内 1 大 2 小切角按钮；右侧 3D 能量核心示意；右下版本串 |
 | Game — Home v2 · 01 Compact | 0,11520 | 1920×1080 | **当前首页**：96px 主边距、无外框操作区、弱化描边切角底板、近全高右侧主视觉；CREDITS / LOGIN 置灰，副按钮两行，段位模式与联机大厅为新增禁用占位。2026-10-29 已接入客户端（`Main.cs` + `ui/home/`），核心是 Mk VI 动态模型与 canvas 弥散光；具体省略项和实施取舍见下文与 [交接](<handoff.md>) |
 | Game — Song Select | 2120,1280 | 1920×1080 | 选曲（`SongSelect.cs`）：顶栏 logo + 返回；左详情板（封面占位 + NO COVER、曲名 / 曲师·谱师 / 时长·Note）；右曲库板（列表头 + 6 行 SongRow + 视口裁切的第 7 行残片）；底部难度实心键 + BEST/CLEAR 条 + 等级字 + START |
-| Game — Gameplay | 4240,1280 | 1920×1080 | 游玩 HUD 定格帧：程序化背景纵深、∪ 形判定线（y=861 + 两侧竖轨）、Mixer 装饰粉条与光标、三轨 Note（Tap/Drag/ExTap/Hold+body/Mixer/BarLine）、顶部六 pill + 暂停钮、判定线进度段、左下曲目信息板、右下分数、线下 Combo、线上判定字 |
+| Game — Gameplay | 4240,1280 | 1920×1080 | 游玩 HUD 定格帧：程序化背景纵深、∪ 形判定线（共享基准 y=861，客户端当前 y=901 + 两侧竖轨）、Mixer 装饰粉条与光标、三轨 Note（Tap/Drag/ExTap/Hold+body/Mixer/BarLine）、顶部六 pill + 暂停钮、判定线进度段、左下曲目信息板、右下分数、线下 Combo、线上判定字 |
 | Game — Pause | 6360,1280 | 1920×1080 | 暂停浮层：同一游玩帧 + 全屏压暗 72% + 700×480 切角面板（PAUSED + 继续 / 重开 / 返回选曲） |
 | Game — Result | 8480,1280 | 1920×1080 | 结算：封面占位全屏压暗背景 + 1160×600 切角面板（RESULT 行、大评级字、NEW RECORD chip、百万分、CLEAR / MAX COMBO 行、四段判定分布条、P/GR/GD/M 四格、三个动作键） |
 | Game — Settings (Display) | 10600,1280 | 1920×1080 | DISPLAY tab：单行 UI MOTION 三段器（FULL/REDUCED/OFF）+ RESET DEFAULTS |
@@ -355,10 +356,10 @@ Signal Lock 与 handoff 三板原样保留。
   字距不随缩放的选择见 §4 第 15 条。
 - **少文字原则**：不写实现注脚类文字（运行时、规则集名等）；重装饰轻信息的内容不做
   （歌曲详情不增加装饰性波形；这不意味着制谱器的音频波形需求已完成或被取消）。
-- 编辑器几何复用游玩客户端：中央判定线、侧轨位置等与 `GameplayMain.cs` 顶部常量一致。
-- 游戏页板的数值一律取客户端源码/常量：判定线 y=861、判定线跨 x=60..1800、侧轨 x=184/1736、
-  Mixer 装饰条 y=620/642 跨 x=675..1244、中心轨 x=280+273.2·(P+W/2)、侧轨 x=184+剩余·k /
-  1736−剩余·k（k=SideDistScale，当前保留 691/790≈0.8747，2026-10-17 用户实机反馈基本通过）、侧轨 y=840−115·(P+W/2)、Note 视觉缩放 0.95（`GameplayStageGeometry`）。
+- 编辑器几何复用游玩共享基准，不跟随客户端舞台的 40px 下移；顶部 HUD 的 8px 偏移也只属于客户端。
+- 游戏页板的数值一律取客户端源码/常量：判定线 y=901、判定线跨 x=60..1800、侧轨 x=184/1736、
+  Mixer 装饰条 y=660/682 跨 x=675..1244、中心轨 x=280+273.2·(P+W/2)、侧轨 x=184+剩余·k /
+  1736−剩余·k（k=SideDistScale，当前保留 691/790≈0.8747，2026-10-17 用户实机反馈基本通过）、侧轨 y=880−115·(P+W/2)、Note 视觉缩放 0.95（`GameplayStageGeometry` 加客户端舞台偏移）。
 - **hover 统一过渡（2026-10-08 拍板）**：全部 hover 可点元素从瞬时换色改为约 0.10s 的颜色
   lerp（共享 helper `editor/scripts/common/EditorMotion.cs`：`HoverFade` 单值版给 hotspot 少而固定的
   页面，`HoverFadeMap` 键值版给动态/大量 hotspot 的页面；时长集中在 `HoverMotion.Seconds`），
@@ -402,7 +403,7 @@ Pack 板的实现边界与偏差（状态行省略时长、
 （等级块按本文 §4.5 等距不分组而非 Create 板 `lvl_blocks` 的 5+2；没有时长/采样率探测，AUDIO 状态行与试听钮按真实
 校验态和 55% 占位；METADATA 的 CHARTER 与 FIRST CHART 的 CHARTER 新建时互为镜像、两边都可编辑，
 加差分时只读展示包内谱师——v2 只有 chart 级 charter，没有包级字段可写；AddDifficulty 下包元数据
-只读、TIMING 隐藏）见 [制谱器说明](<dyna-maker-uv.md#2-当前页面与包流程>)。
+只读、TIMING 隐藏）见 [制谱器说明](<dyna-maker-uv.md>)（当前主线已切换到 Avalonia + Godot，以上仅为当时实现记录）。
 
 1. **三层编辑器架构**：主界面是裸舞台（判定线/音符渲染与实机一致，底部判定线全宽；
    HUD 只有纯文字——左下歌曲标签（仿游戏内：歌名 + 难度色 + LV）、右下时间/Bar/BPM、
@@ -429,7 +430,7 @@ Pack 板的实现边界与偏差（状态行省略时长、
      皆同）。
 3. **两级选中**：点身体选中整个 Note；选中后路径显示菱形节点手柄，再点手柄选中
    单个 node。node 菜单有 TIME/CENTER/WIDTH 步进器、CURVE TO NEXT 六段选择器
-   （linear/hold/easeInQuad/easeOutQuad/easeInOutCubic/smooth）、Hold 专属 JUDGE
+   （linear/hold/三种 Quad/三种 Cubic/三种 Sine/smooth，共 12 条；Scroll 不含 smooth）、Hold 专属 JUDGE
    拨杆（Mixer 无此行，尾 node 锁定 ON）。
    **菜单背景决策（2026-10-08 拍板）**：右键菜单**不做全屏压暗层**，保持现状——板面 MENU/NMENU
    里那层 `#04060C` 55% 的全屏压暗不实现，菜单只用自己那块 480 宽切角面板（+ 120ms 淡入）表达层级；

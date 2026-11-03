@@ -86,6 +86,8 @@ public static class Program
             MixerTests.Run(Check);
             BleedHealthTests.Run(Check);
             GameplayEndConditionTests.Run(Check);
+            NoteScrollTests.Run();
+            FlacDecoderTests.Run(Check);
         }
         catch (Exception ex)
         {

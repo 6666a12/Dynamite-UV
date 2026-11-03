@@ -14,7 +14,7 @@ internal static class CanvasProjectionTests
         var head = ExactBarTime.FromFraction(1, 3);
         var tail = ExactBarTime.FromFraction(7, 3);
         var controller = new CanvasAuthoringController(document);
-        var id = controller.AddNote(V2NoteType.Hold, EditorTrack.Right, head, 2.5, 1, tail);
+        var id = controller.AddNote(V2NoteType.Hold, EditorTrack.Right, head, 2.5, 1, tail, .5);
         var note = chart.Notes.Single();
         note.CurveToNext = V2PathCurve.EaseInQuad;
         note.Nodes[0].Center = 3;
@@ -34,8 +34,8 @@ internal static class CanvasProjectionTests
             "projection evaluates seconds across BPM changes");
         Check(view.Center == 2 && view.Width == 1 && view.Nodes[0].Center == 2 &&
               view.Nodes[0].Width == 2 && !view.Nodes[0].Judge &&
-              view.CurveToNext == V2PathCurve.EaseInQuad,
-            "projection keeps left-edge geometry and path curve/judge metadata");
+              view.CurveToNext == V2PathCurve.EaseInQuad && view.ScrollSpeedMultiplier == .5,
+            "projection keeps left-edge geometry, path metadata and note scroll speed multiplier");
         Check(bpms[0].TimeExact == ExactBarTime.Zero && bpms[0].Locked &&
               bpms[0].Id == "bpm-1" && !bpms[1].Locked && projection.DurationSeconds == 16,
             "BPM display is sorted and only its first event is locked; short charts retain 16s");

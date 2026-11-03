@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DynamiteUniverse.Editor.Shell"
+             xmlns:u="https://irihi.tech/ursa"
+             xmlns:animations="clr-namespace:SukiUI.ControlsAnimation;assembly=SukiUI"
+             x:Class="DynamiteUniverse.Editor.Shell.InspectorView">
+  <ScrollViewer Padding="18">
+    <StackPanel Spacing="14">
+      <StackPanel Spacing="3">
+        <TextBlock Classes="section" Text="{local:Tr Inspector.Title}" />
+        <TextBlock Classes="caption" Text="{local:Tr Inspector.Synced}" TextWrapping="Wrap" />
+      </StackPanel>
+      <Border Height="1" Background="{DynamicResource Line}" />
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4">
+          <TextBlock x:Name="NoteTitle" Text="—" FontSize="23" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock x:Name="NoteMeta" Classes="cyan" FontSize="11" />
+        </StackPanel>
+        <Border x:Name="SelectionBadge" Grid.Column="1" BorderBrush="{DynamicResource Cyan}" BorderThickness="1" Padding="8,4" VerticalAlignment="Top">
+          <TextBlock Text="{local:Tr Inspector.Selected}" Classes="cyan" FontSize="9" />
+        </Border>
+      </Grid>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <StackPanel Spacing="5">
+          <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.BarTime}" />
+          <TextBox x:Name="BarTimeValue" IsReadOnly="True" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="5">
+          <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.Width}" />
+          <TextBox x:Name="WidthValue" IsReadOnly="True" />
+        </StackPanel>
+      </Grid>
+      <StackPanel Spacing="5">
+        <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.ScrollSpeed}" />
+        <NumericUpDown x:Name="SpeedValue" Minimum="0.05" Maximum="4" Increment="0.05" Value="1.0" FormatString="0.00" />
+        <TextBlock Classes="caption" Text="{local:Tr Inspector.SpeedHint}" TextWrapping="Wrap" />
+      </StackPanel>
+      <u:IconButton Content="{local:Tr Inspector.ApplySpeed}" Classes="active" HorizontalAlignment="Stretch"
+                    animations:SukiPressMotion.Enable="True" Click="ApplySpeed" />
+      <Border Height="1" Background="{DynamicResource Line}" Margin="0,6" />
+      <StackPanel Spacing="5">
+        <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.PathCurve}" />
+        <ComboBox x:Name="CurveChoice" SelectedIndex="0" HorizontalAlignment="Stretch">
+          <ComboBoxItem Content="{local:Tr Inspector.Linear}" />
+          <ComboBoxItem Content="{local:Tr Inspector.Hold}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseInQuad}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseOutQuad}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseInOutQuad}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseInCubic}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseOutCubic}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseInOutCubic}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseInSine}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseOutSine}" />
+          <ComboBoxItem Content="{local:Tr Inspector.EaseInOutSine}" />
+          <ComboBoxItem Content="{local:Tr Inspector.Smooth}" />
+        </ComboBox>
+        <Button x:Name="ApplyCurveButton" Content="{local:Tr Inspector.ApplyCurve}" Classes="active" Click="ApplyCurve" />
+      </StackPanel>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <StackPanel Spacing="5">
+          <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.Position}" />
+          <TextBox x:Name="PositionValue" IsReadOnly="True" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="5">
+          <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.NoteType}" />
+          <ComboBox x:Name="NoteTypeChoice" SelectedIndex="0" IsEnabled="False">
+            <ComboBoxItem Content="{local:Tr Inspector.Tap}" />
+            <ComboBoxItem Content="{local:Tr Inspector.Drag}" />
+            <ComboBoxItem Content="{local:Tr Inspector.ExTap}" />
+            <ComboBoxItem Content="{local:Tr Inspector.Hold}" />
+            <ComboBoxItem Content="{local:Tr Inspector.Mixer}" />
+            <ComboBoxItem Content="{local:Tr Inspector.Mine}" />
+            <ComboBoxItem Content="{local:Tr Inspector.BarLine}" />
+          </ComboBox>
+        </StackPanel>
+      </Grid>
+      <Border Classes="panel" Padding="12" Margin="0,8,0,0">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="cyan" Text="{local:Tr Inspector.SharedRuntime}" FontSize="11" />
+          <TextBlock Classes="caption" Text="{local:Tr Inspector.RuntimeHint}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

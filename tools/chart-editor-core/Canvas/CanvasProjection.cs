@@ -48,6 +48,7 @@ public sealed class CanvasProjection
                 EndTime = EditorTime.BarToSeconds(tail, bpms),
                 Center = Math.Clamp(note.Center - note.Width / 2d, 0, 5 - note.Width),
                 Width = Math.Clamp(note.Width, .1, 5),
+                ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
                 CurveToNext = note.CurveToNext,
             };
             maxTime = Math.Max(maxTime, item.Time + 4);

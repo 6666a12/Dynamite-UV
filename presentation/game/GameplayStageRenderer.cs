@@ -76,11 +76,11 @@ public partial class GameplayStageRenderer : Node2D
     public int RenderedLinkCount => _links.Count;
     public int RenderedCurvedLinkCount => _curvedLinkCount;
 
-    public void BuildCommunityStageChrome()
+    public void BuildCommunityStageChrome(float backdropTopPadding = 0f)
     {
         EnsureLayers();
         foreach (var child in _chromeRoot!.GetChildren()) child.Free();
-        _chromeRoot.AddChild(new GameplayBackdrop { ZIndex = -2 });
+        _chromeRoot.AddChild(new GameplayBackdrop { ZIndex = -2, TopPadding = backdropTopPadding });
         var lineColor = new Color(.35f, .35f, .4f);
         AddChromeLine(new Vector2(60f, GameplayStageGeometry.CenterLineY - 2f), new Vector2(1800f, 4f), lineColor);
         AddChromeLine(new Vector2(GameplayStageGeometry.LeftLineX - 2f, 70f), new Vector2(4f, GameplayStageGeometry.CenterLineY - 70f), lineColor);

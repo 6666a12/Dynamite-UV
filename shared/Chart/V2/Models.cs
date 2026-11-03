@@ -40,7 +40,14 @@ public enum V2PathCurve
     Hold,
     EaseInQuad,
     EaseOutQuad,
+    EaseInOutQuad,
+    EaseInCubic,
+    EaseOutCubic,
     EaseInOutCubic,
+    EaseInSine,
+    EaseOutSine,
+    EaseInOutSine,
+    /// <summary>Frozen <c>pchip-v1</c> shape interpolation; path-only, never a plain progress.</summary>
     Smooth,
 }
 
@@ -50,7 +57,13 @@ public enum V2ScrollCurve
     Hold,
     EaseInQuad,
     EaseOutQuad,
+    EaseInOutQuad,
+    EaseInCubic,
+    EaseOutCubic,
     EaseInOutCubic,
+    EaseInSine,
+    EaseOutSine,
+    EaseInOutSine,
 }
 
 /// <summary>An optional package or chart-entry preview interval in decoded audio seconds.</summary>
@@ -130,6 +143,7 @@ public abstract record V2Note
     public required ExactBarTime Time { get; init; }
     public required double Center { get; init; }
     public required double Width { get; init; }
+    public double ScrollSpeedMultiplier { get; init; } = 1.0;
 
     public double Left => Center - Width / 2.0;
     public double Right => Center + Width / 2.0;

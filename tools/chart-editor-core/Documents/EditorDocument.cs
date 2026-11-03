@@ -75,6 +75,7 @@ public sealed class EditableNote
     public required ExactBarTime Time { get; set; }
     public required double Center { get; set; }
     public required double Width { get; set; }
+    public double ScrollSpeedMultiplier { get; set; } = 1.0;
     public V2PathCurve? CurveToNext { get; set; }
     public List<EditablePathNode> Nodes { get; } = [];
 
@@ -89,6 +90,7 @@ public sealed class EditableNote
             Time = Time,
             Center = Center,
             Width = Width,
+            ScrollSpeedMultiplier = ScrollSpeedMultiplier,
             CurveToNext = CurveToNext,
         };
         foreach (var node in Nodes)
@@ -501,6 +503,7 @@ public sealed class EditorDocument
                 Time = note.Time,
                 Center = note.Center,
                 Width = note.Width,
+                ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
             };
         }
         var nodes = note.Nodes.Select((node, index) => new V2PathNode
@@ -521,6 +524,7 @@ public sealed class EditorDocument
             Time = note.Time,
             Center = note.Center,
             Width = note.Width,
+            ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
             CurveToNext = note.CurveToNext,
             Nodes = nodes,
         };
@@ -538,6 +542,7 @@ public sealed class EditorDocument
                 Time = note.Time,
                 Center = note.Center,
                 Width = note.Width,
+                ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
                 CurveToNext = note is V2PathNote path ? path.CurveToNext : null,
             };
             if (note is V2PathNote pathNote)

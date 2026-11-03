@@ -69,6 +69,7 @@ public static class EditorPropertyCatalog
         Edit("chart.notes[].time", "Canvas / Note Inspector > Exact BarTime", EditorPropertyEditRoute.EditorCommand),
         Edit("chart.notes[].center", "Canvas / Note Inspector > Geometry", EditorPropertyEditRoute.EditorCommand),
         Edit("chart.notes[].width", "Canvas / Note Inspector > Geometry", EditorPropertyEditRoute.EditorCommand),
+        Edit("chart.notes[].scrollSpeedMultiplier", "Note Inspector > Visual Scroll", EditorPropertyEditRoute.EditorCommand),
         Edit("chart.notes[].curveToNext", "Path Inspector > Head Segment", EditorPropertyEditRoute.EditorCommand),
         Edit("chart.notes[].nodes[]", "Canvas Path / Path Inspector", EditorPropertyEditRoute.EditorCommand),
         Edit("chart.notes[].nodes[].id", "Path Inspector > Node > Identity > Advanced", EditorPropertyEditRoute.EditorCommand),

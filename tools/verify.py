@@ -16,10 +16,13 @@ def main() -> int:
     args = parser.parse_args()
     restore = ["--no-restore"] if args.no_restore else []
     commands = [[sys.executable, "-B", "tools/architecture/check.py"]]
-    for project in ("client/DynamiteUniverse.csproj", "editor/DynaMakerUv.Editor.csproj"):
+    for project in ("client/DynamiteUniverse.csproj", "editor/DynaMakerUv.Editor.csproj",
+                    "editor/shell/DynaMakerUv.Editor.Shell.csproj"):
         commands.append(["dotnet", "build", project, "--configuration", args.configuration, *restore])
     for project in ("tools/core-tests/CoreTests.csproj", "tools/chart-editor-tests/ChartEditorTests.csproj"):
         commands.append(["dotnet", "run", "--project", project, "--configuration", args.configuration, *restore])
+    commands.append(["dotnet", "run", "--project", "editor/shell/DynaMakerUv.Editor.Shell.csproj",
+                     "--configuration", args.configuration, *restore, "--", "--headless"])
     commands.extend([
         [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tools/release/tests", "-p", "test_*.py"],
         ["git", "diff", "--check"],

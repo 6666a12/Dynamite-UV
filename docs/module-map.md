@@ -1,13 +1,13 @@
 # 模块地图与拆分边界
 
-2026-10-27 按当前项目引用和结构报告复核；已提取画布选择/命中/手势预览、创建请求、Track Handoff、选曲视口和设置编解码边界，并按功能族整理源码目录。
+2026-11-03 按当前项目引用和结构报告复核；制谱器采用 Avalonia Shell + Godot 舞台，保留纯编辑核心。
 本文只维护当前代码导航与对象边界；玩法合同见 [gameplay-spec](<gameplay-spec.md>) 与 [chart-format-v2](<chart-format-v2.md>)，执行结果统一见 [验证记录](<verification.md>)。
 
 目前已建立纯规则核心、纯编辑核心、共享 Godot 视觉、游戏和编辑器适配五个边界。
-渲染/特效、文档会话、浏览、试听、校准音源、HUD、画布选择/命中/手势预览、创建请求、Track Handoff、选曲视口、设置编解码和部分编辑器页面已独立成对象。
-应用层仍有大类，尤其是画布交互；当前属于核心层分离较好、应用层持续拆分的状态。
+渲染/特效、文档会话、浏览、试听、校准音源、HUD、画布选择/命中/手势预览、创建请求、Track Handoff、选曲视口与设置编解码已独立成对象。
+制谱器响应式 UI 将从头设计；旧 Editor 页面和画布宿主不再作为现有模块或拆分对象。
 第三轮范围与行为证据见 [第三轮模块化](<archive/reports/2026-10-25-modularization-phase3.md>)；此前的草稿保存修正见
-[第二轮模块化](<archive/reports/2026-10-25-modularization-phase2.md>)。新的 editor 产品想法暂不实施或排期。
+[第二轮模块化](<archive/reports/2026-10-25-modularization-phase2.md>)。历史报告不代表旧 UI 仍存在。
 
 ## 工作区与工程关系
 
@@ -22,9 +22,9 @@
 ```text
 client ──► presentation ──────────────► shared
 client ───────────────────────────────► shared
-editor ──► presentation ──────────────► shared
-editor ──► chart-editor-core ─────────► shared
-editor ───────────────────────────────► shared
+editor Godot ──► presentation ────────► shared
+editor Godot ──► chart-editor-core ───► shared
+editor shell ──► chart-editor-core ───► shared
 core-tests / chart-tool ──────────────► shared
 chart-editor-tests ──► chart-editor-core + shared
 ```
@@ -44,6 +44,7 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `shared/Judge/BleedHealth.cs` | BLEED 血量数值表（Standard/Hardcore）、100 上限与 0 钳制、耗尽后幂等 | 判定调用点、模式选择、耗尽后的结算/导航与 UI |
 | `shared/IO/LatestRequestLoader.cs` | 单并发后台加载、最新请求、取消排队、丢弃过期完成、异常传递、释放 | 曲库选择、缓存身份、播放器、封面/按钮更新 |
 | `shared/Score/ScoreFilePersistence.cs` | 成绩文件加载、失败后首次保存前保留原始字节、原子写入 | ScoreStore 拥有内存成绩库、Godot 路径、延后保存与警告；不改变成绩身份和比较规则 |
+| `shared/Audio/` + `shared/Chart/V2/AudioProbe*` | 托管 FLAC 解码与 WAV/MP3/FLAC/Ogg Vorbis 容器校验、时长探测和预算 | 客户端 Godot 音频流与缓存、编辑器写包事务、设备播放验收 |
 | `tools/chart-editor-core/Commands/` | 现有命令按 Pack/Chart/Note/Path/Timing 与验证规则分组 | EditorDocument 的 history/dirty、shared 的格式和写包合同 |
 | 两套测试目录 | 分成独立的场景测试类，公共 fixture/断言收在各自 TestSupport | Program 只解析参数、按原顺序调用测试并返回退出码 |
 | `GameplayNoteRenderer` / `GameplayEffects` | 音符/连接段/残影/持续接收头与特效池生命周期 | 场景拥有判定状态与成绩，按原顺序传入值快照和结果 |
@@ -63,20 +64,19 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `HomeEnergyReactor` / `HomeReticle` | Mk VI 透明子视口渲染（FOV 32 / 18° / 22° / margin 0.90）、单 4 秒 clip 的三档速度与 canvas 弥散光能量 / 模型后方参考环绘制 | 首页布局、入场登记、当前位置与尺寸；不接管导航 |
 | `HomeActionTile` / `HomeActions` | 单个动作底板（切角、中文/英文两行、可选箭头、禁用态与 hover/按下反馈）/ SELECT DESTINATION 区接线 | 真实路由（游玩→选曲、设置）与三个占位禁用入口 |
 | `HomeBrandBlock` / `HomeUtilityRow` / `HomePalette` | 品牌块、顶部工具入口与版本串、Home v2 颜色与字距 token | 入场登记、`Main.BuildDescription()` 构建身份串 |
-| `EditorStartPage` / `EditorHudView` / `EditorSettingsPage` / `EditorContextMenu` | Start 控件和事件、HUD 展示、设置接线与原保存节奏、菜单展示 | 页流、文档会话、对话框、预览播放与菜单命令路由 |
-| `CanvasProjection` / `CanvasPlacementDraft` | 文档到可变预览数据的映射 / 新建音符宽度与 Hold 两阶段草稿 | Godot 输入、坐标/吸附、选择恢复；提交仍走文档命令 |
-| `CanvasSelectionState` | Note.Id 多选、主选择/实际单选、BPM 精确时间、二级 Node.Id 与框选生命周期 | Godot 输入与几何、选择事件、重绘和文档命令 |
-| `CanvasHitTesting` | 逆序遮挡、节点/头/尾/身体优先级与边缘 typed hit | Godot 矩形、路径求值、坐标换算及 Hit 适配 |
-| `CanvasGesturePreview` | 移动、宽度、节点时间/宽度与路径精确时间平移的纯预览计算 | Godot 输入、屏幕几何、Projection 回写和一次命令提交 |
+| `StandaloneEditorMain` / `EditorPreviewController` / `EditorStageAuthoring` | 装配 Godot 舞台 / 预览时钟、音频与 IPC / 放置和路径手势、舞台坐标时间反查 | Avalonia Shell 的文件、文档命令、布局、i18n 与快捷键 |
+| `CanvasProjection` / `CanvasPlacementDraft` | 文档到可变预览数据的映射 / 新建音符宽度与 Hold 两阶段草稿 | 新 UI 的输入、坐标/吸附、选择恢复；提交仍走文档命令 |
+| `CanvasSelectionState` | Note.Id 多选、主选择/实际单选、BPM 精确时间、二级 Node.Id 与框选生命周期 | 新 UI 的输入与几何、选择事件、重绘和文档命令 |
+| `CanvasHitTesting` | 逆序遮挡、节点/头/尾/身体优先级与边缘 typed hit | 新 UI 的矩形、路径求值、坐标换算及 Hit 适配 |
+| `CanvasGesturePreview` | 移动、宽度、节点时间/宽度与路径精确时间平移的纯预览计算 | 新 UI 的输入、屏幕几何、Projection 回写和一次命令提交 |
 | `TrackHandoffPresentation` / `TrackHandoffState` | relay UI、front/fx、相位推进与独立放电尾巴 | Signal Lock、路由、ready timeout、输入锁和转场完成时机 |
 | `SongListViewport` / `SongListScrollState` | 列表触摸/滚轮输入、滚动读写、惯性与选择意图 | Browse、展开/收起、搜索、详情试听和页面导航 |
 | `GameSettingsCodec` | 设置快照、JSON、旧字段迁移和配色恢复 | 唯一运行态、user://、原子写入、警告和 AudioServer |
-| `EditorCreateRequest` / `EditorCreatePreflight` | New/Add 的纯请求组装、前置校验和 Add 的固定默认时间线 | 控件与文本解析、文件可用性查询、session、错误显示和页流 |
+| `EditorCreateRequest` / `EditorCreatePreflight` | New/Add 的纯请求组装、前置校验和 Add 的固定默认时间线 | 新 UI 的控件与文本解析、文件可用性查询、session、错误显示和页流 |
 
 未落盘草稿新增难度时必须保留外部音频/封面映射；会话成功保存后才 MarkSaved。磁盘发布后的清理错误不保证回滚，不能把异常等同于“完全没写盘”。
 
-编辑 HUD 目前只读文档和画布，设置页持有明确注入的 settings/canvas；这两者不引用 shell，
-但尚不是完全独立于画布的显示模型。投影集合可修改用于预览，不得直接当作文档写入口。
+旧编辑 HUD、设置页和画布宿主已删除。核心投影集合可修改用于预览，不得直接当作文档写入口。
 
 `PointerInputBuffer` 不消费触点、不做镜像、不改变判定规则。`GameplayMain._Process` 的十步帧顺序保持。
 同帧 press→move→release 仍有原始 press 与 Hold 时间戳，未知 Move 仍忽略；暂停/失焦由调用方清理。
@@ -93,22 +93,21 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 
 | 类 | 第三轮前 | 当前 |
 | --- | ---: | ---: |
-| GameplayMain | 1823 | 1338 |
+| GameplayMain | 1823 | 1343 |
 | SongSelect | 2137 | 1122 |
 | CalibrationScreen | 1835 | 1213 |
-| StandaloneEditorMain（含 EditorFlow） | 2566 | 1230 |
-| AuthoringCanvas | 2495 | 2359 |
+| StandaloneEditorMain | 2566 | 13 |
 
-其他当前总量：SettingsScreen 789、CreatePageOverlay 1330、GameplayNoteRenderer 762；TransitionOverlay 239、TrackHandoffPresentation 583、TrackHandoffState 72。结算新增部分：ResultScreen 443、ResultOutcomePrelude 173、ResultPreludeTimeline 162、ResultOutcome 66、ResultFlow 54、ResultInputGuard 15、GameplayEndCondition 68。GameplayMain 一行于 2026-10-28 按当前结构报告更新（双锁存 + 前奏接线净 +3 行，预算 1350）。
+其他当前总量：SettingsScreen 789、GameplayNoteRenderer 762；TransitionOverlay 239、TrackHandoffPresentation 583、TrackHandoffState 72。结算新增部分：ResultScreen 443、ResultOutcomePrelude 173、ResultPreludeTimeline 162、ResultOutcome 66、ResultFlow 54、ResultInputGuard 15、GameplayEndCondition 68。GameplayMain 包含 2026-10-30 游玩布局位移。
 首页 v2 部分（2026-10-29 结构报告）：Main 126、HomeEnergyReactor 365、HomeActionTile 222、HomeActions 83、HomeBrandBlock 61、HomeUtilityRow 44、HomePalette 47、HomeReticle 52；旧 HomeEnergyCore 170 行仍保留但未被引用。
 后续代码规模以 `tools/architecture/check.py --report` 的实际输出为准。
 
-对既往进程、剩余大文件与后续优先级的分析见 [2026-10-26 模块化复审](<modularity-review-2026-10-26.md>)：补充了 TransitionOverlay、NoteColorsScreen 等观察对象，并区分职责提取、文件整理与合理保留的协调宿主。该文是建议，不是已实施拆分或新排期。
+对既往进程与剩余大文件的分析见 [2026-10-26 模块化复审](<modularity-review-2026-10-26.md>)。其中旧 Editor 页面和画布建议仅是历史记录，不再作为当前对象边界。
 
 Godot 场景绑定继续使用原入口文件及类名。以下分部文件用于局部整理，仍属于同一个类，
 不能当作已完成对象级隔离；字段随所属职责移动，也不新增“万能上下文”对象。
 物理目录按功能族组织：client UI 分为 `song_select/`、`transitions/`、`calibration/`、`settings/`、`note_colors/`、`results/`、`home/`、`common/`；
-client game 分为 `gameplay/`、`charts/`、`session/`、`settings/`、`common/`、`verification/`；editor 分为 `authoring/`、`flow/`、`pages/`、`common/`。
+client game 分为 `gameplay/`、`charts/`、`session/`、`settings/`、`common/`、`verification/`；editor 包含 Godot 根入口、`scripts/stage/` 预览适配与 `shell/` Avalonia 工作台。
 chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Commands/`；两套测试也按功能分组。场景/程序入口可留根，移动不改变 namespace 或类名。
 
 | 入口 | 职责文件 |
@@ -121,10 +120,9 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 | `ui/SettingsScreen.cs` | 页面状态、保存与动效；字段布局与控件位于 `ui/settings/` |
 | `game/settings/GameSettings.cs` | 唯一运行态、Godot 读写与音频适配；JSON/迁移在同目录 `GameSettingsCodec.cs` |
 | `ui/transitions/TransitionOverlay.cs` | Signal Lock 与 Track Handoff 转发；relay/front/fx 在 `ui/transitions/TrackHandoffPresentation.cs`，纯相位在 `ui/transitions/TrackHandoffState.cs` |
-| `StandaloneEditorMain.cs` | 编辑器启动、输入、预览和菜单命令路由；`EditorContextMenu` 负责菜单展示 |
-| `flow/EditorFlow.cs` | 页流与对话框协调；`.Start/.Settings/.Hud` 接入独立组件，`.Pack/.Create` 负责页接线，创建请求/预检位于 chart-editor-core；`.Digest` 哈希状态，`.Persistence` 会话保存结果 |
-| `authoring/AuthoringCanvas.cs` | 文档投影接线、画布状态和坐标换算；`.Gestures` 手势，`.Drawing` 舞台/网格；Path/Placement/Selection 按专题维护，投影、放置草稿、选择、命中与手势预览计算位于 chart-editor-core |
-| `pages/CreatePageOverlay.cs` | 表单与交互；`.Drawing` 自绘，`.Fields` 数值输入与等级控件 |
+| `StandaloneEditorMain.cs` / `stage/` | 原生舞台装配；预览、IPC、音频分别由独立对象负责 |
+| `tools/chart-editor-core/Documents/` | 文档、会话、创建/打开/保存、Digest 与校验；新增 `EditorGameplayDigest.cs` 为纯核心服务 |
+| `tools/chart-editor-core/Canvas/` | 投影、放置草稿、选择、命中与手势预览纯计算；舞台手势在 `editor/scripts/stage/EditorStageAuthoring.cs`，未接手势仍复用这些纯模型 |
 | `EditorCommands.cs` | `IEditorCommand` 与组合事务；具体命令位于 `Commands/`，命名空间/API 保持 |
 
 ## 后续功能放哪里
@@ -132,9 +130,9 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 - 判定、Hold/Mixer 规则和精确时间进入 shared，并先用现有行为用例说明边界；不要加到页面或绘制方法。
 - 选曲加载策略进入 loader/加载服务；列表筛选、排序的纯状态可进一步提成独立模型。
 - 编辑器数据修改通过命令进入文档；新命令放在对应 Commands 组。持久化规则继续以 shared 写包器为准。
-- 两端共用的 Godot 视觉进入 presentation；通过参数传外观，不在此读取 GameSession/EditorSettings。
-- 画布预览映射放 CanvasProjection，新增对象草稿放 CanvasPlacementDraft；它们的 `Center` 沿用旧画布的左缘语义，提交命令时才转回文档中心，精确 BarTime 不经秒值往返。
-- 布局值留在 Layout/视觉规格；场景入口只协调，不逐步堆回控件构建或后台任务。
+- 两端共用的 Godot 视觉进入 presentation；通过参数传外观，不在此读取应用级会话或设置。
+- 画布预览映射放 CanvasProjection，新增对象草稿放 CanvasPlacementDraft；它们的 `Center` 沿用左缘语义，提交命令时才转回文档中心，精确 BarTime 不经秒值往返。
+- 新制谱器 UI 拥有响应式布局、输入和展示；场景入口只协调，不堆回业务规则或后台任务。
 - 结算相关的新阶段（前奏、失败页、音效接线）落在 `client/scripts/ui/results/`：纯时序/分类放纯 C# 文件并接入 core-tests，
   Godot 节点用自带 `_Process` 的独立对象；`GameplayMain.ShowResults` 只算一次成绩并交出快照。
 - 新回归按主题放独立测试类，并接入 Program。保留测试数量与调用顺序，不能用移动文件掩盖漏跑。
@@ -143,14 +141,12 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 
 | 优先级 | 对象 | 下一步边界与验证 |
 | --- | --- | --- |
-| 1 | AuthoringCanvas | 绘制与路径交互仍共享较多状态；选择、命中、投影/手势/放置草稿与预览计算已有独立边界，后续按变更压力处理绘制/路径 |
-| 2 | CreatePageOverlay | 文本解析、输入焦点和绘制仍在同一类；请求组装/预检已独立，不引入新的 editor 产品流程 |
-| 3 | SongSelect | 视口、滚动、卡片动画/展示、详情代际、浏览和试听已独立；动态行高/过滤场景的固定步距触摸命中仍是未复现疑点，需真实输入刻画 |
-| 4 | GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定（分部族 1338/1350，剩余空间很小，新阶段应继续落在 `ui/results/` 或纯对象） |
+| 1 | 制谱器新 UI | Avalonia Shell 已接文件、新建/差分、放置与路径命令；下一步接普通 Note 拖动/调宽、Pan、持久化和合并导出，保持 ChartEditor.Core 权威 |
+| 2 | SongSelect | 视口、滚动、卡片动画/展示、详情代际、浏览和试听已独立；动态行高/过滤场景的固定步距触摸命中仍是未复现疑点，需真实输入刻画 |
+| 3 | GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定（分部族 1343/1350，剩余空间很小，新阶段应继续落在 `ui/results/` 或纯对象） |
 
-上述拆分不授权顺带更改 JudgeEngine、v2 读写、判定窗口、时钟公式、成绩身份或布局数值。
-AuthoringCanvas 总体仍超过 2000 行；不宣称所有上帝类已消除。继续拆分以状态拥有者、输入输出、
-生命周期和回归证据为完成标准，不以一个文件缩短或新增 partial 为完成标准。
+上述拆分不授权顺带更改 JudgeEngine、v2 读写、判定窗口、时钟公式、成绩身份或客户端布局数值。
+继续拆分以状态拥有者、输入输出、生命周期和回归证据为完成标准，不以一个文件缩短或新增 partial 为完成标准。
 
 ## 验证与防止回退
 

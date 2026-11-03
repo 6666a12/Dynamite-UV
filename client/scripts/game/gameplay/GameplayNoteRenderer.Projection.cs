@@ -27,7 +27,8 @@ internal sealed partial class GameplayNoteRenderer
                 ? cached : n.Second;
             return (float)VisualScrollMath.DistancePixels(
                 noteSecond, currentSecond, BaseFallSpeedPx,
-                _loaded.V2Scroll.RuntimeSpeedAt(currentBarRuntime), _fallSpeedMultiplier);
+                _loaded.V2Scroll.RuntimeSpeedAt(currentBarRuntime), _fallSpeedMultiplier,
+                n.V2Metadata?.ScrollSpeedMultiplier ?? 1.0);
         }
         return (float)VisualScrollMath.DistancePixels(
             n.Second, t, BaseFallSpeedPx, _dropSpeedMap.SpeedAt(currentBar),
@@ -65,7 +66,8 @@ internal sealed partial class GameplayNoteRenderer
     private float MissFallSpeedPx(Note note, double t, double currentBar)
     {
         var speed = (float)VisualScrollMath.FallthroughSpeedPixelsPerSecond(
-            BaseFallSpeedPx, VisualScrollAt(t, currentBar), _fallSpeedMultiplier);
+            BaseFallSpeedPx, VisualScrollAt(t, currentBar), _fallSpeedMultiplier,
+            note.V2Metadata?.ScrollSpeedMultiplier ?? 1.0);
         if (note.Track != Track.Center)
             speed *= SideDistScale;
         return Mathf.Max(60f, speed);

@@ -242,5 +242,8 @@ internal static class V2ChartTests
 		var actual = V2GameplayDigest.Sha256Hex(
 			System.Text.Encoding.UTF8.GetBytes(JsonCanonicalizer.Canonicalize(projection)));
 		Check(actual == expected, "C# RFC8785 canonicalizer matches golden gameplay digest vector");
+
+		// 新增六种缓动曲线的公式、编解码、插值与接触边界回归（独立文件，避免改动共享 Program.cs）。
+		V2CurveTests.RunChecks();
 	}
 }

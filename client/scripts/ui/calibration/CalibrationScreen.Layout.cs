@@ -423,7 +423,7 @@ public partial class CalibrationScreen
 
     // ---- 派生几何：全部从游玩常量算，不硬编设计稿的示意值 ----
 
-    /// <summary>判定线 y：与游玩同源（<see cref="GameplayStageGeometry.CenterLineY"/>，设计稿的 861 就是这个值）。</summary>
+    /// <summary>判定线 y：使用游玩共享基准 861；客户端游玩舞台另下移 40px，校准页布局不跟随。</summary>
     private static readonly float JudgeLineY = GameplayStageGeometry.CenterLineY;
 
     /// <summary>

@@ -48,10 +48,10 @@ public static class V2JsonEncoder
         });
     }
 
-    public static byte[] EncodeChart(V2Chart chart)
+    public static byte[] EncodeChart(V2Chart chart, bool requireMainJudgement = true)
     {
         ArgumentNullException.ThrowIfNull(chart);
-        V2SemanticValidator.ValidateChart(chart);
+        V2SemanticValidator.ValidateChart(chart, requireMainJudgement: requireMainJudgement);
         return Write(writer =>
         {
             writer.WriteStartObject();
@@ -164,6 +164,8 @@ public static class V2JsonEncoder
         WriteTime(writer, note.Time);
         writer.WriteNumber("center", CanonicalZero(note.Center));
         writer.WriteNumber("width", CanonicalZero(note.Width));
+        if (note.ScrollSpeedMultiplier != 1.0)
+            writer.WriteNumber("scrollSpeedMultiplier", CanonicalZero(note.ScrollSpeedMultiplier));
         if (note is V2PathNote path)
         {
             if (path.Nodes.Count == 0)
@@ -228,7 +230,13 @@ public static class V2JsonEncoder
         V2PathCurve.Hold => "hold",
         V2PathCurve.EaseInQuad => "easeInQuad",
         V2PathCurve.EaseOutQuad => "easeOutQuad",
+        V2PathCurve.EaseInOutQuad => "easeInOutQuad",
+        V2PathCurve.EaseInCubic => "easeInCubic",
+        V2PathCurve.EaseOutCubic => "easeOutCubic",
         V2PathCurve.EaseInOutCubic => "easeInOutCubic",
+        V2PathCurve.EaseInSine => "easeInSine",
+        V2PathCurve.EaseOutSine => "easeOutSine",
+        V2PathCurve.EaseInOutSine => "easeInOutSine",
         V2PathCurve.Smooth => "smooth",
         _ => throw new ArgumentOutOfRangeException(nameof(curve)),
     };
@@ -239,7 +247,13 @@ public static class V2JsonEncoder
         V2ScrollCurve.Hold => "hold",
         V2ScrollCurve.EaseInQuad => "easeInQuad",
         V2ScrollCurve.EaseOutQuad => "easeOutQuad",
+        V2ScrollCurve.EaseInOutQuad => "easeInOutQuad",
+        V2ScrollCurve.EaseInCubic => "easeInCubic",
+        V2ScrollCurve.EaseOutCubic => "easeOutCubic",
         V2ScrollCurve.EaseInOutCubic => "easeInOutCubic",
+        V2ScrollCurve.EaseInSine => "easeInSine",
+        V2ScrollCurve.EaseOutSine => "easeOutSine",
+        V2ScrollCurve.EaseInOutSine => "easeInOutSine",
         _ => throw new ArgumentOutOfRangeException(nameof(curve)),
     };
 }

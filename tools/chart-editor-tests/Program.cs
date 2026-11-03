@@ -41,6 +41,7 @@ internal static class Program
             PackageTransactionTests.TestSameDirectoryCleanupFailure();
             PackagePersistenceTests.TestFirstPackageCreation();
             PackagePersistenceTests.TestEditorSaveSequence();
+            AudioProbeTests.Run();
             EditorSessionTests.Run();
             CanvasEditGestureTests.Run();
             CanvasProjectionTests.Run();

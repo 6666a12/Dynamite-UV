@@ -5,9 +5,9 @@
 
 检查使用标准 Python 库，不启动 Godot，不安装依赖，不改源码。失败返回非零退出码。
 
-- `policy.json` 固定八个 C# 项目的 ProjectReference、显式 Compile 源码链接和 PackageReference。
+- `policy.json` 固定九个 C# 项目的 ProjectReference、显式 Compile 源码链接和 PackageReference。
   特别保护 `shared` / chart-editor-core 的纯 C# 边界，以及两端对 presentation 的程序集引用。
-  editor 已无 client 源码链接，禁止重新添加。
+  editor 已无 client 源码链接，禁止重新添加；`editor/shell` 只允许通过公开 NuGet 包使用 Avalonia/Dock/Ursa/Suki，不能依赖 `.tmp` 研究源码。
 - 单个文件默认最多 1000 行（包括空行和注释）；场景入口、测试入口和命令接口有更低预算。
 - 主要分部类按声明匹配累计全部文件行数，包括内部控件，预算以此次拆分后的存量向上取整。
   这只是抑制继续增长的检查，不能证明类内已经解耦；单个文件变短也不算减少类的职责。
@@ -28,6 +28,8 @@
   纯状态回归接入现有 CLI。源码与两套测试均按功能族分组，场景/程序入口可留根，场景、测试链接与策略路径同步更新。
 - client 续拆增加校准采样、卡片动画/详情请求和暂停覆盖层边界：纯模型链接进 core-tests；
   详情卡不得回读会话/宿主，暂停组件只通过回调触发输入清理、播放和导航，不能取得场景、判定或会话对象。
+- 2026-10-30 旧制谱器 UI 删除后，旧页面依赖规则与 AuthoringCanvas/CreatePageOverlay 预算一并移除；
+  空白 StandaloneEditorMain 保留 120 行入口预算，ChartEditor.Core 的纯 C# 边界与全部回归不变。
 
 依赖或预算确需调整时，与具体模块拆分一并审查并更新 `docs/module-map.md`。
 不要以重命名文件、增加分部文件或自动重写基线代替拆分；项目中的基线只保留显式审查后的版本。

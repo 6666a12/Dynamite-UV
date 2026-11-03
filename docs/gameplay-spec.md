@@ -96,8 +96,13 @@ bar = sections[i].BarTime + (sec - sections[i].Seconds) * sections[i].BPM / 240
       (note.Second - currentSecond)
       * speed(currentBar)
       * playerScale
+      * noteScrollSpeedMultiplier
       * 1026px/s
   ```
+
+  `noteScrollSpeedMultiplier` 是 v2 父 Note 的可选字段，缺省为 1；legacy-direct 恒为 1。Hold/Mixer
+  的头、全部路径点和连接体共用父 Note 倍率，Miss 下穿速度同样乘以该值。它只改变视觉，不改变
+  命中秒、判定窗口、路径求值或计分。
 
 - 使用当前流速乘完整剩余音频秒，不对历史流速积分；升速时 note 仍可暂时远离判定线，
   再随剩余时间缩短而折返，已生成 note 回退出屏时不销毁。
@@ -215,7 +220,7 @@ Hold 的断触宽限为：
 在 1920×1080 设计坐标中：
 
 ```text
-y > 771  -> 包含 Center
+y > 811  -> 包含 Center
 x < 400  -> 包含 Left
 x > 1520 -> 包含 Right
 均不命中 -> 回退 Center
@@ -225,7 +230,7 @@ x > 1520 -> 包含 Right
 
 ```text
 Center: (x - 280) / 273.2
-Side:   (840 - y) / 115
+Side:   (880 - y) / 115
 ```
 
 ### 5.2 触点状态
@@ -302,7 +307,7 @@ Hold 判定来自实际判定节点，Mixer 从头部相位按 `1/8 chart bar` �
 - 松手只解除控制，头在原位继续接收。身体真正离开头范围时开始 `1/8 chart bar` 宽限，沿实际谱面时间推进、跨 BPM 不冻结秒数或钳 BPM；重新接住清除本次宽限。
 - 持续节点在接住或宽限内判 Perfect；达到宽限结束且仍未接住判 Miss，不追溯撤销旧节点。漏接不是永久失败，后续可以重接。
 - 成功的提前 MixerStart 可以初始化头；未获准的开始前短按不能放置。漏掉 MixerStart 不阻止开始后的接入，未放置时不自动生成可得分的头。
-- 输入、路径边界和节点按时间戳重放；同刻输入先于节点。线性/二次/三次/PCHIP 按多项式边界求根，Hold 曲线跳变显式分段，避免漏接计时取决于渲染帧。
+- 输入、路径边界和节点按时间戳重放；同刻输入先于节点。线性/二次/三次/PCHIP 按多项式边界求根，`easeInSine`/`easeOutSine`/`easeInOutSine` 按单调进度二分，Hold 曲线跳变显式分段，避免漏接计时取决于渲染帧。
 - Mixer 不使用普通 Note 的 Miss 下穿：头判 Miss 时静默回收静态头，不生成下穿或打击
   爆发；Body、动态头和随时重接逻辑不受影响。
 - 判定点为 `head + k * 1/8 chart bar`，从 `k=0` 的 Mixer 头开始，只保留不晚于路径尾的
@@ -365,17 +370,18 @@ Boost 按 `floor(value*100/HeadlineUnitCount)` 缩放并钳制到 0..3000。
 ## 9. 1920×1080 布局
 
 Godot viewport 固定 1920×1080，stretch mode 为 `canvas_items`，比例不符时保留黑边。
-游玩布局不做自适应重排。
+游玩布局不做自适应重排。客户端在共享基准上把舞台与下方 HUD 下移 40px、顶部统计与暂停下移 8px；
+编辑器和校准页不跟随该客户端偏移，行程、落速和元素尺寸不变。
 
 | 项目 | 当前值 |
 | --- | --- |
-| Center 判定线 | `y=861` |
-| Mixer 装饰条 | `y=632`、`x=675..1244` |
+| Center 判定线 | `y=901` |
+| Mixer 装饰条 | `y=672`、`x=675..1244` |
 | Center 左缘 | `x=280+273.2·P` |
 | Center 视觉宽 | `W·273.2·0.95` |
 | Center 轨中心 | `x=960` |
 | 左/右侧线 | `x=184/1736` |
-| 侧轨命中 y | `840−115·(P+W/2)` |
+| 侧轨命中 y | `880−115·(P+W/2)` |
 | 侧轨条视觉长度 | `W·102·0.95px` |
 | 侧轨 BarLine 长度 | `W·190·0.95px` |
 | Center/Side 可见行程 | `790px / 691px` |

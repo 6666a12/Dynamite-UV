@@ -218,6 +218,10 @@ internal static class EditorPathTests
         var single = EditorPathProjection.Flatten(new EditorPathShape(head, []), 273.2d, 273.2d);
         Check(single.Count == 1 && single[0].Time == head.Time,
             "a path without nodes projects to its head alone");
+
+        // 新增六种缓动曲线的命令/持久化与投影回归（独立文件，避免改动 Program.cs）。
+        EditorCurveTests.TestNewCurvesInCommandsAndPersistence();
+        EditorCurveTests.TestNewCurvesProjectThroughSharedEvaluator();
     }
 
     /// <summary>双击插入节点的命令层判据：采样值写回、插入即选中、形状零跳变（插入时刻逐位

@@ -69,6 +69,23 @@ installed separately under their respective upstream licenses. Their
 executables, signing keys and generated outputs must not be added to this
 repository or a public game package.
 
+## Desktop editor UI dependencies
+
+The shell under `editor/shell/` restores these packages from NuGet; it does not
+reference the local research checkouts under `.tmp/`:
+
+- Avalonia 12.1.4 — MIT, <https://github.com/AvaloniaUI/Avalonia>.
+- Dock.Avalonia 12.1.0.13 — MIT, <https://github.com/wieslawsoltes/Dock>.
+- Semi.Avalonia 12.1.0.1 — MIT, <https://github.com/irihitech/Semi.Avalonia>.
+- Irihi.Ursa and Irihi.Ursa.Themes.Semi 2.3.0 — MIT,
+  <https://github.com/irihitech/Ursa.Avalonia>.
+- SukiUI and SukiUI.Motion 7.0.2-nightly20261029.502 — MIT,
+  <https://github.com/kikipoulet/SukiUI>.
+
+A redistributable desktop package must carry the licenses and transitive notices
+required by these dependencies. The current Godot-only export preset is not such
+a combined shell package.
+
 ## DynaMaker Modified reference
 
 - Optional local research checkout (Git-ignored, not included in a clean clone): `third_party/dynamaker-modified-reference`

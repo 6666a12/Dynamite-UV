@@ -76,7 +76,8 @@ public static class V2SemanticValidator
         }
     }
 
-    public static void ValidateChart(V2Chart chart, string sourceName = "chart.json")
+    public static void ValidateChart(V2Chart chart, string sourceName = "chart.json",
+        bool requireMainJudgement = true)
     {
         ArgumentNullException.ThrowIfNull(chart);
         ValidateId(chart.ChartId, sourceName, "/chartId");
@@ -122,7 +123,7 @@ public static class V2SemanticValidator
         ValidateTrack(chart.NotesLeft, "/notesLeft", sourceName, ids, ref judgementCount);
         ValidateTrack(chart.NotesCenter, "/notesCenter", sourceName, ids, ref judgementCount);
         ValidateTrack(chart.NotesRight, "/notesRight", sourceName, ids, ref judgementCount);
-        if (judgementCount.IsZero)
+        if (requireMainJudgement && judgementCount.IsZero)
             throw Error(sourceName, "/", "chart must contain at least one main judgement unit");
     }
 
@@ -162,6 +163,9 @@ public static class V2SemanticValidator
                     $"duplicate chart-wide parent/node ID '{note.Id}'");
             ValidateBarTime(note.Time, sourceName, notePointer + "/time");
             ValidatePoint(note.Center, note.Width, sourceName, notePointer);
+            if (!double.IsFinite(note.ScrollSpeedMultiplier) || note.ScrollSpeedMultiplier <= 0.0)
+                throw Error(sourceName, notePointer + "/scrollSpeedMultiplier",
+                    "note scroll speed multiplier must be finite and > 0");
 
             if (note is not V2PathNote path)
             {

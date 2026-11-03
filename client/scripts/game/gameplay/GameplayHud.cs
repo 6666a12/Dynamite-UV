@@ -14,10 +14,22 @@ internal sealed class GameplayHud
     private const float CenterTrackX = GameplayStageGeometry.CenterTrackX;
     private const float CenterLineY = GameplayStageGeometry.CenterLineY;
     private readonly Node2D _hudRoot;
+    private readonly Node2D _topHudRoot;
 
-    internal GameplayHud(Node2D root, Action pauseRequested)
+    internal GameplayHud(Node2D root, Action pauseRequested, float stageOffsetY, float topOffsetY)
     {
-        _hudRoot = root;
+        _topHudRoot = new Node2D
+        {
+            Name = "TopHud",
+            Position = new Vector2(0f, topOffsetY),
+        };
+        _hudRoot = new Node2D
+        {
+            Name = "StageHud",
+            Position = new Vector2(0f, stageOffsetY),
+        };
+        root.AddChild(_topHudRoot);
+        root.AddChild(_hudRoot);
         Build(pauseRequested);
     }
 	private ColorRect _progressFill = null!;
@@ -61,7 +73,7 @@ internal sealed class GameplayHud
 			ZIndex = 2,
 		};
 		_pauseBtn.Pressed += () => pauseRequested();
-		_hudRoot.AddChild(_pauseBtn);
+		_topHudRoot.AddChild(_pauseBtn);
 
 		// 底线上的发光进度段（从中央向两侧生长）
 		_hudRoot.AddChild(new ColorRect
@@ -184,7 +196,7 @@ internal sealed class GameplayHud
 
 	private void AddHudLine(Vector2 pos, Vector2 size, Color color)
 	{
-		_hudRoot.AddChild(new ColorRect
+		_topHudRoot.AddChild(new ColorRect
 		{
 			Color = color,
 			Position = pos,
@@ -197,7 +209,7 @@ internal sealed class GameplayHud
 	// 顶部 pill：切角暗底 + 居中彩色文字，返回值标签由 UpdateHud 刷新
 	private Label MakePill(float x, Color color)
 	{
-		_hudRoot.AddChild(new CutPanel
+		_topHudRoot.AddChild(new CutPanel
 		{
 			Position = new Vector2(x, 12),
 			Size = new Vector2(158, 40),
@@ -216,7 +228,7 @@ internal sealed class GameplayHud
 		label.AddThemeFontOverride("font", UiFonts.Tech);
 		label.AddThemeFontSizeOverride("font_size", 16);
 		label.AddThemeColorOverride("font_color", color);
-		_hudRoot.AddChild(label);
+		_topHudRoot.AddChild(label);
 		return label;
 	}
 

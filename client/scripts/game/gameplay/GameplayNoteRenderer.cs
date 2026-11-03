@@ -47,10 +47,16 @@ internal sealed partial class GameplayNoteRenderer
         _fallSpeedMultiplier = (float)settings.FallSpeedMultiplier;
         PrepareVisualPools(peaks);
         _dropSpeedMap = new DropSpeedMap(_chart.DropSpeeds);
+        _usesDifferentialScroll = _notesByTime.Any(note =>
+            note.V2Metadata?.ScrollSpeedMultiplier is { } multiplier && multiplier != 1.0);
+        if (_usesDifferentialScroll)
+            _differentialSpawnNotes.AddRange(_notesByTime);
     }
 
     internal IReadOnlyList<NoteView> ActiveViews => _active;
     private int _nextSpawn;
+    private readonly bool _usesDifferentialScroll;
+    private readonly List<Note> _differentialSpawnNotes = new();
     private readonly List<NoteView> _active = new();
     private readonly List<NoteView> _activeResiduals = new();
     private readonly Dictionary<int, NoteView> _viewByNoteId = new();
@@ -63,7 +69,7 @@ internal sealed partial class GameplayNoteRenderer
 
     // 同一帧所有 note 都使用当前 BarTime 采样的流速，但移动距离以音频秒计算：
     // visualDistancePx = (noteSecond - currentSecond) * speed(currentBar)
-    //     * playerScale * BaseFallSpeedPx。
+    //     * playerScale * noteScrollSpeedMultiplier * BaseFallSpeedPx。
     // 该距离可随流速变化而增加，因此已生成 note 必须允许回退出屏并继续保留。
     private DropSpeedMap _dropSpeedMap = DropSpeedMap.Empty;
     private float _fallSpeedMultiplier = 1f;
@@ -100,7 +106,8 @@ internal sealed partial class GameplayNoteRenderer
         foreach (var note in _notesByTime.Where(ShouldRenderStaticNote))
         {
             var lead = (note.Track == Track.Center ? TravelPx : SideLeadPx) /
-                (BaseFallSpeedPx * _fallSpeedMultiplier);
+                (BaseFallSpeedPx * _fallSpeedMultiplier *
+                 (note.V2Metadata?.ScrollSpeedMultiplier ?? 1.0));
             var end = note.Second + PostHitViewLifetimeSec;
             if (_paths.TryGetValue(note.Id, out var sustain))
                 end = sustain.EndTime + PostHitViewLifetimeSec;
@@ -142,6 +149,23 @@ internal sealed partial class GameplayNoteRenderer
 
     internal void SpawnNotes(double t, double currentBar)
     {
+        if (_usesDifferentialScroll)
+        {
+            for (var index = 0; index < _differentialSpawnNotes.Count;)
+            {
+                var note = _differentialSpawnNotes[index];
+                var threshold = note.Track == Track.Center ? TravelPx : SideLeadPx;
+                if (VisualDistanceFor(note, t, currentBar) > threshold)
+                {
+                    index++;
+                    continue;
+                }
+                SpawnNote(note, t, currentBar);
+                _differentialSpawnNotes.RemoveAt(index);
+            }
+            return;
+        }
+
         while (_nextSpawn < _notesByTime.Count)
         {
             var peek = _notesByTime[_nextSpawn];
@@ -149,47 +173,51 @@ internal sealed partial class GameplayNoteRenderer
             var threshold = peek.Track == Track.Center ? TravelPx : SideLeadPx;
             if (VisualDistanceFor(peek, t, currentBar) > threshold)
                 break;
-            var n = _notesByTime[_nextSpawn++];
-            if (_failedHoldNoteIds.Contains(n.Id))
-                continue;
-            if (ShouldRenderStaticNote(n))
-            {
-                // TakeNoteView 已负责把视图挂到 _noteRoot（新建/归位），这里不再 AddChild。
-                var view = TakeNoteView(n);
+            SpawnNote(_notesByTime[_nextSpawn++], t, currentBar);
+        }
+    }
 
-                view.Position = PositionFor(n, t, currentBar);
-                view.SetDepthAlpha(n.Track == Track.Center ? TopFadeAlpha(view.Position.Y) : 1f);
-                _viewByNoteId[n.Id] = view;
-                _active.Add(view);
-            }
-            if (n.SubNoteId != -1 && _noteById.TryGetValue(n.SubNoteId, out var toNote))
+    private void SpawnNote(Note n, double t, double currentBar)
+    {
+        if (_failedHoldNoteIds.Contains(n.Id))
+            return;
+        if (ShouldRenderStaticNote(n))
+        {
+            // TakeNoteView 已负责把视图挂到 _noteRoot（新建/归位），这里不再 AddChild。
+            var view = TakeNoteView(n);
+
+            view.Position = PositionFor(n, t, currentBar);
+            view.SetDepthAlpha(n.Track == Track.Center ? TopFadeAlpha(view.Position.Y) : 1f);
+            _viewByNoteId[n.Id] = view;
+            _active.Add(view);
+        }
+        if (n.SubNoteId != -1 && _noteById.TryGetValue(n.SubNoteId, out var toNote))
+        {
+            var isHold = n.Type is NoteType.HoldHead or NoteType.HoldNode;
+            var pool = _linkPools[isHold];
+            // 防御：历史版本曾把挂在 fadeRoot 上的连接体入池后被 QueueFree；
+            // 弹到死节点时丢弃换新，不让坏视图进场。
+            NoteLink? link = null;
+            while (pool.Count > 0)
             {
-                var isHold = n.Type is NoteType.HoldHead or NoteType.HoldNode;
-                var pool = _linkPools[isHold];
-                // 防御：历史版本曾把挂在 fadeRoot 上的连接体入池后被 QueueFree；
-                // 弹到死节点时丢弃换新，不让坏视图进场。
-                NoteLink? link = null;
-                while (pool.Count > 0)
+                var candidate = pool.Pop();
+                if (GodotObject.IsInstanceValid(candidate.Poly))
                 {
-                    var candidate = pool.Pop();
-                    if (GodotObject.IsInstanceValid(candidate.Poly))
-                    {
-                        link = candidate;
-                        break;
-                    }
+                    link = candidate;
+                    break;
                 }
-                link ??= CreateLink(isHold);
-                link.FromId = n.Id;
-                link.ToId = n.SubNoteId;
-                link.Track = n.Track;
-                link.Wa = LinkHalfFor(n);
-                link.Wb = LinkHalfFor(toNote);
-                link.BaseColor = LinkColorFor(n);
-                link.Poly.Color = link.BaseColor;
-                if (link.Frame != null) _noteRoot.MoveChild(link.Frame, -1);
-                _noteRoot.MoveChild(link.Poly, -1);
-                _links.Add(link);
             }
+            link ??= CreateLink(isHold);
+            link.FromId = n.Id;
+            link.ToId = n.SubNoteId;
+            link.Track = n.Track;
+            link.Wa = LinkHalfFor(n);
+            link.Wb = LinkHalfFor(toNote);
+            link.BaseColor = LinkColorFor(n);
+            link.Poly.Color = link.BaseColor;
+            if (link.Frame != null) _noteRoot.MoveChild(link.Frame, -1);
+            _noteRoot.MoveChild(link.Poly, -1);
+            _links.Add(link);
         }
     }
 

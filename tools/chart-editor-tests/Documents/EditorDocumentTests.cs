@@ -21,7 +21,8 @@ internal static class EditorDocumentTests
             "chart.scrollSpeeds[].time", "chart.scrollSpeeds[].value", "chart.scrollSpeeds[].curveToNext",
             "chart.notesLeft[]", "chart.notesCenter[]", "chart.notesRight[]", "chart.notes[].id",
             "chart.notes[].type", "chart.notes[].time", "chart.notes[].center", "chart.notes[].width",
-            "chart.notes[].curveToNext", "chart.notes[].nodes[]", "chart.notes[].nodes[].id",
+            "chart.notes[].scrollSpeedMultiplier", "chart.notes[].curveToNext", "chart.notes[].nodes[]",
+            "chart.notes[].nodes[].id",
             "chart.notes[].nodes[].time", "chart.notes[].nodes[].center", "chart.notes[].nodes[].width",
             "chart.notes[].nodes[].curveToNext", "chart.notes[].nodes[].judge",
             "chart.notes[].nodes[].judgeWasExplicit",
@@ -182,8 +183,23 @@ internal static class EditorDocumentTests
         document.Redo();
         Check(document.SelectedChart.Notes[0].Time == ExactBarTime.FromJsonComponents(1, 1, 7), "redo move command");
 
+        document.Execute(new SetNoteScrollSpeedMultiplierCommand(note.Id, .5));
+        Check(document.SelectedChart.Notes[0].ScrollSpeedMultiplier == .5,
+            "note scroll speed multiplier command");
+        document.Undo();
+        Check(document.SelectedChart.Notes[0].ScrollSpeedMultiplier == 1.0,
+            "undo note scroll speed multiplier");
+        document.Redo();
+        ExpectException<InvalidOperationException>(() => document.Execute(
+            new SetNoteScrollSpeedMultiplierCommand(note.Id, 0)),
+            "zero note scroll speed multiplier is rejected");
+        Check(document.SelectedChart.Notes[0].ScrollSpeedMultiplier == .5,
+            "invalid note scroll speed multiplier is rejected without mutation");
+
         var chart = document.BuildChartSnapshot("hard");
         V2SemanticValidator.ValidateChart(chart, "chart.json");
+        Check(chart.NotesCenter[0].ScrollSpeedMultiplier == .5,
+            "note scroll speed multiplier reaches strict snapshot");
         Check(EditorValidationService.Validate(document).Any(item => item.Severity == V2DiagnosticSeverity.Warning),
             "overscan produces warning without changing v2 data");
     }

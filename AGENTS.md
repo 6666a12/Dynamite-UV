@@ -6,8 +6,8 @@
 要点速览：
 
 - clean-room 社区音游：**不得把任何原版素材/谱面放进 Public 发布内容**；整个 `client/testdata/` 仅限受控开发/Internal 使用。
-- 当前制谱器详细能力见 `docs/dyna-maker-uv.md`：SAVE/SAVE AS 已接入；ZIP/XML/DY 导出、真实音频/波形及 Storyboard 未完成。不要把底层支持或菜单占位当作 UI 已完成。
-- 编辑器 UI 设计稿与施工约定见 `docs/editor-ui-design.md`（Penpot、当前/目标边界、MCP 安全约定）；改设计稿前先读。
+- 制谱器主线为 `editor/shell` 的 Avalonia 外壳 + 现有 Godot `editor` 原生舞台；文件、文档命令与快捷键接线状态见 `docs/dyna-maker-uv.md`。不要把核心已支持等同于所有 UI 手势已完成。
+- 制谱器将从头设计响应式 UI；旧 Penpot Editor 板只作历史参考。MCP 安全约定与游戏设计稿见 `docs/editor-ui-design.md`，改设计稿前先读。
 - 构建：`cd client && dotnet build`（须 0 错误）；shared 核心单测在 `tools/core-tests`，编辑器回归在 `tools/chart-editor-tests`。
 - 模块职责和拆分入口见 `docs/module-map.md`。完整非图形检查：`python -B tools/verify.py`（依赖已还原可加 `--no-restore`）。结构改动须通过 `python -B tools/architecture/check.py`；不要用新增 partial 文件或放宽预算代替对象职责拆分。
 - 模块化的目标是让新功能有明确落点、让不同模块能隔离维护。按状态拥有者、输入输出、生命周期和依赖方向划边界；完成时必须说清调用方保留什么、行为如何回归，而不是以缩短行数或增加文件数为目标。

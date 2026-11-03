@@ -14,7 +14,21 @@ internal static class EditorSessionTests
             Check(ReferenceEquals(document, session.Document) && draft is not null &&
                   session.ResolveDigestAudio() == Path.GetFullPath(audio),
                 "session owns the new document and its external resources");
+            var empty = document.BuildChartSnapshot(document.SelectedChartId);
+            var previewJson = V2JsonEncoder.EncodeChart(empty, requireMainJudgement: false);
+            var preview = V2JsonDecoder.DecodeChart(previewJson, "editor-preview", requireMainJudgement: false);
+            var adapted = V2RuntimeAdapter.Adapt(preview, requireMainJudgement: false);
+            Check(!adapted.RuntimeChart.AllNotes.Any() && preview.Bpms.Count == 1,
+                "empty in-memory draft survives preview encode/decode/runtime adaptation");
+            ExpectException<V2DiagnosticException>(() => V2JsonEncoder.EncodeChart(empty),
+                "strict chart encoding still rejects an empty draft by default");
             AddTap(document, "first");
+            var audioSha = Convert.ToHexStringLower(
+                System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(audio)));
+            var packEntry = document.BuildPackSnapshot().Charts.Single();
+            Check(EditorGameplayDigest.Compute(document, audioSha).Sha256 == V2GameplayDigest.Compute(
+                    document.BuildChartSnapshot(document.SelectedChartId), packEntry.JudgePreset, audioSha).Sha256,
+                "gameplay digest uses the current selected chart without a Godot host");
             var second = new EditableChart
             {
                 Id = "second", File = "charts/second.json", Difficulty = V2Difficulty.Mega,

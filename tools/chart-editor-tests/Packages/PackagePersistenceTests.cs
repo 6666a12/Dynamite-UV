@@ -132,6 +132,7 @@ internal static class PackagePersistenceTests
                 document.IsDirty,
                 "failed save leaves JSON unchanged and document dirty");
 
+            // A non-audio payload behind an audio extension must fail staging, not pass on extension.
             var nonWavePack = changedPathPack with { Audio = "audio.mp3" };
             File.Copy(Path.Combine(source, "audio.wav"), Path.Combine(source, "audio.mp3"));
             ExpectDiagnostic(() => V2PackageWriter.Write(new V2PackageWriteRequest
@@ -140,9 +141,9 @@ internal static class PackagePersistenceTests
                 DestinationDirectory = failedDestination,
                 Pack = nonWavePack,
                 Charts = document.BuildAllChartSnapshots(),
-            }), "audio.mp3", "/", "non-WAV audio diagnostic");
+            }), "audio.mp3", "/", "WAV content behind an .mp3 name diagnostic");
             Check(!Directory.Exists(failedDestination) && document.IsDirty,
-                "non-WAV failure leaves destination absent and document dirty");
+                "mismatched audio container leaves destination absent and document dirty");
         }
         finally
         {

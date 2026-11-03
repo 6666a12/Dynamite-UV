@@ -365,8 +365,9 @@ Scroll 事件为：
 - 事件时间严格递增；
 - 非尾事件省略 `curveToNext` 等价于 `linear`；
 - 尾事件不得携带 `curveToNext`，其值向后保持；
-- Scroll 曲线只允许 `linear`、`hold`、`easeInQuad`、`easeOutQuad`、
-  `easeInOutCubic`；明确禁止 `smooth`。
+- Scroll 曲线只允许 `linear`、`hold`、`easeInQuad`、`easeOutQuad`、`easeInOutQuad`、
+  `easeInCubic`、`easeOutCubic`、`easeInOutCubic`、`easeInSine`、`easeOutSine`、
+  `easeInOutSine`；明确禁止 `smooth`。
 
 事件间以 §9.2 的进度函数插值 `value`。在后一个事件的精确时刻使用后一个事件值。
 Scroll 只改变视觉，不改变命中秒。播放器先按当前精确 BarTime 采样 Scroll，再将该倍率作用
@@ -377,6 +378,7 @@ visualDistancePx =
     (noteAudioSecond - currentAudioSecond)
     * scrollSpeed(currentBarTime)
     * playerSpeed
+    * noteScrollSpeedMultiplier
     * 1026px/s
 ```
 
@@ -432,9 +434,28 @@ width 是有限数且 width > 0
 - 语义相同但 ID 不同的重复 Note 是合法的独立对象，不能去重。
 - loader 必须自行建立索引，不能以数组位置充当稳定 ID。
 
+### 7.4 逐 Note 差速倍率
+
+父 Note 可以携带可选的 `scrollSpeedMultiplier`：
+
+```json
+{
+  "id": "tap-fast",
+  "type": "tap",
+  "time": { "bar": 4, "numerator": 0, "denominator": 1 },
+  "center": 2.5,
+  "width": 1.0,
+  "scrollSpeedMultiplier": 2.0
+}
+```
+
+该值必须为有限数且 `> 0`，省略等价于 `1.0`。最终视觉速度为全局 Scroll、玩家落速和该 Note
+倍率的乘积。它只改变视觉距离和 Miss 下穿速度，不改变命中音频秒、判定窗口、路径求值或计分。
+Hold/Mixer 的头、全部路径节点和连接体共用父 Note 倍率；路径 node 不得单独携带该字段。
+
 ## 8. 普通 Note
 
-普通结构只包含 `id/type/time/center/width`：
+普通结构包含 `id/type/time/center/width`，并可携带 `scrollSpeedMultiplier`：
 
 ```json
 {
@@ -488,22 +509,42 @@ width(x)  = width_i  + (width_(i+1)-width_i)   * p
 路径允许：
 
 ```text
-linear  hold  easeInQuad  easeOutQuad  easeInOutCubic  smooth
+linear  hold
+easeInQuad  easeOutQuad  easeInOutQuad
+easeInCubic  easeOutCubic  easeInOutCubic
+easeInSine  easeOutSine  easeInOutSine
+smooth
 ```
 
-Scroll 只允许前五种。函数定义：
+Scroll 允许除 `smooth` 以外的全部曲线。函数定义：
 
 ```text
 linear:            f(u) = u
 hold:              f(u) = 0 for 0 <= u < 1; f(1) = 1
 easeInQuad:        f(u) = u^2
 easeOutQuad:       f(u) = 1-(1-u)^2
+easeInOutQuad:     f(u) = 2u^2                    when u < 1/2
+                   f(u) = 1-((-2u+2)^2)/2         when u >= 1/2
+easeInCubic:       f(u) = u^3
+easeOutCubic:      f(u) = 1-(1-u)^3
 easeInOutCubic:    f(u) = 4u^3                    when u < 1/2
                    f(u) = 1-((-2u+2)^3)/2         when u >= 1/2
+easeInSine:        f(u) = 1-cos(u*pi/2)
+easeOutSine:       f(u) = sin(u*pi/2)
+easeInOutSine:     f(u) = (1-cos(pi*u))/2
 ```
+
+所有 `ease*` 曲线都是常见 easings 定义，满足 `f(0)=0`、`f(1)=1`，在 `[0,1]` 上单调不减
+且不越界（无过冲）。除 `hold` 的跳变外，进度函数在开区间内连续；`easeInOut*` 系列在
+`u = 1/2` 处分为两段，但两侧取值相等，不得据此引入额外跳变。
 
 在控制点精确时刻始终取该控制点自身的 `center/width`。相邻不同曲线允许速度不连续，
 消费者不得擅自修改曲线或跨边界匹配切线。
+
+接收边界（`center ± width/2` 与静止接收点的交叉时刻）必须对每条曲线都可靠求根，不能只
+实现采样：多项式曲线（含 `easeInOut*` 的两段）应在导数为零处分段再二分；`easeInSine`、
+`easeOutSine`、`easeInOutSine` 的进度在 `[0,1]` 上严格单调，可对同一个单调分段做带符号
+判定的二分。仅按渲染帧比较端点会漏掉帧内的离开/回到接触。
 
 ### 9.3 `smooth`：`pchip-v1`
 
@@ -829,9 +870,9 @@ IEEE 754 binary64 数值序列化，不能以语言默认的 pretty JSON 或字�
 4. 复制 BPM 的 `time/bpm` 和 `audioOffsetSec`。
 5. Scroll 省略或空数组时规范化为一个 BarTime 0、`value:1` 的尾事件。非尾事件省略曲线时
    写入 `"curveToNext":"linear"`；尾事件不写曲线。
-6. 对 Note 移除所有 ID；保留 `type/time/center/width`。Hold/Mixer 父点和非尾 node 省略
-   曲线时写入 `linear`，尾 node 不写曲线。Hold 每个 node 都写出 resolved `judge`；Mixer
-   node 不写 `judge`。
+6. 对 Note 移除所有 ID；保留 `type/time/center/width`。`scrollSpeedMultiplier` 仅在值不为 1 时
+   写入投影，使既有缺省谱面的 Digest 保持不变。Hold/Mixer 父点和非尾 node 省略曲线时写入
+   `linear`，尾 node 不写曲线。Hold 每个 node 都写出 resolved `judge`；Mixer node 不写 `judge`。
 7. 每轨独立按 `(精确 time, typeOrder, JCS(noteProjection) UTF-8 bytes)` 升序排序；
    `typeOrder` 固定为 `tap,drag,exTap,hold,mixer,mine,barLine`。完全相同的重复项保留多份。
 8. 对整个 projection 执行 RFC 8785 JCS，再计算 SHA-256。
@@ -846,7 +887,7 @@ BPM 和 Scroll 已由语义校验保证按时间严格递增，路径 node 保�
 - resolved audio 原始文件 SHA-256；
 - `audioOffsetSec`、BPM；
 - Scroll 值和曲线；
-- 三轨归属、Note 类型、时间、center、width；
+- 三轨归属、Note 类型、时间、center、width、非默认 `scrollSpeedMultiplier`；
 - Hold/Mixer 全部塑形节点和路径曲线；
 - Hold node 的 resolved `judge`。
 
@@ -917,6 +958,7 @@ JSON Schema 之外，validator 至少必须拒绝：
 - BPM/Scroll 不从 BarTime 0 开始、时间不严格递增或尾事件仍带曲线；
 - Note 数组时间降序，父 Note/node ID 重复；
 - `center/width` 端点或曲线内部出现非有限值，或 `width <= 0`；
+- 父 Note 的 `scrollSpeedMultiplier` 非有限或 `<= 0`，或路径 node 携带该字段；
 - Hold/Mixer node 不严格晚于前一点；
 - 路径尾仍带 `curveToNext`；
 - Hold 尾未显式 `judge:true`；

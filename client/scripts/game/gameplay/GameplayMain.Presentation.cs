@@ -22,7 +22,7 @@ public partial class GameplayMain
 
 
 	private GameplayHud _hud = null!;
-	private void BuildHud() => _hud = new GameplayHud(_hudRoot, TogglePause);
+	private void BuildHud() => _hud = new GameplayHud(_hudRoot, TogglePause, StageOffsetY, TopHudOffsetY);
 	private void RefreshTitleTag() => _hud.RefreshTitleTag(_run, _auto);
 	private void FlashJudge(string text) => _hud.FlashJudge(text, GameSession.Settings.JudgeTextEnabled);
 	private void UpdateHud(double time)
@@ -46,9 +46,10 @@ public partial class GameplayMain
 		{
 			Name = "SharedCommunityStage",
 			MirrorEnabled = GameplayMirror.Enabled,
+			Position = new Vector2(0f, StageOffsetY),
 		};
 		_stageRoot.AddChild(sharedStage);
-		sharedStage.BuildCommunityStageChrome();
+		sharedStage.BuildCommunityStageChrome(StageOffsetY);
 		// Gameplay-owned judgement state still controls spawn/recycle, but its
 		// NoteView and sustain children now live in the shared stage layer.
 		_noteRoot = sharedStage.NoteLayer;

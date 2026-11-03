@@ -42,8 +42,9 @@ public static class V2JsonDecoder
     public static V2Pack DecodePack(string json, string sourceName = "meta.json") =>
         DecodePack(Encoding.UTF8.GetBytes(json), sourceName);
 
-    public static V2Chart DecodeChart(string json, string sourceName = "chart.json") =>
-        DecodeChart(Encoding.UTF8.GetBytes(json), sourceName);
+    public static V2Chart DecodeChart(string json, string sourceName = "chart.json",
+        bool requireMainJudgement = true) =>
+        DecodeChart(Encoding.UTF8.GetBytes(json), sourceName, requireMainJudgement);
 
     public static V2Pack DecodePack(byte[] utf8Json, string sourceName = "meta.json") =>
         DecodePack((ReadOnlyMemory<byte>)utf8Json, sourceName);
@@ -78,10 +79,12 @@ public static class V2JsonDecoder
     public static V2Pack DecodePack(ReadOnlySpan<byte> utf8Json, string sourceName = "meta.json") =>
         DecodePack(utf8Json.ToArray(), sourceName);
 
-    public static V2Chart DecodeChart(byte[] utf8Json, string sourceName = "chart.json") =>
-        DecodeChart((ReadOnlyMemory<byte>)utf8Json, sourceName);
+    public static V2Chart DecodeChart(byte[] utf8Json, string sourceName = "chart.json",
+        bool requireMainJudgement = true) =>
+        DecodeChart((ReadOnlyMemory<byte>)utf8Json, sourceName, requireMainJudgement);
 
-    public static V2Chart DecodeChart(ReadOnlyMemory<byte> utf8Json, string sourceName = "chart.json")
+    public static V2Chart DecodeChart(ReadOnlyMemory<byte> utf8Json, string sourceName = "chart.json",
+        bool requireMainJudgement = true)
     {
         using var document = Parse(utf8Json, sourceName);
         var root = RequireObject(document.RootElement, sourceName, "");
@@ -111,12 +114,13 @@ public static class V2JsonDecoder
             NotesRight = ReadNotes(Required(properties, "notesRight", sourceName, ""),
                 sourceName, "/notesRight"),
         };
-        V2SemanticValidator.ValidateChart(chart, sourceName);
+        V2SemanticValidator.ValidateChart(chart, sourceName, requireMainJudgement);
         return chart;
     }
 
-    public static V2Chart DecodeChart(ReadOnlySpan<byte> utf8Json, string sourceName = "chart.json") =>
-        DecodeChart(utf8Json.ToArray(), sourceName);
+    public static V2Chart DecodeChart(ReadOnlySpan<byte> utf8Json, string sourceName = "chart.json",
+        bool requireMainJudgement = true) =>
+        DecodeChart(utf8Json.ToArray(), sourceName, requireMainJudgement);
 
     private static JsonDocument Parse(ReadOnlyMemory<byte> utf8Json, string sourceName)
     {
@@ -353,6 +357,9 @@ public static class V2JsonDecoder
                     source, Child(itemPointer, "center")),
                 Width = ReadFiniteNumber(Required(properties, "width", source, itemPointer),
                     source, Child(itemPointer, "width")),
+                ScrollSpeedMultiplier = properties.TryGetValue("scrollSpeedMultiplier", out var multiplier)
+                    ? ReadFiniteNumber(multiplier, source, Child(itemPointer, "scrollSpeedMultiplier"))
+                    : 1.0,
             };
 
             if (!isPath)
@@ -364,6 +371,7 @@ public static class V2JsonDecoder
                     Time = common.Time,
                     Center = common.Center,
                     Width = common.Width,
+                    ScrollSpeedMultiplier = common.ScrollSpeedMultiplier,
                 });
                 continue;
             }
@@ -377,6 +385,7 @@ public static class V2JsonDecoder
                 Time = common.Time,
                 Center = common.Center,
                 Width = common.Width,
+                ScrollSpeedMultiplier = common.ScrollSpeedMultiplier,
                 CurveToNext = properties.TryGetValue("curveToNext", out var curve)
                     ? ReadPathCurve(curve, source, Child(itemPointer, "curveToNext"))
                     : null,
@@ -650,8 +659,10 @@ public static class V2JsonDecoder
     private static readonly HashSet<string> BpmFields = ["time", "bpm"];
     private static readonly HashSet<string> ScrollFields = ["time", "value", "curveToNext"];
     private static readonly HashSet<string> BarTimeFields = ["bar", "numerator", "denominator"];
-    private static readonly HashSet<string> BasicNoteFields = ["id", "type", "time", "center", "width"];
-    private static readonly HashSet<string> PathNoteFields = ["id", "type", "time", "center", "width", "curveToNext", "nodes"];
+    private static readonly HashSet<string> BasicNoteFields =
+        ["id", "type", "time", "center", "width", "scrollSpeedMultiplier"];
+    private static readonly HashSet<string> PathNoteFields =
+        ["id", "type", "time", "center", "width", "scrollSpeedMultiplier", "curveToNext", "nodes"];
     private static readonly HashSet<string> HoldNodeFields = ["id", "time", "center", "width", "curveToNext", "judge"];
     private static readonly HashSet<string> MixerNodeFields = ["id", "time", "center", "width", "curveToNext"];
 
@@ -683,7 +694,13 @@ public static class V2JsonDecoder
         ["hold"] = V2PathCurve.Hold,
         ["easeInQuad"] = V2PathCurve.EaseInQuad,
         ["easeOutQuad"] = V2PathCurve.EaseOutQuad,
+        ["easeInOutQuad"] = V2PathCurve.EaseInOutQuad,
+        ["easeInCubic"] = V2PathCurve.EaseInCubic,
+        ["easeOutCubic"] = V2PathCurve.EaseOutCubic,
         ["easeInOutCubic"] = V2PathCurve.EaseInOutCubic,
+        ["easeInSine"] = V2PathCurve.EaseInSine,
+        ["easeOutSine"] = V2PathCurve.EaseOutSine,
+        ["easeInOutSine"] = V2PathCurve.EaseInOutSine,
         ["smooth"] = V2PathCurve.Smooth,
     };
 
@@ -693,6 +710,12 @@ public static class V2JsonDecoder
         ["hold"] = V2ScrollCurve.Hold,
         ["easeInQuad"] = V2ScrollCurve.EaseInQuad,
         ["easeOutQuad"] = V2ScrollCurve.EaseOutQuad,
+        ["easeInOutQuad"] = V2ScrollCurve.EaseInOutQuad,
+        ["easeInCubic"] = V2ScrollCurve.EaseInCubic,
+        ["easeOutCubic"] = V2ScrollCurve.EaseOutCubic,
         ["easeInOutCubic"] = V2ScrollCurve.EaseInOutCubic,
+        ["easeInSine"] = V2ScrollCurve.EaseInSine,
+        ["easeOutSine"] = V2ScrollCurve.EaseOutSine,
+        ["easeInOutSine"] = V2ScrollCurve.EaseInOutSine,
     };
 }
