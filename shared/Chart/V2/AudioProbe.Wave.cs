@@ -23,12 +23,16 @@ internal static class WaveAudioFormat
                     : "invalid RIFF/WAVE audio file");
         }
 
+        var declaredEnd = 8L + BinaryPrimitives.ReadUInt32LittleEndian(header[4..]);
+        if (declaredEnd < 12 || declaredEnd > stream.Length)
+            throw AudioProbeSupport.Reject(source, "truncated RIFF/WAVE container");
+
         uint? byteRate = null;
         long dataBytes = 0;
         Span<byte> chunkHeader = stackalloc byte[8];
         Span<byte> format = stackalloc byte[16];
         var position = 12L;
-        while (position + chunkHeader.Length <= stream.Length)
+        while (position + chunkHeader.Length <= declaredEnd)
         {
             if (AudioProbeSupport.ReadAt(stream, position, chunkHeader) != chunkHeader.Length)
                 break;
@@ -36,7 +40,7 @@ internal static class WaveAudioFormat
             var size = BinaryPrimitives.ReadUInt32LittleEndian(chunkHeader[4..]);
             var payload = position + chunkHeader.Length;
             var end = payload + size;
-            if (end > stream.Length)
+            if (end > declaredEnd)
                 throw AudioProbeSupport.Reject(source,
                     $"truncated RIFF/WAVE chunk at byte offset {position}");
             if (id == 0x20746d66)
@@ -64,6 +68,9 @@ internal static class WaveAudioFormat
                 dataBytes = checked(dataBytes + size);
             }
             position = end + (size & 1);
+            if (position > declaredEnd)
+                throw AudioProbeSupport.Reject(source,
+                    $"truncated RIFF/WAVE chunk padding at byte offset {end}");
         }
 
         if (byteRate is null || dataBytes == 0)

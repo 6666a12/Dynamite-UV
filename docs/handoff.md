@@ -37,7 +37,7 @@
 - **res:// 必须走 Godot 虚拟文件系统，不可引入 System.IO**：导出后原资源可能在 PCK/导入 remap 中。此分支 Digest 按空音频字节计算；user:// /绝对路径的真实文件分支含音频字节，两者不可混同。见 [加载适配](<../client/scripts/game/charts/V2Integration.cs>)。
 - legacy `Position` 是左缘；v2 是 `center + width`。画布预览中的 Center 仍沿用左缘语义，提交文档命令时才转换；精确 BarTime 不经显示秒值往返。
 - v2 父 Note 可用 `scrollSpeedMultiplier` 在全局 Scroll 与玩家落速之上逐 Note 调整视觉倍率，缺省为 1；Hold/Mixer 全路径共用父倍率，命中秒与判定不变，非默认值进入 Digest。Scroll/路径曲线已扩至 Quad、Cubic、Sine 常用族，`smooth` 仍为路径专用 PCHIP。
-- 客户端直接播放 WAV/MP3/Ogg Vorbis；原生 FLAC 由 shared 托管解码为 16-bit PCM 后包装为 WAV 流。编辑器默认写包 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis 的结构与时长校验；Opus/M4A/AAC 明确拒绝。
+- 客户端直接播放 WAV/MP3/Ogg Vorbis；原生 FLAC 由 shared 托管解码为 16-bit PCM 后包装为 WAV 流。编辑器默认写包 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis 的结构与时长校验；FLAC 输入限 64 MiB，逐帧解析子帧并验证 CRC-8/CRC-16，WAV chunk 不得越过 RIFF 声明边界；Opus/M4A/AAC 明确拒绝。
 - 普通判定按固定 150BPM 换算；Standard 依难度选预设，Hardcore 使用 Hard 窗 ×0.5；Hold 首次断触冻结宽限 deadline，Mixer 则为实际音乐时间的 1/8 chart bar 宽限。当前 Mixer 无额外尾判。
 - 输入批次锁是精确 double 同刻锁，任何普通输入结算均可武装，Mine 不检查也不武装；触点可复用、跨轨投影可重叠。未知 id 的 Move 忽略，失焦清触点。短 Hold 保留头的晚判窗口，以带时间戳的联系快照处理同帧短点/换指。
 - 每帧音频时钟、视图、输入、持续状态、sweep、Mixer 收尾、HUD、结算的顺序不可重排；音频位置单次播放单调过滤，暂停/恢复下限保留。详见 [运行时架构](<runtime-architecture.md>)。
@@ -48,9 +48,9 @@
 
 ### 2.3 制谱器
 
-- 2026-11-02 正式路线改为 `editor/shell` 的 Avalonia 12 外壳（Dock.Avalonia + Ursa + Suki Motion），通过 Win32 HWND 嵌入现有 Godot 4.7.1 Mono 项目；不引用 client，也不依赖 `.tmp` 中的 UI 源码。
+- 2026-11-02 正式路线改为 `editor/shell` 的 Avalonia 12 外壳（Dock.Avalonia + Ursa + Suki Motion），通过 Win32 HWND 嵌入现有 Godot 4.7.1 Mono 项目；不引用 client，也不依赖 `.tmp` 中的 UI 源码。启动时直接以 `--wid` 把 Godot 建成 Avalonia 子窗口，初始尺寸 1×1 且关闭 boot splash，嵌入完成后再显示和调整尺寸，避免独立 Godot 窗口与启动灰帧；鼠标按下同步原生和 Godot 键盘焦点。
 - 已接真实 strict v2 目录包新建/打开、保存/另存为、添加与切换差分、dirty、Note 选择、逐 Note 差速命令、删除、撤销/重做；文件与写包语义继续由 `EditorDocumentSession`/shared 拥有。
-- Godot 舞台使用 shared v2 RuntimeAdapter、BPM/Scroll 与游戏几何；支持 WAV/MP3/Ogg/FLAC 预览、播放/seek、Q/E 玩家流速（0.1–2.0）与 W/S 音乐倍率（0.2–2.0）。后两者只影响预览，不修改谱面。空草稿仅预览豁免计分 Note 要求，strict 写包不变；根控制器补收全局左键松开以完成放置/路径手势。
+- Godot 舞台使用 shared v2 RuntimeAdapter、BPM/Scroll 与游戏几何；支持 WAV/MP3/Ogg/FLAC 预览、播放/seek、Q/E 玩家流速（0.1–2.0）与 W/S 音乐倍率（0.2–2.0）。后两者只影响预览，不修改谱面。空草稿仅预览豁免计分 Note 要求，strict 写包不变；根控制器补收全局左键松开并转换到舞台局部坐标以完成放置/路径手势，单条 IPC 命令异常通过 `error` 事件隔离。
 - 已有中英文即时切换与统一快捷键入口。放置工具支持七类 Note、三轨、点击放置与拖动加宽；路径工具支持双击插点、拖动头/节点及出向曲线。普通 Note 拖动/调宽、平移手势、真实波形分析、布局持久化、正式插件接口、ZIP/XML/DY 与 Storyboard 尚未接线；合并桌面导出包尚未实现。
 - 核心入口与保存错误语义见 [制谱器说明](<dyna-maker-uv.md>)。
 

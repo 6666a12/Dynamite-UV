@@ -48,7 +48,7 @@ public partial class EditorStagePreview : Control
         AddChild(_selectionOverlay);
         _selectionOverlay.Draw += DrawSelection;
         Resized += LayoutStage;
-        GuiInput += HandlePointerInput;
+        GuiInput += input => HandlePointerInput(input);
     }
 
     public override void _Ready() => LayoutStage();
@@ -133,12 +133,15 @@ public partial class EditorStagePreview : Control
         }
     }
 
-    public void HandlePointerInput(InputEvent input)
+    public void HandlePointerInput(InputEvent input, bool viewportCoordinates = false)
     {
         if (_metadata is null || input is not InputEventMouseButton
             { ButtonIndex: MouseButton.Left } click)
             return;
-        var designPoint = (click.Position - _stageRect.Position) / (_stageRect.Size.X / 1920f);
+        var localPosition = viewportCoordinates
+            ? GetGlobalTransformWithCanvas().AffineInverse() * click.Position
+            : click.Position;
+        var designPoint = (localPosition - _stageRect.Position) / (_stageRect.Size.X / 1920f);
         designPoint -= new Vector2(0f, 40f);
         if (_authoring.HandleInput(input, designPoint, _notes, _metadata, _currentTime, _playerSpeed))
         {

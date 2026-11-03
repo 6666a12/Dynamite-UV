@@ -39,7 +39,7 @@ public sealed class EditorStageIpc : IDisposable
                 }
                 handle(command.GetString()!, root);
             }
-            catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException or IOException)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 SendError(ex.Message);
             }

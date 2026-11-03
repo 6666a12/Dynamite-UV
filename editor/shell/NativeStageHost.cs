@@ -35,6 +35,11 @@ public sealed class NativeStageHost : Control
         QueueSync();
     }
 
+    public void FocusNative()
+    {
+        if (_child != 0) Win32.SetFocus(_child);
+    }
+
     public NativeStageDiagnostics Diagnostics()
     {
         var top = TopLevel.GetTopLevel(this);
@@ -98,10 +103,9 @@ public sealed class NativeStageHost : Control
         if (_parent != handle)
         {
             Win32.SetParent(_child, handle);
-            Win32.ShowWindow(_child, Win32.SwRestore);
             var style = (uint)Win32.GetWindowLongPtr(_child, Win32.GwlStyle).ToInt64();
-            style = (style & ~(Win32.WsPopup | Win32.WsCaption | Win32.WsThickFrame))
-                    | Win32.WsChild | Win32.WsVisible | Win32.WsClipSiblings;
+            style = (style & ~(Win32.WsPopup | Win32.WsCaption | Win32.WsThickFrame | Win32.WsVisible))
+                    | Win32.WsChild | Win32.WsClipSiblings;
             Win32.SetWindowLongPtr(_child, Win32.GwlStyle, (nint)(long)style);
             Win32.SetWindowPos(_child, 0, 0, 0, 0, 0,
                 Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoZOrder | Win32.SwpFrameChanged);
@@ -127,7 +131,6 @@ public sealed class NativeStageHost : Control
         public const uint WsClipSiblings = 0x04000000;
         public const int SwHide = 0;
         public const int SwShow = 5;
-        public const int SwRestore = 9;
         public const uint SwpNoSize = 1, SwpNoMove = 2, SwpNoZOrder = 4, SwpFrameChanged = 0x20;
 
         [DllImport("user32.dll")] public static extern nint SetParent(nint child, nint parent);
@@ -135,6 +138,7 @@ public sealed class NativeStageHost : Control
         [DllImport("user32.dll")] public static extern bool MoveWindow(nint window, int x, int y, int width, int height, bool repaint);
         [DllImport("user32.dll")] public static extern bool SetWindowPos(nint window, nint after, int x, int y, int width, int height, uint flags);
         [DllImport("user32.dll")] public static extern bool ShowWindow(nint window, int command);
+        [DllImport("user32.dll")] public static extern nint SetFocus(nint window);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern nint GetWindowLongPtr(nint window, int index);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] public static extern nint SetWindowLongPtr(nint window, int index, nint value);
         [DllImport("user32.dll")] public static extern bool GetWindowRect(nint window, out Rect rect);

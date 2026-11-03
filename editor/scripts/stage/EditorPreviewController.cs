@@ -18,6 +18,11 @@ public partial class EditorPreviewController : Control
     private double _playbackRate = 1.0;
     private double _tickAccumulator;
 
+    public override void _EnterTree()
+    {
+        if (DisplayServer.GetName() != "headless") GetWindow().Visible = false;
+    }
+
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
@@ -31,6 +36,11 @@ public partial class EditorPreviewController : Control
         _stage.PathMoveRequested += _ipc.SendPathMove;
         _audio = new AudioStreamPlayer { Name = "PreviewAudio" };
         AddChild(_audio);
+        if (DisplayServer.GetName() != "headless")
+        {
+            GetWindow().Position = Vector2I.Zero;
+            GetWindow().Visible = false;
+        }
         _ipc.Start();
         _ipc.SendReady(NativeWindowHandle(), GetWindow().Size);
         SendTick();
@@ -66,8 +76,9 @@ public partial class EditorPreviewController : Control
 
     public override void _Input(InputEvent input)
     {
+        if (input is InputEventMouseButton { Pressed: true }) GetWindow().GrabFocus();
         if (input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left })
-            _stage.HandlePointerInput(input);
+            _stage.HandlePointerInput(input, viewportCoordinates: true);
         if (input is InputEventKey { Pressed: true, Echo: false } key)
             _ipc.SendKey(key.Keycode, key.CtrlPressed, key.ShiftPressed, key.AltPressed);
     }

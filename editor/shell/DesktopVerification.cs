@@ -23,15 +23,23 @@ internal static class DesktopVerification
         window.Width = 1280;
         window.Height = 800;
         window.Show();
+        ActivateWindow(window);
+        SetForegroundWindow(window.TryGetPlatformHandle()?.Handle ?? 0);
         var lines = new List<string>();
         Dispatcher.UIThread.Post(async () =>
         {
             try
             {
-                for (var i = 0; i < 100 && !window.Ready; i++) await Task.Delay(250);
+                for (var i = 0; i < 1250 && !window.Ready; i++)
+                {
+                    if (HasVisibleTopLevelWindow(window.StageProcessId))
+                        throw new InvalidOperationException("Godot exposed a separate visible window during startup");
+                    await Task.Delay(20);
+                }
                 await Task.Delay(1200);
                 if (!window.Ready || !window.Stage.Host.Diagnostics().Embedded)
                     throw new InvalidOperationException("Initial native embedding failed");
+                lines.Add("PASS Godot startup stays hidden until native embedding");
                 var source = Path.Combine(outDir, "fixture-source");
                 if (Directory.Exists(source)) Directory.Delete(source, true);
                 Verification.CreatePackage(source);
@@ -65,6 +73,11 @@ internal static class DesktopVerification
                 lines.Add("stage " + window.LastStageInput);
                 if (!window.LastStageInput.Contains("loaded chart=main notes=1 audio=True"))
                     throw new InvalidOperationException("The real chart and audio were not loaded by Godot");
+                window.SendInvalidAuthoringForVerification();
+                await Task.Delay(350);
+                if (!window.Ready || !window.StatusMessage.Contains("Stage error", StringComparison.Ordinal))
+                    throw new InvalidOperationException("An invalid IPC command did not produce a recoverable stage error");
+                lines.Add("PASS invalid IPC command keeps the native stage alive");
                 await Capture(window, outDir, "01-package.png");
                 await ClickNative(window,830, 714);
                 lines.Add($"selection={window.SelectedNoteId}");
@@ -148,9 +161,15 @@ internal static class DesktopVerification
         return result;
     }
 
-    private static async Task Capture(Window window, string outDir, string name)
+    private static void ActivateWindow(Window window)
     {
         window.Activate();
+        SetForegroundWindow(window.TryGetPlatformHandle()?.Handle ?? 0);
+    }
+
+    private static async Task Capture(Window window, string outDir, string name)
+    {
+        ActivateWindow(window);
         await Task.Delay(150);
         var script = Path.GetFullPath(Path.Combine(outDir, "../../.tmp/ui-research/capture_frame.py"));
         var start = new System.Diagnostics.ProcessStartInfo("python")
@@ -167,7 +186,7 @@ internal static class DesktopVerification
 
     private static async Task ClickNative(Window window, int x, int y)
     {
-        window.Activate();
+        ActivateWindow(window);
         await Task.Delay(150);
         await Task.Run(() =>
         {
@@ -181,7 +200,7 @@ internal static class DesktopVerification
 
     private static async Task DoubleClickNative(Window window, int x, int y)
     {
-        window.Activate();
+        ActivateWindow(window);
         await Task.Delay(150);
         await Task.Run(() =>
         {
@@ -199,7 +218,7 @@ internal static class DesktopVerification
 
     private static async Task DragNative(Window window, int fromX, int fromY, int toX, int toY)
     {
-        window.Activate();
+        ActivateWindow(window);
         await Task.Delay(150);
         await Task.Run(() =>
         {
@@ -239,6 +258,28 @@ internal static class DesktopVerification
         await Task.Delay(700);
     }
 
+    private static bool HasVisibleTopLevelWindow(int processId)
+    {
+        if (processId == 0) return false;
+        var found = false;
+        EnumWindows((handle, _) =>
+        {
+            if (found || !IsWindowVisible(handle) || GetParent(handle) != 0) return true;
+            GetWindowThreadProcessId(handle, out var owner);
+            if (owner != processId) return true;
+            found = true;
+            return false;
+        }, 0);
+        return found;
+    }
+
+    private delegate bool EnumWindowsCallback(nint window, nint parameter);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback, nint parameter);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool IsWindowVisible(nint window);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern nint GetParent(nint window);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint window, out int processId);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint window);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern void mouse_event(uint flags, uint x, uint y, uint data, nint extra);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, nint extra);

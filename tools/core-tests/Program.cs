@@ -88,6 +88,7 @@ public static class Program
             GameplayEndConditionTests.Run(Check);
             NoteScrollTests.Run();
             FlacDecoderTests.Run(Check);
+            FlacProbeCompatibilityTests.Run(Check);
         }
         catch (Exception ex)
         {

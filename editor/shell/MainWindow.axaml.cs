@@ -74,6 +74,7 @@ public sealed partial class MainWindow : Window
     internal StageView Stage => _stageView;
     internal WorkbenchFactory LayoutFactory => _factory;
     internal bool Ready { get; private set; }
+    internal int StageProcessId => _service.ProcessId;
     internal int TickCount { get; private set; }
     internal string LastStageInput { get; private set; } = "";
     internal double CurrentBar => _bar;
@@ -111,6 +112,8 @@ public sealed partial class MainWindow : Window
         _tools.SelectTool("PLACE");
     }
     internal void ApplyCurveForVerification(V2PathCurve curve) => _inspector.SetCurveForVerification(curve);
+    internal void SendInvalidAuthoringForVerification() =>
+        _service.SetAuthoring("SELECT", "not-a-note-type", "Center", 1, 16);
     internal void StageEventForVerification(string name, string json)
     {
         using var jsonDocument = JsonDocument.Parse(json);
@@ -169,7 +172,7 @@ public sealed partial class MainWindow : Window
     private void StartStage()
     {
         if (Environment.GetEnvironmentVariable("DYNA_WORKBENCH_NO_GODOT") == "1") return;
-        try { _service.Start(); }
+        try { _service.Start(TryGetPlatformHandle()?.Handle ?? 0); }
         catch (Exception ex) { Report(ex.Message); }
     }
 
@@ -187,6 +190,7 @@ public sealed partial class MainWindow : Window
                 UpdateNativeStatus();
                 break;
             case "selection":
+                _stageView.Host.FocusNative();
                 var ids = data.GetProperty("ids").EnumerateArray().Select(x => x.GetString() ?? "").ToArray();
                 SelectedNoteId = data.GetProperty("parentId").GetString();
                 var nodeId = data.TryGetProperty("nodeId", out var selectedNode) ? selectedNode.GetString() : null;

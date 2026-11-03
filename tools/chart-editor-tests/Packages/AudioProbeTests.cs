@@ -63,6 +63,14 @@ internal static class AudioProbeTests
         ExpectReject("truncated wav", ".wav", AudioProbeFixtures.Truncate(wave), "truncated");
         ExpectReject("unsupported wav codec", ".wav", SetUInt16(wave, 20, 6), "unsupported WAVE");
         ExpectReject("wav without data chunk", ".wav", SetAscii(wave, 36, "junk"), "missing");
+        ExpectReject("wav chunk beyond declared RIFF size", ".wav",
+            SetUInt32(wave, 4, (uint)wave.Length), "truncated RIFF/WAVE");
+        var waveWithTrailingChunk = new List<byte>(wave);
+        waveWithTrailingChunk.AddRange("data"u8.ToArray());
+        waveWithTrailingChunk.AddRange(BitConverter.GetBytes(16_000));
+        waveWithTrailingChunk.AddRange(new byte[16_000]);
+        ExpectDuration("wav ignores data outside declared RIFF size", ".wav",
+            [.. waveWithTrailingChunk], 2.0, 0.001);
 
         // MP3: truncated frame chain, corrupted mid-stream frame, noise, implausible VBR count.
         var mp3 = AudioProbeFixtures.Mp3(39);
@@ -87,7 +95,11 @@ internal static class AudioProbeTests
         ExpectReject("flac frame header crc", ".flac",
             AudioProbeFixtures.FlipByte(flac, AudioProbeFixtures.FlacFirstFrameCrcOffset),
             "FLAC");
+        ExpectReject("flac frame payload crc", ".flac",
+            AudioProbeFixtures.FlipByte(flac, AudioProbeFixtures.FlacFirstFrameCrcOffset + 2),
+            "CRC-16");
         ExpectReject("noise as flac", ".flac", AudioProbeFixtures.Noise(), "FLAC signature");
+        ExpectOversizedFlacRejected();
 
         // Ogg: missing EOS page, corrupted CRC, sequence gap, short identification header.
         var ogg = AudioProbeFixtures.OggVorbis(44100, 110250);
@@ -234,6 +246,23 @@ internal static class AudioProbeTests
         }
     }
 
+    private static void ExpectOversizedFlacRejected()
+    {
+        using var file = TempAudioFile(".flac", "fLaC"u8.ToArray());
+        using (var stream = new FileStream(file.Path, FileMode.Open, FileAccess.Write, FileShare.None))
+            stream.SetLength(FlacAudioFormat.MaxInputBytes + 1);
+        try
+        {
+            V2BuiltInAudioProbe.ProbeFile(file.Path, "audio.flac");
+            throw new InvalidOperationException("oversized FLAC was accepted");
+        }
+        catch (V2DiagnosticException exception)
+        {
+            Check(exception.Reason.Contains("size limit", StringComparison.Ordinal),
+                $"oversized flac rejected before allocation: {exception.Reason}");
+        }
+    }
+
     private static void ExpectAudioDiagnostic(Action action, string expectedSource, string name)
     {
         try
@@ -303,6 +332,13 @@ internal static class AudioProbeTests
     {
         var copy = (byte[])bytes.Clone();
         System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(copy.AsSpan(offset), value);
+        return copy;
+    }
+
+    private static byte[] SetUInt32(byte[] bytes, int offset, uint value)
+    {
+        var copy = (byte[])bytes.Clone();
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(copy.AsSpan(offset), value);
         return copy;
     }
 

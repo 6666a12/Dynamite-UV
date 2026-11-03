@@ -30,6 +30,7 @@ editor Godot ──► presentation ──────► shared
 ## 3. 预览与快捷键
 
 - Godot 使用 `V2RuntimeAdapter`、`V2BpmTimeline`、`V2ScrollMap`、`VisualScrollMath` 与 `GameplayStageRenderer`，保留 1920×1080、等比缩放、游戏 +40Y 偏移和逐 Note 差速。
+- 启动直接以 `--wid` 创建 Avalonia 子窗口，初始分辨率 1×1，关闭 boot splash；嵌入宿主并设置最终位置后才显示。原生选择事件与 Godot 鼠标按下同步键盘焦点，避免启动灰窗和 `--wid` 快捷键丢失。
 - 音频预览支持 WAV、MP3、Ogg Vorbis；FLAC 由 shared 托管解码为 16-bit PCM 后包装为 `AudioStreamWav`。
 - `Space` 播放/暂停；`R` 回开头；`A / D` 移动一小节，`Shift+A / D` 移动一个吸附步长；`C / V` 调吸附密度，`Shift` 精细调整。
 - `Q / E` 降低/提高玩家预览流速，每次 0.1、范围 0.1–2.0，语义与游戏 `FallSpeedLevel / 10` 一致，不写谱面 Scroll。
@@ -45,7 +46,7 @@ editor Godot ──► presentation ──────► shared
 - 成功保存后才 `MarkSaved`；打开/创建失败不替换当前文档；保存失败保留内存文档与 dirty。
 - 未落盘草稿新增差分仍保留外部音频/封面来源；首次保存发布外部资源。
 - 仅内存预览的编码、解码和 RuntimeAdapter 显式使用 `requireMainJudgement:false`，使空草稿可以放置首个 Note；默认 strict 打开、编码、Digest 与写包规则不变，空草稿仍不能直接保存。
-- Godot 根控制器补收全局左键松开，保证嵌入窗口中的放置和路径拖动能够提交；文档命令保持幂等，不重复写入。
+- Godot 根控制器补收全局左键松开，并先把 viewport 坐标转换到舞台 Control 局部坐标，保证嵌入窗口中的放置和路径拖动能够提交；文档命令保持幂等，不重复写入。单条 IPC 命令的数据、枚举、IO 或解码异常以 `error` 事件返回，不再直接终止舞台。
 - `EditorGameplayDigest.Compute(document, audioSha256Hex)` 继续从当前选中差分计算 shared Digest。
 
 核心支持不等于 UI 已完成。七类 Note、路径节点、Scroll、BPM、差分复制/重排、资源替换等命令虽已存在，当前工作台只接入了上文明确列出的操作。
@@ -54,7 +55,7 @@ editor Godot ──► presentation ──────► shared
 
 - 打开的是本地 strict v2 目录包；ZIP/XML/DY 导入导出没有实现。
 - shared 继续拥有严格校验、Digest、安全写包和默认音频 Probe。Shell 不复制这些规则。
-- 默认 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis 结构与时长；Opus/M4A/AAC 明确拒绝。
+- 默认 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis 结构与时长；FLAC 输入限 64 MiB，逐帧验证子帧边界和 CRC-8/CRC-16，WAV chunk 不得越过 RIFF 声明边界；Opus/M4A/AAC 明确拒绝。
 - 同目录保存可能在磁盘发布成功后因清理失败而抛错，不能把异常一概解释为完全回滚。
 - 新语言当前不做持久化；新设置模型不恢复旧 Godot `user://editor-settings.json`。
 

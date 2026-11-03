@@ -18,13 +18,13 @@ public sealed class GodotStageService : IDisposable
     public int ProcessId => _process?.Id ?? 0;
     public bool Running => _process is { HasExited: false };
 
-    public void Start()
+    public void Start(nint parentHandle)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(GodotStageService));
         if (Running) return;
         var editorRoot = FindEditorRoot();
         var engine = Environment.GetEnvironmentVariable("DYNAMAKER_GODOT") ?? Path.GetFullPath(Path.Combine(
-            editorRoot, "../../godot/Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64_console.exe"));
+            editorRoot, "../../godot/Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64.exe"));
         if (!File.Exists(engine)) throw new FileNotFoundException("Godot 4.7.1 Mono executable not found", engine);
         var start = new ProcessStartInfo(engine)
         {
@@ -34,11 +34,19 @@ public sealed class GodotStageService : IDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
         start.ArgumentList.Add("--path");
         start.ArgumentList.Add(editorRoot);
+        start.ArgumentList.Add("--resolution");
+        start.ArgumentList.Add("1x1");
+        if (parentHandle != 0)
+        {
+            start.ArgumentList.Add("--wid");
+            start.ArgumentList.Add(parentHandle.ToString());
+        }
         _process = Process.Start(start) ?? throw new InvalidOperationException("Unable to launch Godot");
         _process.EnableRaisingEvents = true;
         _process.OutputDataReceived += (_, e) => ParseLine(e.Data);

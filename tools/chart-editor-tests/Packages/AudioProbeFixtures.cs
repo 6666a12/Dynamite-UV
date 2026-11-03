@@ -129,10 +129,32 @@ internal static class AudioProbeFixtures
         };
         if (index >= 0x80)
             throw new ArgumentOutOfRangeException(nameof(index), "frame index must be UTF-8 single byte");
-        header.Add(Crc8(header));
-        for (var i = 0; i < 16; i++)
-            header.Add(0);
-        return [.. header];
+        var frame = new List<byte>(header) { Crc8(header) };
+        var partial = 0;
+        var partialBits = 0;
+        for (var channel = 0; channel < channels; channel++)
+        {
+            WriteBits(0, 8);
+            WriteBits(0, bitsPerSample);
+        }
+        while (partialBits != 0)
+            WriteBits(0, 1);
+        var crc = Crc16(frame);
+        frame.Add((byte)(crc >> 8));
+        frame.Add((byte)crc);
+        return [.. frame];
+
+        void WriteBits(int value, int count)
+        {
+            for (var bit = count - 1; bit >= 0; bit--)
+            {
+                partial = (partial << 1) | ((value >> bit) & 1);
+                if (++partialBits != 8) continue;
+                frame.Add((byte)partial);
+                partial = 0;
+                partialBits = 0;
+            }
+        }
     }
 
     /// <summary>One Ogg Vorbis logical stream: BOS page with identification header, then data pages.</summary>
@@ -231,6 +253,20 @@ internal static class AudioProbeFixtures
             crc ^= value;
             for (var bit = 0; bit < 8; bit++)
                 crc = (crc & 0x80) != 0 ? (byte)((crc << 1) ^ 0x07) : (byte)(crc << 1);
+        }
+        return crc;
+    }
+
+    private static ushort Crc16(IReadOnlyList<byte> data)
+    {
+        ushort crc = 0;
+        foreach (var value in data)
+        {
+            crc ^= (ushort)(value << 8);
+            for (var bit = 0; bit < 8; bit++)
+                crc = (crc & 0x8000) != 0
+                    ? (ushort)((crc << 1) ^ 0x8005)
+                    : (ushort)(crc << 1);
         }
         return crc;
     }

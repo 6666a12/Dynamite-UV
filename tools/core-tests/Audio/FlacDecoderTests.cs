@@ -13,6 +13,7 @@ internal static class FlacDecoderTests
     public static void Run(Action<bool, string> check)
     {
         RunRoundTrips(check);
+        RunFrameNumberBoundaries(check);
         RunFormatBoundaries(check);
         RunMalformedInput(check);
         RunBudgets(check);
@@ -199,6 +200,42 @@ internal static class FlacDecoderTests
                 check(Math.Abs(audio.DurationSeconds - 1000.0 / rate) < 1e-9,
                     $"{label} duration derived from frame count");
             }
+        }
+    }
+
+    // ---------- 帧号/样本号：UTF-8 风格变长编号的容量边界 ----------
+
+    /// <summary>
+    /// 帧头编号每多一个续字节，只多承载 5 位有效区，容量边界因此落在
+    /// 2^11、2^16、2^21… 上，而不是 2^11、2^17、2^23…。这里用 constant 子帧 +
+    /// 16 采样块，让最后一帧的起始样本号正好等于边界值：续字节数少算一个时，
+    /// 前导字节声明的延续数比实际写出的多，解码器会把后续帧头字节当续字节读，
+    /// 直接报“续字节非法”。这样不占大内存也能把编号推到各续字节长度的最高位。
+    /// 128／2_048 两个点在修复前后编码完全相同，用来锁住既有行为不被改动。
+    /// </summary>
+    private static void RunFrameNumberBoundaries(Action<bool, string> check)
+    {
+        const int blockSize = 16;
+        foreach (var limit in new[] { 128, 2_048, 65_536 })
+        {
+            // limit 是 blockSize 的整数倍，最后一帧的起始样本号正好是 limit。
+            var frames = limit + blockSize;
+            var encoder = new FlacTestEncoder
+            {
+                Channels = BuildConstantSignal(1, 16, frames),
+                SampleRate = Rate,
+                BitsPerSample = 16,
+                BlockSize = blockSize,
+                Kind = FlacTestEncoder.SubframeKind.Constant,
+                UseVariableBlocking = true,
+            };
+            var label = $"sample number {limit}";
+            var audio = ExpectDecode(check, encoder, label);
+            if (audio == null)
+                continue;
+            check(audio.FrameCount == frames, $"{label} decodes every frame");
+            check(audio.Pcm16LittleEndian.AsSpan().SequenceEqual(encoder.ExpectedPcm16()),
+                $"{label} samples round-trip exactly");
         }
     }
 

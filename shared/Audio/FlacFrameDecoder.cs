@@ -104,7 +104,7 @@ internal static class FlacFrameDecoder
             scratch.Residual);
     }
 
-    private static FrameHeader ReadHeader(ref FlacBitReader reader, FlacStreamInfo streamInfo,
+    internal static FrameHeader ReadHeader(ref FlacBitReader reader, FlacStreamInfo streamInfo,
         FlacDecoderOptions options, long frameStartByte)
     {
         if (reader.ReadBits(14) != SyncCode)

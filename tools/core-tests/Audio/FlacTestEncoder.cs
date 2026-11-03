@@ -507,14 +507,16 @@ internal sealed class FlacTestEncoder
             return;
         }
 
-        // FLAC 的 UTF-8 风格编号：n 个续字节时，前导字节携带 6-n 位有效载荷。
+        // FLAC 的 UTF-8 风格编号：n 个续字节时，前导字节携带 6-n 位有效载荷，
+        // 总 payload 是 (6-n) + 6n = 6 + 5n 位，阈值必须按这个位数算。
         var continuationBytes = 1;
-        while (continuationBytes < 6 && value >= (1L << (5 + 6 * continuationBytes)))
+        while (continuationBytes < 6 && value >= (1L << (6 + 5 * continuationBytes)))
             continuationBytes++;
 
         var leadPayloadBits = 6 - continuationBytes;
+        // 前导字节只有 6-n 位能装 payload，这里按位宽掩码，不依赖阈值算术刚好不自溢出。
         var lead = ((0xFF << (leadPayloadBits + 1)) & 0xFF) |
-                   (int)(value >> (6 * continuationBytes));
+                   ((int)(value >> (6 * continuationBytes)) & ((1 << leadPayloadBits) - 1));
         writer.WriteBits(lead, 8);
         for (var i = continuationBytes - 1; i >= 0; i--)
             writer.WriteBits(0x80 | (int)((value >> (6 * i)) & 0x3F), 8);
