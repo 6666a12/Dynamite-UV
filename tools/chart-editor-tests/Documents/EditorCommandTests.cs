@@ -308,15 +308,15 @@ internal static class EditorCommandTests
               Math.Abs(EditorPropertySteps.StepCenter(2.5, .5, 1, true) - 2.51) < 1e-12 &&
               Math.Abs(EditorPropertySteps.StepCenter(2.5, .5, -1, false) - 2.4) < 1e-12,
             "menu CENTER step is 0.10, 0.01 while the fine step is held");
-        Check(Math.Abs(EditorPropertySteps.StepCenter(.2, 1, -1, false) - .5) < 1e-12 &&
-              Math.Abs(EditorPropertySteps.StepCenter(4.8, 1, 1, false) - 4.5) < 1e-12,
-            "menu CENTER step keeps the object inside the chart coordinate domain");
+        Check(Math.Abs(EditorPropertySteps.StepCenter(.2, 1, -1, false) - .1) < 1e-12 &&
+              Math.Abs(EditorPropertySteps.StepCenter(4.8, 1, 1, false) - 4.9) < 1e-12,
+            "menu CENTER step preserves overscan without pulling objects inward");
         Check(Math.Abs(EditorPropertySteps.StepWidth(.5, 2.5, 1, false) - .55) < 1e-12 &&
               Math.Abs(EditorPropertySteps.StepWidth(.5, 2.5, -1, true) - .49) < 1e-12,
             "menu WIDTH step is 0.05, 0.01 while the fine step is held");
         Check(Math.Abs(EditorPropertySteps.StepWidth(.1, 2.5, -1, false) - .1) < 1e-12 &&
-              Math.Abs(EditorPropertySteps.StepWidth(.5, .25, 1, false) - .5) < 1e-12,
-            "menu WIDTH step stops at the 0.1 minimum and at the coordinate domain");
+              Math.Abs(EditorPropertySteps.StepWidth(.5, .25, 1, false) - .55) < 1e-12,
+            "menu WIDTH step stops at the 0.1 minimum but not at the recommended boundary");
     }
 
     /// <summary>菜单步进/曲线/judge/删节点都必须是真实文档命令：一步一个可撤销历史，

@@ -6,20 +6,20 @@ using static DynamiteUniverse.Game.GameplayRenderGeometry;
 
 namespace DynamiteUniverse.Game;
 
-internal sealed partial class GameplayNoteRenderer
+public sealed partial class GameplayNoteRenderer
 {
     private readonly Dictionary<int, NoteView> _mixerHeadViews = new();
 
-    internal void ReleaseMixerHeadView(int headId)
+    public void ReleaseMixerHeadView(int headId)
     {
         if (_mixerHeadViews.Remove(headId, out var view)) ReturnNoteView(view);
         _effects.ReleaseSustainEffect(headId);
     }
 
-    internal void UpdateSustainEffect(SustainPath path, bool connected, NoteBounds bounds, double position) =>
+    public void UpdateSustainEffect(SustainPath path, bool connected, NoteBounds bounds, double position) =>
         _effects.UpdateSustainEffect(path, connected, bounds, position);
 
-    internal void UpdateHoldHeadContactView(SustainPath path, bool connected,
+    public void UpdateHoldHeadContactView(SustainPath path, bool connected,
         NoteBounds bounds)
     {
         if (!_viewByNoteId.TryGetValue(path.HeadId, out var view))
@@ -28,11 +28,11 @@ internal sealed partial class GameplayNoteRenderer
             view.RestoreHoldContact();
         else
             view.BeginRecoverableHoldFallthrough();
-        UpdateSustainHeadGeometry(view, bounds, bounds.Center,
+        _geometry.UpdateSustainHeadGeometry(view, bounds, bounds.Center,
             view.IsRecoverableHoldFalling ? view.MissDistancePx : 0f);
     }
 
-    internal void UpdateMixerHeadView(SustainPath path, bool placed, double position, NoteBounds bounds)
+    public void UpdateMixerHeadView(SustainPath path, bool placed, double position, NoteBounds bounds)
     {
         // A placed receiver survives release and temporary loss until this path ends.
         RecycleNoteViewImmediately(path.HeadId);
@@ -56,10 +56,10 @@ internal sealed partial class GameplayNoteRenderer
 
         view.Visible = true;
         view.SetContactLight();
-        UpdateSustainHeadGeometry(view, bounds, position);
+        _geometry.UpdateSustainHeadGeometry(view, bounds, position);
     }
 
-    internal void FinishHoldViews(SustainPath path, bool failed)
+    public void FinishHoldViews(SustainPath path, bool failed)
     {
         _effects.ReleaseSustainEffect(path.HeadId);
         if (failed)
@@ -99,7 +99,7 @@ internal sealed partial class GameplayNoteRenderer
         if (_viewByNoteId.TryGetValue(path.HeadId, out var headView))
         {
             var bounds = path.BoundsAt(path.EndTime);
-            UpdateSustainHeadGeometry(headView, bounds, bounds.Center);
+            _geometry.UpdateSustainHeadGeometry(headView, bounds, bounds.Center);
             headView.RestoreHoldContact();
             headView.MarkJudged(NoteVisualSpec.Hold);
         }

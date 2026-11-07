@@ -18,6 +18,9 @@ public sealed partial class ToolsView : UserControl
     public EditorTrack PlacementTrack => (EditorTrack)this.FindControl<ComboBox>("PlacementTrackChoice")!.SelectedIndex;
     public double PlacementWidth => (double)(this.FindControl<NumericUpDown>("PlacementWidthValue")!.Value ?? 1m);
 
+    internal void SetPlacementWidth(double width) =>
+        this.FindControl<NumericUpDown>("PlacementWidthValue")!.Value = (decimal)width;
+
     public ToolsView() => AvaloniaXamlLoader.Load(this);
 
     internal void ConfigurePlacementForVerification(V2NoteType type, EditorTrack track, double width)
@@ -25,6 +28,24 @@ public sealed partial class ToolsView : UserControl
         this.FindControl<ComboBox>("PlacementTypeChoice")!.SelectedIndex = (int)type;
         this.FindControl<ComboBox>("PlacementTrackChoice")!.SelectedIndex = (int)track;
         this.FindControl<NumericUpDown>("PlacementWidthValue")!.Value = (decimal)width;
+    }
+
+    public bool PositionSnapEnabled => this.FindControl<ComboBox>("PositionModeChoice")?.SelectedIndex != 1;
+
+    public void SelectPlacementType(V2NoteType type)
+    {
+        this.FindControl<ComboBox>("PlacementTypeChoice")!.SelectedIndex = (int)type;
+        SelectTool("PLACE");
+    }
+
+    public void CycleTrack()
+    {
+        this.FindControl<ComboBox>("PlacementTrackChoice")!.SelectedIndex = PlacementTrack switch
+        {
+            EditorTrack.Center => (int)EditorTrack.Left,
+            EditorTrack.Left => (int)EditorTrack.Right,
+            _ => (int)EditorTrack.Center,
+        };
     }
 
     public void SelectTool(string tool)

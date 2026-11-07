@@ -77,6 +77,15 @@
     <Setter Property="MinHeight" Value="32" />
     <Setter Property="CornerRadius" Value="2" />
   </Style>
+  <!-- ComboBox snapshots a ComboBoxItem's Content into SelectionBoxItem. Bind the
+       selected label to the live item instead, without cycling selection or firing edits. -->
+  <Style Selector="ComboBox.localized">
+    <Setter Property="SelectionBoxItemTemplate">
+      <DataTemplate>
+        <TextBlock Text="{ReflectionBinding SelectedItem.Content, RelativeSource={RelativeSource AncestorType=ComboBox}}" />
+      </DataTemplate>
+    </Setter>
+  </Style>
   <Style Selector="DockControl">
     <Setter Property="Background" Value="{DynamicResource Bg}" />
     <Setter Property="FontFamily" Value="{DynamicResource OfficialFont}" />

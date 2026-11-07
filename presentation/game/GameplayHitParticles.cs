@@ -149,7 +149,7 @@ public partial class GameplayHitParticles : Node2D
 }
 
 /// <summary>
-/// Hold/Mixer 接触保持期间的持续 GPU 粒子拖尾。位置每帧由 GameplayMain 的动态头
+/// Hold/Mixer 接触保持期间的持续 GPU 粒子拖尾。位置每帧由 the host 的动态头
 /// 更新逻辑提供，因此粒子留在世界空间里形成拖尾。
 /// 断开接触时 SetEmitting(false) 停止发射，存量粒子自然消亡后自我回收；
 /// 宽限内接回时重新 SetEmitting(true) 即可恢复。
@@ -459,7 +459,7 @@ internal static class HitParticleAssets
         return material;
     }
 
-    // 持续层沿接触头宽度发射，方向统一取局部 (0,1,0)，由 GameplayMain 传入的
+    // 持续层沿接触头宽度发射，方向统一取局部 (0,1,0)，由 the host 传入的
     // Rotation（中轨 0 / 左轨 +π/2 / 右轨 −π/2）把它转到"面板外侧"。
     public static ParticleProcessMaterial SustainSparkMaterial(Color accent, int bucket)
     {

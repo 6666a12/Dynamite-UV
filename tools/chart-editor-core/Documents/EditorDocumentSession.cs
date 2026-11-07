@@ -48,8 +48,15 @@ public sealed class EditorDocumentSession
         if (document.IsUnpersisted)
         {
             var draft = Draft ?? throw new InvalidOperationException("内存草稿缺少外部资源，无法创建包。");
-            result = V2PackageWriter.Create(
-                draft.BuildPackageCreateRequest(destinationDirectory, allowEmptyDestination: true));
+            var request = draft.BuildPackageCreateRequest(destinationDirectory, allowEmptyDestination: true);
+            // Resource changes applied to the draft (audio/cover replacements, chart audio
+            // overrides) stage their sources as pending replacements. The first save must publish
+            // them instead of the draft's original external resources, otherwise the new package
+            // silently keeps the pre-settings media.
+            var pending = document.PendingResourceReplacements;
+            if (pending.Count > 0)
+                request = request with { ExternalResources = MergeFirstSaveResources(document, request.ExternalResources, pending) };
+            result = V2PackageWriter.Create(request);
             kind = EditorSaveKind.Created;
         }
         else
@@ -71,14 +78,37 @@ public sealed class EditorDocumentSession
         return new(kind, result.DestinationDirectory, document.Charts.Count);
     }
 
+    /// <summary>
+    /// Overlays staged replacements onto the draft's original external resources for the first
+    /// save. Pending sources win on a destination conflict; original mappings whose destination is
+    /// no longer referenced by the document (e.g. the old pack audio after a format change) drop
+    /// out so the new package does not carry orphaned media.
+    /// </summary>
+    private static IReadOnlyList<V2ExternalResourceMapping> MergeFirstSaveResources(
+        EditorDocument document, IReadOnlyList<V2ExternalResourceMapping> original,
+        IReadOnlyList<V2ExternalResourceMapping> pending)
+    {
+        var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (document.Audio is { } audio) referenced.Add(audio);
+        if (document.Cover is { } cover) referenced.Add(cover);
+        foreach (var chart in document.Charts)
+            if (chart.Audio is { } chartAudio) referenced.Add(chartAudio);
+        return original
+            .Where(mapping => referenced.Contains(mapping.PackageRelativePath))
+            .Where(mapping => pending.All(item =>
+                !string.Equals(item.PackageRelativePath, mapping.PackageRelativePath, StringComparison.OrdinalIgnoreCase)))
+            .Concat(pending)
+            .ToArray();
+    }
+
     public string? ResolveDigestAudio()
     {
         if (Document is not { } document) return null;
+        var relative = document.SelectedChart.Audio ?? document.Audio;
+        if (relative is not null && document.GetPendingResource(relative) is { } pending)
+            return Path.GetFullPath(pending);
         if (document.PackageDirectory is { } root)
-        {
-            var relative = document.SelectedChart.Audio ?? document.Audio;
             return relative is null ? null : V2PackageWriter.ResolveRegularFile(root, relative);
-        }
         return Draft is null ? null : Path.GetFullPath(Draft.ExternalAudioSource);
     }
 }

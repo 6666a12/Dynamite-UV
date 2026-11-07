@@ -82,9 +82,17 @@ internal static class EditorSessionTests
             Check(document.PackageDirectory == copied.DestinationDirectory &&
                   EditorPackageRepository.Open(copied.DestinationDirectory).Charts.Count == 2,
                 "save as adopts the new path without losing charts");
+            document.Execute(new ReplaceChartResourceCommand(document.SelectedChartId, true, false,
+                "audio/replaced.wav", audio));
+            Check(session.ResolveDigestAudio() == Path.GetFullPath(audio),
+                "pending resource replacement drives preview audio before the next save");
+            document.Undo();
+            Check(session.ResolveDigestAudio() == Path.Combine(copied.DestinationDirectory, "audio.wav"),
+                "undo resource replacement restores the packaged preview audio");
             var opened = session.Open(created.DestinationDirectory);
             Check(ReferenceEquals(session.Document, opened) && !ReferenceEquals(opened, document) && session.Draft is null,
                 "successful open replaces the session only with a validated document");
         });
+        EditorPackageSettingsTests.Run();
     }
 }

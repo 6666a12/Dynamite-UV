@@ -23,7 +23,7 @@ public enum EditorAlignRelation
 public static class EditorPlacementGuide
 {
     /// <summary>
-    /// 对齐提示的颜色编码：比较**吸附后**的位置与宽度，容差由调用方给（取吸附步长的一半）。
+    /// 对齐提示的颜色编码：比较最终位置与宽度，容差仅用于浮点误差，不代表对象磁吸。
     /// 位置指对象在轨内的中心坐标，与放置读数、chip 读数用的是同一个值。
     /// </summary>
     public static EditorAlignRelation Classify(double position, double width,

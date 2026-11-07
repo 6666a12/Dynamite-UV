@@ -1,6 +1,6 @@
 # 模块地图与拆分边界
 
-2026-11-03 按当前项目引用和结构报告复核；制谱器采用 Avalonia Shell + Godot 舞台，保留纯编辑核心。
+2026-11-07 按当前项目引用和结构报告复核；制谱器采用 Avalonia Shell + Godot 舞台，保留纯编辑核心。
 本文只维护当前代码导航与对象边界；玩法合同见 [gameplay-spec](<gameplay-spec.md>) 与 [chart-format-v2](<chart-format-v2.md>)，执行结果统一见 [验证记录](<verification.md>)。
 
 目前已建立纯规则核心、纯编辑核心、共享 Godot 视觉、游戏和编辑器适配五个边界。
@@ -47,7 +47,8 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `shared/Audio/` + `shared/Chart/V2/AudioProbe*` | 托管 FLAC 解码与 WAV/MP3/FLAC/Ogg Vorbis 容器校验、时长探测和预算 | 客户端 Godot 音频流与缓存、编辑器写包事务、设备播放验收 |
 | `tools/chart-editor-core/Commands/` | 现有命令按 Pack/Chart/Note/Path/Timing 与验证规则分组 | EditorDocument 的 history/dirty、shared 的格式和写包合同 |
 | 两套测试目录 | 分成独立的场景测试类，公共 fixture/断言收在各自 TestSupport | Program 只解析参数、按原顺序调用测试并返回退出码 |
-| `GameplayNoteRenderer` / `GameplayEffects` | 音符/连接段/残影/持续接收头与特效池生命周期 | 场景拥有判定状态与成绩，按原顺序传入值快照和结果 |
+| `presentation/game/GameplayNoteRenderer` / `GameplayEffects` | 两端共用的音符/连接段/残影/持续接收头与特效池生命周期；外观由 `IGameplayVisualSettings` 注入，镜像由 `GameplayRenderGeometry` 实例持有 | 游戏保留判定状态、成绩、设置和既有帧顺序；编辑器保留音频/文档/输入，按只读快照驱动视觉 |
+| `EditorAutoTimeline` / `EditorAutoPreview` | JudgePlan 上的可 seek 事件游标 / 编辑器 Auto 视觉生命周期、当前持续状态恢复、CPU/GPU 暂停 | `EditorPreviewController` 仍负责音频与 IPC；`EditorStagePreview` 保留静态编辑视图、选择、手势和舞台布局 |
 | `EditorDocumentSession` | 当前文档、草稿资源、打开/创建/新增差分/保存用例 | shell 的对话框、消息和页流 |
 | `SongBrowseState` / `CanvasEditGesture` | 本地浏览状态 / 已有对象编辑手势的提交与取消 | UI 动画与预览投影、START 会话提交 |
 | `GameplayHud` | HUD 节点、文字缓存、判定闪字，读取值快照 | 分数/ACC 计算、时间、暂停和成绩保存 |
@@ -64,7 +65,8 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `HomeEnergyReactor` / `HomeReticle` | Mk VI 透明子视口渲染（FOV 32 / 18° / 22° / margin 0.90）、单 4 秒 clip 的三档速度与 canvas 弥散光能量 / 模型后方参考环绘制 | 首页布局、入场登记、当前位置与尺寸；不接管导航 |
 | `HomeActionTile` / `HomeActions` | 单个动作底板（切角、中文/英文两行、可选箭头、禁用态与 hover/按下反馈）/ SELECT DESTINATION 区接线 | 真实路由（游玩→选曲、设置）与三个占位禁用入口 |
 | `HomeBrandBlock` / `HomeUtilityRow` / `HomePalette` | 品牌块、顶部工具入口与版本串、Home v2 颜色与字距 token | 入场登记、`Main.BuildDescription()` 构建身份串 |
-| `StandaloneEditorMain` / `EditorPreviewController` / `EditorStageAuthoring` | 装配 Godot 舞台 / 预览时钟、音频与 IPC / 放置和路径手势、舞台坐标时间反查 | Avalonia Shell 的文件、文档命令、布局、i18n 与快捷键 |
+| `StandaloneEditorMain` / `EditorPreviewController` / `EditorStageAuthoring` | 装配 Godot 舞台 / 预览时钟、音频与 IPC / SELECT、PLACE、PATH、PAN 的手势状态 | Avalonia Shell 的文件、文档命令、布局、i18n 与快捷键；舞台不另写时间反查公式 |
+| `EditorStagePlacement` / `StagePlacementDraft` / `EditorPlacementOverlay` | 三轨转换、侧轨尺度与精确 BarTime 反查 / 中心坐标放置、宽度与尾点草稿 / 真实 NoteView ghost、导引读数和对齐标记 | 文档命令与保存仍由 ShellChartEditor/Core 拥有；旧 CanvasPlacementDraft 的左缘语义不混用 |
 | `CanvasProjection` / `CanvasPlacementDraft` | 文档到可变预览数据的映射 / 新建音符宽度与 Hold 两阶段草稿 | 新 UI 的输入、坐标/吸附、选择恢复；提交仍走文档命令 |
 | `CanvasSelectionState` | Note.Id 多选、主选择/实际单选、BPM 精确时间、二级 Node.Id 与框选生命周期 | 新 UI 的输入与几何、选择事件、重绘和文档命令 |
 | `CanvasHitTesting` | 逆序遮挡、节点/头/尾/身体优先级与边缘 typed hit | 新 UI 的矩形、路径求值、坐标换算及 Hit 适配 |
@@ -112,7 +114,7 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 
 | 入口 | 职责文件 |
 | --- | --- |
-| `game/GameplayMain.cs` | 启动、选择、测量常量和每帧协调；其余分部、渲染/HUD/暂停/特效位于 `game/gameplay/`，结束双锁存在 `gameplay/GameplayEndCondition.cs` |
+| `game/GameplayMain.cs` | 启动、选择、测量常量和每帧协调；其余判定分部、HUD/暂停位于 `game/gameplay/`，共用音符渲染/特效位于 `presentation/game/`，结束双锁存在 `gameplay/GameplayEndCondition.cs` |
 | `Main.cs` | 首页场景装配与入场动画；Home v2 布局、品牌块、动作区、顶部工具行、参考环与 Mk VI 核心都在 `ui/home/`（旧 `HomeEnergyCore.cs` 已不被引用） |
 | `ui/results/ResultScreen.cs` | 结算页数据展示与输入闸门；屏风在 `ResultShutter.cs`，屏风时钟在 `ResultRevealTimeline.cs`，交付顺序在 `ResultFlow.cs`，字标前奏在 `ResultOutcomePrelude.cs` / `ResultPreludeTimeline.cs`，分类在 `ResultOutcome.cs` |
 | `ui/song_select/SongSelect.cs` | 会话、选中与导航；`.Library` 列表/搜索，`.Loading` 详情与试听接线，`.QuickSettings` 快捷设置，`.Motion` 卡片推进/页面进场，`.Layout` 页面布局；滚动/触摸在 `SongListViewport.cs`，惯性在 `SongListScrollState.cs`，卡片/动画/详情代际各自独立 |
@@ -120,8 +122,9 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 | `ui/SettingsScreen.cs` | 页面状态、保存与动效；字段布局与控件位于 `ui/settings/` |
 | `game/settings/GameSettings.cs` | 唯一运行态、Godot 读写与音频适配；JSON/迁移在同目录 `GameSettingsCodec.cs` |
 | `ui/transitions/TransitionOverlay.cs` | Signal Lock 与 Track Handoff 转发；relay/front/fx 在 `ui/transitions/TrackHandoffPresentation.cs`，纯相位在 `ui/transitions/TrackHandoffState.cs` |
-| `StandaloneEditorMain.cs` / `stage/` | 原生舞台装配；预览、IPC、音频分别由独立对象负责 |
-| `tools/chart-editor-core/Documents/` | 文档、会话、创建/打开/保存、Digest 与校验；新增 `EditorGameplayDigest.cs` 为纯核心服务 |
+| `StandaloneEditorMain.cs` / `stage/` | 原生舞台装配；预览、IPC、音频与 SELECT/PLACE/PATH/PAN 手势分别由独立对象负责 |
+| `editor/shell/ShellChartEditor.cs` | 把舞台、Inspector 和 Timing 请求转换为原子文档命令；`TimingView` 只构造 BPM/Scroll 命令，窗口不堆编辑规则 |
+| `tools/chart-editor-core/Documents/` | 文档、会话、创建/打开/保存、Digest 与校验；`EditorGameplayDigest.cs` 为纯核心服务，`EditorPackageSettings.cs` 把包/差分设置与资源替换组成一次可撤销事务 |
 | `tools/chart-editor-core/Canvas/` | 投影、放置草稿、选择、命中与手势预览纯计算；舞台手势在 `editor/scripts/stage/EditorStageAuthoring.cs`，未接手势仍复用这些纯模型 |
 | `EditorCommands.cs` | `IEditorCommand` 与组合事务；具体命令位于 `Commands/`，命名空间/API 保持 |
 
@@ -141,7 +144,7 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 
 | 优先级 | 对象 | 下一步边界与验证 |
 | --- | --- | --- |
-| 1 | 制谱器新 UI | Avalonia Shell 已接文件、新建/差分、放置与路径命令；下一步接普通 Note 拖动/调宽、Pan、持久化和合并导出，保持 ChartEditor.Core 权威 |
+| 1 | 制谱器新 UI | Avalonia Shell 已接文件、包/差分管理、多选批量命令、单选精确属性、BPM/Scroll、放置、SELECT 移动/调宽、PATH 与 PAN；预览按 load/update 分离并复用音频。下一步接真实波形、持久化、合并导出，并以长谱基准决定是否需要真正的差量舞台更新，保持 ChartEditor.Core 权威 |
 | 2 | SongSelect | 视口、滚动、卡片动画/展示、详情代际、浏览和试听已独立；动态行高/过滤场景的固定步距触摸命中仍是未复现疑点，需真实输入刻画 |
 | 3 | GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定（分部族 1343/1350，剩余空间很小，新阶段应继续落在 `ui/results/` 或纯对象） |
 

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Threading;
 using Dock.Model.Avalonia;
 using Dock.Model.Avalonia.Controls;
 using Dock.Model.Controls;
@@ -15,20 +16,47 @@ public sealed class WorkbenchFactory : Factory
     private readonly Document _placeholder = new() { Id = "stage-floating", CanClose = false };
     private readonly Tool _properties;
     private readonly Tool _toolset;
+    private readonly Tool _timing;
     private readonly ToolDock _leftDock;
     private readonly ToolDock _rightDock;
     private readonly ProportionalDock _main;
     private Tool? _analysis;
+    private bool _stageRestoreQueued;
+    public bool IsShuttingDown { get; set; }
 
-    public WorkbenchFactory(Control stage, Control inspector, Control tools)
+    public override bool OnWindowClosing(IDockWindow? window)
+    {
+        if (!IsShuttingDown && window?.Layout is { } layout && ContainsStage(layout))
+        {
+            // Do not destroy the floating HWND while it still owns Godot. Move the same
+            // document back after this close callback; Dock will close the now-empty host.
+            if (!_stageRestoreQueued)
+            {
+                _stageRestoreQueued = true;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _stageRestoreQueued = false;
+                    if (!IsShuttingDown) DockStage();
+                });
+            }
+            return false;
+        }
+        return base.OnWindowClosing(window);
+    }
+
+    private bool ContainsStage(IDockable dockable) => ReferenceEquals(dockable, _stage) ||
+        dockable is IDock dock && dock.VisibleDockables?.Any(ContainsStage) == true;
+
+    public WorkbenchFactory(Control stage, Control inspector, Control tools, Control timing)
     {
         _stage = new Document { Id = "stage", Content = stage, CanClose = false };
         _properties = new Tool { Id = "properties", Content = inspector };
         _toolset = new Tool { Id = "tools", Content = tools };
+        _timing = new Tool { Id = "timing", Content = timing };
         _leftDock = new ToolDock
         {
             Id = "left", Alignment = Alignment.Left, Proportion = .17,
-            VisibleDockables = CreateList<IDockable>(_toolset), ActiveDockable = _toolset,
+            VisibleDockables = CreateList<IDockable>(_toolset, _timing), ActiveDockable = _toolset,
         };
         _stageDock = new DocumentDock
         {
@@ -50,6 +78,9 @@ public sealed class WorkbenchFactory : Factory
         _root = new RootDock
         {
             Id = "root", VisibleDockables = CreateList<IDockable>(_main),
+            // Native Godot child windows cannot be covered by an Avalonia overlay.
+            // Reserve layout space for auto-hidden tools instead of covering the stage.
+            PinnedDockDisplayMode = PinnedDockDisplayMode.Inline,
             ActiveDockable = _main, DefaultDockable = _main,
         };
         _text.LanguageChanged += UpdateText;
@@ -62,7 +93,8 @@ public sealed class WorkbenchFactory : Factory
 
     public void FloatStage()
     {
-        if (_placeholder.Owner is null) AddDockable(_stageDock, _placeholder);
+        if (_stage.Owner is not null && !ReferenceEquals(_stage.Owner, _stageDock)) return;
+        if (_stageDock.VisibleDockables?.Contains(_placeholder) != true) AddDockable(_stageDock, _placeholder);
         FloatDockable(_stage);
         if (_root.Windows?.LastOrDefault() is { } window)
         {
@@ -75,16 +107,55 @@ public sealed class WorkbenchFactory : Factory
     {
         if (_stage.Owner is IDock source && !ReferenceEquals(source, _stageDock))
             MoveDockable(source, _stageDock, _stage, null);
-        if (_placeholder.Owner is not null)
+        if (_stageDock.VisibleDockables?.Contains(_placeholder) == true)
             RemoveDockable(_placeholder, false);
         _stageDock.ActiveDockable = _stage;
+    }
+
+    public void RestoreWorkspace()
+    {
+        DockStage();
+        RestoreTool(_toolset, _leftDock);
+        RestoreTool(_timing, _leftDock);
+        RestoreTool(_properties, _rightDock);
+        if (_analysis is not null) RestoreTool(_analysis, _leftDock);
+        _leftDock.ActiveDockable = _toolset;
+        _rightDock.ActiveDockable = _properties;
+    }
+
+    private void RestoreTool(Tool tool, ToolDock destination)
+    {
+        UnpinDockable(tool);
+        RestoreDockable(tool);
+        // Closing the final tab can collapse its original dock out of the tree.
+        if (_main.VisibleDockables?.Contains(destination) != true)
+        {
+            if (ReferenceEquals(destination, _leftDock))
+            {
+                _main.VisibleDockables!.Insert(0, destination);
+                _main.VisibleDockables.Insert(1, new ProportionalDockSplitter { CanResize = true });
+            }
+            else
+            {
+                _main.VisibleDockables!.Add(new ProportionalDockSplitter { CanResize = true });
+                _main.VisibleDockables.Add(destination);
+            }
+            InitDockable(destination, _main);
+        }
+        if (destination.VisibleDockables?.Contains(tool) != true)
+        {
+            if (tool.Owner is IDock owner && owner.VisibleDockables?.Contains(tool) == true)
+                MoveDockable(owner, destination, tool, null);
+            else AddDockable(destination, tool);
+        }
+        destination.ActiveDockable = tool;
     }
 
     public void AddAnalysisPanel()
     {
         if (_analysis is not null)
         {
-            _leftDock.ActiveDockable = _analysis;
+            RestoreTool(_analysis, _leftDock);
             return;
         }
         var play = new Ursa.Controls.IconButton { Classes = { "active" } };
@@ -113,6 +184,7 @@ public sealed class WorkbenchFactory : Factory
         _stage.Title = _text["Dock.Stage"];
         _properties.Title = _text["Dock.Properties"];
         _toolset.Title = _text["Dock.Tools"];
+        _timing.Title = _text["Dock.Timing"];
         _leftDock.Title = _text["Dock.Left"];
         _stageDock.Title = _text["Dock.Chart"];
         _rightDock.Title = _text["Dock.Right"];

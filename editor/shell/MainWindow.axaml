@@ -24,7 +24,7 @@
         </StackPanel>
         <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
           <TextBlock Classes="eyebrow" Text="{local:Tr Header.Motion}" />
-          <ComboBox x:Name="MotionChoice" Width="104" SelectedIndex="0" SelectionChanged="MotionChanged">
+          <ComboBox Classes="localized" x:Name="MotionChoice" Width="104" SelectedIndex="0" SelectionChanged="MotionChanged">
             <ComboBoxItem Content="{local:Tr Motion.Normal}" />
             <ComboBoxItem Content="{local:Tr Motion.Lite}" />
             <ComboBoxItem Content="{local:Tr Motion.Minimal}" />
@@ -52,6 +52,11 @@
                 <MenuItem Header="{local:Tr File.New}" InputGesture="Ctrl+N" Click="NewClicked" />
                 <MenuItem Header="{local:Tr File.Open}" InputGesture="Ctrl+O" Click="OpenClicked" />
                 <MenuItem Header="{local:Tr File.AddChart}" Click="AddChartClicked" />
+                <MenuItem Header="{local:Tr File.Settings}" Click="SettingsClicked" />
+                <MenuItem Header="{local:Tr File.CopyChart}" Click="CopyChartClicked" />
+                <MenuItem Header="{local:Tr File.MoveChartUp}" Click="MoveChartUpClicked" />
+                <MenuItem Header="{local:Tr File.MoveChartDown}" Click="MoveChartDownClicked" />
+                <MenuItem Header="{local:Tr File.DeleteChart}" Click="DeleteChartClicked" />
                 <Separator />
                 <MenuItem Header="{local:Tr File.Save}" InputGesture="Ctrl+S" Click="SaveClicked" />
                 <MenuItem Header="{local:Tr File.SaveAs}" InputGesture="Ctrl+Shift+S" Click="SaveAsClicked" />
@@ -128,10 +133,10 @@
               </Grid>
               <TextBlock Classes="cyan" Text="{local:Tr Help.Tools}" />
               <Grid ColumnDefinitions="190,*" RowDefinitions="28,28,28,28">
-                <TextBlock Text="1" Classes="cyan" /><TextBlock Grid.Column="1" Text="{local:Tr Help.ToolSelect}" />
-                <TextBlock Grid.Row="1" Text="2" Classes="cyan" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Tr Help.ToolPlace}" />
-                <TextBlock Grid.Row="2" Text="3" Classes="cyan" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Tr Help.ToolPath}" />
-                <TextBlock Grid.Row="3" Text="4" Classes="cyan" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{local:Tr Help.ToolPan}" />
+                <TextBlock Text="1" Classes="cyan" /><TextBlock Grid.Column="1" Text="{local:Tr Help.ToolTap}" />
+                <TextBlock Grid.Row="1" Text="2" Classes="cyan" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Tr Help.ToolDrag}" />
+                <TextBlock Grid.Row="2" Text="3" Classes="cyan" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Tr Help.ToolHold}" />
+                <TextBlock Grid.Row="3" Text="4" Classes="cyan" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{local:Tr Help.ToolSelect}" />
               </Grid>
               <TextBlock Classes="cyan" Text="{local:Tr Help.Snapping}" />
               <Grid ColumnDefinitions="190,*" RowDefinitions="28,28,28,28,28">
@@ -147,6 +152,8 @@
                 <TextBlock Grid.Row="1" Text="CTRL + SHIFT + A" Classes="cyan" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Tr Help.AddPanel}" />
                 <TextBlock Grid.Row="2" Text="F1" Classes="cyan" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Tr Help.Show}" />
               </Grid>
+              <TextBlock Classes="caption" Text="{local:Tr Help.ExtraNotes}" TextWrapping="Wrap" />
+              <TextBlock Classes="caption" Text="{local:Tr Help.CoreExtras}" TextWrapping="Wrap" />
               <TextBlock Classes="caption" Text="{local:Tr Help.Note}" TextWrapping="Wrap" />
             </StackPanel>
           </ScrollViewer>

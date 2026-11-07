@@ -47,6 +47,9 @@ public partial class NoteView : Node2D
 	private static Mesh? _unitQuad;
 	private static Mesh UnitQuad => _unitQuad ??= BuildUnitQuad();
 
+    /// <summary>Current body dimensions, including a moving sustain head's sampled width.</summary>
+    public Vector2 BodySize => _sizePx;
+
 	public Note Model { get; private set; } = null!;
 
 	private MeshInstance2D? _mesh;

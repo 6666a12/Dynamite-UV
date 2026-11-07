@@ -17,8 +17,8 @@
   "source_boundaries": [
     {
       "files": [
-        "client/scripts/game/gameplay/GameplayNoteRenderer*.cs",
-        "client/scripts/game/gameplay/GameplayEffects.cs"
+        "presentation/game/GameplayNoteRenderer*.cs",
+        "presentation/game/GameplayEffects.cs"
       ],
       "forbidden": "\\b(?:JudgeEngine|JudgeUnit|SustainRuntime|GameplayMain|GameSession)\\b",
       "reason": "render components must not depend on scene/judge objects or fetch global session state"
@@ -90,7 +90,7 @@
     "tools/chart-editor-core/EditorCommands.cs": 100,
     "tools/core-tests/Program.cs": 160,
     "tools/chart-editor-tests/Program.cs": 100,
-    "client/scripts/game/gameplay/GameplayEffects.cs": 280,
+    "presentation/game/GameplayEffects.cs": 280,
     "client/scripts/ui/song_select/SongBrowseState.cs": 130,
     "tools/chart-editor-core/Documents/EditorDocumentSession.cs": 150,
     "tools/chart-editor-core/Canvas/CanvasEditGesture.cs": 120,
@@ -146,7 +146,7 @@
       "max_lines": 120
     },
     "GameplayNoteRenderer": {
-      "root": "client/scripts",
+      "root": "presentation",
       "class": "GameplayNoteRenderer",
       "max_lines": 800
     }

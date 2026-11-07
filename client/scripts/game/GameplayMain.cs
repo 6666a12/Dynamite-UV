@@ -181,7 +181,7 @@ public partial class GameplayMain : Node2D
 				_sustainStates[headId].MixerTicks.Add(unit);
 		_notesByTime = _chart.AllNotes.OrderBy(n => n.Second).ToList();
 		_noteById = _notesByTime.ToDictionary(n => n.Id);
-		_noteRenderer = new GameplayNoteRenderer(_noteRoot, _loaded, GameSession.Settings,
+		_noteRenderer = new GameplayNoteRenderer(_noteRoot, _chart, GameSession.Settings, _loaded.SyncAccentRuntimeIds,
 			_notesByTime, _noteById, _runtimeNoteSeconds, _plan.Sustains,
 			VisualPoolPlanning.Analyze(_plan.Units, _notesByTime, _plan.Sustains.Values), ReadSustainVisual);
 		GD.Print($"chart '{_chart.Title}' notes={_notesByTime.Count} " +

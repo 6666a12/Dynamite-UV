@@ -57,13 +57,13 @@ internal static class CanvasGesturePreviewTests
         Check(Math.Abs(leading.Left - 1.45) < 1e-12 && Math.Abs(leading.Width - 1.55) < 1e-12 &&
               Math.Abs(leading.Left + leading.Width - 3) < 1e-12 &&
               trailing.Left == 2 && Math.Abs(trailing.Width - 1.45) < 1e-12 &&
-              minimum.Width == .1 && maximum.Left + maximum.Width == 5,
-            "leading and trailing width previews retain their opposite edge, width snap and bounds");
+              minimum.Width == .1 && maximum.Left + maximum.Width == 8,
+            "leading and trailing width previews retain their opposite edge, width snap without spatial clipping");
         var absolute = CanvasGesturePreview.ResizeNodeWidth(3.47, 2, false, 1, 3);
         var relative = CanvasGesturePreview.ResizeNodeWidth(3.47, 2, true, .8, 2.5);
         Check(Math.Abs(absolute - 1.45) < 1e-12 && Math.Abs(relative - 1.75) < 1e-12 &&
               CanvasGesturePreview.ResizeNodeWidth(0, 2, false, 1, 3) == .1 &&
-              CanvasGesturePreview.ResizeNodeWidth(8, 2, true, 1, 3) == 3,
+              CanvasGesturePreview.ResizeNodeWidth(8, 2, true, 1, 3) == 6,
             "node width supports absolute and insertion-relative drags with the same width limits");
     }
 

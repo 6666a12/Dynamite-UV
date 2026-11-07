@@ -5,10 +5,15 @@ using System.Text.Json;
 namespace DynamiteUniverse.Editor.Shell;
 
 public sealed record StageMessage(string Event, JsonElement Data);
+public sealed record StageAudioSnapshot(double Second, double AudioSecond, bool Playing,
+    bool Paused, bool PanSuspended, int Loads, int Restarts);
 
 public sealed class GodotStageService : IDisposable
 {
     private readonly object _writeLock = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<long,
+        TaskCompletionSource<StageAudioSnapshot>> _audioSnapshots = new();
+    private long _nextRequestId;
     private Process? _process;
     private bool _disposed;
 
@@ -73,15 +78,33 @@ public sealed class GodotStageService : IDisposable
         }
     }
 
-    public void Load(string chartJson, string title, string artist, string? audioPath, double bar) =>
-        Send(new { command = "load", chart = chartJson, title, artist, audioPath, bar });
+    public void Load(string chartJson, string title, string artist, string? audioPath, double bar,
+        long revision, IReadOnlyList<string> selection) =>
+        Send(new { command = "load", chart = chartJson, title, artist, audioPath, bar, revision, selection });
+    public void Update(string chartJson, string title, string artist, string? audioPath,
+        long revision, IReadOnlyList<string> selection) =>
+        Send(new { command = "update", chart = chartJson, title, artist, audioPath, revision, selection });
     public void TogglePlayback(bool playing) => Send(new { command = "play", playing });
     public void Seek(double bar) => Send(new { command = "seek", bar });
     public void SetPlayerSpeed(double multiplier) => Send(new { command = "playerSpeed", multiplier });
     public void SetPlaybackRate(double multiplier) => Send(new { command = "playbackRate", multiplier });
-    public void SetAuthoring(string tool, string type, string track, double width, int grid) =>
-        Send(new { command = "authoring", tool, type, track, width, grid });
+    public void SetAuthoring(string tool, string type, string track, double width, int grid, bool positionSnap = true) =>
+        Send(new { command = "authoring", tool, type, track, width, grid, positionSnap });
     public void Capture(string path) => Send(new { command = "capture", path });
+
+    public async Task<StageAudioSnapshot> AudioSnapshotAsync()
+    {
+        if (!Running) throw new InvalidOperationException("The stage is not running");
+        var id = Interlocked.Increment(ref _nextRequestId);
+        var source = new TaskCompletionSource<StageAudioSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _audioSnapshots[id] = source;
+        try
+        {
+            Send(new { command = "audioSnapshot", requestId = id });
+            return await source.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { _audioSnapshots.TryRemove(id, out _); }
+    }
 
     public void Dispose()
     {
@@ -109,6 +132,12 @@ public sealed class GodotStageService : IDisposable
             var name = root.GetProperty("event").GetString() ?? "unknown";
             if (name == "ready" && root.TryGetProperty("hwnd", out var hwnd))
                 NativeHandle = (nint)hwnd.GetInt64();
+            if (name == "audioSnapshot" && _audioSnapshots.TryRemove(
+                    root.GetProperty("requestId").GetInt64(), out var source))
+                source.TrySetResult(new StageAudioSnapshot(root.GetProperty("second").GetDouble(),
+                    root.GetProperty("audioSecond").GetDouble(), root.GetProperty("audioPlaying").GetBoolean(),
+                    root.GetProperty("audioPaused").GetBoolean(), root.GetProperty("panSuspended").GetBoolean(),
+                    root.GetProperty("audioLoads").GetInt32(), root.GetProperty("audioRestarts").GetInt32()));
             MessageReceived?.Invoke(new StageMessage(name, root.Clone()));
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)

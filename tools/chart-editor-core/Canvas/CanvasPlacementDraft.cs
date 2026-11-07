@@ -9,7 +9,6 @@ namespace DynamiteUniverse.ChartEditor.Core;
 /// </summary>
 public sealed class CanvasPlacementDraft
 {
-    private const double MaximumCenter = EditorStagePlacement.MaximumCenter;
     public required int Side { get; init; }
     public required AuthoringNoteKind Kind { get; init; }
     public required double Time { get; init; }
@@ -27,8 +26,8 @@ public sealed class CanvasPlacementDraft
         if (TailStage || (!Moved && distanceFromStart < 3f)) return false;
         Moved = true;
         var delta = pointerCenter - AnchorCenter;
-        Width = Clamp(EditorStagePlacement.SnapWidth(BaseWidth + Math.Abs(delta) * delta), .1, MaximumCenter);
-        Center = Clamp(AnchorCenter - Width * .5, 0, MaximumCenter - Width);
+        Width = Math.Max(EditorStagePlacement.SnapWidth(BaseWidth + Math.Abs(delta) * delta), .1);
+        Center = AnchorCenter - Width * .5;
         return true;
     }
 
@@ -45,8 +44,8 @@ public sealed class CanvasPlacementDraft
 
     public double Commit(CanvasAuthoringController controller, ExactBarTime time, ExactBarTime? tail)
     {
-        var width = Clamp(Width, .1, MaximumCenter - Clamp(Center, 0, MaximumCenter - Width));
-        var left = Clamp(Center, 0, MaximumCenter - width);
+        var width = Math.Max(Width, .1);
+        var left = Center;
         var type = Kind switch
         {
             AuthoringNoteKind.Chain => V2NoteType.Drag,

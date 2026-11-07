@@ -16,7 +16,8 @@ internal static class CanvasPlacementDraftTests
         Check(draft.UpdateWidth(1.5, 0f) && draft.Width == .1 && Math.Abs(draft.Center - 2.45) < 1e-10,
             "active drag stays active below threshold and negative delta clamps to minimum width");
         draft.UpdateWidth(20, 5f);
-        Check(draft.Width == 5 && draft.Center == 0, "width remains inside the track");
+        Check(draft.Width > 5 && Math.Abs(draft.Center + draft.Width / 2 - 2.5) < 1e-12,
+            "wide overscan draft preserves its center anchor");
         draft.BeginTail();
         Check(draft.TailStage && draft.EndTime == draft.Time && !draft.UpdateWidth(3, 20),
             "Hold tail stage freezes head width and begins at the head time");
@@ -29,7 +30,7 @@ internal static class CanvasPlacementDraftTests
         var tail = ExactBarTime.FromFraction(4, 3);
         var width = draft.Commit(controller, head, tail);
         var note = document.SelectedChart.Notes.Single();
-        Check(width == 5 && note.Type == V2NoteType.Hold && note.Track == EditorTrack.Left &&
+        Check(width == draft.Width && width > 5 && note.Type == V2NoteType.Hold && note.Track == EditorTrack.Left &&
               note.Center == 2.5 && note.Time == head && note.Nodes.Single().Time == tail,
             "placement commits exact times and left-to-center geometry through the document command");
         controller.Undo();

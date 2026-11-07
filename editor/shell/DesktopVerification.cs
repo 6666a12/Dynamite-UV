@@ -19,6 +19,7 @@ internal static class DesktopVerification
             .AfterSetup(_ => result = -1).SetupWithLifetime(lifetime);
         var window = new MainWindow();
         lifetime.MainWindow = window;
+        window.Topmost = true;
         window.Position = new PixelPoint(0, 0);
         window.Width = 1280;
         window.Height = 800;
@@ -40,6 +41,13 @@ internal static class DesktopVerification
                 if (!window.Ready || !window.Stage.Host.Diagnostics().Embedded)
                     throw new InvalidOperationException("Initial native embedding failed");
                 lines.Add("PASS Godot startup stays hidden until native embedding");
+                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_WORKSPACE_ONLY") == "1")
+                {
+                    await WorkspaceDesktopVerification.Run(window, ClickNative, lines.Add);
+                    await Capture(window, outDir, "workspace.png");
+                    result = 0;
+                    return;
+                }
                 var source = Path.Combine(outDir, "fixture-source");
                 if (Directory.Exists(source)) Directory.Delete(source, true);
                 Verification.CreatePackage(source);
@@ -67,8 +75,7 @@ internal static class DesktopVerification
                     return;
                 }
                 await window.OpenPackageForVerification(source);
-                window.ShortcutForVerification(Avalonia.Input.Key.D);
-                window.ShortcutForVerification(Avalonia.Input.Key.D);
+                window.SeekForVerification(2); // Fixture coordinates target bar 2; D now moves seconds, not bars.
                 await Task.Delay(700);
                 lines.Add("stage " + window.LastStageInput);
                 if (!window.LastStageInput.Contains("loaded chart=main notes=1 audio=True"))
@@ -83,6 +90,33 @@ internal static class DesktopVerification
                 lines.Add($"selection={window.SelectedNoteId}");
                 if (window.SelectedNoteId != "fixture-note")
                     throw new InvalidOperationException("Real Godot Note click did not select the document Note");
+                await DragNative(window, 760, 714, 760, 586);
+                var dragged = window.CurrentDocument?.SelectedChart.Notes.Single(note => note.Id == "fixture-note");
+                // Purely vertical centre-track drag: the Note time must change while its center
+                // stays fixed; a center-only change leaves a zero base delta and invalidates the
+                // later per-Note speed comparison.
+                if (dragged is null || dragged.Time == ExactBarTime.FromFraction(2, 1) || dragged.Center != 2.5)
+                    throw new InvalidOperationException("Native SELECT drag did not move the document Note time without shifting its center: " + window.StatusMessage);
+                var baseDragDelta = dragged.Time.ToDouble() - 2;
+                await PressCtrlKey(0x5A);
+                await Task.Delay(350);
+                var restored = window.CurrentDocument?.SelectedChart.Notes.Single(note => note.Id == "fixture-note");
+                if (restored is null || restored.Time != ExactBarTime.FromFraction(2, 1) || restored.Center != 2.5)
+                    throw new InvalidOperationException("Undo did not restore the native Note drag");
+                await DragNative(window, 827, 714, 890, 714);
+                var resized = window.CurrentDocument?.SelectedChart.Notes.Single(note => note.Id == "fixture-note");
+                if (resized is null || resized.Width <= 1 || resized.Time != ExactBarTime.FromFraction(2, 1) ||
+                    Math.Abs(resized.Center - resized.Width / 2d - 2d) > 1e-9)
+                    throw new InvalidOperationException($"Native edge drag did not resize the document Note: time={resized?.Time.ToDouble():0.###} center={resized?.Center:0.###} width={resized?.Width:0.###}; {window.StatusMessage}");
+                await PressCtrlKey(0x5A);
+                await Task.Delay(350);
+                // One edge resize changed Center and Width together, so undo must restore the
+                // complete original geometry, not only the width.
+                var restoredResize = window.CurrentDocument?.SelectedChart.Notes.Single(note => note.Id == "fixture-note");
+                if (restoredResize is null || restoredResize.Time != ExactBarTime.FromFraction(2, 1) ||
+                    restoredResize.Center != 2.5 || restoredResize.Width != 1)
+                    throw new InvalidOperationException("Undo did not restore the native Note resize geometry");
+                lines.Add("PASS native SELECT Note drag / edge resize / one-step undo");
                 window.ApplySpeedForVerification(1.35);
                 await Task.Delay(500);
                 if (window.CurrentDocument?.SelectedChart.Notes[0].ScrollSpeedMultiplier != 1.35 ||
@@ -97,31 +131,115 @@ internal static class DesktopVerification
                 await PressKey(0x53);
                 if (window.PlaybackRate != 1.0) throw new InvalidOperationException("S did not reduce playback rate");
                 var before = window.CurrentSecond;
+                lines.Add($"before playback: second={before:0.000} rate={window.PlaybackRate:0.0}");
                 await PressKey(0x20);
                 await Task.Delay(650);
+                lines.Add($"before incremental edit: playing={window.Playing} second={window.CurrentSecond:0.000}");
+                if (!window.Playing) throw new InvalidOperationException("Playback did not start before the incremental edit");
+                var updateRevision = window.StageRevision;
+                var updateSecond = window.CurrentSecond;
+                var beforeEditAudio = await window.StageServiceForVerification.AudioSnapshotAsync();
+                window.ApplySpeedForVerification(1.4);
+                await Task.Delay(500);
+                if (!window.LastStageUpdateIncremental || window.StageRevision <= updateRevision ||
+                    !window.LastStageInput.Contains("updated chart=main", StringComparison.Ordinal) ||
+                    !window.LastStageInput.Contains("playing=True", StringComparison.Ordinal) ||
+                    !window.LastStageInput.Contains("selection=1", StringComparison.Ordinal) ||
+                    window.CurrentSecond <= updateSecond || window.SelectedNoteId != "fixture-note")
+                    throw new InvalidOperationException("Incremental edit did not preserve playback, playhead and selection: " + window.LastStageInput);
+                // Compare fresh request/response samples rather than a stale LastStageInput
+                // string or assumed absolute counters (earlier seeks may legitimately restart).
+                var afterEditAudio = await window.StageServiceForVerification.AudioSnapshotAsync();
+                AssertAudioContinuous(beforeEditAudio, afterEditAudio);
+                await Task.Delay(250);
+                var liveAudio = await window.StageServiceForVerification.AudioSnapshotAsync();
+                AssertAudioContinuous(afterEditAudio, liveAudio);
                 await PressKey(0x20);
                 if (window.CurrentSecond <= before) throw new InvalidOperationException("Space did not advance music time");
                 lines.Add($"native shortcuts speed/rate/playback passed; time {before:0.000} -> {window.CurrentSecond:0.000}");
+                lines.Add("PASS incremental chart edit preserves active audio, playhead and native selection");
                 await PressCtrlKey(0x53);
                 if (window.CurrentDocument?.HasUnsavedChanges != false ||
-                    EditorPackageRepository.Open(source).SelectedChart.Notes[0].ScrollSpeedMultiplier != 1.35)
+                    EditorPackageRepository.Open(source).SelectedChart.Notes[0].ScrollSpeedMultiplier != 1.4)
                     throw new InvalidOperationException("Ctrl+S did not save the document command");
                 lines.Add("PASS real Ctrl+S persisted Note speed");
+                window.SeekForVerification(2);
+                await Task.Delay(400);
+                await DragNative(window, 760, 714, 760, 586);
+                var fastDragged = window.CurrentDocument?.SelectedChart.Notes.Single(note => note.Id == "fixture-note");
+                var fastDragDelta = fastDragged?.Time.ToDouble() - 2;
+                if (fastDragDelta is null || Math.Abs(fastDragDelta.Value - baseDragDelta / 1.4) > .07)
+                    throw new InvalidOperationException($"Per-Note speed produced the wrong drag delta: base={baseDragDelta:0.####} fast={fastDragDelta:0.####}");
+                await PressCtrlKey(0x5A);
+                window.SeekForVerification(3);
+                await Task.Delay(400);
+                lines.Add("PASS native drag delta respects per-Note scroll speed");
                 window.ConfigurePlacementForVerification(V2NoteType.Hold, EditorTrack.Center, 1);
+                await HoverNative(window, 830, 714);
+                await Capture(window, outDir, "05-placement-ghost.png");
                 await ClickNative(window, 830, 714);
+                if (window.CurrentDocument?.SelectedChart.Notes.Any(note => note.Type == V2NoteType.Hold) == true)
+                    throw new InvalidOperationException("Hold was committed before its tail stage");
+                await HoverNative(window, 830, 620);
+                await Capture(window, outDir, "05-hold-tail-ghost.png");
+                await ClickNative(window, 830, 620);
                 var hold = window.CurrentDocument?.SelectedChart.Notes.SingleOrDefault(note => note.Type == V2NoteType.Hold);
-                if (hold is null) throw new InvalidOperationException("Native placement click did not add a Hold");
+                if (hold is null) throw new InvalidOperationException("Native two-stage placement did not add a Hold");
                 var holdId = hold.Id;
-                window.ShortcutForVerification(Avalonia.Input.Key.D3);
+                window.SelectToolForVerification("PATH");
+                await Capture(window, outDir, "05-hold-before-path.png");
                 await DoubleClickNative(window, 830, 650);
                 var insertedHold = window.CurrentDocument!.SelectedChart.Notes.Single(note => note.Id == holdId);
                 if (insertedHold.Nodes.Count != 2) throw new InvalidOperationException("Native path double-click did not insert a node");
                 var oldCenter = insertedHold.Center;
-                await DragNative(window, 830, 714, 880, 714);
+                await DragNative(window, 830, 721, 880, 721);
                 var movedHold = window.CurrentDocument!.SelectedChart.Notes.Single(note => note.Id == holdId);
-                if (Math.Abs(movedHold.Center - oldCenter) < .001) throw new InvalidOperationException("Native path head drag did not move the Hold");
+                if (Math.Abs(movedHold.Center - oldCenter) < .001)
+                    throw new InvalidOperationException($"Native path head drag did not move the Hold: before={oldCenter:0.###} after={movedHold.Center:0.###}; {window.StatusMessage}");
                 lines.Add($"PASS native Hold placement / path insertion / path drag ({holdId}, nodes={movedHold.Nodes.Count})");
                 await Capture(window, outDir, "05-authoring.png");
+                window.SelectToolForVerification("PAN");
+                var panBefore = window.CurrentBar;
+                await DragNative(window, 700, 500, 700, 600);
+                await Task.Delay(350);
+                if (window.CurrentBar <= panBefore)
+                    throw new InvalidOperationException("Native PAN drag did not advance the preview clock");
+                await VerifyPanAudioSuspension(window);
+                lines.Add("PASS native PAN holds audio across Space pause/resume and seek; release resumes playback");
+                window.ShortcutForVerification(Avalonia.Input.Key.R);
+                window.SelectToolForVerification("SELECT");
+                lines.Add("PASS native PAN updates the preview clock without editing the document");
+                window.SeekForVerification(1);
+                await Task.Delay(400);
+                window.ConfigurePlacementForVerification(V2NoteType.Tap, EditorTrack.Left, 1);
+                await HoverNative(window, 400, 500);
+                await Capture(window, outDir, "06-side-ghost.png");
+                await ClickNative(window, 400, 500);
+                var leftNote = window.CurrentDocument?.SelectedChart.Notes.SingleOrDefault(note =>
+                    note.Track == EditorTrack.Left && note.Type == V2NoteType.Tap);
+                if (leftNote is null) throw new InvalidOperationException("Native left-track placement failed");
+                await Capture(window, outDir, "06-left-before-drag.png");
+                window.SelectToolForVerification("SELECT");
+                var leftTime = leftNote.Time;
+                var leftCenter = leftNote.Center;
+                await DragNative(window, 420, 500, 470, 550);
+                leftNote = window.CurrentDocument?.SelectedChart.Notes.Single(note => note.Id == leftNote.Id);
+                if (leftNote is null || leftNote.Time == leftTime && leftNote.Center == leftCenter)
+                    throw new InvalidOperationException("Native left-track drag did not update the Note");
+                await PressCtrlKey(0x5A);
+                await DragNative(window, 420, 530, 420, 590);
+                leftNote = window.CurrentDocument?.SelectedChart.Notes.Single(note => note.Id == leftNote.Id);
+                if (leftNote is null || leftNote.Width <= 1)
+                    throw new InvalidOperationException("Native left-track edge resize failed");
+                await PressCtrlKey(0x5A);
+                window.ConfigurePlacementForVerification(V2NoteType.Tap, EditorTrack.Right, 1);
+                await ClickNative(window, 1120, 500);
+                if (window.CurrentDocument?.SelectedChart.Notes.Any(note =>
+                    note.Track == EditorTrack.Right && note.Type == V2NoteType.Tap) != true)
+                    throw new InvalidOperationException("Native right-track placement failed");
+                window.SelectToolForVerification("SELECT");
+                await Capture(window, outDir, "06-side-authoring.png");
+                lines.Add("PASS left/right placement, side ghost, left drag and edge resize");
                 window.LayoutFactory.AddAnalysisPanel();
                 window.LayoutFactory.FloatStage();
                 await Task.Delay(1800);
@@ -132,6 +250,31 @@ internal static class DesktopVerification
                 await Task.Delay(1800);
                 if (window.Stage.Host.Diagnostics().WindowTitle != window.Title)
                     throw new InvalidOperationException("Dock restore failed");
+                for (var cycle = 0; cycle < 2; cycle++)
+                {
+                    window.LayoutFactory.FloatStage();
+                    await Task.Delay(1200);
+                    var nativeBeforeClose = window.Stage.Host.Diagnostics();
+                    var processBeforeClose = window.StageServiceForVerification.ProcessId;
+                    var documentBeforeClose = window.CurrentDocument;
+                    var floating = TopLevel.GetTopLevel(window.Stage) as Window;
+                    if (floating is null || ReferenceEquals(floating, window))
+                        throw new InvalidOperationException("Stage did not float for close regression");
+                    floating.Close(); // Same Closing path as the floating window's X button.
+                    await Task.Delay(1500);
+                    var restoredStage = window.Stage.Host.Diagnostics();
+                    if (!restoredStage.Embedded || restoredStage.WindowTitle != window.Title ||
+                        restoredStage.Child != nativeBeforeClose.Child ||
+                        !window.StageServiceForVerification.Running ||
+                        window.StageServiceForVerification.ProcessId != processBeforeClose ||
+                        !ReferenceEquals(window.CurrentDocument, documentBeforeClose) || floating.IsVisible)
+                        throw new InvalidOperationException($"Floating close did not restore the same live stage: {restoredStage}");
+                    var ticksBeforeClose = window.TickCount;
+                    await Task.Delay(400);
+                    if (window.TickCount <= ticksBeforeClose)
+                        throw new InvalidOperationException("Stage IPC stopped after floating close");
+                }
+                lines.Add("PASS floating window close restores the same live stage twice without losing the document");
                 window.FindControl<ComboBox>("LanguageChoice")!.SelectedIndex = 1;
                 await Task.Delay(300);
                 await Capture(window, outDir, "03-editor-zh.png");
@@ -141,6 +284,7 @@ internal static class DesktopVerification
                 await Capture(window, outDir, "04-shortcuts-zh.png");
                 await PressKey(0x1B);
                 if (window.ShortcutsVisible) throw new InvalidOperationException("Escape did not close help");
+                await WorkspaceDesktopVerification.Run(window, ClickNative, lines.Add);
                 lines.Add("PASS formal editor package / audio / commands / native shortcuts / Dock / i18n");
                 result = 0;
             }
@@ -159,6 +303,77 @@ internal static class DesktopVerification
         });
         lifetime.Start(Array.Empty<string>());
         return result;
+    }
+
+    private static async Task VerifyPanAudioSuspension(MainWindow window)
+    {
+        // Begin paused so Space inside the held PAN must not start an audio stream at all.
+        if (window.Playing) await PressKey(0x20);
+        window.SeekForVerification(1);
+        await Task.Delay(350);
+        ActivateWindow(window);
+        await Task.Delay(150);
+        StageAudioSnapshot suspended;
+        try
+        {
+            await Task.Run(() =>
+            {
+                SetCursorPos(700, 500);
+                mouse_event(1, 0, 0, 0, 0);
+                Thread.Sleep(150); // Let the embedded child receive enter/focus before button-down.
+                mouse_event(2, 0, 0, 0, 0);
+            });
+            await Task.Delay(200);
+            var pressed = await window.StageServiceForVerification.AudioSnapshotAsync();
+            await PressKey(0x20);
+            window.SeekForVerification(2);
+            await Task.Delay(250);
+            await PressKey(0x20);
+            await PressKey(0x20);
+            suspended = await window.StageServiceForVerification.AudioSnapshotAsync();
+            await Task.Delay(300);
+            var held = await window.StageServiceForVerification.AudioSnapshotAsync();
+            // StreamPaused reflects a live playback instance, not the requested suspension:
+            // after Stop Godot can report false. Here audio began stopped, so require the
+            // logical PAN gate plus no actual playback/restarts/position advancement instead.
+            if (!window.Playing || !pressed.PanSuspended || !suspended.PanSuspended || !held.PanSuspended ||
+                pressed.Playing || suspended.Playing || held.Playing ||
+                pressed.Loads != suspended.Loads || pressed.Restarts != suspended.Restarts ||
+                suspended.Loads != held.Loads || suspended.Restarts != held.Restarts ||
+                Math.Abs(pressed.AudioSecond - suspended.AudioSecond) > .02 ||
+                Math.Abs(suspended.AudioSecond - held.AudioSecond) > .02 ||
+                Math.Abs(suspended.Second - held.Second) > 1e-6 ||
+                Math.Abs(suspended.Second - pressed.Second) < .1)
+                throw new InvalidOperationException(
+                    $"Held PAN did not suspend actual audio across Space/seek: {pressed} -> {suspended} -> {held}");
+        }
+        finally
+        {
+            // Never leave the native mouse captured if a shortcut, snapshot or assertion fails.
+            await Task.Run(() => mouse_event(4, 0, 0, 0, 0));
+        }
+        await Task.Delay(250);
+        var resumed = await window.StageServiceForVerification.AudioSnapshotAsync();
+        if (!resumed.Playing || resumed.Paused || resumed.PanSuspended || resumed.Loads != suspended.Loads ||
+            resumed.Restarts != suspended.Restarts + 1 || resumed.Second <= suspended.Second ||
+            Math.Abs(resumed.AudioSecond - resumed.Second) > .35)
+            throw new InvalidOperationException($"PAN release did not resume audio at the seek position: {suspended} -> {resumed}");
+        await Task.Delay(300);
+        AssertAudioContinuous(resumed, await window.StageServiceForVerification.AudioSnapshotAsync());
+        await PressKey(0x20);
+    }
+
+    private static void AssertAudioContinuous(StageAudioSnapshot before, StageAudioSnapshot after)
+    {
+        if (!before.Playing || before.Paused || before.PanSuspended ||
+            !after.Playing || after.Paused || after.PanSuspended ||
+            before.Loads != after.Loads || before.Restarts != after.Restarts)
+            throw new InvalidOperationException($"Incremental edit interrupted actual audio: {before} -> {after}");
+        var clockDelta = after.Second - before.Second;
+        var audioDelta = after.AudioSecond - before.AudioSecond;
+        if (!double.IsFinite(after.AudioSecond) || clockDelta <= .05 || audioDelta <= .02 ||
+            Math.Abs(audioDelta - clockDelta) > .25 || Math.Abs(after.AudioSecond - after.Second) > .35)
+            throw new InvalidOperationException($"Actual audio did not advance in sync with the playhead: {before} -> {after}");
     }
 
     private static void ActivateWindow(Window window)
@@ -184,6 +399,17 @@ internal static class DesktopVerification
             throw new InvalidOperationException("DXGI capture failed: " + await process.StandardError.ReadToEndAsync());
     }
 
+    private static async Task HoverNative(Window window, int x, int y)
+    {
+        ActivateWindow(window);
+        await Task.Run(() =>
+        {
+            SetCursorPos(x, y);
+            mouse_event(1, 0, 0, 0, 0);
+        });
+        await Task.Delay(350);
+    }
+
     private static async Task ClickNative(Window window, int x, int y)
     {
         ActivateWindow(window);
@@ -191,6 +417,8 @@ internal static class DesktopVerification
         await Task.Run(() =>
         {
             SetCursorPos(x, y);
+            mouse_event(1, 0, 0, 0, 0);
+            Thread.Sleep(150);
             mouse_event(2, 0, 0, 0, 0);
             Thread.Sleep(60);
             mouse_event(4, 0, 0, 0, 0);

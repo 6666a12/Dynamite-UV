@@ -23,8 +23,10 @@ public sealed partial class MainWindow : Window
     private readonly StageView _stageView = new();
     private readonly InspectorView _inspector = new();
     private readonly ToolsView _tools = new();
+    private readonly TimingView _timing = new();
     private readonly WorkbenchFactory _factory;
     private readonly IWorkbenchLocalizer _text = WorkbenchLocalizer.Shared;
+    private readonly ShellChartEditor _editing;
     private bool _playing;
     private bool _ioBusy;
     private double _bar;
@@ -34,11 +36,17 @@ public sealed partial class MainWindow : Window
     private string _tool = "SELECT";
     private int _snapDenominator = EditorDocument.DefaultGridDivisor;
     private bool _refreshingCharts;
+    private string[] _selectedNoteIds = Array.Empty<string>();
+    private EditorDocument? _loadedDocument;
+    private string? _loadedChartId;
+    private string? _loadedAudioPath;
+    private long _stageRevision;
 
     public MainWindow()
     {
         AvaloniaXamlLoader.Load(this);
-        _factory = new WorkbenchFactory(_stageView, _inspector, _tools);
+        _editing = new ShellChartEditor(_text, () => RefreshDocument(), Report);
+        _factory = new WorkbenchFactory(_stageView, _inspector, _tools, _timing);
         var dock = this.FindControl<DockControl>("Dock")!;
         dock.Factory = _factory;
         dock.Layout = _factory.CreateLayout();
@@ -47,8 +55,24 @@ public sealed partial class MainWindow : Window
         _stageView.FloatRequested += FloatStage;
         _stageView.DockRequested += DockStage;
         _stageView.PlayRequested += TogglePlayback;
-        _inspector.SpeedChanged += ApplySpeed;
-        _inspector.CurveChanged += ApplyCurve;
+        _inspector.SpeedChanged += (id, speed) => _editing.ApplySpeed(CurrentDocument, _selectedNoteIds, id, speed);
+        _inspector.LocateRequested += (id, nodeId) =>
+        {
+            SelectNote(id);
+            if (nodeId is not null) CurrentDocument?.Select(new EditorSelection(EditorSelectionKind.PathNode, nodeId));
+            _inspector.ShowDocument(CurrentDocument);
+            var note = CurrentDocument!.SelectedChart.Notes.Single(n => n.Id == id);
+            SeekBar((nodeId is null ? note.Time : note.Nodes.Single(n => n.Id == nodeId).Time).ToDouble(), snap: false);
+            SendDocument();
+        };
+        _inspector.CurveChanged += (id, nodeId, curve) => _editing.ApplyCurve(CurrentDocument, id, nodeId, curve);
+        _inspector.HoldJudgeChanged += (id, nodeId, judge) => _editing.ApplyHoldJudge(CurrentDocument, id, nodeId, judge);
+        _inspector.NudgeRequested += (time, position) => _editing.NudgeSelection(
+            CurrentDocument, SelectedNoteId, _selectedNoteIds, _snapDenominator, time, position);
+        _inspector.GeometryApplyRequested += (id, nodeId, time, center, width) =>
+            _editing.ApplyGeometry(CurrentDocument, id, nodeId, time, center, width);
+        _inspector.NoteKindApplyRequested += (id, type, track) =>
+            _editing.ApplyNoteKind(CurrentDocument, id, type, track);
         _tools.ToolSelected += tool =>
         {
             _tool = tool;
@@ -58,6 +82,8 @@ public sealed partial class MainWindow : Window
         _tools.AuthoringChanged += SendAuthoring;
         _tools.AddPanelRequested += AddPanel;
         _tools.Notice += _ => Report(_text["Message.WorkspaceNotice"]);
+        _timing.CommandRequested += command => _editing.ApplyTiming(CurrentDocument, command);
+        _timing.ErrorRequested += Report;
         _service.MessageReceived += message => Dispatcher.UIThread.Post(() => StageEvent(message));
         _service.RuntimeError += error => Dispatcher.UIThread.Post(() => Report("Godot: " + error));
         _text.LanguageChanged += UpdateLocalizedState;
@@ -65,6 +91,7 @@ public sealed partial class MainWindow : Window
         Opened += (_, _) => StartStage();
         Closing += (_, _) =>
         {
+            _factory.IsShuttingDown = true;
             _text.LanguageChanged -= UpdateLocalizedState;
             _stageView.Host.SetGodotHandle(0);
             _service.Dispose();
@@ -72,6 +99,8 @@ public sealed partial class MainWindow : Window
     }
 
     internal StageView Stage => _stageView;
+    internal GodotStageService StageServiceForVerification => _service;
+    internal TimingView Timing => _timing;
     internal WorkbenchFactory LayoutFactory => _factory;
     internal bool Ready { get; private set; }
     internal int StageProcessId => _service.ProcessId;
@@ -79,6 +108,7 @@ public sealed partial class MainWindow : Window
     internal string LastStageInput { get; private set; } = "";
     internal double CurrentBar => _bar;
     internal double CurrentSecond => _second;
+    internal bool Playing => _playing;
     internal double PlayerSpeed => _playerSpeed;
     internal double PlaybackRate => _playbackRate;
     internal string CurrentTool => _tool;
@@ -86,21 +116,45 @@ public sealed partial class MainWindow : Window
     internal string? SelectedNoteId { get; private set; }
     internal EditorDocument? CurrentDocument => _session.Document;
     internal string StatusMessage => this.FindControl<TextBlock>("StatusText")!.Text ?? "";
+    internal void SelectToolForVerification(string tool) => _tools.SelectTool(tool);
+    internal V2NoteType PlacementTypeForVerification => _tools.PlacementType;
+    internal EditorTrack PlacementTrackForVerification => _tools.PlacementTrack;
     internal bool ShortcutsVisible => this.FindControl<Border>("ShortcutOverlay")!.IsVisible;
     internal void CaptureStage(string path) => _service.Capture(path);
+    internal void SeekForVerification(double bar) => SeekBar(bar);
     internal bool ShortcutForVerification(Key key, KeyModifiers modifiers = KeyModifiers.None) => HandleShortcut(key, modifiers, null);
     internal async Task OpenPackageForVerification(string path) => await OpenPackage(path);
     internal async Task SavePackageForVerification(bool saveAs = false) => await SavePackage(saveAs);
     internal async Task SavePackageToForVerification(string path) => await SavePackage(true, path);
     internal void ApplySpeedForVerification(double speed) => _inspector.SetSpeedForVerification(speed);
-    internal void SelectNoteForVerification(string id)
+    internal void ApplyHoldJudgeForVerification(bool judge) => _inspector.SetHoldJudgeForVerification(judge);
+    internal void ApplyGeometryForVerification(string barTime, double center, double width) =>
+        _inspector.SetGeometryForVerification(barTime, center, width);
+    internal void ApplyNoteKindForVerification(V2NoteType type, EditorTrack track) =>
+        _inspector.SetNoteKindForVerification(type, track);
+    internal void NudgeSelectionForVerification(int timeDirection, int positionDirection) =>
+        _inspector.NudgeForVerification(timeDirection, positionDirection);
+    internal IReadOnlyList<string> SelectedNoteIds => _selectedNoteIds;
+    internal void SelectNoteForVerification(string id) => SelectNote(id);
+    private void SelectNote(string id)
     {
         CurrentDocument?.Select(new EditorSelection(EditorSelectionKind.Note, id));
         SelectedNoteId = id;
+        _selectedNoteIds = new[] { id };
         _inspector.ShowDocument(CurrentDocument);
+    }
+    internal void SelectNotesForVerification(params string[] ids)
+    {
+        if (CurrentDocument is null || ids.Length == 0) return;
+        SelectNoteForVerification(ids[^1]);
+        _selectedNoteIds = ids.Distinct().ToArray();
+        _inspector.Select(CurrentDocument, _selectedNoteIds, ids[^1]);
     }
     internal async Task CreatePackageForVerification(EditorCreateForm form) => await CreatePackage(form);
     internal async Task AddChartForVerification(EditorCreateForm form) => await AddChart(form);
+    internal void CopyChartForVerification() => CopyChart();
+    internal void DeleteChartForVerification() => DeleteChart();
+    internal void MoveChartForVerification(int direction) => MoveChart(direction);
     internal void SelectChartForVerification(string id)
     {
         CurrentDocument?.SelectChart(id);
@@ -169,6 +223,70 @@ public sealed partial class MainWindow : Window
         catch (Exception ex) { Report(ex.Message); }
     }
 
+    internal void ApplyPackageSettingsForVerification(EditorPackageSettingsRequest request) => ApplyPackageSettings(request);
+
+    private async Task EditPackageSettings()
+    {
+        if (CurrentDocument is null) return;
+        var dialog = new PackageSettingsDialog(CurrentDocument);
+        var result = await dialog.ShowDialog<EditorPackageSettingsRequest?>(this);
+        if (result is not null) ApplyPackageSettings(result);
+    }
+
+    private void ApplyPackageSettings(EditorPackageSettingsRequest request)
+    {
+        if (CurrentDocument is not { } document) return;
+        try
+        {
+            if (EditorPackageSettings.Apply(document, document.SelectedChartId, request))
+            {
+                RefreshDocument();
+                Report(_text.Format("Message.SettingsApplied", document.SelectedChartId));
+            }
+        }
+        catch (Exception ex) { Report(ex.Message); }
+    }
+
+    private void CopyChart()
+    {
+        if (CurrentDocument is not { } document) return;
+        try
+        {
+            var source = document.SelectedChart;
+            var baseId = source.Id + "-copy";
+            var id = baseId;
+            for (var suffix = 2; document.Charts.Any(chart => chart.Id == id); suffix++) id = $"{baseId}-{suffix}";
+            document.Execute(new CopyChartCommand(source.Id, id, $"charts/{id}.json"));
+            RefreshDocument();
+            Report(_text.Format("Message.ChartCopied", id));
+        }
+        catch (Exception ex) { Report(ex.Message); }
+    }
+
+    private void DeleteChart()
+    {
+        if (CurrentDocument is not { } document) return;
+        try
+        {
+            var id = document.SelectedChartId;
+            document.Execute(new DeleteChartCommand(id));
+            RefreshDocument();
+            Report(_text.Format("Message.ChartDeleted", id));
+        }
+        catch (Exception ex) { Report(ex.Message); }
+    }
+
+    private void MoveChart(int direction)
+    {
+        if (CurrentDocument is not { } document) return;
+        var id = document.SelectedChartId;
+        var source = document.Charts.FindIndex(chart => chart.Id == id);
+        var destination = source + direction;
+        if (source < 0 || destination < 0 || destination >= document.Charts.Count) return;
+        document.Execute(new MoveChartCommand(id, destination));
+        RefreshDocument();
+    }
+
     private void StartStage()
     {
         if (Environment.GetEnvironmentVariable("DYNA_WORKBENCH_NO_GODOT") == "1") return;
@@ -183,6 +301,7 @@ public sealed partial class MainWindow : Window
         {
             case "ready":
                 Ready = true;
+                _loadedDocument = null;
                 _stageView.Host.SetGodotHandle((nint)data.GetProperty("hwnd").GetInt64());
                 this.FindControl<TextBlock>("ReadyBadge")!.Text = _text["Status.GodotLive"];
                 SendDocument();
@@ -192,17 +311,33 @@ public sealed partial class MainWindow : Window
             case "selection":
                 _stageView.Host.FocusNative();
                 var ids = data.GetProperty("ids").EnumerateArray().Select(x => x.GetString() ?? "").ToArray();
+                _selectedNoteIds = data.TryGetProperty("noteIds", out var noteIds)
+                    ? noteIds.EnumerateArray().Select(x => x.GetString() ?? "").Distinct().ToArray()
+                    : ids;
                 SelectedNoteId = data.GetProperty("parentId").GetString();
+                if (ids.Length == 0 || string.IsNullOrEmpty(SelectedNoteId))
+                {
+                    SelectedNoteId = null;
+                    _selectedNoteIds = Array.Empty<string>();
+                    CurrentDocument?.Select(EditorSelection.None);
+                    _inspector.Select(CurrentDocument, Array.Empty<string>(), "");
+                    break;
+                }
                 var nodeId = data.TryGetProperty("nodeId", out var selectedNode) ? selectedNode.GetString() : null;
                 CurrentDocument?.Select(nodeId is null
                     ? new EditorSelection(EditorSelectionKind.Note, SelectedNoteId)
                     : new EditorSelection(EditorSelectionKind.PathNode, nodeId));
-                _inspector.Select(CurrentDocument, ids, SelectedNoteId ?? "");
-                Report(_text.Format("Message.SelectionSynced", ids.Length));
+                _inspector.Select(CurrentDocument, _selectedNoteIds, SelectedNoteId);
+                Report(_text.Format("Message.SelectionSynced", _selectedNoteIds.Length));
                 break;
-            case "place": PlaceNote(data); break;
-            case "pathAdd": AddPathNode(data); break;
-            case "pathMove": MovePathPoint(data); break;
+            case "place":
+                _tools.SetPlacementWidth(data.GetProperty("width").GetDouble());
+                _editing.PlaceNote(CurrentDocument, data);
+                break;
+            case "pathAdd": _editing.AddPathNode(CurrentDocument, data); break;
+            case "pathMove": _editing.MovePathPoint(CurrentDocument, data); break;
+            case "noteMove": _editing.MoveNote(CurrentDocument, _selectedNoteIds, data); break;
+            case "noteResize": _editing.ResizeNote(CurrentDocument, data); break;
             case "tick":
                 TickCount++;
                 _second = data.GetProperty("second").GetDouble();
@@ -211,6 +346,7 @@ public sealed partial class MainWindow : Window
                 _playerSpeed = data.GetProperty("playerSpeed").GetDouble();
                 _playbackRate = data.GetProperty("playbackRate").GetDouble();
                 this.FindControl<TimelineView>("Timeline")!.CurrentBar = _bar;
+                _timing.SetCurrentBar(_bar);
                 UpdateTimeLabel();
                 UpdatePlaybackText();
                 UpdatePlaybackParameters();
@@ -221,9 +357,13 @@ public sealed partial class MainWindow : Window
                 break;
             case "key": HandleStageKey(data); break;
             case "size": _stageView.Host.QueueSync(); UpdateNativeStatus(); break;
-            case "error": Report("Stage error · " + data.GetProperty("message").GetString()); break;
+            case "error":
+                _loadedDocument = null;
+                Report("Stage error · " + data.GetProperty("message").GetString());
+                break;
             case "exited":
                 Ready = false;
+                _loadedDocument = null;
                 _stageView.Host.SetGodotHandle(0);
                 this.FindControl<TextBlock>("ReadyBadge")!.Text = _text["Status.GodotStopped"];
                 Report(_text["Status.GodotStopped"]);
@@ -242,74 +382,6 @@ public sealed partial class MainWindow : Window
         if (data.GetProperty("alt").GetBoolean()) modifiers |= KeyModifiers.Alt;
         HandleShortcut(key, modifiers, null);
     }
-
-    private void PlaceNote(JsonElement data)
-    {
-        if (CurrentDocument is not { } document) return;
-        try
-        {
-            var type = (V2NoteType)data.GetProperty("type").GetInt32();
-            var track = (EditorTrack)data.GetProperty("track").GetInt32();
-            if (!Enum.IsDefined(type) || !Enum.IsDefined(track)) throw new InvalidOperationException("Invalid Note type or track.");
-            var time = document.Snap(ExactTime(data.GetProperty("bar").GetDouble()));
-            var tail = document.Snap(ExactTime(data.GetProperty("tailBar").GetDouble()));
-            var id = new CanvasAuthoringController(document).AddNote(type, track, time,
-                data.GetProperty("center").GetDouble(), data.GetProperty("width").GetDouble(),
-                type is V2NoteType.Hold or V2NoteType.Mixer ? tail : null);
-            RefreshDocument();
-            Report(_text.Format("Message.NotePlaced", id, ExactBarTimeText.Format(time)));
-        }
-        catch (Exception ex) { Report(ex.Message); }
-    }
-
-    private void AddPathNode(JsonElement data)
-    {
-        if (CurrentDocument is not { } document) return;
-        try
-        {
-            var noteId = data.GetProperty("noteId").GetString()!;
-            var note = document.SelectedChart.Notes.Single(item => item.Id == noteId);
-            var time = document.Snap(ExactTime(data.GetProperty("bar").GetDouble()));
-            var shape = EditorPathProjection.ShapeOf(note);
-            var (center, width) = EditorPathProjection.Sample(shape, time);
-            var previous = note.Nodes.LastOrDefault(node => node.Time < time);
-            var curve = previous?.CurveToNext ?? (previous is null && note.Time < time ? note.CurveToNext : null);
-            var id = new CanvasAuthoringController(document).AddPathNode(noteId, time, center, width,
-                curve, note.Type == V2NoteType.Hold ? true : null);
-            RefreshDocument();
-            Report(_text.Format("Message.PathNodeAdded", id));
-        }
-        catch (Exception ex) { Report(ex.Message); }
-    }
-
-    private void MovePathPoint(JsonElement data)
-    {
-        if (CurrentDocument is not { } document) return;
-        try
-        {
-            var noteId = data.GetProperty("noteId").GetString()!;
-            var nodeId = data.TryGetProperty("nodeId", out var node) ? node.GetString() : null;
-            var note = document.SelectedChart.Notes.Single(item => item.Id == noteId);
-            var pathNode = nodeId is null ? null : note.Nodes.Single(item => item.Id == nodeId);
-            var delta = ExactTime(data.GetProperty("endBar").GetDouble()) -
-                ExactTime(data.GetProperty("startBar").GetDouble());
-            var originalTime = pathNode?.Time ?? note.Time;
-            var originalCenter = pathNode?.Center ?? note.Center;
-            var width = pathNode?.Width ?? note.Width;
-            var time = document.Snap(originalTime + delta);
-            var center = Math.Clamp(originalCenter + data.GetProperty("endCenter").GetDouble() -
-                data.GetProperty("startCenter").GetDouble(), width / 2d, 5 - width / 2d);
-            var controller = new CanvasAuthoringController(document);
-            if (nodeId is null) controller.MoveNote(noteId, time, center, width);
-            else controller.EditPathNode(noteId, nodeId, time, center, width);
-            RefreshDocument();
-            Report(_text.Format("Message.PathPointMoved", nodeId ?? noteId, ExactBarTimeText.Format(time)));
-        }
-        catch (Exception ex) { Report(ex.Message); }
-    }
-
-    private static ExactBarTime ExactTime(double bar) =>
-        ExactBarTime.FromFraction((long)Math.Round(Math.Max(0, bar) * 1_000_000d), 1_000_000);
 
     private async Task OpenPackage(string? path = null)
     {
@@ -362,7 +434,6 @@ public sealed partial class MainWindow : Window
     private void RefreshDocument(bool reloadStage = true)
     {
         var document = CurrentDocument;
-        _inspector.ShowDocument(document);
         SelectedNoteId = document?.Selection switch
         {
             { Kind: EditorSelectionKind.Note, Id: { } id } => id,
@@ -370,6 +441,14 @@ public sealed partial class MainWindow : Window
                 .FirstOrDefault(note => note.Nodes.Any(node => node.Id == nodeId))?.Id,
             _ => null,
         };
+        if (document is null || SelectedNoteId is null) _selectedNoteIds = Array.Empty<string>();
+        else if (document.Selection.Kind == EditorSelectionKind.Note && _selectedNoteIds.Contains(SelectedNoteId))
+            _selectedNoteIds = _selectedNoteIds.Where(id => document.SelectedChart.Notes.Any(note => note.Id == id)).ToArray();
+        else _selectedNoteIds = new[] { SelectedNoteId };
+        _inspector.ShowDocument(document);
+        _timing.SetDocument(document);
+        if (_selectedNoteIds.Length > 1 && SelectedNoteId is not null)
+            _inspector.Select(document, _selectedNoteIds, SelectedNoteId);
         var timeline = this.FindControl<TimelineView>("Timeline")!;
         timeline.NoteBars = document?.SelectedChart.Notes.SelectMany(note =>
             new[] { note.Time.ToDouble() }.Concat(note.Nodes.Select(node => node.Time.ToDouble()))).ToArray()
@@ -417,19 +496,33 @@ public sealed partial class MainWindow : Window
         Report(_text.Format("Message.ChartSelected", id));
     }
 
+    internal long StageRevision => _stageRevision;
+    internal bool LastStageUpdateIncremental { get; private set; }
+
     private void SendDocument()
     {
         if (!Ready || CurrentDocument is not { } document) return;
         var chart = Encoding.UTF8.GetString(V2JsonEncoder.EncodeChart(
             document.BuildChartSnapshot(document.SelectedChartId), requireMainJudgement: false));
-        _service.Load(chart, document.Title, document.Artist, _session.ResolveDigestAudio(), _bar);
+        var audioPath = _session.ResolveDigestAudio();
+        LastStageUpdateIncremental = ReferenceEquals(_loadedDocument, document) &&
+            _loadedChartId == document.SelectedChartId && _loadedAudioPath == audioPath;
+        var selection = document.Selection is { Kind: EditorSelectionKind.PathNode, Id: { } nodeId }
+            ? new[] { nodeId } : _selectedNoteIds;
+        var revision = ++_stageRevision;
+        if (LastStageUpdateIncremental)
+            _service.Update(chart, document.Title, document.Artist, audioPath, revision, selection);
+        else _service.Load(chart, document.Title, document.Artist, audioPath, _bar, revision, selection);
+        _loadedDocument = document;
+        _loadedChartId = document.SelectedChartId;
+        _loadedAudioPath = audioPath;
         SendAuthoring();
     }
 
     private void SendAuthoring()
     {
         _service.SetAuthoring(_tool, _tools.PlacementType.ToString(), _tools.PlacementTrack.ToString(),
-            _tools.PlacementWidth, _snapDenominator);
+            _tools.PlacementWidth, _snapDenominator, _tools.PositionSnapEnabled);
     }
 
     private void UpdateDocumentChrome()
@@ -441,58 +534,36 @@ public sealed partial class MainWindow : Window
         Title = document is null ? "DynaMaker UV" : $"DynaMaker UV — {document.Title}{(document.HasUnsavedChanges ? " *" : "")}";
     }
 
-    private void ApplySpeed(string id, double speed)
+    private void Undo() => ApplyHistory(false);
+
+    private void Redo() => ApplyHistory(true);
+
+    private void ApplyHistory(bool redo)
     {
-        if (CurrentDocument is not { } document) return;
-        var note = document.SelectedChart.Notes.SingleOrDefault(item => item.Id == id);
-        if (note is null || note.ScrollSpeedMultiplier == speed) return;
-        try
+        if (CurrentDocument is not { } document || (redo ? !document.CanRedo : !document.CanUndo)) return;
+        var selection = document.Selection;
+        var selectedIds = _selectedNoteIds;
+        if (redo) document.Redo();
+        else document.Undo();
+        if (document.Selection.Kind == EditorSelectionKind.None)
         {
-            document.Execute(new SetNoteScrollSpeedMultiplierCommand(id, speed));
-            RefreshDocument();
-            Report(_text.Format("Message.NoteSpeedSent", id, speed));
+            if (selection.Kind == EditorSelectionKind.Note && document.SelectedChart.Notes.Any(note => note.Id == selection.Id))
+                document.Select(selection);
+            else if (selection.Kind == EditorSelectionKind.PathNode && document.SelectedChart.Notes
+                    .SelectMany(note => note.Nodes).Any(node => node.Id == selection.Id))
+                document.Select(selection);
+            else if ((selection.Kind == EditorSelectionKind.Bpm || selection.Kind == EditorSelectionKind.Scroll) &&
+                ExactBarTimeText.TryParse(selection.Id, out var timingTime))
+            {
+                var exists = selection.Kind == EditorSelectionKind.Bpm
+                    ? document.SelectedChart.Bpms.Any(item => item.Time == timingTime)
+                    : document.SelectedChart.ScrollSpeeds.Any(item => item.Time == timingTime);
+                if (exists) document.Select(selection);
+            }
+            if (document.Selection.Kind == EditorSelectionKind.Note)
+                _selectedNoteIds = selectedIds.Where(id => document.SelectedChart.Notes.Any(note => note.Id == id))
+                    .Distinct().ToArray();
         }
-        catch (Exception ex) { Report(ex.Message); }
-    }
-
-    private void ApplyCurve(string noteId, string? nodeId, V2PathCurve curve)
-    {
-        if (CurrentDocument is not { } document) return;
-        try
-        {
-            document.Execute(new SetPathCurveCommand(noteId, nodeId, curve));
-            RefreshDocument();
-            Report(_text.Format("Message.CurveApplied", nodeId ?? noteId, curve));
-        }
-        catch (Exception ex) { Report(ex.Message); }
-    }
-
-    private void DeleteSelection()
-    {
-        if (CurrentDocument is not { } document || SelectedNoteId is null) return;
-        try
-        {
-            var id = SelectedNoteId;
-            if (document.Selection is { Kind: EditorSelectionKind.PathNode, Id: { } nodeId })
-                document.Execute(new DeletePathNodeCommand(id, nodeId));
-            else document.Execute(new DeleteNoteCommand(id));
-            RefreshDocument();
-            Report(_text.Format("Message.Deleted", document.Selection.Id ?? id));
-        }
-        catch (Exception ex) { Report(ex.Message); }
-    }
-
-    private void Undo()
-    {
-        if (CurrentDocument is not { CanUndo: true } document) return;
-        document.Undo();
-        RefreshDocument();
-    }
-
-    private void Redo()
-    {
-        if (CurrentDocument is not { CanRedo: true } document) return;
-        document.Redo();
         RefreshDocument();
     }
 
@@ -505,13 +576,24 @@ public sealed partial class MainWindow : Window
 
     private void TimelineSeek(object? sender, double bar) => SeekBar(bar);
 
-    private void SeekBar(double bar)
+    private void SeekSeconds(double delta)
+    {
+        if (CurrentDocument is not { } document) return;
+        var chart = document.BuildChartSnapshot(document.SelectedChartId);
+        var timeline = new V2BpmTimeline(chart.Bpms, chart.AudioOffsetSec);
+        SeekBar(timeline.RuntimeBarAt(timeline.RuntimeSecondsAt(_bar) + delta), snap: false);
+    }
+
+    private void SeekBar(double bar, bool snap = true)
     {
         if (CurrentDocument is null) return;
         var maximum = this.FindControl<TimelineView>("Timeline")!.MaximumBar;
-        var snapped = Math.Clamp(Math.Round(bar * _snapDenominator) / _snapDenominator, 0, maximum);
+        var snapped = Math.Clamp(snap ? Math.Round(bar * _snapDenominator) / _snapDenominator : bar, 0, maximum);
         _service.Seek(snapped);
         _bar = snapped;
+        var chart = CurrentDocument.BuildChartSnapshot(CurrentDocument.SelectedChartId);
+        _second = new V2BpmTimeline(chart.Bpms, chart.AudioOffsetSec).RuntimeSecondsAt(_bar);
+        _timing.SetCurrentBar(_bar);
         this.FindControl<TimelineView>("Timeline")!.CurrentBar = snapped;
         UpdateTimeLabel();
         Report(_text.Format("Message.Seek", snapped));
@@ -592,10 +674,6 @@ public sealed partial class MainWindow : Window
     private void UpdateLocalizedState()
     {
         this.FindControl<TextBlock>("ReadyBadge")!.Text = _text[Ready ? "Status.GodotLive" : "Status.StartingGodot"];
-        var motion = this.FindControl<ComboBox>("MotionChoice")!;
-        var motionIndex = motion.SelectedIndex;
-        motion.SelectedIndex = -1;
-        motion.SelectedIndex = motionIndex;
         UpdateDocumentChrome();
         UpdateTimeLabel();
         UpdateSnapText();
@@ -635,18 +713,29 @@ public sealed partial class MainWindow : Window
 
     private void Report(string message) => this.FindControl<TextBlock>("StatusText")!.Text = message;
     private void PlayClicked(object? sender, RoutedEventArgs e) => TogglePlayback();
-    private void RestoreClicked(object? sender, RoutedEventArgs e) => DockStage();
+    private void RestoreClicked(object? sender, RoutedEventArgs e)
+    {
+        _factory.RestoreWorkspace();
+        Report(_text["Message.Restored"]);
+        Dispatcher.UIThread.Post(UpdateNativeStatus, DispatcherPriority.Render);
+    }
     private void AddPanelClicked(object? sender, RoutedEventArgs e) => AddPanel();
     private void ShortcutsClicked(object? sender, RoutedEventArgs e) => ToggleShortcuts();
     private void ThemeClicked(object? sender, RoutedEventArgs e) => Report(_text["Message.ThemeActive"]);
     private async void NewClicked(object? sender, RoutedEventArgs e) => await CreatePackage();
     private async void OpenClicked(object? sender, RoutedEventArgs e) => await OpenPackage();
     private async void AddChartClicked(object? sender, RoutedEventArgs e) => await AddChart();
+    private async void SettingsClicked(object? sender, RoutedEventArgs e) => await EditPackageSettings();
+    private void CopyChartClicked(object? sender, RoutedEventArgs e) => CopyChart();
+    private void MoveChartUpClicked(object? sender, RoutedEventArgs e) => MoveChart(-1);
+    private void MoveChartDownClicked(object? sender, RoutedEventArgs e) => MoveChart(1);
+    private void DeleteChartClicked(object? sender, RoutedEventArgs e) => DeleteChart();
     private async void SaveClicked(object? sender, RoutedEventArgs e) => await SavePackage(false);
     private async void SaveAsClicked(object? sender, RoutedEventArgs e) => await SavePackage(true);
     private void UndoClicked(object? sender, RoutedEventArgs e) => Undo();
     private void RedoClicked(object? sender, RoutedEventArgs e) => Redo();
-    private void DeleteClicked(object? sender, RoutedEventArgs e) => DeleteSelection();
+    private void DeleteClicked(object? sender, RoutedEventArgs e) =>
+        _editing.DeleteSelection(CurrentDocument, SelectedNoteId, _selectedNoteIds);
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
@@ -690,20 +779,26 @@ public sealed partial class MainWindow : Window
         {
             case Key.Space when source is not Button: TogglePlayback(); return true;
             case Key.R when modifiers == KeyModifiers.None: SeekBar(0); return true;
-            case Key.A: SeekBar(_bar - (modifiers == KeyModifiers.Shift ? 1d / _snapDenominator : 1)); return true;
-            case Key.D: SeekBar(_bar + (modifiers == KeyModifiers.Shift ? 1d / _snapDenominator : 1)); return true;
+            case Key.A: SeekSeconds(modifiers == KeyModifiers.Shift ? -.01 : -1); return true;
+            case Key.D: SeekSeconds(modifiers == KeyModifiers.Shift ? .01 : 1); return true;
             case Key.C: ChangeSnap(-1, modifiers == KeyModifiers.Shift); return true;
             case Key.V: ChangeSnap(1, modifiers == KeyModifiers.Shift); return true;
             case Key.Q when modifiers == KeyModifiers.None: ChangePlayerSpeed(-1); return true;
             case Key.E when modifiers == KeyModifiers.None: ChangePlayerSpeed(1); return true;
             case Key.W when modifiers == KeyModifiers.None: ChangePlaybackRate(1); return true;
             case Key.S when modifiers == KeyModifiers.None: ChangePlaybackRate(-1); return true;
-            case Key.D1 when modifiers == KeyModifiers.None: _tools.SelectTool("SELECT"); return true;
-            case Key.D2 when modifiers == KeyModifiers.None: _tools.SelectTool("PLACE"); return true;
-            case Key.D3 when modifiers == KeyModifiers.None: _tools.SelectTool("PATH"); return true;
-            case Key.D4 when modifiers == KeyModifiers.None: _tools.SelectTool("PAN"); return true;
+            case Key.D1 when modifiers == KeyModifiers.None: _tools.SelectPlacementType(V2NoteType.Tap); return true;
+            case Key.D2 when modifiers == KeyModifiers.None: _tools.SelectPlacementType(V2NoteType.Drag); return true;
+            case Key.D3 when modifiers == KeyModifiers.None: _tools.SelectPlacementType(V2NoteType.Hold); return true;
+            case Key.D4 when modifiers == KeyModifiers.None: _tools.SelectTool("SELECT"); return true;
+            case Key.D5 when modifiers == KeyModifiers.None: _tools.SelectPlacementType(V2NoteType.ExTap); return true;
+            case Key.D6 when modifiers == KeyModifiers.None: _tools.SelectPlacementType(V2NoteType.Mixer); return true;
+            case Key.D7 when modifiers == KeyModifiers.None: _tools.SelectPlacementType(V2NoteType.Mine); return true;
+            case Key.Up when modifiers == KeyModifiers.None: _tools.CycleTrack(); return true;
             case Key.Delete:
-            case Key.Back: DeleteSelection(); return true;
+            case Key.Back:
+                _editing.DeleteSelection(CurrentDocument, SelectedNoteId, _selectedNoteIds);
+                return true;
             case Key.F1: ToggleShortcuts(); return true;
             default: return false;
         }

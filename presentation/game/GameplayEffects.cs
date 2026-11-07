@@ -7,10 +7,11 @@ using static DynamiteUniverse.Game.GameplayRenderGeometry;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Owns hit/sustain effect pools and release tails; never mutates judgement state.</summary>
-internal sealed class GameplayEffects(Node2D noteRoot, GameSettings settings)
+internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings settings)
 {
     private readonly Node2D _noteRoot = noteRoot;
-    private readonly GameSettings _settings = settings;
+    private readonly GameplayRenderGeometry _geometry = new(settings.MirrorEnabled);
+    private readonly IGameplayVisualSettings _settings = settings;
     private readonly Dictionary<int, ContactVisual> _contacts = new();
     private sealed class ContactVisual
     {
@@ -131,7 +132,7 @@ internal sealed class GameplayEffects(Node2D noteRoot, GameSettings settings)
                 state.Path.Track == Track.Center ? 0f : Mathf.Pi * 0.5f);
         }
         state.ContactEffect.SetContact(true);
-        state.ContactEffect.Position = TrackPositionAtLine(state.Path.Track, position);
+        state.ContactEffect.Position = _geometry.TrackPositionAtLine(state.Path.Track, position);
         state.ContactEffect.SpanPx = SustainSpanPx(state.Path.Track, bounds);
 
         var particleMode = _settings.MotionMode;
@@ -160,7 +161,7 @@ internal sealed class GameplayEffects(Node2D noteRoot, GameSettings settings)
             }
             state.ContactParticles = _sustainParticlePool.Pop();
             _particleOwners.Add(state);
-            state.ContactParticles.ResetFor(GameplayMirror.DisplayTrack(state.Path.Track) switch
+            state.ContactParticles.ResetFor(GameplayStageGeometry.MirroredTrack(state.Path.Track, _settings.MirrorEnabled) switch
             {
                 Track.Center => 0f,
                 Track.Left => Mathf.Pi * 0.5f,
@@ -170,7 +171,7 @@ internal sealed class GameplayEffects(Node2D noteRoot, GameSettings settings)
         }
         state.ContactParticles.Visible = true;
         state.ContactParticles.SetEmitting(true);
-        state.ContactParticles.Position = TrackPositionAtLine(state.Path.Track, position);
+        state.ContactParticles.Position = _geometry.TrackPositionAtLine(state.Path.Track, position);
     }
 
     private void ReleaseContactEffect(ContactVisual state)

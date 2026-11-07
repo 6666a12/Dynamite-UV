@@ -43,9 +43,11 @@ internal static class Program
             PackagePersistenceTests.TestEditorSaveSequence();
             AudioProbeTests.Run();
             EditorSessionTests.Run();
+            EditorAutoTimelineTests.Run();
             CanvasEditGestureTests.Run();
             CanvasProjectionTests.Run();
             CanvasPlacementDraftTests.Run();
+            StagePlacementDraftTests.Run();
             CanvasSelectionStateTests.Run();
             CanvasHitTestingTests.Run();
             CanvasGesturePreviewTests.Run();

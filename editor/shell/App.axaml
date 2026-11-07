@@ -42,6 +42,9 @@
     <SolidColorBrush x:Key="DockApplicationAccentBrushHigh">#FF4D8F</SolidColorBrush>
     <SolidColorBrush x:Key="DockApplicationAccentForegroundBrush">#DFE6FF</SolidColorBrush>
     <SolidColorBrush x:Key="DockApplicationAccentBrushIndicator">#35E0FF</SolidColorBrush>
+    <SolidColorBrush x:Key="DockSurfaceHeaderActiveBrush">#14273D</SolidColorBrush>
+    <SolidColorBrush x:Key="DockSurfaceHeaderBrush">#0E1528</SolidColorBrush>
+    <SolidColorBrush x:Key="DockToolChromeIconBrush">#DFE6FF</SolidColorBrush>
     <SolidColorBrush x:Key="DockTabHoverBackgroundBrush">#141E36</SolidColorBrush>
     <SolidColorBrush x:Key="DockTabActiveBackgroundBrush">#14273D</SolidColorBrush>
     <SolidColorBrush x:Key="DockTabActiveIndicatorBrush">#35E0FF</SolidColorBrush>

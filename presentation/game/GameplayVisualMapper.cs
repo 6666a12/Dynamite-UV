@@ -21,6 +21,15 @@ public static class GameplayVisualMapper
 
     public static Vector2 SizeFor(Note note) => SizeFor(note.Type, note.Track, note.Width);
 
+    /// <summary>Final on-stage bounds after the NoteView orientation transform. Side-track
+    /// sizes are already expressed in stage axes; callers must not swap them a second time.</summary>
+    public static Rect2 BoundsAt(Note note, float remainingPx, bool mirrored = false, float grow = 0f)
+    {
+        var size = SizeFor(note);
+        var bounds = new Rect2(PositionAt(note, remainingPx, mirrored) - size * .5f, size);
+        return grow == 0f ? bounds : bounds.Grow(grow);
+    }
+
     public static Vector2 SizeFor(NoteType type, Track track, double width)
     {
         if (track == Track.Center)

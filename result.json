@@ -4,368 +4,282 @@
     "provider": "calsil",
     "model": "gpt-6.1-sol"
   },
-  "message": "Review complete: 17 finding(s) across 86 selected item(s).",
+  "message": "Review complete: 21 finding(s) across 26 selected item(s).",
   "summary": {
-    "files_reviewed": 86,
-    "comments": 17,
-    "total_tokens": 1385204,
-    "input_tokens": 1370795,
-    "output_tokens": 14409,
-    "cache_read_tokens": 588288,
-    "elapsed": "2m26s"
+    "files_reviewed": 26,
+    "comments": 21,
+    "total_tokens": 1695673,
+    "input_tokens": 1677335,
+    "output_tokens": 18338,
+    "cache_read_tokens": 1134848,
+    "elapsed": "3m24s"
   },
   "tool_calls": {
-    "total": 85,
+    "total": 151,
     "by_tool": {
-      "code_comment": 10,
-      "code_search": 41,
-      "file_find": 2,
-      "file_read": 23,
-      "file_read_diff": 9
+      "code_comment": 9,
+      "code_search": 38,
+      "file_find": 7,
+      "file_read": 95,
+      "file_read_diff": 2
     },
-    "failure": 3,
-    "failure_by_tool": {
-      "code_search": 1,
-      "file_read": 2
-    },
-    "failure_details": [
-      {
-        "tool_call_number": 7,
-        "tool_name": "file_read",
-        "file_path": "client/scripts/game/GameplayMain.cs,client/scripts/game/common/Res.cs,client/scripts/game/gameplay/GameplayHud.cs,client/scripts/game/gameplay/GameplayMain.Input.cs,client/scripts/game/gameplay/GameplayMain.Presentation.cs,client/scripts/game/gameplay/GameplayNoteRenderer.Projection.cs,client/scripts/game/gameplay/GameplayNoteRenderer.cs,presentation/game/GameplayBackdrop.cs,presentation/game/GameplayStageRenderer.cs,shared/Chart/VisualScrollMath.cs",
-        "arguments": "{\"file_path\": \"client/scripts/game/gameplay/GameplayMain.cs\"}",
-        "error": "file \"client/scripts/game/gameplay/GameplayMain.cs\" not found: read file \"client/scripts/game/gameplay/GameplayMain.cs\": open D:\\Workspace\\Dynamix\\community\\client\\scripts\\game\\gameplay\\GameplayMain.cs: The system cannot find the file specified."
-      },
-      {
-        "tool_call_number": 51,
-        "tool_name": "code_search",
-        "file_path": "editor/shell/Localization/zh-CN.json,editor/shell/MainWindow.axaml.cs,editor/shell/NativeStageHost.cs,editor/shell/Program.cs,editor/shell/StageView.axaml.cs,editor/shell/TimelineView.cs,editor/shell/ToolsView.axaml.cs,editor/shell/Verification.cs,editor/shell/WorkbenchFactory.cs,editor/shell/WorkbenchText.cs",
-        "arguments": "{\"search_text\": \"pathAdd|pathMove|place\", \"file_patterns\": [\"editor/stage/\"], \"use_perl_regexp\": true}",
-        "error": "git grep failed: exit status 1: warning: could not open directory 'editor/stage/': No such file or directory"
-      },
-      {
-        "tool_call_number": 62,
-        "tool_name": "file_read",
-        "file_path": "editor/shell/InspectorView.axaml.cs,editor/shell/Localization/en.json",
-        "arguments": "{\"file_path\": \"editor/shell/zh-CN.json\", \"start_line\": 1, \"end_line\": 5}",
-        "error": "file \"editor/shell/zh-CN.json\" not found: read file \"editor/shell/zh-CN.json\": open D:\\Workspace\\Dynamix\\community\\editor\\shell\\zh-CN.json: The system cannot find the file specified."
-      }
-    ]
+    "failure": 0,
+    "failure_by_tool": {},
+    "failure_details": []
   },
   "comments": [
     {
-      "path": "client/scripts/game/common/Res.cs",
-      "content": "The closing brace and next declaration are on the same line. This is malformed formatting and may fail the repository's style/format checks; put `ClearAudioCache` on its own line.",
-      "suggestion_code": "    }\n\n    public static void ClearAudioCache()",
-      "existing_code": "    }    public static void ClearAudioCache()",
-      "start_line": 152,
-      "end_line": 152,
-      "category": "style",
-      "severity": "low"
-    },
-    {
-      "path": "client/scripts/game/gameplay/GameplayNoteRenderer.cs",
-      "content": "With differential scrolling, every frame scans all not-yet-spawned notes, and each eligible removal shifts the remaining list. A chart with many notes can therefore incur quadratic total shifting plus per-frame O(n) scans, causing avoidable frame spikes. Keep notes ordered by the threshold-crossing calculation or use a structure that removes eligible notes without shifting the entire remainder.",
-      "existing_code": "                SpawnNote(note, t, currentBar);\n                _differentialSpawnNotes.RemoveAt(index);",
-      "start_line": 163,
-      "end_line": 164,
-      "category": "performance",
+      "path": "editor/shell/DesktopVerification.cs",
+      "content": "Require a nonzero time delta (and unchanged center) for this purely vertical center-track drag. The current condition accepts a center-only change, after which `baseDragDelta` is zero; if the second drag also fails to move time, the scroll-speed comparison accepts zero versus zero. This allows both the temporal-drag and per-note-speed checks to pass when temporal dragging is broken.",
+      "existing_code": "                if (dragged is null || dragged.Time == ExactBarTime.FromFraction(2, 1) \u0026\u0026 dragged.Center == 2.5)",
+      "start_line": 89,
+      "end_line": 89,
+      "category": "test",
       "severity": "medium"
     },
     {
-      "path": "client/scripts/game/common/Res.cs",
-      "content": "The 64 MiB input and PCM budgets are enforced independently, but this path keeps the complete FLAC byte array alive while the decoder builds its PCM output (and then stores that output in the audio stream/cache). Peak memory can therefore exceed either individual budget substantially. Consider accounting for combined peak memory or lowering the per-buffer limits for this runtime path.",
-      "existing_code": "            decoded = FlacDecoder.Decode(bytes, FlacOptions);",
+      "path": "editor/shell/DesktopVerification.cs",
+      "content": "These assertions do not observe audio continuity: the stage advances `_second` from frame delta independently of the audio player, and `playing=True` reports `_playing`, not the player's playback position. Stopping/restarting the audio during an incremental update would therefore still pass this check. Add stage telemetry for the actual player position and a restart/load counter, then verify playback remains aligned and no restart occurs across this edit.",
+      "existing_code": "                    !window.LastStageInput.Contains(\"playing=True\", StringComparison.Ordinal) ||\n                    !window.LastStageInput.Contains(\"selection=1\", StringComparison.Ordinal) ||\n                    window.CurrentSecond \u003c= updateSecond || window.SelectedNoteId != \"fixture-note\")",
       "start_line": 131,
-      "end_line": 131,
-      "category": "performance",
+      "end_line": 133,
+      "category": "test",
       "severity": "medium"
     },
     {
-      "path": "shared/Audio/FlacSubframeDecoder.cs",
-      "content": "The LPC dot product can exceed `long` (up to 32 signed 32-bit coefficients multiplied by 24-bit samples), and the unchecked accumulation/narrowing then silently wraps malformed input into bogus PCM. Use checked accumulation or a wider/saturating strategy and reject values outside the supported sample/residual range before narrowing.",
-      "existing_code": "            long sum = 0;\n            for (var j = 0; j \u003c order; j++)\n                sum += coefficients[j] * target[i - 1 - j];\n            target[i] = unchecked(residual[i - order] + (int)(sum \u003e\u003e shift));",
-      "start_line": 147,
-      "end_line": 150,
-      "category": "bug",
-      "severity": "high"
-    },
-    {
-      "path": "tools/core-tests/Audio/FlacTestEncoder.cs",
-      "content": "The UTF-8-style FLAC frame/sample number encoder does not mask the payload to the lead byte's available bits. For values needing two or more continuation bytes, the high payload bits can set prefix bits and corrupt the encoded number. Current round-trip inputs do not exercise this because they remain below 128; add large-frame-number coverage and mask the payload (and verify the corresponding decoder behavior).",
-      "suggestion_code": "var leadPayloadBits = 6 - continuationBytes;\n        var lead = ((0xFF \u003c\u003c (leadPayloadBits + 1)) \u0026 0xFF) |\n                   ((int)(value \u003e\u003e (6 * continuationBytes)) \u0026 ((1 \u003c\u003c leadPayloadBits) - 1));",
-      "existing_code": "var leadPayloadBits = 6 - continuationBytes;\n        var lead = ((0xFF \u003c\u003c (leadPayloadBits + 1)) \u0026 0xFF) |\n                   (int)(value \u003e\u003e (6 * continuationBytes));",
-      "start_line": 515,
-      "end_line": 517,
-      "category": "bug",
+      "path": "editor/shell/DesktopVerification.cs",
+      "content": "Check the complete geometry after undo, not only width. Resizing one edge changes both `Center` and `Width`, so an undo that restores width but leaves the center shifted passes this assertion and leaves subsequent native gestures operating on the wrong geometry. Assert the original time, center, and width together after this single undo.",
+      "existing_code": "                if (window.CurrentDocument?.SelectedChart.Notes.Single(note =\u003e note.Id == \"fixture-note\").Width != 1)",
+      "start_line": 103,
+      "end_line": 103,
+      "category": "test",
       "severity": "medium"
     },
     {
-      "path": "editor/scripts/stage/EditorStagePreview.cs",
-      "content": "`GuiInput` events have positions local to this Control, while the release forwarded from `EditorPreviewController._Input` is viewport-relative. Feeding both through this conversion makes release coordinates incorrect whenever the stage Control is offset (and may end a drag at the wrong position). Convert global events to this Control's local coordinates before mapping, or avoid forwarding a second event path.",
-      "existing_code": "        var designPoint = (click.Position - _stageRect.Position) / (_stageRect.Size.X / 1920f);\n        designPoint -= new Vector2(0f, 40f);",
-      "start_line": 141,
-      "end_line": 142,
+      "path": "tools/chart-editor-core/Documents/EditorPackageSettings.cs",
+      "content": "Disabling the chart audio override after browsing for a replacement still installs that replacement. The dialog retains `_chartAudioSource` when the checkbox is unchecked and submits both a source and `ClearChartAudio = true`; this code gives the source precedence and suppresses clearing. Honor `ClearChartAudio` before scheduling a replacement (or omit the source from the dialog request when disabled), so the resulting chart inherits package audio as requested.",
+      "existing_code": "        if (request.ChartAudioSource is { } chartAudio)\n            commands.Add(new ReplaceChartResourceCommand(originalChartId, false, false,\n                chart.Audio ?? $\"audio/{originalChartId}{Path.GetExtension(chartAudio).ToLowerInvariant()}\", chartAudio));\n\n        var clearAudio = request.ClearChartAudio \u0026\u0026 chart.Audio is not null \u0026\u0026 request.ChartAudioSource is null;",
+      "start_line": 42,
+      "end_line": 46,
       "category": "bug",
       "severity": "medium"
     },
     {
-      "path": "editor/scripts/stage/EditorStageIpc.cs",
-      "content": "Exceptions thrown by the command handler are not generally contained here. For example, `load` can throw decoder/audio I/O exceptions, and `authoring` can throw from `Enum.Parse`; these are outside the catch filter and can escape `Drain` and terminate the preview process. Catch command-processing exceptions broadly and emit an error event (while still allowing fatal process errors to propagate if needed).",
-      "existing_code": "                handle(command.GetString()!, root);",
-      "start_line": 40,
-      "end_line": 40,
+      "path": "tools/chart-editor-core/Documents/EditorPackageSettings.cs",
+      "content": "The replacement retains the old package filename even when the selected audio has a different format. For example, replacing `audio.wav` with an OGG stages OGG bytes at `audio.wav`. `ReplaceChartResourceCommand` does not transcode, and `V2BuiltInAudioProbe` chooses its parser from the package-relative extension, so the next save rejects the replacement although preview can play the external OGG. Derive a suitable destination extension from the new source for both package and chart audio, or explicitly reject format changes before applying settings.",
+      "existing_code": "        if (request.PackAudioSource is { } packAudio)\n            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, false,\n                document.Audio ?? throw new InvalidOperationException(\"The package has no audio reference.\"), packAudio));",
+      "start_line": 36,
+      "end_line": 38,
       "category": "bug",
       "severity": "medium"
     },
     {
-      "path": "editor/scripts/stage/EditorStageIpc.cs",
-      "content": "`Ended` is assigned by the background `ReadLoop` thread and polled by `_Process` on the Godot thread, but this property is not volatile and no lock/other synchronization protects the access. Mark the backing state volatile or use an explicit synchronization mechanism so EOF is reliably observed.",
-      "existing_code": "    public bool Ended { get; private set; }",
-      "start_line": 18,
-      "end_line": 18,
+      "path": "editor/shell/TimingView.axaml.cs",
+      "content": "List selection is never written to EditorDocument.Selection, but UpdateView clears both lists and RestoreSelection uses only that document selection. For example, after adding BPM A, clicking BPM B and then refreshing through a chart reorder restores A rather than B; with no timing document selection, the selected row disappears altogether. Synchronize user timing selections with the document (and clear the other timing list), or preserve the panel's selection independently during refresh.",
+      "existing_code": "    private void BpmSelectionChanged(object? sender, SelectionChangedEventArgs e)\n    {\n        if (_updating) return;",
+      "start_line": 169,
+      "end_line": 171,
       "category": "bug",
-      "severity": "low"
+      "severity": "medium"
     },
     {
-      "path": "shared/Chart/V2/AudioProbe.Flac.cs",
-      "content": "A staged FLAC is read into one byte array sized directly from the file length, with no size budget. Large input can exhaust process memory before metadata or frame limits are checked. Parse incrementally or enforce a documented maximum input size before allocating.",
-      "existing_code": "        var bytes = new byte[length];\n        AudioProbeSupport.ReadExactlyAt(stream, 0, bytes, source, \"truncated FLAC file\");",
-      "start_line": 29,
-      "end_line": 30,
-      "category": "security",
-      "severity": "high"
+      "path": "editor/shell/TimingView.axaml.cs",
+      "content": "The same time fields serve both Add and Apply, so making them read-only for the base event also blocks entering an insertion time. This occurs automatically after adding the initial bar-zero Scroll event: it is selected on refresh, the time field becomes read-only, and Add keeps submitting zero and fails as a duplicate. Provide a separate new-event/deselection action or separate insertion fields; the core commands already prevent moving the base event.",
+      "existing_code": "        this.FindControl\u003cTextBox\u003e(\"BpmTimeValue\")!.IsReadOnly = !hasDocument || bpmBase;\n        this.FindControl\u003cNumericUpDown\u003e(\"BpmValueInput\")!.IsEnabled = hasDocument;\n        this.FindControl\u003cTextBox\u003e(\"ScrollTimeValue\")!.IsReadOnly = !hasDocument || scrollBase;",
+      "start_line": 143,
+      "end_line": 145,
+      "category": "bug",
+      "severity": "medium"
     },
     {
-      "path": "shared/Chart/V2/AudioProbe.Flac.cs",
-      "content": "This scan accepts any later CRC-valid header, regardless of whether the bytes between it and the prior header form a valid frame. Corrupt/truncated payloads with a planted header and a matching summed block size can therefore pass validation. Validate actual frame boundaries/payload (for example, via the FLAC frame decoder) rather than searching arbitrary payload bytes.",
-      "existing_code": "            var next = FindFrameHeader(bytes, headerEnd, info);\n            if (next \u003c 0)",
+      "path": "editor/shell/ShellChartEditor.cs",
+      "content": "Snapping and clamping each selected note independently changes the group's relative timing and spacing. Off-grid notes can receive different time deltas, and dragging two notes toward a stage edge moves the boundary note less than the other one. NudgeSelection has the same behavior. Compute one snapped time delta and one position delta constrained by the whole selection, then apply those shared deltas to every selected note.",
+      "existing_code": "                var time = delta == ExactBarTime.Zero ? note.Time : document.Snap(note.Time + delta);\n                var center = Math.Clamp(note.Center + centerDelta, note.Width / 2d, 5 - note.Width / 2d);",
+      "start_line": 229,
+      "end_line": 230,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/shell/InspectorView.axaml.cs",
+      "content": "These three-decimal display values are now submitted as authoritative geometry by ApplyGeometry. Opening an existing note with higher-precision center/width and changing only its bar time silently rounds both geometry values; even clicking Apply without edits changes the note. Display round-trip precision for editable values, or retain the original values when their fields have not been edited.",
+      "existing_code": "        this.FindControl\u003cTextBox\u003e(\"WidthValue\")!.Text = (node?.Width ?? note?.Width)?.ToString(\"0.###\", CultureInfo.InvariantCulture) ?? \"\";\n        this.FindControl\u003cTextBox\u003e(\"PositionValue\")!.Text = (node?.Center ?? note?.Center)?.ToString(\"0.###\", CultureInfo.InvariantCulture) ?? \"\";",
       "start_line": 133,
       "end_line": 134,
       "category": "bug",
       "severity": "medium"
     },
     {
-      "path": "shared/Chart/V2/AudioProbe.Wave.cs",
-      "content": "Chunk iteration is bounded by physical file length, but RIFF declares its own container size in header bytes 4–7. Bytes appended after that declared boundary can be interpreted as chunks and counted as audio, yielding an incorrect duration. Bound traversal to the declared RIFF end and reject chunks extending beyond it.",
-      "existing_code": "        var position = 12L;\n        while (position + chunkHeader.Length \u003c= stream.Length)",
-      "start_line": 30,
-      "end_line": 31,
+      "path": "editor/scripts/stage/EditorStagePreview.cs",
+      "content": "Moving `Rect2.Position` leaves its `Size` unchanged, so dragging the center-track start edge translates the entire ghost instead of stretching it with the opposite edge fixed. The side-track `else` branch has the same problem. Preserve the original opposite corner and recompute the size after moving the grabbed edge, so the resize preview matches the committed resize.",
+      "existing_code": "            if (moveStartEdge) rect.Position = new Vector2(rect.Position.X + delta.X, rect.Position.Y);",
+      "start_line": 213,
+      "end_line": 213,
       "category": "bug",
       "severity": "medium"
     },
     {
-      "path": "shared/Audio/FlacDecoder.cs",
-      "content": "Returning as soon as STREAMINFO's sample count is reached silently accepts arbitrary trailing data, including malformed or additional audio frames. This also means the decoder never verifies that the remaining bytes are only permitted metadata/padding. Reject unexpected trailing bytes or explicitly parse supported trailing tags so appended corruption cannot be treated as a successfully decoded file.",
-      "suggestion_code": "            if (streamInfo.TotalSamples \u003e 0 \u0026\u0026 writer.WrittenFrames \u003e= streamInfo.TotalSamples)\n            {\n                if (reader.BitsRemaining != 0)\n                    throw new FlacDecodeException(\"Unexpected data after the declared FLAC sample count.\");\n                return;\n            }",
-      "existing_code": "            if (streamInfo.TotalSamples \u003e 0 \u0026\u0026 writer.WrittenFrames \u003e= streamInfo.TotalSamples)\n                return; // 已满足声明长度；尾随字节（多为标签/填充）不再解释为帧",
-      "start_line": 82,
-      "end_line": 83,
+      "path": "editor/scripts/stage/EditorPreviewController.cs",
+      "content": "Playback commands do not respect the new pan-suspension flag: `SetPlaying(true)` always clears `StreamPaused`, while this condition still freezes the preview clock. Pausing and resuming with the keyboard during an active playing pan therefore lets audio advance while the chart remains frozen until release. Make playback transitions preserve pan suspension (and ensure seek/restart paths do not start audio during it).",
+      "existing_code": "            if (!_panAudioSuspended) _second += delta * _playbackRate;",
+      "start_line": 63,
+      "end_line": 63,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-core/Canvas/EditorStagePlacement.cs",
+      "content": "Six fixed-point iterations do not reliably invert even a continuous, increasing scroll ramp. For example, with BPM 120, currentSecond=0, and scroll increasing linearly from 1 at bar 0 to 10 at bar 1, a point projected from bar 0.5 resolves to approximately bar 0.386 after these iterations. Placement and drag coordinates therefore drift substantially on valid charts. Use a bounded root solver against the forward distance function (with an explicit policy for multiple solutions/discontinuities), and add round-trip tests for steep ramps.",
+      "existing_code": "        for (var iteration = 0; iteration \u003c 6; iteration++)",
+      "start_line": 92,
+      "end_line": 92,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/stage/EditorStageAuthoring.cs",
+      "content": "Apply the release position to the width draft before committing or calling BeginTail. Currently only motion events update the width; a press/release sequence with no delivered motion commits the initial width, and a dropped final motion commits a stale width. For Hold/Mixer, the subsequent UpdatePlacement runs after TailStage is enabled, so it updates only the tail and permanently freezes the stale head width.",
+      "existing_code": "            if (_placement.TailStage) return true;\n            if (_type is V2NoteType.Hold or V2NoteType.Mixer)",
+      "start_line": 248,
+      "end_line": 249,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/stage/EditorStageAuthoring.cs",
+      "content": "The snapping predicate differs from SnappedBarAt, which disables snapping whenever Z is pressed. With Ctrl+Z held, the ghost uses an unsnapped time but labels it as snapped and sends Snap=true; ShellChartEditor.PlaceNote then snaps it again, placing the note at a different time from the ghost. Use the same modifier predicate for coordinate resolution and the preview/request flag.",
+      "existing_code": "        var snap = !Input.IsKeyPressed(Key.Z) || Input.IsKeyPressed(Key.Ctrl);",
+      "start_line": 281,
+      "end_line": 281,
+      "category": "bug",
+      "severity": "low"
+    },
+    {
+      "path": "editor/scripts/stage/EditorPlacementOverlay.cs",
+      "content": "Existing-note alignment markers omit the note's ScrollSpeedMultiplier when calculating its position. The stage renderer includes this multiplier, so notes with non-unit speed receive squares at a different position (or are incorrectly culled). Include note.V2Metadata?.ScrollSpeedMultiplier ?? 1 in this distance calculation while retaining unit speed for the new placement ghost.",
+      "existing_code": "            var remaining = RemainingFor(track, note.Second, note.BarTime, metadata);",
+      "start_line": 311,
+      "end_line": 311,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "tools/chart-editor-core/Documents/EditorPackageSettings.cs",
+      "content": "Resource changes applied to an unsaved draft are not included in its first save. These commands stage sources in `Document.PendingResourceReplacements`, but `EditorDocumentSession.Save` uses `Draft.BuildPackageCreateRequest` for an unpersisted document, which only includes the draft's original `ExternalResources`. Replacing package audio therefore previews the new source but saves the old one; adding a cover or chart audio override can instead fail because its resource mapping is missing. Merge pending replacements into the first-save mappings (with pending sources taking precedence), or reject resource changes on drafts until that path supports them.",
+      "existing_code": "        if (request.PackAudioSource is { } packAudio)\n            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, false,\n                document.Audio ?? throw new InvalidOperationException(\"The package has no audio reference.\"), packAudio));",
+      "start_line": 36,
+      "end_line": 38,
       "category": "bug",
       "severity": "high"
     },
     {
-      "path": "tools/core-tests/Audio/FlacTestEncoder.cs",
-      "content": "`frames * channels * 2` is evaluated as `int` and can overflow before array allocation, producing an unrelated allocation/argument exception for large test fixtures. Compute the byte length with checked arithmetic (or a wider type) so invalid sizes fail deterministically.",
-      "existing_code": "var channels = Channels.Length;\n        var frames = FrameCount;\n        var bytes = new byte[frames * channels * 2];",
-      "start_line": 75,
-      "end_line": 77,
+      "path": "editor/shell/PackageSettingsDialog.axaml.cs",
+      "content": "A package without preview metadata acquires a 15-second preview merely by opening settings and applying an unrelated edit: `BuildRequest` always submits these values and `Apply` installs them when the original preview is null. For valid audio shorter than 15 seconds, this also makes the next save fail the resolved-preview duration check. Preserve the absence of a package preview unless the user explicitly enables/edits it, rather than treating the display fallback as authored metadata.",
+      "existing_code": "        var packPreview = document.Preview ?? new V2Preview(0, 15);",
+      "start_line": 40,
+      "end_line": 40,
       "category": "bug",
-      "severity": "low"
-    },
-    {
-      "path": "tools/core-tests/Audio/FlacTestEncoder.cs",
-      "content": "Trailing bytes are appended before final byte alignment. If the last frame ends mid-byte, these bytes become part of its padded frame data rather than bytes after the frame; current fixtures happen to use byte-aligned frames, but this helper should align before appending trailing data to reliably test trailing-byte handling.",
-      "existing_code": "        for (var i = 0; i \u003c ExtraTrailingBytes; i++)\n            writer.WriteByteValue(0x00);\n        writer.AlignToByte();",
-      "start_line": 112,
-      "end_line": 114,
-      "category": "test",
-      "severity": "low"
-    },
-    {
-      "path": "editor/shell/MainWindow.axaml.cs",
-      "content": "Stage events feed their bar values directly into this conversion, but NaN, infinity, or sufficiently large finite values are not rejected before the floating-point-to-`long` cast. Such input can overflow into an invalid exact time and make placement/path commands fail (or behave unexpectedly); validate finiteness and a representable/allowed upper bound before converting.",
-      "existing_code": "    private static ExactBarTime ExactTime(double bar) =\u003e\n        ExactBarTime.FromFraction((long)Math.Round(Math.Max(0, bar) * 1_000_000d), 1_000_000);",
-      "start_line": 307,
-      "end_line": 308,
       "severity": "medium"
     },
     {
-      "path": "editor/shell/InspectorView.axaml.cs",
-      "content": "The shared localizer outlives each `InspectorView`, but this subscription is never removed. Closing and recreating workbench windows therefore keeps the old view (and its control tree) rooted and invokes `UpdateInspector` on it for every language change. Unsubscribe when the control is detached/disposed, or use a weak/event-lifetime pattern.",
-      "existing_code": "        _text.LanguageChanged += UpdateInspector;",
-      "start_line": 21,
-      "end_line": 21,
-      "category": "performance",
-      "severity": "low"
+      "path": "editor/shell/ShellChartEditor.cs",
+      "content": "Snapping the width after ResizeFromEdge while retaining span.Center moves the supposedly fixed opposite edge. For example, center 2 and width 1 with the end edge dragged to 2.6 produces center 2.05/width 1.1; snapping that width to 1 moves the start edge from 1.5 to 1.55. Recompute the center from the original opposite edge and the snapped width so edge resizing preserves its anchor.",
+      "existing_code": "            var width = EditorStagePlacement.SnapWidth(span.Width);\n            var center = Math.Clamp(span.Center, width / 2d, 5 - width / 2d);",
+      "start_line": 254,
+      "end_line": 255,
+      "category": "bug",
+      "severity": "medium"
     },
     {
-      "path": "editor/shell/InspectorView.axaml.cs",
-      "content": "When a path-node selection is active, this displays `CurveToNext` for that node, but for a note selection with nodes it displays the note-level curve. Applying the curve command for the note may not affect the visible first segment once path nodes exist (the node curve takes precedence), so the UI can appear to accept a change without changing the rendered path. Consider resolving the first effective segment curve or disabling note-level editing when nodes are present.",
-      "existing_code": "var curve = node?.CurveToNext ?? (node is null ? note?.CurveToNext : null) ?? V2PathCurve.Linear;\n        this.FindControl\u003cComboBox\u003e(\"CurveChoice\")!.SelectedIndex = (int)curve;",
-      "start_line": 89,
-      "end_line": 90,
+      "path": "editor/shell/TimingView.axaml.cs",
+      "content": "Loading an existing BPM into BpmValueInput silently clamps values outside its XAML range [1,999], although EditBpmCommand accepts any finite positive BPM. Selecting a valid 1200-BPM event and changing only its time therefore saves it as 999. ScrollValueInput has the same problem for valid scroll values below its minimum of 0.05. Make the input ranges match the core domain or preserve unchanged values rather than submitting the clamped display values.",
+      "existing_code": "            this.FindControl\u003cNumericUpDown\u003e(\"BpmValueInput\")!.Value = (decimal)bpm.Bpm;",
+      "start_line": 175,
+      "end_line": 175,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/stage/EditorStagePreview.cs",
+      "content": "The same screen-space delta does not represent the same chart edit on every track. For example, when a center-track and side-track note are selected, dragging the center note vertically changes time; the side note should move horizontally along its travel axis, but this ghost moves it vertically. Notes with different scroll multipliers also need different travel distances. The shell applies shared bar/center deltas to the group, so the notes jump away from these previews on release. Derive the gesture's chart-time/center deltas and project each member through its own track and scroll geometry instead of translating every rectangle by the raw pointer delta.",
+      "existing_code": ": new Rect2(rect.Position + delta, rect.Size);",
+      "start_line": 201,
+      "end_line": 201,
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "editor/scripts/stage/EditorStageAuthoring.cs",
+      "content": "Resize hit-testing uses the rendered edge, but the release converts that pixel position directly to a logical chart edge. Those edges are not equivalent: rendered center-track widths are scaled by 0.95, and side-track widths use 102 × 0.95 pixels per unit rather than the 115 used by CenterAt. For example, dragging the right edge of a width-5 center note outward by 10 pixels actually shrinks it, because the initial rendered edge is already about 34 pixels inside the logical edge. Preserve the grabbed-edge offset and apply the pointer delta to the original logical edge (with the appropriate visual-width scale), rather than treating the absolute pointer coordinate as that edge.",
+      "existing_code": "            var edge = EditorStagePlacement.SnapCenter(\n                EditorStagePlacement.CenterAt(track, point.X, point.Y),\n                Input.IsKeyPressed(Key.Shift));",
+      "start_line": 349,
+      "end_line": 351,
       "category": "bug",
       "severity": "medium"
     }
   ],
   "groups": [
     {
-      "label": "Gameplay presentation, note rendering, and scroll behavior",
+      "label": "Stage preview rendering and shell IPC integration",
       "files": [
-        "client/scripts/game/GameplayMain.cs",
-        "client/scripts/game/common/Res.cs",
-        "client/scripts/game/gameplay/GameplayHud.cs",
-        "client/scripts/game/gameplay/GameplayMain.Input.cs",
-        "client/scripts/game/gameplay/GameplayMain.Presentation.cs",
-        "client/scripts/game/gameplay/GameplayNoteRenderer.Projection.cs",
-        "client/scripts/game/gameplay/GameplayNoteRenderer.cs",
-        "presentation/game/GameplayBackdrop.cs",
-        "presentation/game/GameplayStageRenderer.cs",
-        "shared/Chart/VisualScrollMath.cs"
-      ]
-    },
-    {
-      "label": "Shared UI behavior and calibration layout",
-      "files": [
-        "client/scripts/ui/calibration/CalibrationScreen.Layout.cs",
-        "client/scripts/ui/common/ScrollInertia.cs",
-        "client/scripts/ui/common/UiHoverFade.cs"
-      ]
-    },
-    {
-      "label": "Editor desktop shell and stage authoring/preview",
-      "files": [
-        "editor/scripts/StandaloneEditorMain.cs",
-        "editor/scripts/stage/EditorAudioLoader.cs",
         "editor/scripts/stage/EditorPreviewController.cs",
-        "editor/scripts/stage/EditorStageAuthoring.cs",
         "editor/scripts/stage/EditorStageIpc.cs",
         "editor/scripts/stage/EditorStagePreview.cs",
-        "editor/shell/App.axaml.cs",
-        "editor/shell/CreateChartDialog.axaml.cs",
-        "editor/shell/DesktopVerification.cs",
-        "editor/shell/GodotStageService.cs"
+        "editor/shell/GodotStageService.cs",
+        "presentation/game/GameplayVisualMapper.cs"
       ]
     },
     {
-      "label": "Editor desktop shell and stage authoring/preview",
+      "label": "Stage authoring, placement overlays, and geometry tests",
+      "files": [
+        "editor/scripts/stage/EditorStageAuthoring.cs",
+        "tools/chart-editor-core/Canvas/EditorStagePlacement.cs",
+        "tools/chart-editor-tests/Documents/EditorGeometryTests.cs",
+        "editor/scripts/stage/EditorPlacementOverlay.cs",
+        "tools/chart-editor-core/Canvas/StagePlacementDraft.cs",
+        "tools/chart-editor-tests/Canvas/StagePlacementDraftTests.cs",
+        "tools/chart-editor-tests/Program.cs"
+      ]
+    },
+    {
+      "label": "Shell chart editing, inspector, and timing tools",
       "files": [
         "editor/shell/InspectorView.axaml.cs",
-        "editor/shell/Localization/en.json"
-      ]
-    },
-    {
-      "label": "Editor shell localization and workbench views",
-      "files": [
-        "editor/shell/Localization/zh-CN.json",
         "editor/shell/MainWindow.axaml.cs",
-        "editor/shell/NativeStageHost.cs",
-        "editor/shell/Program.cs",
-        "editor/shell/StageView.axaml.cs",
-        "editor/shell/TimelineView.cs",
         "editor/shell/ToolsView.axaml.cs",
-        "editor/shell/Verification.cs",
         "editor/shell/WorkbenchFactory.cs",
-        "editor/shell/WorkbenchText.cs"
+        "editor/shell/ShellChartEditor.cs",
+        "editor/shell/TimingView.axaml.cs"
       ]
     },
     {
-      "label": "Chart V2 schema, evaluation, serialization, and runtime models",
+      "label": "Package settings and document session behavior",
       "files": [
-        "schemas/chart-format-v2/chart.schema.json",
-        "schemas/chart-format-v2/validate.py",
-        "shared/Chart/V2/Evaluation.cs",
-        "shared/Chart/V2/GameplayDigest.cs",
-        "shared/Chart/V2/Models.cs",
-        "shared/Chart/V2/RuntimeAdapter.cs",
-        "shared/Chart/V2/V2JsonDecoder.cs",
-        "shared/Chart/V2/V2JsonEncoder.cs",
-        "shared/Chart/V2/V2PackageWriter.cs",
-        "shared/Chart/V2/Validation.cs"
-      ]
-    },
-    {
-      "label": "Chart editor core authoring and document changes",
-      "files": [
-        "tools/chart-editor-core/Canvas/CanvasAuthoringController.cs",
-        "tools/chart-editor-core/Canvas/CanvasProjection.cs",
-        "tools/chart-editor-core/Canvas/CanvasProjectionTypes.cs",
-        "tools/chart-editor-core/Commands/EditorCommandRules.cs",
-        "tools/chart-editor-core/Commands/NoteCommands.cs",
-        "tools/chart-editor-core/Documents/EditorDocument.cs",
-        "tools/chart-editor-core/EditorPropertyCatalog.cs",
-        "tools/chart-editor-core/Documents/EditorGameplayDigest.cs"
-      ]
-    },
-    {
-      "label": "Chart editor core tests and curve authoring tests",
-      "files": [
-        "tools/chart-editor-tests/Canvas/CanvasProjectionTests.cs",
-        "tools/chart-editor-tests/Documents/EditorDocumentTests.cs",
-        "tools/chart-editor-tests/Documents/EditorPathTests.cs",
+        "tools/chart-editor-core/Documents/EditorDocumentSession.cs",
         "tools/chart-editor-tests/Documents/EditorSessionTests.cs",
-        "tools/chart-editor-tests/Packages/PackagePersistenceTests.cs",
-        "tools/chart-editor-tests/Program.cs",
-        "tools/chart-editor-tests/Documents/EditorCurveTests.cs"
+        "editor/shell/PackageSettingsDialog.axaml.cs",
+        "tools/chart-editor-core/Documents/EditorPackageSettings.cs"
       ]
     },
     {
-      "label": "Audio probing and FLAC decoder implementation",
+      "label": "Shell localization updates",
       "files": [
-        "shared/Audio/FlacBitReader.cs",
-        "shared/Audio/FlacCrc.cs",
-        "shared/Audio/FlacDecodeException.cs",
-        "shared/Audio/FlacDecodedAudio.cs",
-        "shared/Audio/FlacDecoder.cs",
-        "shared/Audio/FlacDecoderOptions.cs",
-        "shared/Audio/FlacFrameDecoder.cs",
-        "shared/Audio/FlacMetadataBlocks.cs",
-        "shared/Audio/FlacPcmWriter.cs",
-        "shared/Audio/FlacSubframeDecoder.cs"
+        "editor/shell/Localization/en.json",
+        "editor/shell/Localization/zh-CN.json"
       ]
     },
     {
-      "label": "Audio format probes and audio fixture/tests",
+      "label": "Editor verification workflows",
       "files": [
-        "shared/Chart/V2/AudioProbe.Flac.cs",
-        "shared/Chart/V2/AudioProbe.Mp3.cs",
-        "shared/Chart/V2/AudioProbe.Ogg.cs",
-        "shared/Chart/V2/AudioProbe.Wave.cs",
-        "shared/Chart/V2/AudioProbe.cs",
-        "tools/chart-editor-tests/Packages/AudioProbeFixtures.cs",
-        "tools/chart-editor-tests/Packages/AudioProbeTests.cs"
-      ]
-    },
-    {
-      "label": "FLAC decoder tests and test encoder",
-      "files": [
-        "tools/core-tests/Audio/FlacDecoderTests.cs",
-        "tools/core-tests/Audio/FlacTestEncoder.cs"
-      ]
-    },
-    {
-      "label": "Chart gameplay geometry and scrolling tests",
-      "files": [
-        "tools/core-tests/Charts/V2ChartTests.cs",
-        "tools/core-tests/Gameplay/GameplayGeometryTests.cs",
-        "tools/core-tests/Program.cs",
-        "tools/core-tests/Charts/NoteScrollTests.cs",
-        "tools/core-tests/Charts/V2CurveTests.cs"
-      ]
-    },
-    {
-      "label": "Architecture policy and verification tooling",
-      "files": [
-        "tools/architecture/policy.json",
-        "tools/verify.py"
+        "editor/shell/DesktopVerification.cs",
+        "editor/shell/Verification.cs"
       ]
     }
   ],
-  "session_id": "ff9a6636-0bff-4331-95f7-a51b2a5d49e9",
+  "session_id": "552d487a-11a2-472c-a27a-1de0ebc1cdfb",
   "manifest": {
     "schema_version": "ocr.run-manifest/v1",
-    "run_id": "ff9a6636-0bff-4331-95f7-a51b2a5d49e9",
+    "run_id": "552d487a-11a2-472c-a27a-1de0ebc1cdfb",
     "operation": "review",
     "terminal_state": "complete",
     "repository": {
@@ -373,8 +287,8 @@
     },
     "input": {
       "mode": "workspace",
-      "resolved_base": "b63fb39143c43678132c79e24be10f73b8761684",
-      "source_artifact_sha256": "30075ae6550212a032cc2a72b2de7fbd8e08bfc6e8974fb7aca46979a810797e"
+      "resolved_base": "584844c818a885c671fbcae99775e190902feb17",
+      "source_artifact_sha256": "9fb95247df3a1d45d5f9b7b2abb2afdba36020e8002a81b0f8179106087b0a9e"
     },
     "execution": {
       "ocr_version": "v1.13.4",
@@ -387,872 +301,272 @@
     "coverage": {
       "selected": [
         {
-          "item_id": "0114a5c9bf35a3424cba9ba5b9a6538048b534fccaa543221b8d394f6b8fba36",
-          "path": "shared/Audio/FlacSubframeDecoder.cs",
-          "fingerprint": "23d09cc5de1057867f079511c66d04a61ba93d1c83a41b164e20f10cd64bbe4d"
+          "item_id": "157dbb88e0d1bff1ed9f09c7aa168c555029d9a48a0605daf9483425f920495b",
+          "path": "tools/chart-editor-core/Documents/EditorPackageSettings.cs",
+          "fingerprint": "49b73fce1e9d46e95d25fcf69f5460fe2f674e89b976464ff2772e7602a3320c"
         },
         {
-          "item_id": "013f5af8b589c619bca1a4e2dac32af40af71c60b60ba4f65f249bc9e82addab",
-          "path": "tools/core-tests/Charts/V2CurveTests.cs",
-          "fingerprint": "347089eee35b941df5dbd03d221c8825c14326488a9f514e9f16f8808bac5c4a"
-        },
-        {
-          "item_id": "04a622596939b72c97bc83713ee03a5a0f333576b6a980040bc66b6c4dbe21ba",
-          "path": "shared/Chart/V2/Evaluation.cs",
-          "fingerprint": "53621536ecea2b53c769160f466dfaeec55af7ad2b690918a27303d8af154adb"
-        },
-        {
-          "item_id": "14ec4ccff2771bd62a052b6f4b483c087351bcec305e3c34e561dd411e933a50",
-          "path": "tools/chart-editor-core/Canvas/CanvasProjection.cs",
-          "fingerprint": "a2c60588af89b5ce85568844083cfb05e8194a56e83367a6157ec819e652c9f4"
-        },
-        {
-          "item_id": "1701cdc9ffcad49b9606e9119be1a0f7c187476faf32cd090548a3ba8674805a",
-          "path": "client/scripts/game/gameplay/GameplayNoteRenderer.cs",
-          "fingerprint": "04d9b25468795dec11d9e033fd7585655c47c1e14949f926caf71d5ab51b5055"
-        },
-        {
-          "item_id": "17a9522df171b8f212330f99f09ccd95f192f38472251a584224a5e6c5d2138a",
-          "path": "tools/chart-editor-tests/Packages/PackagePersistenceTests.cs",
-          "fingerprint": "4bb00d55e066a7c68ff42dc27febd03a008d80fce1bf341fd132ac2b72daf8d5"
-        },
-        {
-          "item_id": "196ffa37b4d7688cb9c5ca9d1c7d26fa28c21eb8164a9eb36ba76039456fd4bd",
-          "path": "schemas/chart-format-v2/validate.py",
-          "fingerprint": "cb7cd7b176d43b2672d52a116f09240b8835cd7aa1653b7e9a2817fa5ed0898a"
-        },
-        {
-          "item_id": "1acedfe13c7dd37e966e07e160bab8713e2001c1b4d2a9ae56d3112fde83a045",
-          "path": "shared/Audio/FlacBitReader.cs",
-          "fingerprint": "5c272f3150e1fc9eb4fa3be3dd5a1b4cc618eccff0aaaa8e72a5ed0088ab037a"
-        },
-        {
-          "item_id": "1dcfe2f6521450197633b74b78d29eb9eac34bbd98a5dae0e56680a71749400b",
-          "path": "tools/chart-editor-core/Documents/EditorGameplayDigest.cs",
-          "fingerprint": "4a420338af98de16065e97f807644b0fa93c049b780878eb5eb8d3a8d9ae363e"
-        },
-        {
-          "item_id": "262c553c404e50bb4d347ec97e935e1467146efa8ff7b7e5b6467aabb746da24",
-          "path": "editor/scripts/stage/EditorAudioLoader.cs",
-          "fingerprint": "03d74997b5e9398ab0e1c755da7150ce06ca6a33dd548e06c7fda9414247a889"
-        },
-        {
-          "item_id": "287e1512642170a58cb2a92de86518e0a0d8709250384880196912ff259542c1",
-          "path": "tools/core-tests/Charts/V2ChartTests.cs",
-          "fingerprint": "c552de1b05ca4b0fdf453e5082649531549c7e4e1b31023283c325ecae8d15e1"
-        },
-        {
-          "item_id": "2a2e7b01120dd33ef1007762c7d2f25e8db897592ac9de8d4d8e4771e9f0f2c9",
-          "path": "client/scripts/game/gameplay/GameplayHud.cs",
-          "fingerprint": "f73355e69846ad37a7b3a91af469292c5f3f1a7135386c471749e338c47a591a"
-        },
-        {
-          "item_id": "2cca1c16dba45224d3e0c6ee7c8d816ba61eb805b6ae6b4aaa601a02c066adb3",
-          "path": "tools/architecture/policy.json",
-          "fingerprint": "70ebf346ef4ea94f40314add3884301e282dc9feecdef75e43a89d3b8e4d1201"
-        },
-        {
-          "item_id": "2f25e63d6561be803fc0cd8ddf28bfb0a88a31327ecab0f7b29f04fa08b02af9",
-          "path": "shared/Chart/V2/Validation.cs",
-          "fingerprint": "b3e78f16b4c7a797038bf7d17a69d4ffaa7d2e7fab2f80d7a12b35bc3e3f3661"
-        },
-        {
-          "item_id": "34be42bfd1d35c7ec8fd96d61d9262d4e6a597d7036c3ac7f7aea765c3784bdf",
-          "path": "shared/Chart/V2/AudioProbe.Mp3.cs",
-          "fingerprint": "d7d98c4bba5a36708cd0036e39f712cb5436ecdc4cba14755e4549266fb3f449"
-        },
-        {
-          "item_id": "3cfdee2e83b4a34e5e4634f7c8852891ef09d8822b502ab698256f5d0ac79303",
-          "path": "tools/chart-editor-core/Canvas/CanvasProjectionTypes.cs",
-          "fingerprint": "a4f3b142fff2c0269e8a07396a7614466b005c6fdc92f7e1a36d17d927ce7d44"
-        },
-        {
-          "item_id": "3e340279d303ae583041d8390efe60338f9a6ce1ee19ddc432a7dd5a7ea77086",
-          "path": "tools/chart-editor-core/Canvas/CanvasAuthoringController.cs",
-          "fingerprint": "6b9e4176dab789bd74aabbf1e1073c4708e44dcdbe68c1f0e2a0154df7267a2e"
-        },
-        {
-          "item_id": "452f48991a06b9adfe27fd533a3e9f9f9ec282df62e90ae493c37d6a7ee1d9f2",
-          "path": "client/scripts/game/gameplay/GameplayMain.Input.cs",
-          "fingerprint": "9f3375fea68a55cc4c1a162132170a1f0e08bf5e2f67b6fc2100d563174dcb7a"
-        },
-        {
-          "item_id": "47a8b022534988a33646385b66a32fb161767b734bc39223a2d2d3a13854cd0a",
-          "path": "shared/Chart/VisualScrollMath.cs",
-          "fingerprint": "dd163018d560553b275d17d59428de511a6280d9f7be9b992c67f6fcbea2c4e3"
-        },
-        {
-          "item_id": "4900b855be8088b8a086514932cbe76f9e4a9ce44e827a1af31a6db21431a003",
-          "path": "shared/Chart/V2/AudioProbe.Ogg.cs",
-          "fingerprint": "9b7d506210192b3ed25d72a96aad87e97c4b65ae9a2b1ae0a74059cb85510c5d"
-        },
-        {
-          "item_id": "4ee88f5231513b0faf77734ac13f74e6ac000bc26602593b453cbb397d66377f",
-          "path": "presentation/game/GameplayStageRenderer.cs",
-          "fingerprint": "7d8fd2f363ae023672eb8c5d7b46c23516e7d3f196eb1490abe7a9d580f175b3"
+          "item_id": "24a158701044d2e57e5ff41f878dd7d68c02ee51a39898071f5492f66ffae57b",
+          "path": "editor/shell/PackageSettingsDialog.axaml.cs",
+          "fingerprint": "3f6e7ecfaa5b6f64587029b8e9009d5d4d950d5f145a0a18af01525b42542dee"
         },
         {
           "item_id": "4ff02a901b58c439e8051b447219fba6227000eee0640a5c1c19c169b6e5d25b",
           "path": "editor/shell/Localization/en.json",
-          "fingerprint": "cb2a027346f8fc9acfe8898b3369f17d04cf98fe3496dc781418acbfc7867f9f"
+          "fingerprint": "1a09733f3b0ba77b4681b7b8e662e9db897ed4f47c9b9225113a3fe51e9c37fe"
         },
         {
-          "item_id": "5633f161416abf172653be2a00fcb373b37d265aca5dbd72407c08fbf6459d4d",
-          "path": "shared/Chart/V2/V2PackageWriter.cs",
-          "fingerprint": "efd2e52dbd0cf5910edda533d41db49b601124510607e469137a3ba336c8820f"
+          "item_id": "5809d7c84974c484363bc1b5231a36e06936c928242234066ae5a6c57a68c474",
+          "path": "editor/scripts/stage/EditorPlacementOverlay.cs",
+          "fingerprint": "7b52fe80e6368aec70ea90eafbb28407fa427cd81c6f5823d2f0aa8f22c320c9"
         },
         {
-          "item_id": "58a4b959c3cd14776f97e4a77e158518c59558ff300a35db8bdfc69dc60196b7",
-          "path": "tools/chart-editor-tests/Packages/AudioProbeTests.cs",
-          "fingerprint": "e2e6d74cc106088ef441a0fbb54672d3333841a2e5eb3b5fb044931cb2cbb5d8"
-        },
-        {
-          "item_id": "593e7f4cd48a562b05d00f1ad8cf8581f68f7c0da197928cd1b822f48f42b8b1",
-          "path": "client/scripts/ui/common/ScrollInertia.cs",
-          "fingerprint": "46a69d39c42c60405318b378803d72bc15a369039c0cfe803af6402f5201654f"
-        },
-        {
-          "item_id": "5aed6abf0ef18666f425f94c5b047d6828a28bf881e7b515e886d2b3019ec6df",
-          "path": "tools/chart-editor-tests/Packages/AudioProbeFixtures.cs",
-          "fingerprint": "d9ce32d2a4fd695013f1938f0787b669a36f1ce5d0ed6c3f19c99bb44ef31e2b"
-        },
-        {
-          "item_id": "5bd8847941d3f25e84c1d069b64f93a36579a429dff1dc1b510c601a563b321a",
-          "path": "tools/chart-editor-tests/Documents/EditorCurveTests.cs",
-          "fingerprint": "827aa0a232b584883df5b7eedb88ae5bdf02928f8c1675f4a31318bf4b1256b4"
-        },
-        {
-          "item_id": "5ecc0dc2f49908e72ec608503c75804fbc607be3ab79271c9aa1cc344abad428",
-          "path": "editor/shell/TimelineView.cs",
-          "fingerprint": "5d9a5be79e1a669742e667d298505a34147437108fe9824b11496600d3db5d79"
-        },
-        {
-          "item_id": "5f74f540528660c9a2c9b35989eb6f68dccf4178fa9b88cfca78cea613096508",
-          "path": "tools/core-tests/Audio/FlacDecoderTests.cs",
-          "fingerprint": "c4909de28cd7bc0ee1057e3112c3cecb1de78cb9039845dc5a07abee5ceeece9"
-        },
-        {
-          "item_id": "628ee3c7c9ee64428a263f62f2aac35465852a630e62ef4eccd41a018881bad9",
-          "path": "shared/Audio/FlacDecodedAudio.cs",
-          "fingerprint": "fbfda9222adff1f0994d8b4b097bafaccfae1586e8bfe229a853845d2e9634c9"
+          "item_id": "5ac077b96227e4d15b7598fd2c740b19994fb606d156186e62d0221283822c6c",
+          "path": "tools/chart-editor-tests/Documents/EditorGeometryTests.cs",
+          "fingerprint": "d7562c22c411c29817833a7f33093ebbeee7b2b8e87a4d9087121b4b05f2f887"
         },
         {
           "item_id": "65a6c61ba87e481a111326659adc2d0094448ebf12869e749d0d7756dc527baf",
           "path": "editor/scripts/stage/EditorPreviewController.cs",
-          "fingerprint": "b46ff2dc7190ae327d5d569ab9f98227bfc84ef90a8c476ea86adf898753de1d"
-        },
-        {
-          "item_id": "6e9e98b7aa42d071ee3389dce0d55f81a2b69fbcb66fe9478f2b0752627d1117",
-          "path": "tools/chart-editor-tests/Canvas/CanvasProjectionTests.cs",
-          "fingerprint": "591800f6cc78a7b7cd0d1eb47ef32d451868e1802c16730510742f6afb265a5b"
-        },
-        {
-          "item_id": "6fe1d0ca242253d9c2b6122edcd78bab375b88858f4bab9f89387a9afe71590d",
-          "path": "client/scripts/game/gameplay/GameplayMain.Presentation.cs",
-          "fingerprint": "f009878015929929b8db02b452d4562571dfb00c033e24b56590391bd8d368e6"
-        },
-        {
-          "item_id": "71092a27ee0b3b248948cc4883b432cf12794f10035e1a170a04f3d670505d7d",
-          "path": "shared/Chart/V2/V2JsonEncoder.cs",
-          "fingerprint": "1ca931eaec40e5e3ed936a141fb781df069d875d1542e1fb42732b0e54541901"
+          "fingerprint": "6cdc786358f5cfcd2104152e66bc604c7d5ed9e73d79de0c0e837933755417a8"
         },
         {
           "item_id": "75bfe96d14993ca4be456f78b03a2553c386e863392fa613efb05d39ddce68ac",
           "path": "tools/chart-editor-tests/Program.cs",
-          "fingerprint": "8b5240074b0ed5640624678f1bee05e914bc763c45407cf5fed4f7970d5639ab"
+          "fingerprint": "bce3a5c96886aeb2c7fea7e67c89f16c409085caf796653f8caef867730236d2"
         },
         {
-          "item_id": "7a4fbbad3b2328e34c7442dc1befd924504996d7a88a786419d83655936377b1",
-          "path": "shared/Chart/V2/AudioProbe.Flac.cs",
-          "fingerprint": "97be74f1eddcfea98366688f1e10111235af7f1312c9660fb6f53140362a8134"
-        },
-        {
-          "item_id": "7bbd34a27e5643010981d2a8134a5cf5b0a81c587ebb687bbd6ba91689198019",
-          "path": "shared/Chart/V2/V2JsonDecoder.cs",
-          "fingerprint": "0e240383952e98f86d56b734019c4516dc38e9f0740c73a8608fd011d8ef609d"
-        },
-        {
-          "item_id": "7f4d2f12c0b0371016497c7a245128fef2de0dd8ee49dc2deb0d72a1d32a5301",
-          "path": "editor/shell/StageView.axaml.cs",
-          "fingerprint": "05ea8e2020b192dc156b56c5b49eac0f9344bb33ecca2a501c6151b5725c2026"
-        },
-        {
-          "item_id": "801affa26c42bb4b40d024f2e83de49e236f4d48f4ae04bef61aa19138976f49",
-          "path": "client/scripts/game/gameplay/GameplayNoteRenderer.Projection.cs",
-          "fingerprint": "1bba5445eeb4b4798f24ab1b77109b55a470197a55ebcbf7d7b192797408d7bb"
-        },
-        {
-          "item_id": "80df41c6276b83e60e1328ee0c2a7ef1e84ac1d6d438754d633019fd7c4f1efb",
-          "path": "client/scripts/game/GameplayMain.cs",
-          "fingerprint": "1e3cfb23754324d4cf0c9a98e6d9af7b91afdebdfea18435184d3375c413d98b"
+          "item_id": "807554f613392faf6b4e0ebd22a88512411b1da3942cdb9741fb8ca8fdd5045d",
+          "path": "editor/shell/ShellChartEditor.cs",
+          "fingerprint": "97b9f2d823cbece7ab2cd5107840eb9e648459f1d68b42ae96b4538b81f3cd6d"
         },
         {
           "item_id": "851a04417728a4c79841a8e9e284c8989b5497b52b01f130578a08ecb9d1fc3b",
           "path": "editor/shell/Localization/zh-CN.json",
-          "fingerprint": "14594902f60b60e74ee15f1598deee02524091cb0a6fc043d6bc97c150b9903b"
+          "fingerprint": "ac96db02542e093adaa0fee2431f9d0b7c35228841b299416429fa7baf658e24"
         },
         {
-          "item_id": "8c747ab83d34281e93ab9bc795fe20b1f2572ea1d5bd55c4ac0643123c6122c8",
-          "path": "tools/core-tests/Charts/NoteScrollTests.cs",
-          "fingerprint": "25f0f187fb4e69c29f1c8c8bae3a244eda892cceecd271f924e9c40f44753ca4"
-        },
-        {
-          "item_id": "8e33ac1973ff0b6cbd020cc133711f53a1f77a5c81bce8ebebce09e2a11c7682",
-          "path": "client/scripts/ui/common/UiHoverFade.cs",
-          "fingerprint": "54651c46546ac8a1895b816f4c052c8a59db20f26c8021fe8cc1e46b26cd6027"
+          "item_id": "8add5bdfb03255f5f841dd79e84a4dc98677fad7914b080f47e5bd607d6c345d",
+          "path": "tools/chart-editor-core/Canvas/StagePlacementDraft.cs",
+          "fingerprint": "32aa14698dafad5fd27e6b06b218435d6ebce415ca69aa161ee26a07e56ee288"
         },
         {
           "item_id": "8f23ea46b2fbf7f139225f23deae31e4dfb25b19678d0b512f97c3b1350ee208",
           "path": "editor/scripts/stage/EditorStagePreview.cs",
-          "fingerprint": "22260f1d9072f637ee06d58640ebe7e6a5c6e51777bcb7eb3353a32517ebdca5"
+          "fingerprint": "35860287d3b5476e414dca93e0a05fe71af49bf0de02a7ded91d1285a2da35ef"
         },
         {
-          "item_id": "8fb4b261b67a9914012aabb60a4b97e9905445e563a32c1c1969caa1c2820c62",
-          "path": "shared/Chart/V2/AudioProbe.cs",
-          "fingerprint": "109336713059a4e3b3c61a5d25ac8143a1ce1fadc1f6ce467b53d05a68770950"
+          "item_id": "96c9c993731391a573154a422fe6d9169d69340a8596d59529dbb18303445eb8",
+          "path": "editor/shell/TimingView.axaml.cs",
+          "fingerprint": "28a614dd459d8a2bf79b983718746d1ebea209db51fdaee9a5699dc2dec9feeb"
         },
         {
-          "item_id": "9110535c6f94ee9c182dd4b2d919f697a35e4a4a67862567f8c578539f83ed22",
-          "path": "shared/Chart/V2/AudioProbe.Wave.cs",
-          "fingerprint": "8841414b4d667a95919e5a7ae313d066d04818d83f5227d37c67eeb2c0ccb39c"
+          "item_id": "9a50a831d9c2b2b146b05b67ce269695daaab53bb413f8037c2bdfd0759019bc",
+          "path": "tools/chart-editor-core/Canvas/EditorStagePlacement.cs",
+          "fingerprint": "0fb2c39504d61e3a7842d2c40c361dcaed20c290c6edfa8dc80701b2fdfd2af9"
         },
         {
-          "item_id": "946e1c0ce875025f4413677e04d0b2dfa916d2268ab0ee6c080fa220f2b6160a",
-          "path": "tools/chart-editor-tests/Documents/EditorPathTests.cs",
-          "fingerprint": "e25deedc254c2815da8bd1041e74f4187ea78d4559390e963e1a8560fc267d16"
-        },
-        {
-          "item_id": "953079557e2a617686d99d2a97a0475706af49926f13a6a3d2dd770a4fbf84bb",
-          "path": "client/scripts/game/common/Res.cs",
-          "fingerprint": "3c8d75934f2e36efa539a0802720c2dd64918c605b66b8df2083470c3978dffa"
-        },
-        {
-          "item_id": "9b1276248aadafacedc9161e24255ad38ece654e83d4b3e250565fe749eab5a8",
-          "path": "shared/Chart/V2/GameplayDigest.cs",
-          "fingerprint": "9eeecf40a7872431c8f424a4c36b1dabdc1fd523fdbf50ba32dacddeaa36d5c9"
-        },
-        {
-          "item_id": "9ffd4ee23122fe3c4f6b51f4ce93aa4bc5705650989156ac907850a93e4acede",
-          "path": "editor/shell/App.axaml.cs",
-          "fingerprint": "b47b82057870f0f2da395d0000a63d1142100998736d8e008cdc409d55d6da43"
-        },
-        {
-          "item_id": "a2385d7ac8356c8338c70009bc5991d26dd3be3ebff53f4615f2303a538ec49d",
-          "path": "tools/core-tests/Gameplay/GameplayGeometryTests.cs",
-          "fingerprint": "0426940546312400ede966fcc709646e26bf2a5f66b4ce36f00e356a0fc29b98"
+          "item_id": "9e76ff6cbc08197abd16a11a9a41f789f1d37aa5459c77a096ba08032b0e617f",
+          "path": "tools/chart-editor-tests/Canvas/StagePlacementDraftTests.cs",
+          "fingerprint": "7b322eb118ab712a7c1a47601d8da97e20f7ded4debb24903d9964af2995bcaf"
         },
         {
           "item_id": "a2aba9bf7ef0ae1dea93a38aca3ea8f42421563c7045a99cf0fb6a335083fec7",
           "path": "editor/scripts/stage/EditorStageAuthoring.cs",
-          "fingerprint": "222525ee85515189a9df6c946238ef08864897a440d060c5bedae176aa105887"
-        },
-        {
-          "item_id": "a35f2e67447edc81069098af734cba0d9fd5723e10273b005bcf2fc71703abe5",
-          "path": "shared/Audio/FlacMetadataBlocks.cs",
-          "fingerprint": "311b44ebd599a44799f0fdcfa1f5a3880e6d922edde7fa28b0482049a386c5bb"
-        },
-        {
-          "item_id": "a4dbabd34e61f3ca7e9964c93ce29bd75a64e5a1d3d525f4005eb6e4a3193d98",
-          "path": "shared/Audio/FlacCrc.cs",
-          "fingerprint": "055694bde295d7495ca77778ce291f7602a2c7fa83111db2a519b0c11bc70309"
-        },
-        {
-          "item_id": "a509816abd9988ebc43f8fbd1e7fccc8b158570ce9ab49a57ce0ee55be0209a0",
-          "path": "shared/Audio/FlacDecodeException.cs",
-          "fingerprint": "9faf6e930cc5b04e4a915bbd96147bec3988d87fc058e8f8fadda90ea0b7fbd0"
-        },
-        {
-          "item_id": "a5a663c4ae4485ab4346da91bbcba5b83f7c5c0a099bd9b5eb729d9d2cd0a49a",
-          "path": "tools/verify.py",
-          "fingerprint": "e0f8483852a86ff4938b43d4f893dbced5ecb97186e02dec1b00d59ec72548a4"
+          "fingerprint": "96993cf51dc7bd35c041e315f6697ff191ee00c7f7e3aeeab7e15efa844e28a6"
         },
         {
           "item_id": "ad9f821e37efd8c99108d61053db7e58766f37121ac67e4ab4ec55f385e709cb",
           "path": "tools/chart-editor-tests/Documents/EditorSessionTests.cs",
-          "fingerprint": "41bd8960a3ae717c2d9e4b880e87e8f2c45ea0770ea6203e752a1e89f51d087e"
+          "fingerprint": "919e350299dbe368fd2b16e807eda52f4738f960c2e16b60b7e3fc7306dc350b"
         },
         {
           "item_id": "b0159d3c9a299f2d5b5b95461ad66fa15751e131606009639e0a2ec0562e281c",
           "path": "editor/scripts/stage/EditorStageIpc.cs",
-          "fingerprint": "34acf713c0b19451c92afc8905aa31e1735986025e201e1d448a2f43487b3cbc"
+          "fingerprint": "93bf92b06b54c9a228c1dfd1814ca12527d397edd7faf203bb6cef78ec50e3b8"
         },
         {
-          "item_id": "b0a860d82dc3996ec7b9540fd3f87fa5fdacbb3afeefa1bb202177bb5ee4eb82",
-          "path": "tools/chart-editor-core/EditorPropertyCatalog.cs",
-          "fingerprint": "ea8cee508fc841e93f3b8d202fece1556d7114e2dfd6fd830282fdb25bed7652"
-        },
-        {
-          "item_id": "b0c9f1df84c3c343d418d78d7d9d29b0e2f1fcd60f19ca74411d4afba7c842e4",
-          "path": "shared/Chart/V2/RuntimeAdapter.cs",
-          "fingerprint": "c5ab0098a2d59d624ee1cc572a303cc41c13cef06d535612207c7f041b3386db"
-        },
-        {
-          "item_id": "b30acf44021ad2eb9445297a7f141fd1f0a87d78104415ec409cb612c6a99642",
-          "path": "shared/Audio/FlacDecoder.cs",
-          "fingerprint": "f3455f921aed6055daf35570488698caf7d780bb88569c5799bdc304538b2fd8"
-        },
-        {
-          "item_id": "b6e842c4fe5a877cfcce06d02063a812e8f968e8603eda7b9daf19afe468e440",
-          "path": "tools/chart-editor-core/Commands/NoteCommands.cs",
-          "fingerprint": "f440c560ffe639745cd0fed472b3b4ca06245cf1a6e9df36ca78f260f5de3747"
-        },
-        {
-          "item_id": "b81fa011377da3e9a969c287dc9088da5587fb352c5a0d3074828e71ef2c25fa",
-          "path": "shared/Audio/FlacPcmWriter.cs",
-          "fingerprint": "d6b4348e4acc14fae3ed4c85c14693a964b29644c63b0759bba6c350f8cd2078"
-        },
-        {
-          "item_id": "b82830704a65f4070ad00347e40250ff139477c62c80484eefc33c75eb7ed81b",
-          "path": "editor/shell/NativeStageHost.cs",
-          "fingerprint": "ef69993b326570f769f02362a7943b5b7964a516817cb4311d56cf0152cdec89"
-        },
-        {
-          "item_id": "bc0bbdd3d8f298938173a98a1c993a362bd40ef975b13f6da2c314331ac4abd5",
-          "path": "editor/shell/CreateChartDialog.axaml.cs",
-          "fingerprint": "4f0203f9b6a502f551891ea64bfaae8e6dbebf23da29bd590e4c02a38a3f75e3"
-        },
-        {
-          "item_id": "bc0eae74f5ced37c6af7e4b982c6950f513b4bee3654685fa42d947ed1360023",
-          "path": "editor/shell/WorkbenchText.cs",
-          "fingerprint": "484c56b58caae64fc007b44763ccf59e6820755523c80572d9d6af0ec0f3f8fa"
-        },
-        {
-          "item_id": "c14385c328767eaf09de4be9c6894229a65946d9b1f7ff02d287573bbb038f55",
-          "path": "tools/chart-editor-tests/Documents/EditorDocumentTests.cs",
-          "fingerprint": "fefa71496f7ec496eaa53726eb3a8395253815030d76362bd8769d3eaeea4689"
-        },
-        {
-          "item_id": "c1ac9ebfc29893a8c1a80b3224f3b89342b3a313483d3dd393d26c352465b7b6",
-          "path": "shared/Audio/FlacFrameDecoder.cs",
-          "fingerprint": "b9e92396c233b7b557cbdcf839aab564701a68a060a4ba1c5ac18e047b9ecc51"
-        },
-        {
-          "item_id": "cc120c876f491c8ec0acfc2e066c67b227ed3925f6f33f7b41b814c3e9fd776c",
-          "path": "shared/Chart/V2/Models.cs",
-          "fingerprint": "b381becad20ad5de133bd27f849891a600b453bf6bcfec52e0260d8b32d060bb"
-        },
-        {
-          "item_id": "d21abf70946abeee691d419805cfe9cafb91dc6df02bf1ac9f0dde3759331200",
-          "path": "presentation/game/GameplayBackdrop.cs",
-          "fingerprint": "6efa2df1c9b5a04c4b175a72744ddf32694a852290f223038bca20413b327077"
+          "item_id": "bf1a04b722fac30112f18649f678cac466b2f9c0d62a1078ee6b07b9c31c26b1",
+          "path": "presentation/game/GameplayVisualMapper.cs",
+          "fingerprint": "d1fc2a9499742e675e56741d3d9ee9c9be645832147f53b008bef87c5a877da0"
         },
         {
           "item_id": "d2a310c8d6beaeced40f5b6a77200f4e40efb505109ea30b70c50efa348daeef",
           "path": "editor/shell/ToolsView.axaml.cs",
-          "fingerprint": "bfa31251668e571ccb1b4f024c72d4c34ae47c38902c9225b5dd5616bc2e0858"
+          "fingerprint": "8eea6b24a68074dd92abcc5a5594dcd508f616f9d60f8a2791fc96eebba2c434"
         },
         {
           "item_id": "d2bf91bba4a70fe6bf4f55ac27a26be7954798dc53bade1d7d8bd0517fe6a3ed",
           "path": "editor/shell/MainWindow.axaml.cs",
-          "fingerprint": "939864c51e3c962e2872ec8856d7fca309503481449fd4cfaa0b51ebf8df75f0"
+          "fingerprint": "6d1a26e2373e71fa543acc673979509e70198ad0b20895b4426f913a20c4231b"
         },
         {
-          "item_id": "d984491242cdcf9b5c7fd67c593673462a7d4f73df240ab5d13c0257c690385e",
-          "path": "editor/scripts/StandaloneEditorMain.cs",
-          "fingerprint": "6ef7230f93471c2634749e2e069040b25545d256592813f59e35d300b05bc3a8"
-        },
-        {
-          "item_id": "d9fb5ddac9dcf1d20d6347a0669903f8c1d3cd8d31f8cf556c41685899fb9840",
-          "path": "schemas/chart-format-v2/chart.schema.json",
-          "fingerprint": "bea108e1bb34abb0eed82c14491ace35138c752ebbd620fff75daa593311c76e"
-        },
-        {
-          "item_id": "dcf908c10fb6849484dd7b8064b64248cdd55945c3ac38c6e77acd3a14c9f90f",
-          "path": "tools/core-tests/Program.cs",
-          "fingerprint": "e8901e8d9e3ad082f3a109806f5191920e261322e36047f4a527a4cdeb766e3d"
-        },
-        {
-          "item_id": "df457a00d3ad94384401b008437a55cafd62f3df33d868b440d62ef316c144c1",
-          "path": "tools/chart-editor-core/Commands/EditorCommandRules.cs",
-          "fingerprint": "b8b3c0b7d50d9924294b6fedb57338b03f30c7664b196be4276b985c8efb6e60"
+          "item_id": "ddb5d0ef2aacf7fe8328272d02ac0d2215affaf100e65f89036730434292fb58",
+          "path": "tools/chart-editor-core/Documents/EditorDocumentSession.cs",
+          "fingerprint": "e15cec9d708bcb01a4e602fdc977f1f1650189e121efd9f4ced1f1e9fb92f4e3"
         },
         {
           "item_id": "e0169f52cbe0e05a29a1e27c4a1fca78e7bf2e2d45c8691f88d90129fa53b7ba",
           "path": "editor/shell/GodotStageService.cs",
-          "fingerprint": "940e9c6538fc0297761657cf38b0f6d5e0a86b96284c936d5ee4a25f9b0847cc"
+          "fingerprint": "a5b7a8856019e8d4307624c2e2d2a4414d511f6735d9c3f4b5f6ca438bddbea4"
         },
         {
           "item_id": "e19e06b423b24e36d1d676e1781777db8e625f23ef536d67e6e8311da4e88fe8",
           "path": "editor/shell/InspectorView.axaml.cs",
-          "fingerprint": "0920689ca2016c921febcfb26e56c2c09dcad7f13df8c2d1826bb1c80ca02694"
+          "fingerprint": "c6b6bf3b79f18e9de42118e7de5aa0caf68bf9e8071620aa7c9c1dba880e9023"
         },
         {
           "item_id": "e478b4ab9ca1e00049f69987c122adab50a0b98d76789869457a0eb2b48eb228",
           "path": "editor/shell/Verification.cs",
-          "fingerprint": "4ab3a70d25716885014fa50fca9bd574746cd1852514c83ec978d93b8ac01597"
-        },
-        {
-          "item_id": "e980bceeccf71c59bcb328690e97109b62dc7b12e0d4041ee9a2059555cfb136",
-          "path": "editor/shell/Program.cs",
-          "fingerprint": "1a09fb4a4895f6a7426f18e7023c07425757f4dff024aeb433e8ab0c1b223c88"
-        },
-        {
-          "item_id": "eb88cc9c8b6596699b528cf0d94c70f5fe8b5d1b8af4c8a81be9da561b6514d8",
-          "path": "client/scripts/ui/calibration/CalibrationScreen.Layout.cs",
-          "fingerprint": "883279e0164af88b802de6f7424671c0f19cfde3de827ce4ccb060f098e1c9a2"
-        },
-        {
-          "item_id": "ebbfb2a13813cdd201482d0c1a7e5778d7f2937990bed3941f377ae46fe8a825",
-          "path": "tools/chart-editor-core/Documents/EditorDocument.cs",
-          "fingerprint": "d4a7d7d6adda5ef38f16957d69c3947e971387d5479cbddc552ff651347fbdd2"
-        },
-        {
-          "item_id": "ece1697287525474adfb002a5734870f1ad954c532e4d1e4e02b11f57cf9fe74",
-          "path": "tools/core-tests/Audio/FlacTestEncoder.cs",
-          "fingerprint": "8f54e730d5f0c4eee38a76fee98d6c944c3916598965ef9e24f2747433c3fc97"
-        },
-        {
-          "item_id": "f26a8e2c5c7b2e06a7b56246e47b061dca6eaea8951e70d8a0ecc228d965e34b",
-          "path": "shared/Audio/FlacDecoderOptions.cs",
-          "fingerprint": "6b8325e30480827678d8352c19f5f2ff5dbbb1b3f68c7db30188d1e781685876"
+          "fingerprint": "c954c6035b4b320cca6e541d7cd3e3134c6b684e4549bacd913a4389f79785e6"
         },
         {
           "item_id": "f62897643a86ba09926ddb05de35b689df69959d9c7f819edc2f2456af46b8ac",
           "path": "editor/shell/DesktopVerification.cs",
-          "fingerprint": "73c5a7eb2bd6183e15cc523b83764ab469682ebbd0662e1a713423a829dd31cc"
+          "fingerprint": "60db3315819910e11badd59e74ad9296ce398cca6ff696ddef5ab75d388ea62b"
         },
         {
           "item_id": "f762183ae48aa8e47acdcefd1b99cbd29aa807a791090ab844979764c7c50f85",
           "path": "editor/shell/WorkbenchFactory.cs",
-          "fingerprint": "cc9626f7976ff27fdef01e246362fcdcbe1ae10dd07ce7b8819de5949897a341"
+          "fingerprint": "53f68c987c90ac5c0c26640022bfc682096505929d72873cf9517cd77cb7ba9a"
         }
       ],
       "completed": [
         {
-          "item_id": "0114a5c9bf35a3424cba9ba5b9a6538048b534fccaa543221b8d394f6b8fba36",
-          "path": "shared/Audio/FlacSubframeDecoder.cs",
-          "fingerprint": "23d09cc5de1057867f079511c66d04a61ba93d1c83a41b164e20f10cd64bbe4d"
+          "item_id": "157dbb88e0d1bff1ed9f09c7aa168c555029d9a48a0605daf9483425f920495b",
+          "path": "tools/chart-editor-core/Documents/EditorPackageSettings.cs",
+          "fingerprint": "49b73fce1e9d46e95d25fcf69f5460fe2f674e89b976464ff2772e7602a3320c"
         },
         {
-          "item_id": "013f5af8b589c619bca1a4e2dac32af40af71c60b60ba4f65f249bc9e82addab",
-          "path": "tools/core-tests/Charts/V2CurveTests.cs",
-          "fingerprint": "347089eee35b941df5dbd03d221c8825c14326488a9f514e9f16f8808bac5c4a"
-        },
-        {
-          "item_id": "04a622596939b72c97bc83713ee03a5a0f333576b6a980040bc66b6c4dbe21ba",
-          "path": "shared/Chart/V2/Evaluation.cs",
-          "fingerprint": "53621536ecea2b53c769160f466dfaeec55af7ad2b690918a27303d8af154adb"
-        },
-        {
-          "item_id": "14ec4ccff2771bd62a052b6f4b483c087351bcec305e3c34e561dd411e933a50",
-          "path": "tools/chart-editor-core/Canvas/CanvasProjection.cs",
-          "fingerprint": "a2c60588af89b5ce85568844083cfb05e8194a56e83367a6157ec819e652c9f4"
-        },
-        {
-          "item_id": "1701cdc9ffcad49b9606e9119be1a0f7c187476faf32cd090548a3ba8674805a",
-          "path": "client/scripts/game/gameplay/GameplayNoteRenderer.cs",
-          "fingerprint": "04d9b25468795dec11d9e033fd7585655c47c1e14949f926caf71d5ab51b5055"
-        },
-        {
-          "item_id": "17a9522df171b8f212330f99f09ccd95f192f38472251a584224a5e6c5d2138a",
-          "path": "tools/chart-editor-tests/Packages/PackagePersistenceTests.cs",
-          "fingerprint": "4bb00d55e066a7c68ff42dc27febd03a008d80fce1bf341fd132ac2b72daf8d5"
-        },
-        {
-          "item_id": "196ffa37b4d7688cb9c5ca9d1c7d26fa28c21eb8164a9eb36ba76039456fd4bd",
-          "path": "schemas/chart-format-v2/validate.py",
-          "fingerprint": "cb7cd7b176d43b2672d52a116f09240b8835cd7aa1653b7e9a2817fa5ed0898a"
-        },
-        {
-          "item_id": "1acedfe13c7dd37e966e07e160bab8713e2001c1b4d2a9ae56d3112fde83a045",
-          "path": "shared/Audio/FlacBitReader.cs",
-          "fingerprint": "5c272f3150e1fc9eb4fa3be3dd5a1b4cc618eccff0aaaa8e72a5ed0088ab037a"
-        },
-        {
-          "item_id": "1dcfe2f6521450197633b74b78d29eb9eac34bbd98a5dae0e56680a71749400b",
-          "path": "tools/chart-editor-core/Documents/EditorGameplayDigest.cs",
-          "fingerprint": "4a420338af98de16065e97f807644b0fa93c049b780878eb5eb8d3a8d9ae363e"
-        },
-        {
-          "item_id": "262c553c404e50bb4d347ec97e935e1467146efa8ff7b7e5b6467aabb746da24",
-          "path": "editor/scripts/stage/EditorAudioLoader.cs",
-          "fingerprint": "03d74997b5e9398ab0e1c755da7150ce06ca6a33dd548e06c7fda9414247a889"
-        },
-        {
-          "item_id": "287e1512642170a58cb2a92de86518e0a0d8709250384880196912ff259542c1",
-          "path": "tools/core-tests/Charts/V2ChartTests.cs",
-          "fingerprint": "c552de1b05ca4b0fdf453e5082649531549c7e4e1b31023283c325ecae8d15e1"
-        },
-        {
-          "item_id": "2a2e7b01120dd33ef1007762c7d2f25e8db897592ac9de8d4d8e4771e9f0f2c9",
-          "path": "client/scripts/game/gameplay/GameplayHud.cs",
-          "fingerprint": "f73355e69846ad37a7b3a91af469292c5f3f1a7135386c471749e338c47a591a"
-        },
-        {
-          "item_id": "2cca1c16dba45224d3e0c6ee7c8d816ba61eb805b6ae6b4aaa601a02c066adb3",
-          "path": "tools/architecture/policy.json",
-          "fingerprint": "70ebf346ef4ea94f40314add3884301e282dc9feecdef75e43a89d3b8e4d1201"
-        },
-        {
-          "item_id": "2f25e63d6561be803fc0cd8ddf28bfb0a88a31327ecab0f7b29f04fa08b02af9",
-          "path": "shared/Chart/V2/Validation.cs",
-          "fingerprint": "b3e78f16b4c7a797038bf7d17a69d4ffaa7d2e7fab2f80d7a12b35bc3e3f3661"
-        },
-        {
-          "item_id": "34be42bfd1d35c7ec8fd96d61d9262d4e6a597d7036c3ac7f7aea765c3784bdf",
-          "path": "shared/Chart/V2/AudioProbe.Mp3.cs",
-          "fingerprint": "d7d98c4bba5a36708cd0036e39f712cb5436ecdc4cba14755e4549266fb3f449"
-        },
-        {
-          "item_id": "3cfdee2e83b4a34e5e4634f7c8852891ef09d8822b502ab698256f5d0ac79303",
-          "path": "tools/chart-editor-core/Canvas/CanvasProjectionTypes.cs",
-          "fingerprint": "a4f3b142fff2c0269e8a07396a7614466b005c6fdc92f7e1a36d17d927ce7d44"
-        },
-        {
-          "item_id": "3e340279d303ae583041d8390efe60338f9a6ce1ee19ddc432a7dd5a7ea77086",
-          "path": "tools/chart-editor-core/Canvas/CanvasAuthoringController.cs",
-          "fingerprint": "6b9e4176dab789bd74aabbf1e1073c4708e44dcdbe68c1f0e2a0154df7267a2e"
-        },
-        {
-          "item_id": "452f48991a06b9adfe27fd533a3e9f9f9ec282df62e90ae493c37d6a7ee1d9f2",
-          "path": "client/scripts/game/gameplay/GameplayMain.Input.cs",
-          "fingerprint": "9f3375fea68a55cc4c1a162132170a1f0e08bf5e2f67b6fc2100d563174dcb7a"
-        },
-        {
-          "item_id": "47a8b022534988a33646385b66a32fb161767b734bc39223a2d2d3a13854cd0a",
-          "path": "shared/Chart/VisualScrollMath.cs",
-          "fingerprint": "dd163018d560553b275d17d59428de511a6280d9f7be9b992c67f6fcbea2c4e3"
-        },
-        {
-          "item_id": "4900b855be8088b8a086514932cbe76f9e4a9ce44e827a1af31a6db21431a003",
-          "path": "shared/Chart/V2/AudioProbe.Ogg.cs",
-          "fingerprint": "9b7d506210192b3ed25d72a96aad87e97c4b65ae9a2b1ae0a74059cb85510c5d"
-        },
-        {
-          "item_id": "4ee88f5231513b0faf77734ac13f74e6ac000bc26602593b453cbb397d66377f",
-          "path": "presentation/game/GameplayStageRenderer.cs",
-          "fingerprint": "7d8fd2f363ae023672eb8c5d7b46c23516e7d3f196eb1490abe7a9d580f175b3"
+          "item_id": "24a158701044d2e57e5ff41f878dd7d68c02ee51a39898071f5492f66ffae57b",
+          "path": "editor/shell/PackageSettingsDialog.axaml.cs",
+          "fingerprint": "3f6e7ecfaa5b6f64587029b8e9009d5d4d950d5f145a0a18af01525b42542dee"
         },
         {
           "item_id": "4ff02a901b58c439e8051b447219fba6227000eee0640a5c1c19c169b6e5d25b",
           "path": "editor/shell/Localization/en.json",
-          "fingerprint": "cb2a027346f8fc9acfe8898b3369f17d04cf98fe3496dc781418acbfc7867f9f"
+          "fingerprint": "1a09733f3b0ba77b4681b7b8e662e9db897ed4f47c9b9225113a3fe51e9c37fe"
         },
         {
-          "item_id": "5633f161416abf172653be2a00fcb373b37d265aca5dbd72407c08fbf6459d4d",
-          "path": "shared/Chart/V2/V2PackageWriter.cs",
-          "fingerprint": "efd2e52dbd0cf5910edda533d41db49b601124510607e469137a3ba336c8820f"
+          "item_id": "5809d7c84974c484363bc1b5231a36e06936c928242234066ae5a6c57a68c474",
+          "path": "editor/scripts/stage/EditorPlacementOverlay.cs",
+          "fingerprint": "7b52fe80e6368aec70ea90eafbb28407fa427cd81c6f5823d2f0aa8f22c320c9"
         },
         {
-          "item_id": "58a4b959c3cd14776f97e4a77e158518c59558ff300a35db8bdfc69dc60196b7",
-          "path": "tools/chart-editor-tests/Packages/AudioProbeTests.cs",
-          "fingerprint": "e2e6d74cc106088ef441a0fbb54672d3333841a2e5eb3b5fb044931cb2cbb5d8"
-        },
-        {
-          "item_id": "593e7f4cd48a562b05d00f1ad8cf8581f68f7c0da197928cd1b822f48f42b8b1",
-          "path": "client/scripts/ui/common/ScrollInertia.cs",
-          "fingerprint": "46a69d39c42c60405318b378803d72bc15a369039c0cfe803af6402f5201654f"
-        },
-        {
-          "item_id": "5aed6abf0ef18666f425f94c5b047d6828a28bf881e7b515e886d2b3019ec6df",
-          "path": "tools/chart-editor-tests/Packages/AudioProbeFixtures.cs",
-          "fingerprint": "d9ce32d2a4fd695013f1938f0787b669a36f1ce5d0ed6c3f19c99bb44ef31e2b"
-        },
-        {
-          "item_id": "5bd8847941d3f25e84c1d069b64f93a36579a429dff1dc1b510c601a563b321a",
-          "path": "tools/chart-editor-tests/Documents/EditorCurveTests.cs",
-          "fingerprint": "827aa0a232b584883df5b7eedb88ae5bdf02928f8c1675f4a31318bf4b1256b4"
-        },
-        {
-          "item_id": "5ecc0dc2f49908e72ec608503c75804fbc607be3ab79271c9aa1cc344abad428",
-          "path": "editor/shell/TimelineView.cs",
-          "fingerprint": "5d9a5be79e1a669742e667d298505a34147437108fe9824b11496600d3db5d79"
-        },
-        {
-          "item_id": "5f74f540528660c9a2c9b35989eb6f68dccf4178fa9b88cfca78cea613096508",
-          "path": "tools/core-tests/Audio/FlacDecoderTests.cs",
-          "fingerprint": "c4909de28cd7bc0ee1057e3112c3cecb1de78cb9039845dc5a07abee5ceeece9"
-        },
-        {
-          "item_id": "628ee3c7c9ee64428a263f62f2aac35465852a630e62ef4eccd41a018881bad9",
-          "path": "shared/Audio/FlacDecodedAudio.cs",
-          "fingerprint": "fbfda9222adff1f0994d8b4b097bafaccfae1586e8bfe229a853845d2e9634c9"
+          "item_id": "5ac077b96227e4d15b7598fd2c740b19994fb606d156186e62d0221283822c6c",
+          "path": "tools/chart-editor-tests/Documents/EditorGeometryTests.cs",
+          "fingerprint": "d7562c22c411c29817833a7f33093ebbeee7b2b8e87a4d9087121b4b05f2f887"
         },
         {
           "item_id": "65a6c61ba87e481a111326659adc2d0094448ebf12869e749d0d7756dc527baf",
           "path": "editor/scripts/stage/EditorPreviewController.cs",
-          "fingerprint": "b46ff2dc7190ae327d5d569ab9f98227bfc84ef90a8c476ea86adf898753de1d"
-        },
-        {
-          "item_id": "6e9e98b7aa42d071ee3389dce0d55f81a2b69fbcb66fe9478f2b0752627d1117",
-          "path": "tools/chart-editor-tests/Canvas/CanvasProjectionTests.cs",
-          "fingerprint": "591800f6cc78a7b7cd0d1eb47ef32d451868e1802c16730510742f6afb265a5b"
-        },
-        {
-          "item_id": "6fe1d0ca242253d9c2b6122edcd78bab375b88858f4bab9f89387a9afe71590d",
-          "path": "client/scripts/game/gameplay/GameplayMain.Presentation.cs",
-          "fingerprint": "f009878015929929b8db02b452d4562571dfb00c033e24b56590391bd8d368e6"
-        },
-        {
-          "item_id": "71092a27ee0b3b248948cc4883b432cf12794f10035e1a170a04f3d670505d7d",
-          "path": "shared/Chart/V2/V2JsonEncoder.cs",
-          "fingerprint": "1ca931eaec40e5e3ed936a141fb781df069d875d1542e1fb42732b0e54541901"
+          "fingerprint": "6cdc786358f5cfcd2104152e66bc604c7d5ed9e73d79de0c0e837933755417a8"
         },
         {
           "item_id": "75bfe96d14993ca4be456f78b03a2553c386e863392fa613efb05d39ddce68ac",
           "path": "tools/chart-editor-tests/Program.cs",
-          "fingerprint": "8b5240074b0ed5640624678f1bee05e914bc763c45407cf5fed4f7970d5639ab"
+          "fingerprint": "bce3a5c96886aeb2c7fea7e67c89f16c409085caf796653f8caef867730236d2"
         },
         {
-          "item_id": "7a4fbbad3b2328e34c7442dc1befd924504996d7a88a786419d83655936377b1",
-          "path": "shared/Chart/V2/AudioProbe.Flac.cs",
-          "fingerprint": "97be74f1eddcfea98366688f1e10111235af7f1312c9660fb6f53140362a8134"
-        },
-        {
-          "item_id": "7bbd34a27e5643010981d2a8134a5cf5b0a81c587ebb687bbd6ba91689198019",
-          "path": "shared/Chart/V2/V2JsonDecoder.cs",
-          "fingerprint": "0e240383952e98f86d56b734019c4516dc38e9f0740c73a8608fd011d8ef609d"
-        },
-        {
-          "item_id": "7f4d2f12c0b0371016497c7a245128fef2de0dd8ee49dc2deb0d72a1d32a5301",
-          "path": "editor/shell/StageView.axaml.cs",
-          "fingerprint": "05ea8e2020b192dc156b56c5b49eac0f9344bb33ecca2a501c6151b5725c2026"
-        },
-        {
-          "item_id": "801affa26c42bb4b40d024f2e83de49e236f4d48f4ae04bef61aa19138976f49",
-          "path": "client/scripts/game/gameplay/GameplayNoteRenderer.Projection.cs",
-          "fingerprint": "1bba5445eeb4b4798f24ab1b77109b55a470197a55ebcbf7d7b192797408d7bb"
-        },
-        {
-          "item_id": "80df41c6276b83e60e1328ee0c2a7ef1e84ac1d6d438754d633019fd7c4f1efb",
-          "path": "client/scripts/game/GameplayMain.cs",
-          "fingerprint": "1e3cfb23754324d4cf0c9a98e6d9af7b91afdebdfea18435184d3375c413d98b"
+          "item_id": "807554f613392faf6b4e0ebd22a88512411b1da3942cdb9741fb8ca8fdd5045d",
+          "path": "editor/shell/ShellChartEditor.cs",
+          "fingerprint": "97b9f2d823cbece7ab2cd5107840eb9e648459f1d68b42ae96b4538b81f3cd6d"
         },
         {
           "item_id": "851a04417728a4c79841a8e9e284c8989b5497b52b01f130578a08ecb9d1fc3b",
           "path": "editor/shell/Localization/zh-CN.json",
-          "fingerprint": "14594902f60b60e74ee15f1598deee02524091cb0a6fc043d6bc97c150b9903b"
+          "fingerprint": "ac96db02542e093adaa0fee2431f9d0b7c35228841b299416429fa7baf658e24"
         },
         {
-          "item_id": "8c747ab83d34281e93ab9bc795fe20b1f2572ea1d5bd55c4ac0643123c6122c8",
-          "path": "tools/core-tests/Charts/NoteScrollTests.cs",
-          "fingerprint": "25f0f187fb4e69c29f1c8c8bae3a244eda892cceecd271f924e9c40f44753ca4"
-        },
-        {
-          "item_id": "8e33ac1973ff0b6cbd020cc133711f53a1f77a5c81bce8ebebce09e2a11c7682",
-          "path": "client/scripts/ui/common/UiHoverFade.cs",
-          "fingerprint": "54651c46546ac8a1895b816f4c052c8a59db20f26c8021fe8cc1e46b26cd6027"
+          "item_id": "8add5bdfb03255f5f841dd79e84a4dc98677fad7914b080f47e5bd607d6c345d",
+          "path": "tools/chart-editor-core/Canvas/StagePlacementDraft.cs",
+          "fingerprint": "32aa14698dafad5fd27e6b06b218435d6ebce415ca69aa161ee26a07e56ee288"
         },
         {
           "item_id": "8f23ea46b2fbf7f139225f23deae31e4dfb25b19678d0b512f97c3b1350ee208",
           "path": "editor/scripts/stage/EditorStagePreview.cs",
-          "fingerprint": "22260f1d9072f637ee06d58640ebe7e6a5c6e51777bcb7eb3353a32517ebdca5"
+          "fingerprint": "35860287d3b5476e414dca93e0a05fe71af49bf0de02a7ded91d1285a2da35ef"
         },
         {
-          "item_id": "8fb4b261b67a9914012aabb60a4b97e9905445e563a32c1c1969caa1c2820c62",
-          "path": "shared/Chart/V2/AudioProbe.cs",
-          "fingerprint": "109336713059a4e3b3c61a5d25ac8143a1ce1fadc1f6ce467b53d05a68770950"
+          "item_id": "96c9c993731391a573154a422fe6d9169d69340a8596d59529dbb18303445eb8",
+          "path": "editor/shell/TimingView.axaml.cs",
+          "fingerprint": "28a614dd459d8a2bf79b983718746d1ebea209db51fdaee9a5699dc2dec9feeb"
         },
         {
-          "item_id": "9110535c6f94ee9c182dd4b2d919f697a35e4a4a67862567f8c578539f83ed22",
-          "path": "shared/Chart/V2/AudioProbe.Wave.cs",
-          "fingerprint": "8841414b4d667a95919e5a7ae313d066d04818d83f5227d37c67eeb2c0ccb39c"
+          "item_id": "9a50a831d9c2b2b146b05b67ce269695daaab53bb413f8037c2bdfd0759019bc",
+          "path": "tools/chart-editor-core/Canvas/EditorStagePlacement.cs",
+          "fingerprint": "0fb2c39504d61e3a7842d2c40c361dcaed20c290c6edfa8dc80701b2fdfd2af9"
         },
         {
-          "item_id": "946e1c0ce875025f4413677e04d0b2dfa916d2268ab0ee6c080fa220f2b6160a",
-          "path": "tools/chart-editor-tests/Documents/EditorPathTests.cs",
-          "fingerprint": "e25deedc254c2815da8bd1041e74f4187ea78d4559390e963e1a8560fc267d16"
-        },
-        {
-          "item_id": "953079557e2a617686d99d2a97a0475706af49926f13a6a3d2dd770a4fbf84bb",
-          "path": "client/scripts/game/common/Res.cs",
-          "fingerprint": "3c8d75934f2e36efa539a0802720c2dd64918c605b66b8df2083470c3978dffa"
-        },
-        {
-          "item_id": "9b1276248aadafacedc9161e24255ad38ece654e83d4b3e250565fe749eab5a8",
-          "path": "shared/Chart/V2/GameplayDigest.cs",
-          "fingerprint": "9eeecf40a7872431c8f424a4c36b1dabdc1fd523fdbf50ba32dacddeaa36d5c9"
-        },
-        {
-          "item_id": "9ffd4ee23122fe3c4f6b51f4ce93aa4bc5705650989156ac907850a93e4acede",
-          "path": "editor/shell/App.axaml.cs",
-          "fingerprint": "b47b82057870f0f2da395d0000a63d1142100998736d8e008cdc409d55d6da43"
-        },
-        {
-          "item_id": "a2385d7ac8356c8338c70009bc5991d26dd3be3ebff53f4615f2303a538ec49d",
-          "path": "tools/core-tests/Gameplay/GameplayGeometryTests.cs",
-          "fingerprint": "0426940546312400ede966fcc709646e26bf2a5f66b4ce36f00e356a0fc29b98"
+          "item_id": "9e76ff6cbc08197abd16a11a9a41f789f1d37aa5459c77a096ba08032b0e617f",
+          "path": "tools/chart-editor-tests/Canvas/StagePlacementDraftTests.cs",
+          "fingerprint": "7b322eb118ab712a7c1a47601d8da97e20f7ded4debb24903d9964af2995bcaf"
         },
         {
           "item_id": "a2aba9bf7ef0ae1dea93a38aca3ea8f42421563c7045a99cf0fb6a335083fec7",
           "path": "editor/scripts/stage/EditorStageAuthoring.cs",
-          "fingerprint": "222525ee85515189a9df6c946238ef08864897a440d060c5bedae176aa105887"
-        },
-        {
-          "item_id": "a35f2e67447edc81069098af734cba0d9fd5723e10273b005bcf2fc71703abe5",
-          "path": "shared/Audio/FlacMetadataBlocks.cs",
-          "fingerprint": "311b44ebd599a44799f0fdcfa1f5a3880e6d922edde7fa28b0482049a386c5bb"
-        },
-        {
-          "item_id": "a4dbabd34e61f3ca7e9964c93ce29bd75a64e5a1d3d525f4005eb6e4a3193d98",
-          "path": "shared/Audio/FlacCrc.cs",
-          "fingerprint": "055694bde295d7495ca77778ce291f7602a2c7fa83111db2a519b0c11bc70309"
-        },
-        {
-          "item_id": "a509816abd9988ebc43f8fbd1e7fccc8b158570ce9ab49a57ce0ee55be0209a0",
-          "path": "shared/Audio/FlacDecodeException.cs",
-          "fingerprint": "9faf6e930cc5b04e4a915bbd96147bec3988d87fc058e8f8fadda90ea0b7fbd0"
-        },
-        {
-          "item_id": "a5a663c4ae4485ab4346da91bbcba5b83f7c5c0a099bd9b5eb729d9d2cd0a49a",
-          "path": "tools/verify.py",
-          "fingerprint": "e0f8483852a86ff4938b43d4f893dbced5ecb97186e02dec1b00d59ec72548a4"
+          "fingerprint": "96993cf51dc7bd35c041e315f6697ff191ee00c7f7e3aeeab7e15efa844e28a6"
         },
         {
           "item_id": "ad9f821e37efd8c99108d61053db7e58766f37121ac67e4ab4ec55f385e709cb",
           "path": "tools/chart-editor-tests/Documents/EditorSessionTests.cs",
-          "fingerprint": "41bd8960a3ae717c2d9e4b880e87e8f2c45ea0770ea6203e752a1e89f51d087e"
+          "fingerprint": "919e350299dbe368fd2b16e807eda52f4738f960c2e16b60b7e3fc7306dc350b"
         },
         {
           "item_id": "b0159d3c9a299f2d5b5b95461ad66fa15751e131606009639e0a2ec0562e281c",
           "path": "editor/scripts/stage/EditorStageIpc.cs",
-          "fingerprint": "34acf713c0b19451c92afc8905aa31e1735986025e201e1d448a2f43487b3cbc"
+          "fingerprint": "93bf92b06b54c9a228c1dfd1814ca12527d397edd7faf203bb6cef78ec50e3b8"
         },
         {
-          "item_id": "b0a860d82dc3996ec7b9540fd3f87fa5fdacbb3afeefa1bb202177bb5ee4eb82",
-          "path": "tools/chart-editor-core/EditorPropertyCatalog.cs",
-          "fingerprint": "ea8cee508fc841e93f3b8d202fece1556d7114e2dfd6fd830282fdb25bed7652"
-        },
-        {
-          "item_id": "b0c9f1df84c3c343d418d78d7d9d29b0e2f1fcd60f19ca74411d4afba7c842e4",
-          "path": "shared/Chart/V2/RuntimeAdapter.cs",
-          "fingerprint": "c5ab0098a2d59d624ee1cc572a303cc41c13cef06d535612207c7f041b3386db"
-        },
-        {
-          "item_id": "b30acf44021ad2eb9445297a7f141fd1f0a87d78104415ec409cb612c6a99642",
-          "path": "shared/Audio/FlacDecoder.cs",
-          "fingerprint": "f3455f921aed6055daf35570488698caf7d780bb88569c5799bdc304538b2fd8"
-        },
-        {
-          "item_id": "b6e842c4fe5a877cfcce06d02063a812e8f968e8603eda7b9daf19afe468e440",
-          "path": "tools/chart-editor-core/Commands/NoteCommands.cs",
-          "fingerprint": "f440c560ffe639745cd0fed472b3b4ca06245cf1a6e9df36ca78f260f5de3747"
-        },
-        {
-          "item_id": "b81fa011377da3e9a969c287dc9088da5587fb352c5a0d3074828e71ef2c25fa",
-          "path": "shared/Audio/FlacPcmWriter.cs",
-          "fingerprint": "d6b4348e4acc14fae3ed4c85c14693a964b29644c63b0759bba6c350f8cd2078"
-        },
-        {
-          "item_id": "b82830704a65f4070ad00347e40250ff139477c62c80484eefc33c75eb7ed81b",
-          "path": "editor/shell/NativeStageHost.cs",
-          "fingerprint": "ef69993b326570f769f02362a7943b5b7964a516817cb4311d56cf0152cdec89"
-        },
-        {
-          "item_id": "bc0bbdd3d8f298938173a98a1c993a362bd40ef975b13f6da2c314331ac4abd5",
-          "path": "editor/shell/CreateChartDialog.axaml.cs",
-          "fingerprint": "4f0203f9b6a502f551891ea64bfaae8e6dbebf23da29bd590e4c02a38a3f75e3"
-        },
-        {
-          "item_id": "bc0eae74f5ced37c6af7e4b982c6950f513b4bee3654685fa42d947ed1360023",
-          "path": "editor/shell/WorkbenchText.cs",
-          "fingerprint": "484c56b58caae64fc007b44763ccf59e6820755523c80572d9d6af0ec0f3f8fa"
-        },
-        {
-          "item_id": "c14385c328767eaf09de4be9c6894229a65946d9b1f7ff02d287573bbb038f55",
-          "path": "tools/chart-editor-tests/Documents/EditorDocumentTests.cs",
-          "fingerprint": "fefa71496f7ec496eaa53726eb3a8395253815030d76362bd8769d3eaeea4689"
-        },
-        {
-          "item_id": "c1ac9ebfc29893a8c1a80b3224f3b89342b3a313483d3dd393d26c352465b7b6",
-          "path": "shared/Audio/FlacFrameDecoder.cs",
-          "fingerprint": "b9e92396c233b7b557cbdcf839aab564701a68a060a4ba1c5ac18e047b9ecc51"
-        },
-        {
-          "item_id": "cc120c876f491c8ec0acfc2e066c67b227ed3925f6f33f7b41b814c3e9fd776c",
-          "path": "shared/Chart/V2/Models.cs",
-          "fingerprint": "b381becad20ad5de133bd27f849891a600b453bf6bcfec52e0260d8b32d060bb"
-        },
-        {
-          "item_id": "d21abf70946abeee691d419805cfe9cafb91dc6df02bf1ac9f0dde3759331200",
-          "path": "presentation/game/GameplayBackdrop.cs",
-          "fingerprint": "6efa2df1c9b5a04c4b175a72744ddf32694a852290f223038bca20413b327077"
+          "item_id": "bf1a04b722fac30112f18649f678cac466b2f9c0d62a1078ee6b07b9c31c26b1",
+          "path": "presentation/game/GameplayVisualMapper.cs",
+          "fingerprint": "d1fc2a9499742e675e56741d3d9ee9c9be645832147f53b008bef87c5a877da0"
         },
         {
           "item_id": "d2a310c8d6beaeced40f5b6a77200f4e40efb505109ea30b70c50efa348daeef",
           "path": "editor/shell/ToolsView.axaml.cs",
-          "fingerprint": "bfa31251668e571ccb1b4f024c72d4c34ae47c38902c9225b5dd5616bc2e0858"
+          "fingerprint": "8eea6b24a68074dd92abcc5a5594dcd508f616f9d60f8a2791fc96eebba2c434"
         },
         {
           "item_id": "d2bf91bba4a70fe6bf4f55ac27a26be7954798dc53bade1d7d8bd0517fe6a3ed",
           "path": "editor/shell/MainWindow.axaml.cs",
-          "fingerprint": "939864c51e3c962e2872ec8856d7fca309503481449fd4cfaa0b51ebf8df75f0"
+          "fingerprint": "6d1a26e2373e71fa543acc673979509e70198ad0b20895b4426f913a20c4231b"
         },
         {
-          "item_id": "d984491242cdcf9b5c7fd67c593673462a7d4f73df240ab5d13c0257c690385e",
-          "path": "editor/scripts/StandaloneEditorMain.cs",
-          "fingerprint": "6ef7230f93471c2634749e2e069040b25545d256592813f59e35d300b05bc3a8"
-        },
-        {
-          "item_id": "d9fb5ddac9dcf1d20d6347a0669903f8c1d3cd8d31f8cf556c41685899fb9840",
-          "path": "schemas/chart-format-v2/chart.schema.json",
-          "fingerprint": "bea108e1bb34abb0eed82c14491ace35138c752ebbd620fff75daa593311c76e"
-        },
-        {
-          "item_id": "dcf908c10fb6849484dd7b8064b64248cdd55945c3ac38c6e77acd3a14c9f90f",
-          "path": "tools/core-tests/Program.cs",
-          "fingerprint": "e8901e8d9e3ad082f3a109806f5191920e261322e36047f4a527a4cdeb766e3d"
-        },
-        {
-          "item_id": "df457a00d3ad94384401b008437a55cafd62f3df33d868b440d62ef316c144c1",
-          "path": "tools/chart-editor-core/Commands/EditorCommandRules.cs",
-          "fingerprint": "b8b3c0b7d50d9924294b6fedb57338b03f30c7664b196be4276b985c8efb6e60"
+          "item_id": "ddb5d0ef2aacf7fe8328272d02ac0d2215affaf100e65f89036730434292fb58",
+          "path": "tools/chart-editor-core/Documents/EditorDocumentSession.cs",
+          "fingerprint": "e15cec9d708bcb01a4e602fdc977f1f1650189e121efd9f4ced1f1e9fb92f4e3"
         },
         {
           "item_id": "e0169f52cbe0e05a29a1e27c4a1fca78e7bf2e2d45c8691f88d90129fa53b7ba",
           "path": "editor/shell/GodotStageService.cs",
-          "fingerprint": "940e9c6538fc0297761657cf38b0f6d5e0a86b96284c936d5ee4a25f9b0847cc"
+          "fingerprint": "a5b7a8856019e8d4307624c2e2d2a4414d511f6735d9c3f4b5f6ca438bddbea4"
         },
         {
           "item_id": "e19e06b423b24e36d1d676e1781777db8e625f23ef536d67e6e8311da4e88fe8",
           "path": "editor/shell/InspectorView.axaml.cs",
-          "fingerprint": "0920689ca2016c921febcfb26e56c2c09dcad7f13df8c2d1826bb1c80ca02694"
+          "fingerprint": "c6b6bf3b79f18e9de42118e7de5aa0caf68bf9e8071620aa7c9c1dba880e9023"
         },
         {
           "item_id": "e478b4ab9ca1e00049f69987c122adab50a0b98d76789869457a0eb2b48eb228",
           "path": "editor/shell/Verification.cs",
-          "fingerprint": "4ab3a70d25716885014fa50fca9bd574746cd1852514c83ec978d93b8ac01597"
-        },
-        {
-          "item_id": "e980bceeccf71c59bcb328690e97109b62dc7b12e0d4041ee9a2059555cfb136",
-          "path": "editor/shell/Program.cs",
-          "fingerprint": "1a09fb4a4895f6a7426f18e7023c07425757f4dff024aeb433e8ab0c1b223c88"
-        },
-        {
-          "item_id": "eb88cc9c8b6596699b528cf0d94c70f5fe8b5d1b8af4c8a81be9da561b6514d8",
-          "path": "client/scripts/ui/calibration/CalibrationScreen.Layout.cs",
-          "fingerprint": "883279e0164af88b802de6f7424671c0f19cfde3de827ce4ccb060f098e1c9a2"
-        },
-        {
-          "item_id": "ebbfb2a13813cdd201482d0c1a7e5778d7f2937990bed3941f377ae46fe8a825",
-          "path": "tools/chart-editor-core/Documents/EditorDocument.cs",
-          "fingerprint": "d4a7d7d6adda5ef38f16957d69c3947e971387d5479cbddc552ff651347fbdd2"
-        },
-        {
-          "item_id": "ece1697287525474adfb002a5734870f1ad954c532e4d1e4e02b11f57cf9fe74",
-          "path": "tools/core-tests/Audio/FlacTestEncoder.cs",
-          "fingerprint": "8f54e730d5f0c4eee38a76fee98d6c944c3916598965ef9e24f2747433c3fc97"
-        },
-        {
-          "item_id": "f26a8e2c5c7b2e06a7b56246e47b061dca6eaea8951e70d8a0ecc228d965e34b",
-          "path": "shared/Audio/FlacDecoderOptions.cs",
-          "fingerprint": "6b8325e30480827678d8352c19f5f2ff5dbbb1b3f68c7db30188d1e781685876"
+          "fingerprint": "c954c6035b4b320cca6e541d7cd3e3134c6b684e4549bacd913a4389f79785e6"
         },
         {
           "item_id": "f62897643a86ba09926ddb05de35b689df69959d9c7f819edc2f2456af46b8ac",
           "path": "editor/shell/DesktopVerification.cs",
-          "fingerprint": "73c5a7eb2bd6183e15cc523b83764ab469682ebbd0662e1a713423a829dd31cc"
+          "fingerprint": "60db3315819910e11badd59e74ad9296ce398cca6ff696ddef5ab75d388ea62b"
         },
         {
           "item_id": "f762183ae48aa8e47acdcefd1b99cbd29aa807a791090ab844979764c7c50f85",
           "path": "editor/shell/WorkbenchFactory.cs",
-          "fingerprint": "cc9626f7976ff27fdef01e246362fcdcbe1ae10dd07ce7b8819de5949897a341"
+          "fingerprint": "53f68c987c90ac5c0c26640022bfc682096505929d72873cf9517cd77cb7ba9a"
         }
       ],
       "reused": [],
       "failed": [],
       "waived": []
     },
-    "elapsed_ms": 145562
+    "elapsed_ms": 203564
   }
 }

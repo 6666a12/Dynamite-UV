@@ -5,7 +5,7 @@ using Godot;
 namespace DynamiteUniverse.Game;
 
 /// <summary>本地玩法设置，持久化到 user://settings.json。</summary>
-public sealed class GameSettings
+public sealed class GameSettings : IGameplayVisualSettings
 {
     private const string SavePath = "user://settings.json";
 
@@ -325,15 +325,4 @@ public sealed class GameSettings
     private static float PercentToDb(int percent) =>
         percent <= 0 ? -80f : 20f * (float)Math.Log10(percent / 100.0);
 
-}
-
-/// <summary>
-/// 打击特效档位。FULL 爆发 + 火花 + 余烬；REDUCED 爆发 + 半量火花（无余烬）；
-/// OFF 只保留判定残影与判定浮字。残影本身由 HitResidualMs 单独控制。
-/// </summary>
-public enum HitEffectLevel
-{
-    Full,
-    Reduced,
-    Off,
 }

@@ -7,19 +7,20 @@ using static DynamiteUniverse.Game.GameplayRenderGeometry;
 namespace DynamiteUniverse.Game;
 
 /// <summary>A value snapshot of the judge-owned sustain state, read at the original call sites.</summary>
-internal readonly record struct SustainVisualSnapshot(SustainPath Path, bool StartResolved,
+public readonly record struct SustainVisualSnapshot(SustainPath Path, bool StartResolved,
     bool Holding, bool Broken, bool EndResolved, double LastContactUpdateTime);
 
 /// <summary>
 /// Owns note/link/residual/fade views. The scene owns judgement and supplies read-only sustain
 /// snapshots. Nodes stay parented to the original stage layer so tree order and teardown stay intact.
 /// </summary>
-internal sealed partial class GameplayNoteRenderer
+public sealed partial class GameplayNoteRenderer
 {
     private readonly Node2D _noteRoot;
-    private readonly LoadedChart _loaded;
+    private readonly GameplayRenderGeometry _geometry;
+    private readonly IReadOnlySet<int> _syncAccentIds;
     private readonly DynamiteUniverse.Shared.Chart.Chart _chart;
-    private readonly GameSettings _settings;
+    private readonly IGameplayVisualSettings _settings;
     private readonly IReadOnlyList<Note> _notesByTime;
     private readonly IReadOnlyDictionary<int, Note> _noteById;
     private readonly IReadOnlyDictionary<int, double> _runtimeNoteSeconds;
@@ -27,14 +28,16 @@ internal sealed partial class GameplayNoteRenderer
     private readonly Func<int, SustainVisualSnapshot?> _readSustain;
     private readonly GameplayEffects _effects;
 
-    internal GameplayNoteRenderer(Node2D noteRoot, LoadedChart loaded, GameSettings settings,
+    public GameplayNoteRenderer(Node2D noteRoot, DynamiteUniverse.Shared.Chart.Chart chart, IGameplayVisualSettings settings,
+        IReadOnlySet<int> syncAccentIds,
         IReadOnlyList<Note> notes, IReadOnlyDictionary<int, Note> noteById,
         IReadOnlyDictionary<int, double> runtimeNoteSeconds, IReadOnlyDictionary<int, SustainPath> paths,
         VisualPoolPlanning.PeakCounts peaks, Func<int, SustainVisualSnapshot?> readSustain)
     {
         _noteRoot = noteRoot;
-        _loaded = loaded;
-        _chart = loaded.RuntimeChart;
+        _chart = chart;
+        _syncAccentIds = syncAccentIds;
+        _geometry = new(settings.MirrorEnabled);
         _settings = settings;
         _notesByTime = notes;
         _noteById = noteById;
@@ -53,7 +56,9 @@ internal sealed partial class GameplayNoteRenderer
             _differentialSpawnNotes.AddRange(_notesByTime);
     }
 
-    internal IReadOnlyList<NoteView> ActiveViews => _active;
+    public NoteView? FindBody(int noteId) => _mixerHeadViews.GetValueOrDefault(noteId) ?? _viewByNoteId.GetValueOrDefault(noteId);
+    public IReadOnlyList<NoteView> ActiveViews => _active;
+    public void SetFallSpeed(double multiplier) => _fallSpeedMultiplier = (float)multiplier;
     private int _nextSpawn;
     private readonly bool _usesDifferentialScroll;
     private readonly List<Note> _differentialSpawnNotes = new();
@@ -147,7 +152,7 @@ internal sealed partial class GameplayNoteRenderer
 
     // ---- 音符生成与移动 ----
 
-    internal void SpawnNotes(double t, double currentBar)
+    public void SpawnNotes(double t, double currentBar)
     {
         if (_usesDifferentialScroll)
         {
@@ -262,14 +267,16 @@ internal sealed partial class GameplayNoteRenderer
         _linkPools[link.IsHold].Push(link);
     }
 
-    private bool ShouldRenderStaticNote(Note note) => note.Type switch
+    public Func<Note, bool>? SpawnVisibilityFilter { get; set; }
+
+    private bool ShouldRenderStaticNote(Note note) => SpawnVisibilityFilter?.Invoke(note) != false && (note.Type switch
     {
         NoteType.HoldNode => _holdTailIds.Contains(note.Id),
         NoteType.MixerNode => false,
         _ => true,
-    };
+    });
 
-    internal void UpdateViews(double t, double currentBar, double delta)
+    public void UpdateViews(double t, double currentBar, double delta)
     {
         _effects.RecycleExpired();
         UpdateResiduals(delta);
@@ -315,9 +322,9 @@ internal sealed partial class GameplayNoteRenderer
             if (v.Model.Type != NoteType.HoldHead || !v.IsResolved ||
                 !_paths.ContainsKey(v.Model.Id))
                 v.Position = v.IsMissFalling || v.IsRecoverableHoldFalling
-                    ? PositionPastLine(v.Model, v.MissDistancePx)
+                    ? _geometry.PositionPastLine(v.Model, v.MissDistancePx)
                     : v.IsLineAnchored
-                        ? PositionAt(v.Model, 0f)
+                        ? _geometry.PositionAt(v.Model, 0f)
                         : PositionForActiveView(v.Model, t, currentBar);
             v.SetDepthAlpha(v.IsMissFalling || v.IsRecoverableHoldFalling ||
                 v.Model.Track != Track.Center
@@ -345,14 +352,14 @@ internal sealed partial class GameplayNoteRenderer
         var to = _noteById[link.ToId];
         var rA = VisualDistanceFor(from, t, currentBar);
         var rB = VisualDistanceFor(to, t, currentBar);
-        var a = PositionAt(from, rA);
-        var b = PositionAt(to, rB);
+        var a = _geometry.PositionAt(from, rA);
+        var b = _geometry.PositionAt(to, rB);
         var wa = link.Wa;
         var wb = link.Wb;
         var anchoredEarlyHold = IsEarlyHoldAnchored(link, rA);
         if (anchoredEarlyHold)
-            a = PositionAt(from, 0f);
-        if (!ClipToLine(link.Track, ref a, ref b, ref wa, ref wb))
+            a = _geometry.PositionAt(from, 0f);
+        if (!_geometry.ClipToLine(link.Track, ref a, ref b, ref wa, ref wb))
             return false;
         if (link.PolyScratch.Length < 4)
             link.PolyScratch = new Vector2[4];
@@ -422,7 +429,7 @@ internal sealed partial class GameplayNoteRenderer
                 {
                     // 已接起或已下穿的头从当前位置继续落下，不能跳回谱面头的原始位置。
                     var step = MissFallSpeedPx(view.Model, t, currentBar) * (float)delta;
-                    view.Position = PositionPastLine(view.Model.Track, view.Position, step);
+                    view.Position = _geometry.PositionPastLine(view.Model.Track, view.Position, step);
                 }
                 else
                     view.Position = PositionForActiveView(view.Model, t, currentBar);
@@ -447,7 +454,7 @@ internal sealed partial class GameplayNoteRenderer
         state.Path.Kind == SustainKind.Hold && state.StartResolved &&
         state.Holding && !state.Broken && !state.EndResolved;
 
-    internal void ResolveNoteView(int noteId, ScoreCategory category, JudgeGrade grade,
+    public void ResolveNoteView(int noteId, ScoreCategory category, JudgeGrade grade,
         bool emitEffect = true, HitTiming timing = HitTiming.Exact)
     {
         if (_failedHoldNoteIds.Contains(noteId) ||
@@ -476,9 +483,9 @@ internal sealed partial class GameplayNoteRenderer
         {
             // 极晚接头时本体可能已经完成普通下穿；重新建立在线 Hold 头。
                 view = NoteView.Create(note, SizeFor(note), ColorFor(note),
-                    _loaded.SyncAccentRuntimeIds.Contains(note.Id), brightness: ViewBrightness);
+                    _syncAccentIds.Contains(note.Id), brightness: ViewBrightness);
 
-            view.Position = PositionAt(note, 0f);
+            view.Position = _geometry.PositionAt(note, 0f);
             view.SetDepthAlpha(1f);
             _noteRoot.AddChild(view);
             _viewByNoteId[note.Id] = view;
@@ -488,18 +495,18 @@ internal sealed partial class GameplayNoteRenderer
         {
             if (missFallthrough)
                 view.BeginMissFallthrough(
-                    DistancePastJudgeLine(note.Track, view.Position));
+                    _geometry.DistancePastJudgeLine(note.Track, view.Position));
             else if (keepsLineHead)
             {
                 view.AnchorToJudgeLine();
                 view.MarkJudged(accent,
                     category == ScoreCategory.HoldStart ? -1f : 0.25f);
-                view.Position = PositionAt(note, 0f);
+                view.Position = _geometry.PositionAt(note, 0f);
                 if (category == ScoreCategory.HoldStart &&
                     _readSustain(note.Id) is { } state)
                 {
                     var bounds = state.Path.BoundsAt(state.LastContactUpdateTime);
-                    UpdateSustainHeadGeometry(view, bounds, bounds.Center);
+                    _geometry.UpdateSustainHeadGeometry(view, bounds, bounds.Center);
                 }
             }
             else if (!isMiss && !view.IsResolved && _settings.HitResidualMs > 0 &&
@@ -516,7 +523,7 @@ internal sealed partial class GameplayNoteRenderer
 
         var size = SizeFor(note);
         var effectKind = HitEffectKindFor(note.Type);
-        var effectPosition = PositionAt(note, 0f);
+        var effectPosition = _geometry.PositionAt(note, 0f);
         var effectRotation = note.Track == Track.Center ? 0f : Mathf.Pi * 0.5f;
         var effectStrength = isMine || fixedPerfectEffect ? 1f : grade switch
         {
@@ -552,7 +559,7 @@ internal sealed partial class GameplayNoteRenderer
             else view.Reparent(_noteRoot);
         }
         view.Reuse(note, SizeFor(note), ColorFor(note),
-            accent && _loaded.SyncAccentRuntimeIds.Contains(note.Id), brightness: ViewBrightness);
+            accent && _syncAccentIds.Contains(note.Id), brightness: ViewBrightness);
         _noteRoot.MoveChild(view, -1);
         return view;
     }
@@ -581,13 +588,13 @@ internal sealed partial class GameplayNoteRenderer
 
     /// <summary>
     /// 命中残影固定在判定线上：early/late 时本体并不在线上，而 bloom/粒子已经用
-    /// PositionAt(note, 0f) 作为锚点，残影跟随同一位置才不会错位。
+    /// _geometry.PositionAt(note, 0f) 作为锚点，残影跟随同一位置才不会错位。
     /// </summary>
     private void EmitHitResidual(NoteView view, Note note)
     {
         _viewByNoteId.Remove(note.Id);
         _active.Remove(view);
-        view.Position = PositionAt(note, 0f);
+        view.Position = _geometry.PositionAt(note, 0f);
         view.SetDepthAlpha(1f);
         view.BeginResidual(_settings.HitResidualSeconds);
         view.ZIndex = 2;

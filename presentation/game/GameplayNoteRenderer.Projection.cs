@@ -6,12 +6,12 @@ using static DynamiteUniverse.Game.GameplayRenderGeometry;
 
 namespace DynamiteUniverse.Game;
 
-internal sealed partial class GameplayNoteRenderer
+public sealed partial class GameplayNoteRenderer
 {
 
-    internal double CurrentBarAt(double second) =>
-        _loaded.V2Timeline != null
-            ? _loaded.V2Timeline.RuntimeBarAt(ChartAudioSecond(second))
+    public double CurrentBarAt(double second) =>
+        _chart.V2Metadata?.BpmTimeline != null
+            ? _chart.V2Metadata!.BpmTimeline.RuntimeBarAt(ChartAudioSecond(second))
             : _chart.Sections.Count > 0 ? _chart.SecondsToBarTime(second) : second;
 
     private double ChartAudioSecond(double songClockSecond) =>
@@ -19,15 +19,15 @@ internal sealed partial class GameplayNoteRenderer
 
     private float VisualDistanceFor(Note n, double t, double currentBar)
     {
-        if (_loaded.V2Scroll != null && _loaded.V2Timeline != null)
+        if (_chart.V2Metadata?.ScrollMap != null && _chart.V2Metadata?.BpmTimeline != null)
         {
             var currentSecond = ChartAudioSecond(t);
-            var currentBarRuntime = _loaded.V2Timeline.RuntimeBarAt(currentSecond);
+            var currentBarRuntime = _chart.V2Metadata!.BpmTimeline.RuntimeBarAt(currentSecond);
             var noteSecond = _runtimeNoteSeconds.TryGetValue(n.Id, out var cached)
                 ? cached : n.Second;
             return (float)VisualScrollMath.DistancePixels(
                 noteSecond, currentSecond, BaseFallSpeedPx,
-                _loaded.V2Scroll.RuntimeSpeedAt(currentBarRuntime), _fallSpeedMultiplier,
+                _chart.V2Metadata!.ScrollMap.RuntimeSpeedAt(currentBarRuntime), _fallSpeedMultiplier,
                 n.V2Metadata?.ScrollSpeedMultiplier ?? 1.0);
         }
         return (float)VisualScrollMath.DistancePixels(
@@ -39,7 +39,7 @@ internal sealed partial class GameplayNoteRenderer
     {
         // 生成时尚未到线；保留钳制只防止跳转启动时把新视图放到线外。
         var rem = Mathf.Max(0f, VisualDistanceFor(n, t, currentBar));
-        return PositionAt(n, rem);
+        return _geometry.PositionAt(n, rem);
     }
 
     private Vector2 PositionForActiveView(Note n, double t, double currentBar)
@@ -47,7 +47,7 @@ internal sealed partial class GameplayNoteRenderer
         var rem = VisualDistanceFor(n, t, currentBar);
         if (!MovesPastJudgeLineContinuously(n.Type))
             rem = Mathf.Max(0f, rem);
-        return PositionAt(n, rem);
+        return _geometry.PositionAt(n, rem);
     }
 
     private static bool MovesPastJudgeLineContinuously(NoteType type) =>
@@ -55,10 +55,10 @@ internal sealed partial class GameplayNoteRenderer
 
     private double VisualScrollAt(double t, double currentBar)
     {
-        if (_loaded.V2Scroll != null && _loaded.V2Timeline != null)
+        if (_chart.V2Metadata?.ScrollMap != null && _chart.V2Metadata?.BpmTimeline != null)
         {
-            var currentBarRuntime = _loaded.V2Timeline.RuntimeBarAt(ChartAudioSecond(t));
-            return _loaded.V2Scroll.RuntimeSpeedAt(currentBarRuntime);
+            var currentBarRuntime = _chart.V2Metadata!.BpmTimeline.RuntimeBarAt(ChartAudioSecond(t));
+            return _chart.V2Metadata!.ScrollMap.RuntimeSpeedAt(currentBarRuntime);
         }
         return _dropSpeedMap.SpeedAt(currentBar);
     }

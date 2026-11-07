@@ -11,13 +11,13 @@ Dynamix 风格的 **clean-room 社区音游重实现**，包含 Godot 游戏和�
 3. [验证状态与操作](<docs/verification.md>)：本轮实际检查、历史构建/测试/产物/用户反馈分开记录。
 4. [专题索引](<docs/README.md>)：玩法/v2 合同、设计施工、发布安全；[归档](<docs/archive/README.md>) 只用于历史追溯。
 
-## 当前状态（2026-10-26 文档核对）
+## 当前状态（2026-11-07 文档核对）
 
 - **游戏**：主菜单 → 选曲 → 游玩 → 结算闭环；三轨输入、Hold/Mixer、设置/校准、本地成绩、搜索/试听、Mirror/Auto、结算八评级与配色 v2 已接入。
-- **制谱器**：独立 Godot 项目，可打开 strict v2 目录包、创建草稿、画布编辑、undo/redo、SAVE/SAVE AS。真实音频/波形、ZIP/XML/DY 导出和 Storyboard 未完成；[详细能力](<docs/dyna-maker-uv.md>) 是编辑器状态入口。
+- **制谱器**：独立 Avalonia + Godot Windows 工作台，可创建/打开 strict v2 目录包、直接编辑 Note 与路径、编辑 BPM/Scroll、undo/redo、SAVE/SAVE AS。真实波形、ZIP/XML/DY 导出和 Storyboard 未完成；[详细能力](<docs/dyna-maker-uv.md>) 是编辑器状态入口。
 - **缺口与限制**：BLEED 已有真实扣血/回血与耗尽结算，专用耗尽结算和血条 UI 待扩展；筛选排序占位，Hit/UI 音效不完整，服务器未接入，模式成绩未完整隔离。模式切换复用旧预加载 Preset 存在待复验的静态风险，见交接。
 - **工程**：近期已分离纯规则、编辑核心、公共 Godot 视觉与两端适配；仍有大类，不宣称所有职责已解耦。当前工作区有大量未提交改动，不能用 10-14 的 HEAD 或旧 APK 代表全部当前源码。
-- **验证**：本轮不是 C# 重构/出包或实机验收。10-25 历史自动验证与 10-17 用户反馈仅覆盖各自范围；配色/新材质/低端性能等仍待设备确认，详见 [验证记录](<docs/verification.md>)。
+- **验证**：2026-11-07 本轮非图形验证与 154 项 Shell headless 通过；编辑器真实窗口执行结果与未覆盖范围统一见 [验证记录](<docs/verification.md>)，不代替用户最终视觉、手感、听感或 Android 设备验收。
 
 ## 技术与目录
 

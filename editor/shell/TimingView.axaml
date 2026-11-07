@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DynamiteUniverse.Editor.Shell"
+             xmlns:u="https://irihi.tech/ursa"
+             xmlns:animations="clr-namespace:SukiUI.ControlsAnimation;assembly=SukiUI"
+             x:Class="DynamiteUniverse.Editor.Shell.TimingView">
+  <ScrollViewer Padding="18">
+    <StackPanel Spacing="12">
+      <StackPanel Spacing="3">
+        <TextBlock Classes="section" Text="{local:Tr Timing.Title}" />
+        <TextBlock Classes="caption" Text="{local:Tr Timing.Synced}" TextWrapping="Wrap" />
+        <TextBlock x:Name="PlayheadCaption" Classes="cyan" FontSize="11" />
+      </StackPanel>
+      <Border Height="1" Background="{DynamicResource Line}" />
+
+      <StackPanel Spacing="5">
+        <TextBlock Classes="eyebrow" Text="{local:Tr Timing.BpmSection}" />
+        <ListBox x:Name="BpmList" MaxHeight="150" SelectionChanged="BpmSelectionChanged" />
+        <TextBlock Classes="eyebrow" Text="{local:Tr Timing.TimeLabel}" />
+        <TextBox x:Name="BpmTimeValue" PlaceholderText="12+1/5" />
+        <TextBlock Classes="eyebrow" Text="{local:Tr Timing.BpmLabel}" />
+        <NumericUpDown x:Name="BpmValueInput" Increment="0.5" FormatString="G" />
+        <TextBlock x:Name="BpmBaseLocked" Classes="pink" FontSize="11" Text="{local:Tr Timing.BaseLocked}"
+                   TextWrapping="Wrap" IsVisible="False" />
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+          <Button x:Name="AddBpmButton" Content="{local:Tr Timing.Add}" Click="AddBpm" />
+          <Button x:Name="ApplyBpmButton" Grid.Column="1" Content="{local:Tr Timing.Apply}" Classes="active" Click="ApplyBpm" />
+          <Button x:Name="DeleteBpmButton" Grid.Column="2" Content="{local:Tr Timing.Delete}" Click="DeleteBpm" />
+        </Grid>
+      </StackPanel>
+
+      <Border Height="1" Background="{DynamicResource Line}" />
+
+      <StackPanel Spacing="5">
+        <TextBlock Classes="eyebrow" Text="{local:Tr Timing.ScrollSection}" />
+        <ListBox x:Name="ScrollList" MaxHeight="150" SelectionChanged="ScrollSelectionChanged" />
+        <TextBlock Classes="eyebrow" Text="{local:Tr Timing.TimeLabel}" />
+        <TextBox x:Name="ScrollTimeValue" PlaceholderText="12+1/5" />
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+          <StackPanel Spacing="5">
+            <TextBlock Classes="eyebrow" Text="{local:Tr Timing.ValueLabel}" />
+            <NumericUpDown x:Name="ScrollValueInput" Maximum="64" Increment="0.05"
+                           FormatString="G" Value="1" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="5">
+            <TextBlock Classes="eyebrow" Text="{local:Tr Timing.CurveLabel}" />
+            <ComboBox Classes="localized" x:Name="ScrollCurveChoice" SelectedIndex="1" HorizontalAlignment="Stretch">
+              <ComboBoxItem Content="{local:Tr Timing.CurveNone}" />
+              <ComboBoxItem Content="{local:Tr Inspector.Linear}" />
+              <ComboBoxItem Content="{local:Tr Inspector.Hold}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseInQuad}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseOutQuad}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseInOutQuad}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseInCubic}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseOutCubic}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseInOutCubic}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseInSine}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseOutSine}" />
+              <ComboBoxItem Content="{local:Tr Inspector.EaseInOutSine}" />
+            </ComboBox>
+          </StackPanel>
+        </Grid>
+        <TextBlock x:Name="ScrollBaseLocked" Classes="pink" FontSize="11" Text="{local:Tr Timing.BaseLocked}"
+                   TextWrapping="Wrap" IsVisible="False" />
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+          <Button x:Name="AddScrollButton" Content="{local:Tr Timing.Add}" Click="AddScroll" />
+          <Button x:Name="ApplyScrollButton" Grid.Column="1" Content="{local:Tr Timing.Apply}" Classes="active" Click="ApplyScroll" />
+          <Button x:Name="DeleteScrollButton" Grid.Column="2" Content="{local:Tr Timing.Delete}" Click="DeleteScroll" />
+        </Grid>
+      </StackPanel>
+
+      <Border Height="1" Background="{DynamicResource Line}" />
+      <StackPanel Spacing="5">
+        <TextBlock Classes="caption" Text="{local:Tr Timing.InputHint}" TextWrapping="Wrap" />
+        <TextBlock x:Name="TimingError" Classes="pink" FontSize="11" TextWrapping="Wrap" IsVisible="False" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -16,6 +16,14 @@ public sealed class NativeStageHost : Control
     private nint _fallbackParent;
     private bool _syncQueued;
     private bool _occluded;
+    private (nint Parent, int X, int Y, int Width, int Height)? _lastPlacement;
+
+    public NativeStageHost()
+    {
+        // Dock can translate the host without changing its local Bounds (e.g. an
+        // inline auto-hide preview). Keep the HWND aligned with ancestor layout too.
+        LayoutUpdated += (_, _) => QueueSync();
+    }
 
     public event Action? GeometryChanged;
 
@@ -25,6 +33,7 @@ public sealed class NativeStageHost : Control
         if (_child != 0) Win32.ShowWindow(_child, Win32.SwHide);
         _child = value;
         _parent = 0;
+        _lastPlacement = null;
         QueueSync();
     }
 
@@ -72,6 +81,7 @@ public sealed class NativeStageHost : Control
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        _lastPlacement = null;
         if (_child != 0 && _fallbackParent != 0)
         {
             Win32.SetParent(_child, _fallbackParent);
@@ -97,6 +107,7 @@ public sealed class NativeStageHost : Control
         if (handle == 0 || point is null || Bounds.Width < 1 || Bounds.Height < 1 || !IsEffectivelyVisible || _occluded)
         {
             Win32.ShowWindow(_child, Win32.SwHide);
+            _lastPlacement = null;
             return;
         }
         if (_fallbackParent == 0) _fallbackParent = handle;
@@ -114,8 +125,11 @@ public sealed class NativeStageHost : Control
         var scale = top!.RenderScaling;
         var width = Math.Max(1, (int)Math.Round(Bounds.Width * scale));
         var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
-        Win32.MoveWindow(_child, (int)Math.Round(point.Value.X * scale),
-            (int)Math.Round(point.Value.Y * scale), width, height, true);
+        var placement = (handle, (int)Math.Round(point.Value.X * scale),
+            (int)Math.Round(point.Value.Y * scale), width, height);
+        if (_lastPlacement == placement) return;
+        _lastPlacement = placement;
+        Win32.MoveWindow(_child, placement.Item2, placement.Item3, width, height, true);
         Win32.ShowWindow(_child, Win32.SwShow);
         GeometryChanged?.Invoke();
     }

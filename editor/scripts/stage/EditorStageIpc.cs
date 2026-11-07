@@ -64,11 +64,14 @@ public sealed class EditorStageIpc : IDisposable
         });
 
     public void SendSelection(IReadOnlyList<string> ids, string primary, string parentId,
-        string? nodeId = null) =>
+        IReadOnlyList<string> noteIds, string? nodeId = null) =>
         Emit("selection", writer =>
         {
             writer.WriteStartArray("ids");
             foreach (var id in ids) writer.WriteStringValue(id);
+            writer.WriteEndArray();
+            writer.WriteStartArray("noteIds");
+            foreach (var id in noteIds) writer.WriteStringValue(id);
             writer.WriteEndArray();
             writer.WriteString("primary", primary);
             writer.WriteString("parentId", parentId);
@@ -83,6 +86,7 @@ public sealed class EditorStageIpc : IDisposable
         writer.WriteNumber("center", request.Center);
         writer.WriteNumber("width", request.Width);
         writer.WriteNumber("tailBar", request.TailBar);
+        writer.WriteBoolean("snap", request.Snap);
     });
 
     public void SendPathAdd(StagePathAddRequest request) => Emit("pathAdd", writer =>
@@ -99,6 +103,27 @@ public sealed class EditorStageIpc : IDisposable
         writer.WriteNumber("endBar", request.EndBar);
         writer.WriteNumber("startCenter", request.StartCenter);
         writer.WriteNumber("endCenter", request.EndCenter);
+        writer.WriteNumber("positionStep", request.PositionStep);
+        writer.WriteBoolean("snap", request.Snap);
+    });
+
+    public void SendNoteMove(StageNoteMoveRequest request) => Emit("noteMove", writer =>
+    {
+        writer.WriteString("noteId", request.NoteId);
+        writer.WriteNumber("startBar", request.StartBar);
+        writer.WriteNumber("endBar", request.EndBar);
+        writer.WriteNumber("startCenter", request.StartCenter);
+        writer.WriteNumber("endCenter", request.EndCenter);
+        writer.WriteNumber("positionStep", request.PositionStep);
+        writer.WriteBoolean("snap", request.Snap);
+    });
+
+    public void SendNoteResize(StageNoteResizeRequest request) => Emit("noteResize", writer =>
+    {
+        writer.WriteString("noteId", request.NoteId);
+        writer.WriteBoolean("moveStartEdge", request.MoveStartEdge);
+        writer.WriteNumber("edge", request.Edge);
+        writer.WriteNumber("widthStep", request.WidthStep);
     });
 
     public void SendKey(Key key, bool ctrl, bool shift, bool alt) => Emit("key", writer =>
@@ -108,6 +133,19 @@ public sealed class EditorStageIpc : IDisposable
         writer.WriteBoolean("shift", shift);
         writer.WriteBoolean("alt", alt);
     });
+
+    public void SendAudioSnapshot(long requestId, double second, double audioSecond,
+        bool playing, bool paused, bool panSuspended, int loads, int restarts) => Emit("audioSnapshot", writer =>
+        {
+            writer.WriteNumber("requestId", requestId);
+            writer.WriteNumber("second", second);
+            writer.WriteNumber("audioSecond", audioSecond);
+            writer.WriteBoolean("audioPlaying", playing);
+            writer.WriteBoolean("audioPaused", paused);
+            writer.WriteBoolean("panSuspended", panSuspended);
+            writer.WriteNumber("audioLoads", loads);
+            writer.WriteNumber("audioRestarts", restarts);
+        });
 
     public void SendInput(string detail) => Emit("input", writer => writer.WriteString("detail", detail));
     public void SendError(string message) => Emit("error", writer => writer.WriteString("message", message));

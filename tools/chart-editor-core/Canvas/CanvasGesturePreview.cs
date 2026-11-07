@@ -41,30 +41,16 @@ public static class CanvasGesturePreview
     public static (double Left, double Width) ResizeNoteWidth(bool leading, double pointerCenter,
         double currentLeft, double originalLeft, double originalWidth)
     {
-        if (leading)
-        {
-            var right = originalLeft + originalWidth;
-            var left = Math.Clamp(pointerCenter, 0d, right - .1d);
-            var width = Math.Clamp(EditorStagePlacement.SnapWidth(right - left), .1d,
-                EditorStagePlacement.MaximumCenter - left);
-            left = Math.Clamp(right - width, 0d, EditorStagePlacement.MaximumCenter - width);
-            width = Math.Clamp(EditorStagePlacement.SnapWidth(width), .1d,
-                EditorStagePlacement.MaximumCenter - left);
-            return (left, width);
-        }
-
-        var trailing = Math.Clamp(pointerCenter, currentLeft + .1d, EditorStagePlacement.MaximumCenter);
-        var trailingWidth = trailing - currentLeft;
-        trailingWidth = Math.Clamp(EditorStagePlacement.SnapWidth(trailingWidth), .1d,
-            EditorStagePlacement.MaximumCenter - currentLeft);
-        return (currentLeft, trailingWidth);
+        var opposite = leading ? originalLeft + originalWidth : currentLeft;
+        var width = Math.Max(.1, EditorStagePlacement.SnapWidth(leading
+            ? opposite - pointerCenter : pointerCenter - opposite));
+        return (leading ? opposite - width : opposite, width);
     }
 
     public static double ResizeNodeWidth(double pointerCenter, double nodeLeft,
         bool relative, double originalWidth, double widthPointer)
     {
         var width = relative ? originalWidth + (pointerCenter - widthPointer) : pointerCenter - nodeLeft;
-        return Math.Clamp(EditorStagePlacement.SnapWidth(width), .1d,
-            EditorStagePlacement.MaximumCenter - nodeLeft);
+        return Math.Max(EditorStagePlacement.SnapWidth(width), .1d);
     }
 }

@@ -40,23 +40,18 @@ public static class EditorPropertySteps
         return stepped.IsNonNegative ? stepped : ExactBarTime.Zero;
     }
 
-    /// <summary>步进中心坐标，钳制在 [width/2, 5 - width/2]，保证对象整体留在坐标域内。</summary>
+    /// <summary>Step the centre without clamping authored overscan geometry.</summary>
     public static double StepCenter(double center, double width, int direction, bool fine)
     {
         var increment = fine ? FineCenterStep : CenterStep;
-        var half = Math.Clamp(width, MinimumWidth, EditorStagePlacement.MaximumCenter) / 2d;
-        return Round(Math.Clamp(center + direction * increment, half,
-            EditorStagePlacement.MaximumCenter - half));
+        return center + direction * increment;
     }
 
     /// <summary>步进宽度，下限 0.1，上限是不越过坐标域的 2·min(center, 5 - center)。</summary>
     public static double StepWidth(double width, double center, int direction, bool fine)
     {
         var increment = fine ? FineWidthStep : WidthStep;
-        var clampedCenter = Math.Clamp(center, 0d, EditorStagePlacement.MaximumCenter);
-        var maximum = 2d * Math.Min(clampedCenter, EditorStagePlacement.MaximumCenter - clampedCenter);
-        return Round(Math.Clamp(width + direction * increment, MinimumWidth,
-            Math.Max(MinimumWidth, maximum)));
+        return Math.Max(width + direction * increment, MinimumWidth);
     }
 
     /// <summary>0.1/0.05 这类步长在 double 上会累积尾差，回写前先归一到 1e-6。</summary>

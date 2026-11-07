@@ -6,15 +6,18 @@ Windows 制谱器采用两个协作进程：`shell/` 是 .NET 10 / Avalonia 工�
 
 ## 当前可用
 
-- strict v2 本地目录包新建/打开、保存、另存为；添加/切换差分、dirty 状态和失败提示。
-- Godot 内 Note 点击/Shift 多选，Inspector 显示真实字段。
-- 七类 Note 点击放置/拖动加宽；Hold/Mixer 路径双击插点、拖动头/节点、出向曲线编辑。
-- 逐 Note 差速通过 `SetNoteScrollSpeedMultiplierCommand` 写入文档；Delete、Ctrl+Z、Ctrl+Y 执行真实文档命令。
-- 播放/暂停、时间轴 seek、真实 Note 刻度；WAV/MP3/Ogg Vorbis/FLAC 音频预览。
+- strict v2 本地目录包新建/打开、保存、另存为；添加/切换/复制/删除/重排差分、dirty 状态和失败提示。
+- 包与差分设置可编辑元数据、音频偏移、试听区间和音频/封面替换；整组设置只产生一个撤销步骤。
+- Godot 内 Note 点击/Shift 多选，SELECT 拖动移动、边缘调宽、Hold/Mixer 整体移动和多选整组拖动；PAN 调整预览时间与横向视图。
+- Inspector 支持单选 Note 的精确时间、位置、宽度、轨道和类型编辑；多选可批量调速、步进和删除。
+- TIMING 面板支持 BPM/Scroll 事件增删改、精确 BarTime、Scroll 曲线与撤销。
+- 七类 Note 的真实 hover ghost、目标 BarTime/位置/宽度、跨轨导引和同位置/同宽提示；点击放置、拖动调宽、宽度记忆，Z 自由时间、X 位置精调；Hold/Mixer 两段式尾点创建。
+- Hold/Mixer 路径双击插点、拖动头/节点、出向曲线及 Hold 节点判定编辑。
+- 播放/暂停、时间轴 seek、真实 Note 刻度；WAV/MP3/Ogg Vorbis/FLAC 音频预览。同差分编辑走带 revision 的增量更新，保留播放、播放头和选择，音频路径不变时不重读音频。
 - `Q / E` 调整玩家预览流速（0.1–2.0，与游戏落速倍率一致），`W / S` 调整音乐倍率（0.2–2.0）。两者不写谱面。
 - 中英文即时切换、Dock 浮动/还原、Suki 动效档位；`F1` 查看完整快捷键。
 
-尚未接普通 Note 拖动/调宽、Pan 手势、真实波形分析、设置与布局持久化、正式插件接口或 ZIP/XML/DY。现有 Godot export preset 只导出原生舞台，不是包含 Avalonia shell 的完整桌面包。
+尚未接真实波形分析、设置与布局持久化、正式插件接口、多选精确几何或 ZIP/XML/DY。现有 Godot export preset 只导出原生舞台，不是包含 Avalonia shell 的完整桌面包。
 
 ## 构建与启动
 

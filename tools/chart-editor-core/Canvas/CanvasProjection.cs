@@ -46,8 +46,8 @@ public sealed class CanvasProjection
                 Time = EditorTime.BarToSeconds(note.Time, bpms),
                 EndExact = tail,
                 EndTime = EditorTime.BarToSeconds(tail, bpms),
-                Center = Math.Clamp(note.Center - note.Width / 2d, 0, 5 - note.Width),
-                Width = Math.Clamp(note.Width, .1, 5),
+                Center = note.Center - note.Width / 2d,
+                Width = note.Width,
                 ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
                 CurveToNext = note.CurveToNext,
             };
@@ -62,8 +62,8 @@ public sealed class CanvasProjection
                     Id = node.Id,
                     TimeExact = node.Time,
                     Time = nodeTime,
-                    Center = Math.Clamp(node.Center - node.Width / 2d, 0, 5 - node.Width),
-                    Width = Math.Clamp(node.Width, .1, 5),
+                    Center = node.Center - node.Width / 2d,
+                    Width = node.Width,
                     CurveToNext = node.CurveToNext,
                     Judge = node.Judge == true,
                 });

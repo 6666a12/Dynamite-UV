@@ -19,6 +19,8 @@ public partial class GameplayStageRenderer : Node2D
     private Node2D? _chromeRoot;
     private Node2D? _noteRoot;
     public bool ShowControlNodes { get; set; } = true;
+    /// <summary>Optional editor view filter; hidden tessellation points still form path links.</summary>
+    public Func<Note, bool>? NoteVisibilityFilter { get; set; }
     public bool ShowLinks { get; set; } = true;
     /// <summary>Chart mirroring, injected by gameplay from GameplayMirror.Enabled; editor previews keep it false.</summary>
     public bool MirrorEnabled { get; set; }
@@ -115,6 +117,7 @@ public partial class GameplayStageRenderer : Node2D
         foreach (var note in _notes)
         {
             if (!ShowControlNodes && note.Type is NoteType.HoldNode or NoteType.MixerNode) continue;
+            if (NoteVisibilityFilter?.Invoke(note) == false) continue;
             var ghost = _ghostNoteIds.Contains(note.Id);
             var remaining = Remaining(note);
             if (ghost && !ShouldRenderGhost(note, remaining, byId)) continue;
