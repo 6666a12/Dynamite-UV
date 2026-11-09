@@ -164,6 +164,19 @@ public partial class EditorPreviewController : Control
             case "playerSpeed": SetPlayerSpeed(root.GetProperty("multiplier").GetDouble()); break;
             case "playbackRate": SetPlaybackRate(root.GetProperty("multiplier").GetDouble()); break;
             case "wheelDirection": _stage.WheelReversed = root.GetProperty("reversed").GetBoolean(); break;
+            case "previewPreferences":
+                var volume = root.GetProperty("volume").GetDouble();
+                var effects = root.GetProperty("effects").GetString();
+                if (!double.IsFinite(volume) || volume < 0 || volume > 100 ||
+                    !Enum.TryParse<DynamiteUniverse.Game.HitEffectLevel>(effects, out var effectLevel) || !Enum.IsDefined(effectLevel))
+                    throw new ArgumentException("Invalid preview preferences.");
+                _audio.VolumeLinear = (float)(volume / 100);
+                _effects = effectLevel;
+                _stage.SetEffectLevel(effectLevel);
+                _stage.SuspendPlayback(_panAudioSuspended);
+                _menu.SetVolume(volume);
+                _menu.Sync(_tool, _type, _track, _effects.ToString());
+                break;
             case "contextText":
                 _menu.SetText(root.GetProperty("labels").EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString() ?? p.Name));
                 break;
@@ -196,7 +209,7 @@ public partial class EditorPreviewController : Control
             _stage.SetEffectLevel(level);
             _stage.SuspendPlayback(_panAudioSuspended);
         }
-        else _ipc.SendContextAction(kind, value);
+        _ipc.SendContextAction(kind, value);
         _menu.Sync(_tool, _type, _track, _effects.ToString());
     }
 

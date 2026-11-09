@@ -68,6 +68,8 @@
               <MenuFlyout>
                 <MenuItem Header="{local:Tr Edit.Undo}" InputGesture="Ctrl+Z" Click="UndoClicked" />
                 <MenuItem Header="{local:Tr Edit.Redo}" InputGesture="Ctrl+Y" Click="RedoClicked" />
+                <MenuItem Header="{local:Tr Edit.CopyNotes}" InputGesture="Ctrl+C" Click="CopyNotesClicked" />
+                <MenuItem Header="{local:Tr Edit.PasteNotes}" InputGesture="Ctrl+V" Click="PasteNotesClicked" />
                 <MenuItem Header="{local:Tr Edit.Delete}" InputGesture="Delete" Click="DeleteClicked" />
               </MenuFlyout>
             </Button.Flyout>

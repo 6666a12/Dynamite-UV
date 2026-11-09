@@ -42,7 +42,7 @@ internal static class Verification
         var root = Path.Combine(Path.GetTempPath(), "dynamaker-editor-shell-" + Guid.NewGuid().ToString("N"));
         var source = Path.Combine(root, "source");
         var copy = Path.Combine(root, "copy");
-        var window = new MainWindow();
+        var window = new MainWindow(Path.Combine(root, "user-data"));
         try
         {
             window.Show();
@@ -67,6 +67,7 @@ internal static class Verification
                     ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window));
             }
             WorkspaceVerification.Run(window, Check);
+            WorkbenchPersistenceVerification.Run(Path.Combine(root, "persistence"), Check);
             Check("Q/E changes preview speed", window.ShortcutForVerification(Key.E) && window.PlayerSpeed == 1.1);
             Check("W/S changes playback rate", window.ShortcutForVerification(Key.W) &&
                 window.PlaybackRate == 1.1 && window.ShortcutForVerification(Key.S) && window.PlaybackRate == 1.0);
@@ -99,6 +100,15 @@ internal static class Verification
             await window.OpenPackageForVerification(source);
             Check("Shell opens a strict v2 package", window.CurrentDocument?.Title == "Shell Fixture" &&
                 window.CurrentDocument.SelectedChart.Notes.Count == 1);
+            window.SelectNoteForVerification(window.CurrentDocument!.SelectedChart.Notes[0].Id);
+            Check("Ctrl+C copies selected notes", window.ShortcutForVerification(Key.C, KeyModifiers.Control));
+            window.SeekForVerification(2);
+            Check("Ctrl+V pastes at playhead", window.ShortcutForVerification(Key.V, KeyModifiers.Control) &&
+                window.CurrentDocument.SelectedChart.Notes.Count == 2 && window.SelectedNoteIds.Count == 1 &&
+                window.CurrentDocument.SelectedChart.Notes.Single(n => n.Id == window.SelectedNoteIds[0]).Time == ExactBarTime.FromFraction(2, 1));
+            SelectionInspectorVerification.Run(window, Check);
+            window.ShortcutForVerification(Key.Z, KeyModifiers.Control);
+            Check("Paste undo removes copied group", window.CurrentDocument.SelectedChart.Notes.Count == 1);
             window.SeekForVerification(1);
             var beforeSeekSecond = window.CurrentSecond;
             window.ShortcutForVerification(Key.D);

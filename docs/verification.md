@@ -27,6 +27,12 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+2026-11-09 多选Inspector试用版：右侧按选区切换整体变换/统一属性，新增 `EditNoteSelectionCommand` 预校验整组副本再原子替换，保持路径和编辑身份；Shell只负责草稿/输入/选择同步。`builds/editor-batch-shell.log` Shell构建成功，`editor-batch-core.log` 编辑器核心通过，`editor-batch-headless.log` Shell回归通过（真实控件输入、正负分数、错误保留草稿、混合宽度不被换轨覆盖、切选区清草稿、整组撤销）；结构门禁311源文件与diff检查通过。首轮测试误用了internal RequireNote导致编译失败，改用公开集合查找；首轮控件测试未排空Avalonia文本事件队列导致断言失败，补正常dispatcher推进后通过。**未启动可见窗口、未做截图/窄面板GPU视觉验收，未运行完整verify/发布测试；对象磁吸未实现。** 用户已另行确认第一轮偏好记忆有效，不外推为本次Inspector验收。
+
+2026-11-09 制谱器第一轮：偏好/布局持久化与基础复制粘贴已接入。最终 `builds/editor-round1-stage-final.log`、`editor-round1-shell-final.log` 两端构建均0警告/0错误；`editor-round1-core-final.log` 为 `EDITOR TESTS PASS`，覆盖路径完整复制、精确混合网格相对拍时间、新ID/编辑身份、单步撤销重做、重复粘贴和跨文档快照隔离；`editor-round1-headless-final.log` Shell回归通过，新增偏好往返、损坏字节备份、浮动舞台退出重启、自动隐藏工具恢复、Ctrl+C/V与粘贴撤销。结构门禁307源文件通过，`git diff --check`通过。过程中修正NumericUpDown歧义编译错误；浮动布局重启用例先失败，定位Avalonia子窗口关闭优先触发归位，改OwnerWindowOnly并在销毁前捕获后通过。测试配置使用独立临时目录，不写真实用户偏好。**未启动可见编辑器/Godot、未做真实HWND/多屏/DPI/听感验证、未打包桌面发行版、未获本轮用户验收；完整verify/发布测试未重跑，不宣称历史品牌扫描问题已解决。** 持久化和剪贴板语义见 [制谱器说明](dyna-maker-uv.md)。
+
+2026-11-09 顶部进度与判定线启灯后续调整：首轮 `builds/progress-lines-build.log` 客户端构建0警告/0错误；`builds/progress-lines-core.log` 为 `ALL TESTS PASSED`，含新增进度状态、终点口径、音频结束补时与三轨时间轴/长条/三档/seek测试。随后结构检查失败：`GameplayMain` 合计1358行超过1350预算；已清理原有重复空行，未放宽预算。此后 Bash 权限检查服务连续超时，未能执行最终构建/核心复验、结构复查及无窗口Godot回归；不能将首轮成功冒称最终全通过。只读Git检查仍可执行，最终 `git diff --check` 通过（仅LF/CRLF提示）。新增原生用例已写入 `GameplayHudVerification`，但本轮尚未运行。配色脚本检查最终金/淡蓝/白的CVD区分、普通色差与底色对比均通过；分类色板的亮度/彩度限制不通过（此处是用户指定的浅色状态条，含白色，并非分类图表），不称色板验证全通过；AP/FC/—文字提供冗余标识。未启动可见游戏、未检查GPU像素、未导出APK、未取得本次效果用户验收。规则与对象边界见 [HUD 调整](gameplay-hud-v8.md)。
+
 2026-11-09 提交前文档整理：按用户逐项确认同步 HUD/材质/模式切换和制谱器整体验收，将独立血条设计、旧编辑器目标、一次性审查与阶段验证迁入归档，当前页保留本体接入结果/失败与操作入口。检查37份活跃或本批新归档文档的340个本地Markdown链接及标题/显式锚点，0缺失；历史验证保留检查确认47条日期表格记录和14段设计/实施记录仍在当前页或归档中；`git diff --check`通过。首轮发现新归档动效目标仍链接旧§4锚点，已改指同批旧设计归档后重查通过。**本轮仅文档与静态检查，没有重跑C#构建、产品测试、Godot或导出；最新完整verify的品牌扫描失败仍保留，用户实际效果确认单独见下文。**
 
 > 以下保留本体接入时实际执行结果；用户后续确认见下方独立章节。本次文档整理不重新冒称构建/设备通过。

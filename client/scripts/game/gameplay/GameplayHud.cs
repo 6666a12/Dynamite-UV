@@ -32,9 +32,11 @@ internal sealed class GameplayHud
         root.AddChild(_topHudRoot);
         root.AddChild(_hudRoot);
         _header = new GameplayHudHeader(_topHudRoot, pauseRequested, canPause, motion, frozen);
+        _progress = new GameplayProgressBar { Name = "SongProgress", Motion = motion, ZIndex = 4 };
+        root.AddChild(_progress);
         Build();
     }
-	private ColorRect _progressFill = null!;
+    private readonly GameplayProgressBar _progress;
 	private Label _scoreLabel = null!;
 
 	private Label _comboLabel = null!;
@@ -43,24 +45,6 @@ internal sealed class GameplayHud
 
 	private void Build()
 	{
-		// 底线上的发光进度段（从中央向两侧生长）
-		_hudRoot.AddChild(new ColorRect
-		{
-			Color = new Color(1, 1, 1, 0.045f),
-			Position = new Vector2(493, CenterLineY - 2),
-			Size = new Vector2(933, 3),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		});
-		_progressFill = new ColorRect
-		{
-			Color = new Color(UiFonts.Cyan, 0.68f),
-			Position = new Vector2(CenterTrackX, CenterLineY - 2),
-			Size = new Vector2(0, 3),
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		};
-		_hudRoot.AddChild(_progressFill);
 
 			// Left-bottom track identity: stable two-line plate with independent title and status.
 			_titleTagPanel = new CutPanel
@@ -188,6 +172,7 @@ internal sealed class GameplayHud
 	private int _hudScore = -1;
 	private int _hudCombo = -1;
 
+        internal void CompleteProgress() => _progress.Complete();
         internal void PulsePause() => _header.PulsePause();
 
         internal void FlashJudge(string text, bool enabled)
@@ -229,9 +214,6 @@ internal sealed class GameplayHud
 			_comboLabel.Text = _hudCombo > 1 ? $"{_hudCombo}" : "";
 			_comboSub.Text = _hudCombo > 1 ? "COMBO" : "";
 		}
-		// 底线上的进度段：从中央向两侧生长
-		var pw = 933f * Mathf.Clamp((float)(state.Time / Math.Max(0.01, state.EndTime)), 0f, 1f);
-		_progressFill.Position = new Vector2(CenterTrackX - pw / 2f, CenterLineY - 2);
-		_progressFill.Size = new Vector2(pw, 3);
+		_progress.Observe(state);
 	}
 }

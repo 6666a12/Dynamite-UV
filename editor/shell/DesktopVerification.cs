@@ -14,10 +14,11 @@ internal static class DesktopVerification
         Directory.CreateDirectory(outDir);
         var result = 99;
         var lifetime = new ClassicDesktopStyleApplicationLifetime { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        App.VerificationOwnsWindow = true;
         AppBuilder.Configure<App>().UsePlatformDetect()
             .With(new Win32PlatformOptions { CompositionMode = new[] { Win32CompositionMode.RedirectionSurface } })
             .AfterSetup(_ => result = -1).SetupWithLifetime(lifetime);
-        var window = new MainWindow();
+        var window = new MainWindow(Path.Combine(Path.GetFullPath(outDir), "user-data-" + Guid.NewGuid().ToString("N")));
         lifetime.MainWindow = window;
         window.Topmost = true;
         window.Position = new PixelPoint(0, 0);

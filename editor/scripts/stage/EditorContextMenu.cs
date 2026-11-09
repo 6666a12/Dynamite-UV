@@ -113,6 +113,12 @@ public partial class EditorContextMenu : Control
         }
     }
 
+    public void SetVolume(double value)
+    {
+        _volume.SetValueNoSignal(Math.Clamp(value, 0, 100));
+        _percent.Text = $"{_volume.Value:0}%";
+    }
+
     public void Sync(string tool, V2NoteType type, EditorTrack track, string effects)
     {
         foreach (var (key, button) in _buttons)

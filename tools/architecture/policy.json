@@ -208,6 +208,8 @@
       ],
       "source_links": [
         "../../client/scripts/game/gameplay/BleedHudState.cs",
+        "../../client/scripts/game/gameplay/GameplayProgressState.cs",
+        "../../client/scripts/game/gameplay/JudgmentLineTimeline.cs",
         "../../client/scripts/game/gameplay/HudLightState.cs",
         "../../client/scripts/game/gameplay/GameplayEndCondition.cs",
         "../../client/scripts/ui/results/ResultOutcome.cs",

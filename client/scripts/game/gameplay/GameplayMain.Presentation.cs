@@ -2,9 +2,7 @@ using Godot;
 using DynamiteUniverse.Ui;
 using DynamiteUniverse.Shared.Score;
 using DynamiteUniverse.Shared.Judge;
-
 namespace DynamiteUniverse.Game;
-
 /// <summary>
 /// Procedural gameplay stage, HUD and result presentation plus pause wiring; the pause layer
 /// and its motion live in <see cref="GameplayPauseOverlay"/>. GameplayMain owns the callbacks
@@ -12,7 +10,6 @@ namespace DynamiteUniverse.Game;
 /// </summary>
 public partial class GameplayMain
 {
-
 	// ---- HUD / 结算节点 ----
 	private Node2D _stageRoot = null!;
 	private Node2D _noteRoot = null!;
@@ -20,8 +17,10 @@ public partial class GameplayMain
 	private GameplayPauseOverlay _pause = null!;
 	private ResultFlow _results = null!;
 
-
 	private GameplayHud _hud = null!;
+    private GameplayStageRenderer _sharedStage = null!;
+    private JudgmentLineTimeline _lineTimeline = null!;
+    private double _progressEnd;
 	private void BuildHud() => _hud = new GameplayHud(_hudRoot, TogglePause, StageOffsetY, TopHudOffsetY,
 		() => GameSession.Settings.MotionMode, () => !_playbackStarted || _finished || _pause.IsPaused,
 		() => _playbackStarted && !_finished && !_pause.IsPaused && !TransitionDirector.IsBusy);
@@ -29,23 +28,25 @@ public partial class GameplayMain
 	private void FlashJudge(string text) => _hud.FlashJudge(text, GameSession.Settings.JudgeTextEnabled);
 	private void UpdateHud(double time)
 	{
+        time = Math.Max(time, _endCondition?.EffectiveSeconds ?? time);
 		var liveAcc = _engine.JudgedTheoreticalMax > 0
 			? Math.Clamp(_engine.Percent(_engine.JudgedTheoreticalMax), 0.0, 100.0) : 100.0;
 		_hud.Update(new GameplayHudSnapshot(_engine.NormalizedScore(_plan.TheoreticalMax), liveAcc,
 			_engine.CountPerfect, _engine.CountGreat, _engine.CountGood, _engine.CountMiss,
-			_engine.MaxCombo, _engine.Combo, time, _plan.EndTime, _bleed is not null,
+			_engine.MaxCombo, _engine.Combo, time, _progressEnd, _bleed is not null,
 			_bleed?.Rule == BleedRule.Hardcore, _bleed?.Health ?? 100), GetProcessDeltaTime());
+        for (var track = 0; track < 3; track++)
+            _sharedStage.SetJudgmentLineBrightness((DynamiteUniverse.Shared.Chart.Track)track,
+                (float)_lineTimeline.Sample((DynamiteUniverse.Shared.Chart.Track)track, time, GameSession.Settings.MotionMode));
 	}
-
 	// ---- UI ----
-
 	private void BuildStage()
 	{
 		_stageRoot = new Node2D { Name = "StageVisuals" };
 		_hudRoot = new Node2D { Name = "GameplayHud", ZIndex = 20 };
 		AddChild(_stageRoot);
 		AddChild(_hudRoot);
-		var sharedStage = new GameplayStageRenderer
+		var sharedStage = _sharedStage = new GameplayStageRenderer
 		{
 			Name = "SharedCommunityStage",
 			MirrorEnabled = GameplayMirror.Enabled,
@@ -57,16 +58,13 @@ public partial class GameplayMain
 		// NoteView and sustain children now live in the shared stage layer.
 		_noteRoot = sharedStage.NoteLayer;
 
-
 		BuildHud();
 		BuildPauseMenu();
 		BuildResultLayer();
 	}
-
 	private void BuildPauseMenu() =>
 		_pause = new GameplayPauseOverlay(this, PresentationMotionProfile, () => _finished,
 			SuspendForPause, ResumeFromPause, Restart, ExitToSelect);
-
 	// Pause order is a contract: contacts are cleared before the clock stops, and the overlay
 	// only flips its paused flag before calling back into these two host hooks.
 	private void SuspendForPause()
@@ -75,16 +73,12 @@ public partial class GameplayMain
 		_playback.Pause();
 		_hud.PulsePause();
 	}
-
 	private void ResumeFromPause() => _playback.Resume();
-
 
 	private void BuildResultLayer() =>
 		_results = new ResultFlow(this, PresentationMotionProfile);
-
 	private static UiMotionProfile PresentationMotionProfile() =>
 		UiMotionProfile.For(GameSession.Settings.MotionMode);
-
 	private void PrepareGameplayEntryPresentation()
 	{
 		var motion = PresentationMotionProfile();
@@ -93,12 +87,10 @@ public partial class GameplayMain
 			ApplyGameplayEntryPresentation(1f);
 			return;
 		}
-
 		_stageRoot.Modulate = new Color(1f, 1f, 1f, 0f);
 		_noteRoot.Modulate = new Color(1f, 1f, 1f, 0f);
 		_hudRoot.Modulate = new Color(1f, 1f, 1f, 0f);
 	}
-
 	private void ApplyGameplayEntryPresentation(float progress)
 	{
 		var stage = UiEase.Enter(Mathf.Clamp(progress / 0.62f, 0f, 1f));
@@ -108,10 +100,8 @@ public partial class GameplayMain
 		_noteRoot.Modulate = new Color(1f, 1f, 1f, notes);
 		_hudRoot.Modulate = new Color(1f, 1f, 1f, hud);
 	}
-
 	// HUD、Esc 与暂停菜单按钮共用这一个入口；暂停状态和动画由 overlay 持有。
 	private void TogglePause() => _pause.Toggle();
-
 	private void ClearPointerState()
 	{
 		_pointerBuffer.Clear();
@@ -120,7 +110,6 @@ public partial class GameplayMain
 		_ignoredTouchIds.Clear();
 		_v2InputProtection.Reset();
 	}
-
 		private void Restart()
 		{
 			_playback.Pause();
@@ -138,14 +127,12 @@ public partial class GameplayMain
 					texture,
 					RelaySource.Restart));
 		}
-
 		private void ExitToSelect()
 		{
 			_playback.Pause();
 			_pause.ResetPausedForNavigation();
 			TransitionDirector.Navigate(UiRoutes.SongSelect, TransitionKind.Back);
 		}
-
 		private void NextSong()
 		{
 			if (!GameSession.SelectNextSong())
@@ -168,11 +155,11 @@ public partial class GameplayMain
 					texture,
 					RelaySource.NextSong));
 		}
-
 	/// <summary>结算唯一入口：成绩只算/存一次，再把同一份快照交给前奏与结算页。</summary>
 	private void ShowResults(bool stageFailure = false)
 	{
 		if (_finished) return;
+        if (!stageFailure) _hud.CompleteProgress();
 		_finished = true;
 		_pointerBuffer.DiscardPending();
 		// Freeze judging, but let the song tail play beneath the shutter/result.
@@ -216,11 +203,9 @@ public partial class GameplayMain
 				_hudRoot.Visible = false;
 			}, ExitToSelect, NextSong, Restart,
 			canNext);
-
 		GD.Print($"=== RESULT === {_run.SongTitle} [{_run.LegacyScoreKey} Lv{_run.DifficultyLevel}] " +
 			$"score={normalizedScore} rawScore={_engine.Score} clear={pct:F2}% grade={grade} " +
 			$"P={_engine.CountPerfect} Gr={_engine.CountGreat} Gd={_engine.CountGood} M={_engine.CountMiss} " +
 			$"maxCombo={_engine.MaxCombo} newRecord={isNewRecord} outcome={outcome}");
 	}
-
 }

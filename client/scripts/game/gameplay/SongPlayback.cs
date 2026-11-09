@@ -31,6 +31,9 @@ internal sealed class SongPlayback
     /// <summary>真音频时钟才可能观察到"流播完"；固定帧/headless 回退时钟没有这个信号。</summary>
     public bool TracksNaturalEnd => !Clock.FixedFrameEnabled && !Clock.ManualFallback;
 
+    public double ProgressEndSeconds(double chartEnd) => GameplayProgressState.EndSeconds(
+        chartEnd, _player.Stream?.GetLength() ?? 0, Clock.UserOffsetMs / 1000.0, TracksNaturalEnd);
+
     public bool HasNaturallyEnded => TracksNaturalEnd && Clock.IsPlaying && !_player.Playing;
 
     public void Play(double startSecond) => Clock.Play(startSecond);

@@ -20,7 +20,7 @@ Windows 制谱器采用两个协作进程：`shell/` 是 .NET 10 / Avalonia 工�
 - 播放 Auto 预览复用游戏音符、残影、命中及 Hold/Mixer 持续视觉；seek/编辑静默重建，暂停冻结。空白舞台右键面板提供放置面、Note 类型、SELECT/PATH、预览音量与特效档位，不写游戏设置或谱面。
 - 中英文即时切换、Dock 浮动/还原、Suki 动效档位；`F1` 查看完整快捷键。
 
-尚未接真实波形分析、设置与布局持久化、正式插件接口、多选精确几何或 ZIP/XML/DY。现有 Godot export preset 只导出原生舞台，不是包含 Avalonia shell 的完整桌面包。
+已接设置与布局持久化、基础复制粘贴（Ctrl+C/V，完整路径，播放头网格锚点，一次撤销）；用户数据独立保存在 `%LOCALAPPDATA%/DynaMakerUV/`，不写安装目录。多选精确编辑与对象磁吸暂缓讨论，ZIP/XML/DY 尚未接入。真实波形不作为当前目标，BPM 导入保留后续候选；首个稳定版本前不做插件 API。现有 Godot export preset 只导出原生舞台，不是包含 Avalonia shell 的完整桌面包；用户配置须独立于源码/安装目录，兼容最终发行包。
 
 ## 构建与启动
 

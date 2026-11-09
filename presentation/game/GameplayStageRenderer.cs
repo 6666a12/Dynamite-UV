@@ -16,6 +16,7 @@ public partial class GameplayStageRenderer : Node2D
     private double _previewBar;
     private double _previewTime;
     private Func<Note, double, float>? _previewDistanceProvider;
+    private readonly ColorRect?[] _judgmentLines = new ColorRect?[3];
     private Node2D? _chromeRoot;
     private Node2D? _noteRoot;
     public bool ShowControlNodes { get; set; } = true;
@@ -84,10 +85,10 @@ public partial class GameplayStageRenderer : Node2D
         foreach (var child in _chromeRoot!.GetChildren()) child.Free();
         _chromeRoot.AddChild(new GameplayBackdrop { ZIndex = -2, TopPadding = backdropTopPadding });
         var lineColor = new Color(.35f, .35f, .4f);
-        AddChromeLine(new Vector2(gameplayHud ? 0f : 60f, GameplayStageGeometry.CenterLineY - 2f), new Vector2(gameplayHud ? 1920f : 1800f, 4f), lineColor);
+        _judgmentLines[(int)Track.Center] = AddChromeLine(new Vector2(gameplayHud ? 0f : 60f, GameplayStageGeometry.CenterLineY - 2f), new Vector2(gameplayHud ? 1920f : 1800f, 4f), lineColor);
         var sideTop = gameplayHud ? 72f - backdropTopPadding : 70f;
-        AddChromeLine(new Vector2(GameplayStageGeometry.LeftLineX - 2f, sideTop), new Vector2(4f, GameplayStageGeometry.CenterLineY - sideTop), lineColor);
-        AddChromeLine(new Vector2(GameplayStageGeometry.RightLineX - 2f, sideTop), new Vector2(4f, GameplayStageGeometry.CenterLineY - sideTop), lineColor);
+        _judgmentLines[(int)Track.Left] = AddChromeLine(new Vector2(GameplayStageGeometry.LeftLineX - 2f, sideTop), new Vector2(4f, GameplayStageGeometry.CenterLineY - sideTop), lineColor);
+        _judgmentLines[(int)Track.Right] = AddChromeLine(new Vector2(GameplayStageGeometry.RightLineX - 2f, sideTop), new Vector2(4f, GameplayStageGeometry.CenterLineY - sideTop), lineColor);
         if (gameplayHud) return; // Client HUD replaces the old inert Mixer decoration; editor unchanged.
         AddChromeLine(new Vector2(GameplayStageGeometry.CenterTrackX - 4f, 618f),
             new Vector2(8f, 28f), new Color(.5f, .5f, 1f));
@@ -175,11 +176,24 @@ public partial class GameplayStageRenderer : Node2D
         AddChild(_noteRoot);
     }
 
-    private void AddChromeLine(Vector2 position, Vector2 size, Color color) => _chromeRoot!.AddChild(new ColorRect
+    /// <summary>Caller supplies activity brightness in chart-track space; editor defaults remain untouched.</summary>
+    public void SetJudgmentLineBrightness(Track track, float brightness)
     {
-        Position = position, Size = size, Color = color,
-        MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = -1,
-    });
+        var line = _judgmentLines[(int)GameplayStageGeometry.MirroredTrack(track, MirrorEnabled)];
+        if (IsInstanceValid(line))
+            line!.Color = new Color(0.82f, 0.85f, 0.91f) * new Color(brightness, brightness, brightness, 1);
+    }
+
+    private ColorRect AddChromeLine(Vector2 position, Vector2 size, Color color)
+    {
+        var line = new ColorRect
+        {
+            Position = position, Size = size, Color = color,
+            MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = -1,
+        };
+        _chromeRoot!.AddChild(line);
+        return line;
+    }
 
     private float Remaining(Note note)
     {

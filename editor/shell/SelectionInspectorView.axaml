@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DynamiteUniverse.Editor.Shell"
+             x:Class="DynamiteUniverse.Editor.Shell.SelectionInspectorView">
+  <StackPanel Spacing="14">
+    <TextBlock x:Name="Summary" Classes="caption" TextWrapping="Wrap" />
+    <Expander Header="{local:Tr Batch.Transform}" IsExpanded="True" HorizontalContentAlignment="Stretch">
+      <StackPanel Spacing="8" Margin="0,8,0,0">
+        <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.BarTime}" />
+        <ComboBox x:Name="TimeMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="TransformModeChanged">
+          <ComboBoxItem Content="{local:Tr Batch.Offset}" />
+          <ComboBoxItem Content="{local:Tr Batch.MoveStart}" />
+        </ComboBox>
+        <TextBox x:Name="TimeInput" Text="0" Watermark="+1/4" TextChanged="Changed" />
+        <TextBlock Classes="caption" Text="{local:Tr Batch.TimeHint}" TextWrapping="Wrap" />
+        <TextBlock Classes="eyebrow" Text="{local:Tr Batch.Position}" />
+        <TextBox x:Name="PositionInput" Text="0" Watermark="+0.2" TextChanged="Changed" />
+        <TextBlock Classes="caption" Text="{local:Tr Batch.PathHint}" TextWrapping="Wrap" />
+        <TextBlock x:Name="TransformError" Classes="caption" TextWrapping="Wrap" IsVisible="False" />
+        <Button x:Name="ApplyTransformButton" Content="{local:Tr Batch.ApplyTransform}" Classes="active" HorizontalAlignment="Stretch" Click="ApplyTransform" />
+        <Button x:Name="ResetTransformButton" Content="{local:Tr Batch.Reset}" HorizontalAlignment="Stretch" Click="ResetTransform" />
+      </StackPanel>
+    </Expander>
+    <Border Height="1" Background="{DynamicResource Line}" />
+    <Expander Header="{local:Tr Batch.Properties}" IsExpanded="True" HorizontalContentAlignment="Stretch">
+      <StackPanel Spacing="8" Margin="0,8,0,0">
+        <TextBlock x:Name="WidthLabel" Classes="eyebrow" Text="{local:Tr Inspector.Width}" />
+        <ComboBox x:Name="WidthMode" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="WidthModeChanged">
+          <ComboBoxItem Content="{local:Tr Batch.Set}" />
+          <ComboBoxItem Content="{local:Tr Batch.Add}" />
+        </ComboBox>
+        <TextBox x:Name="WidthInput" TextChanged="WidthChanged" />
+        <StackPanel x:Name="PathScope" Spacing="5">
+          <TextBlock Classes="eyebrow" Text="{local:Tr Batch.Scope}" />
+          <ComboBox x:Name="WidthScope" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="ScopeChanged">
+            <ComboBoxItem Content="{local:Tr Batch.Head}" />
+            <ComboBoxItem Content="{local:Tr Batch.WholePath}" />
+          </ComboBox>
+          <TextBlock x:Name="WidthWarning" Classes="caption" Text="{local:Tr Batch.WidthWarning}" TextWrapping="Wrap" IsVisible="False" />
+        </StackPanel>
+        <TextBlock x:Name="TrackLabel" Classes="eyebrow" Text="{local:Tr Inspector.Track}" />
+        <ComboBox x:Name="BatchTrack" HorizontalAlignment="Stretch" SelectionChanged="TrackChanged">
+          <ComboBoxItem Content="{local:Tr Batch.Mixed}" />
+          <ComboBoxItem Content="{local:Tr Inspector.LeftStage}" />
+          <ComboBoxItem Content="{local:Tr Inspector.CenterStage}" />
+          <ComboBoxItem Content="{local:Tr Inspector.RightStage}" />
+        </ComboBox>
+        <TextBlock Classes="caption" Text="{local:Tr Batch.TrackHint}" TextWrapping="Wrap" />
+        <TextBlock x:Name="TypeLabel" Classes="eyebrow" Text="{local:Tr Inspector.NoteType}" />
+        <ComboBox x:Name="BatchType" HorizontalAlignment="Stretch" SelectionChanged="TypeChanged">
+          <ComboBoxItem Content="{local:Tr Batch.Mixed}" />
+          <ComboBoxItem Content="{local:Tr Inspector.Tap}" />
+          <ComboBoxItem Content="{local:Tr Inspector.Drag}" />
+          <ComboBoxItem Content="{local:Tr Inspector.ExTap}" />
+        </ComboBox>
+        <TextBlock x:Name="TypeWarning" Classes="caption" TextWrapping="Wrap" />
+        <TextBlock x:Name="PropertiesError" Classes="caption" TextWrapping="Wrap" IsVisible="False" />
+        <Button x:Name="ApplyPropertiesButton" Classes="active" HorizontalAlignment="Stretch" Click="ApplyProperties" />
+        <Button x:Name="ResetPropertiesButton" Content="{local:Tr Batch.Reset}" HorizontalAlignment="Stretch" Click="ResetProperties" />
+      </StackPanel>
+    </Expander>
+    <Expander Header="{local:Tr Batch.Objects}" HorizontalContentAlignment="Stretch">
+      <ListBox x:Name="SelectedObjects" MaxHeight="180" SelectionChanged="LocateSelected" />
+    </Expander>
+  </StackPanel>
+</UserControl>

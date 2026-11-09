@@ -17,6 +17,8 @@ public sealed partial class InspectorView : UserControl
     private decimal? _displayedSpeed;
 
     public event Action<string, double>? SpeedChanged;
+    public Func<EditorBatchEdit, string?>? BatchEditRequested { get; set; }
+    public event Action<string>? BatchLocateRequested;
     public event Action<string, string?, V2PathCurve>? CurveChanged;
     public event Action<string, string, bool>? HoldJudgeChanged;
     public event Action<int, int>? NudgeRequested;
@@ -40,6 +42,9 @@ public sealed partial class InspectorView : UserControl
     public InspectorView()
     {
         AvaloniaXamlLoader.Load(this);
+        var batch = this.FindControl<SelectionInspectorView>("BatchInspector")!;
+        batch.ApplyRequested = edit => BatchEditRequested?.Invoke(edit) ?? null;
+        batch.LocateRequested += id => BatchLocateRequested?.Invoke(id);
         _text.LanguageChanged += UpdateLocalizedLabels;
         UpdateInspector();
     }
@@ -129,7 +134,7 @@ public sealed partial class InspectorView : UserControl
             EditorTrack.Center => "Inspector.CenterStage",
             _ => null,
         };
-        this.FindControl<TextBlock>("NoteMeta")!.Text = track is null ? "" :
+        this.FindControl<TextBlock>("NoteMeta")!.Text = _ids.Count > 1 || track is null ? "" :
             _text[track] + (node is null ? "" : " · " + _text["Inspector.PathNode"]);
         UpdateSpatialWarnings();
     }
@@ -138,6 +143,13 @@ public sealed partial class InspectorView : UserControl
     {
         var note = SelectedNote;
         var node = SelectedNode;
+        var multiple = _ids.Count > 1;
+        this.FindControl<StackPanel>("SinglePanel")!.IsVisible = !multiple;
+        this.FindControl<StackPanel>("SinglePathPanel")!.IsVisible = !multiple;
+        this.FindControl<Expander>("ExistingBatchTools")!.IsExpanded = !multiple;
+        var batch = this.FindControl<SelectionInspectorView>("BatchInspector")!;
+        batch.IsVisible = multiple;
+        batch.Show(_document, _ids);
         UpdateLocalizedLabels();
         this.FindControl<Border>("SelectionBadge")!.IsVisible = note is not null;
         this.FindControl<TextBox>("BarTimeValue")!.Text = note is null ? "" : ExactBarTimeText.Format(node?.Time ?? note.Time);

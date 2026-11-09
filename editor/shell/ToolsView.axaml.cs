@@ -30,6 +30,12 @@ public sealed partial class ToolsView : UserControl
         this.FindControl<NumericUpDown>("PlacementWidthValue")!.Value = (decimal)width;
     }
 
+    internal void RestorePreferences(WorkbenchPreferences preferences)
+    {
+        this.FindControl<ComboBox>("PositionModeChoice")!.SelectedIndex = preferences.PositionSnap ? 0 : 1;
+        SetPlacementWidth(preferences.PlacementWidth);
+    }
+
     public bool PositionSnapEnabled => this.FindControl<ComboBox>("PositionModeChoice")?.SelectedIndex != 1;
 
     public void SelectPlacementType(V2NoteType type)

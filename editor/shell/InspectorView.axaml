@@ -20,6 +20,8 @@
           <TextBlock Text="{local:Tr Inspector.Selected}" Classes="cyan" FontSize="9" />
         </Border>
       </Grid>
+      <local:SelectionInspectorView x:Name="BatchInspector" IsVisible="False" />
+      <StackPanel x:Name="SinglePanel" Spacing="14">
       <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.Locate}" />
       <ComboBox x:Name="ObjectChoice" HorizontalAlignment="Stretch" SelectionChanged="LocateObject" />
       <TextBlock x:Name="SpatialWarnings" Classes="caption" TextWrapping="Wrap" />
@@ -69,6 +71,9 @@
         <u:IconButton x:Name="ApplyNoteKindButton" Content="{local:Tr Inspector.ApplyNoteKind}" Classes="active"
                       HorizontalAlignment="Stretch" animations:SukiPressMotion.Enable="True" Click="ApplyNoteKind" />
       </StackPanel>
+      </StackPanel>
+      <Expander x:Name="ExistingBatchTools" Header="{local:Tr Inspector.NudgeSelection}" HorizontalContentAlignment="Stretch">
+      <StackPanel Spacing="8">
       <StackPanel Spacing="5">
         <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.ScrollSpeed}" />
         <NumericUpDown x:Name="SpeedValue" Minimum="0.05" Maximum="4" Increment="0.05" Value="1.0" FormatString="0.00" />
@@ -85,6 +90,9 @@
         <Button Content="{local:Tr Inspector.PositionBack}" Click="NudgePositionBack" />
         <Button Grid.Column="1" Content="{local:Tr Inspector.PositionForward}" Click="NudgePositionForward" />
       </Grid>
+      </StackPanel>
+      </Expander>
+      <StackPanel x:Name="SinglePathPanel" Spacing="14">
       <Border Height="1" Background="{DynamicResource Line}" Margin="0,6" />
       <StackPanel Spacing="5">
         <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.PathCurve}" />
@@ -115,6 +123,7 @@
           <TextBlock Classes="caption" Text="{local:Tr Inspector.RuntimeHint}" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
+      </StackPanel>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

@@ -9,6 +9,8 @@ internal static class Program
     {
         try
         {
+            EditorBatchEditTests.Run();
+            EditorNoteClipboardTests.Run();
             EditorGeometryTests.TestExactSnap();
             EditorGeometryTests.TestSideTrackStagePlacement();
             EditorGeometryTests.TestAuthoringAxisAndSnap();

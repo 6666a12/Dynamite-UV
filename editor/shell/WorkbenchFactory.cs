@@ -91,6 +91,23 @@ public sealed class WorkbenchFactory : Factory
     private readonly IRootDock _root;
     public override IRootDock CreateLayout() => _root;
 
+    internal WorkbenchLayoutSnapshot CaptureLayout() => WorkbenchLayoutSnapshot.Capture(_root);
+    internal void RestoreLayoutBeforeAttach(WorkbenchLayoutSnapshot snapshot)
+    {
+        snapshot.Validate();
+        if (snapshot.Root.AllChildren().Any(HasAnalysis) || snapshot.Windows.Any(w => HasAnalysis(w.Root))) AddAnalysisPanel();
+        IDockable? Resolve(string id) => id switch
+        {
+            "root" => _root, "main" => _main, "left" => _leftDock, "right" => _rightDock,
+            "stage-dock" => _stageDock, "stage" => _stage, "stage-floating" => _placeholder,
+            "tools" => _toolset, "properties" => _properties, "timing" => _timing, "audio-analysis" => _analysis, _ => null,
+        };
+        WorkbenchLayoutRestore.Apply(snapshot, this, Resolve);
+        // Closed tools absent from the serialized tree must not retain stale default ownership.
+        foreach (var tool in new[] { _toolset, _properties, _timing }) tool.Owner = null;
+    }
+    private static bool HasAnalysis(LayoutItem item) => item.Id == "audio-analysis" || item.AllChildren().Any(HasAnalysis);
+
     public void FloatStage()
     {
         if (_stage.Owner is not null && !ReferenceEquals(_stage.Owner, _stageDock)) return;
@@ -121,6 +138,9 @@ public sealed class WorkbenchFactory : Factory
         if (_analysis is not null) RestoreTool(_analysis, _leftDock);
         _leftDock.ActiveDockable = _toolset;
         _rightDock.ActiveDockable = _properties;
+        _leftDock.Proportion = .17;
+        _stageDock.Proportion = .60;
+        _rightDock.Proportion = .23;
     }
 
     private void RestoreTool(Tool tool, ToolDock destination)
@@ -193,6 +213,8 @@ public sealed class WorkbenchFactory : Factory
         _placeholder.Content = new TextBlock { Text = _text["Dock.FloatingHint"], Margin = new Avalonia.Thickness(18) };
         if (_analysis is not null) _analysis.Title = _text["Dock.AudioTitle"];
     }
+
+    public void Release() => _text.LanguageChanged -= UpdateText;
 
     private Binding Translation(string key) => _text.CreateBinding(key);
 }

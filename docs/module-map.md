@@ -54,6 +54,9 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `EditorDocumentSession` | 当前文档、草稿资源、打开/创建/新增差分/保存用例 | shell 的对话框、消息和页流 |
 | `SongBrowseState` / `CanvasEditGesture` | 本地浏览状态 / 已有对象编辑手势的提交与取消 | UI 动画与预览投影、START 会话提交 |
 | `GameplayHud` / `GameplayHudHeader` | 下方 HUD 与顶部装配，读取真实快照；`GameplayHudPlate` 拥有形状/文本/输入和 `HudLightState` 包络，`GameplayBleedBar` + `BleedHudState` 拥有血量显示插值 | 场景保留判定/血量/分数权威、既有暂停/失败回调和帧顺序；展示不计算损伤或演示统计，见 [HUD v8](<gameplay-hud-v8.md>) |
+| `GameplayProgressState` / `GameplayProgressBar` / `JudgmentLineTimeline` | 顶部进度比例与成就退化、移动端点绘制 / 三轨只读活跃区间与启灯采样 | 场景提供歌曲有效时间/结束口径/判定计数；公共舞台只接收亮度，镜像映射不改变判定；见 [HUD 调整](gameplay-hud-v8.md) |
+| `WorkbenchUserStore` / `WorkbenchPreferenceSession` / `WorkbenchLayoutSession` | 独立用户目录的版本化快照、原子写入/损坏备份、偏好合并写入与启动前布局恢复；布局DTO不包含控件/HWND | Shell持有活控件/进程生命周期；预览音量和效果经IPC同步，测试使用隔离目录 |
+| `EditorNoteClipboard` | 完整父Note及路径的会话快照、精确相对拍时间、新身份和组合插入命令 | Shell拥有当前播放头/网格锚点、快捷键焦点保护、选区同步；不增加第二轮批量变换 |
 | `SongPreviewPlayer` / `CalibrationBeatSource` | 试听加载和播放生命周期 / 合成节拍、零偏移时钟、循环位置展开 | 当前选择有效性 / 校准采样状态、统计和应用设置 |
 | `CalibrationSampling` | 采样相位、目标锁定、热身、note 归属、重复/stray 与完成；纯 C# | 页面读数、展示切换、建议偏移应用、保存和导航 |
 | `SongCardMotion` / `SongDetailCard` | 展开/收拢/文字/封面状态机 / 卡片控件子树和展示 | 列表位置、行可见性、底部操作、加载与页面导航 |

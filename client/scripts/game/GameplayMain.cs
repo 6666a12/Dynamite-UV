@@ -166,7 +166,7 @@ public partial class GameplayMain : Node2D
 			? new BleedHealth(GameSession.Settings.GameplayMode == GameplayMode.Hardcore
 				? BleedRule.Hardcore : BleedRule.Standard)
 			: null;
-		UpdateHud(0);
+		_lineTimeline = JudgmentLineTimeline.FromPlan(_plan);
 		foreach (var path in _plan.Sustains.Values)
 		{
 			_sustainStates[path.HeadId] = new SustainRuntime
@@ -192,6 +192,8 @@ public partial class GameplayMain : Node2D
 		_playback = new SongPlayback(this, songPath, GameSession.Settings.TimingOffsetMs,
 			_verification);
 		_endCondition = new GameplayEndCondition(_plan.EndTime + 2.0, _playback.TracksNaturalEnd);
+		_progressEnd = _playback.ProgressEndSeconds(_plan.EndTime);
+		UpdateHud(0);
 		// 调试：DYNAMITE_UNIVERSE_START_SEC=起始秒（用于与录屏做同刻对比截图）
 		_startSecond = 0.0;
 		if (double.TryParse(System.Environment.GetEnvironmentVariable("DYNAMITE_UNIVERSE_START_SEC"),

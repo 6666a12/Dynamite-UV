@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -19,6 +20,7 @@ public sealed partial class MainWindow : Window
 {
     private static readonly int[] SnapSteps = { 1, 2, 4, 8, 12, 16, 24, 32, 48, 64 };
     private readonly GodotStageService _service = new();
+    private readonly EditorNoteClipboard _noteClipboard = new();
     private readonly EditorDocumentSession _session = new();
     private readonly StageView _stageView = new();
     private readonly InspectorView _inspector = new();
@@ -41,12 +43,23 @@ public sealed partial class MainWindow : Window
     private string? _loadedChartId;
     private string? _loadedAudioPath;
     private long _stageRevision;
+    private readonly WorkbenchUserStore _userStore;
+    private readonly WorkbenchPreferenceSession _preferences;
+    private readonly WorkbenchLayoutSession _layoutSession;
+    private double _previewVolume = 100;
+    private string _previewEffects = "Full";
 
-    public MainWindow()
+    public MainWindow() : this(null) { }
+    internal MainWindow(string? userDirectory)
     {
+        _userStore = new WorkbenchUserStore(userDirectory);
+        _preferences = new WorkbenchPreferenceSession(_userStore, CapturePreferences, Report);
         AvaloniaXamlLoader.Load(this);
+        ClosingBehavior = WindowClosingBehavior.OwnerWindowOnly;
         _editing = new ShellChartEditor(_text, () => RefreshDocument(), Report);
         _factory = new WorkbenchFactory(_stageView, _inspector, _tools, _timing);
+        _layoutSession = new WorkbenchLayoutSession(_userStore, _factory, Report);
+        _layoutSession.Load(this);
         var dock = this.FindControl<DockControl>("Dock")!;
         dock.Factory = _factory;
         dock.Layout = _factory.CreateLayout();
@@ -55,6 +68,22 @@ public sealed partial class MainWindow : Window
         _stageView.FloatRequested += FloatStage;
         _stageView.DockRequested += DockStage;
         _stageView.PlayRequested += TogglePlayback;
+        _inspector.BatchEditRequested = edit =>
+        {
+            if (_ioBusy || CurrentDocument is not { } document) return _text["Batch.Unavailable"];
+            try
+            {
+                document.Execute(new EditNoteSelectionCommand(_selectedNoteIds, edit));
+                RefreshDocument();
+                return null;
+            }
+            catch (Exception ex) { return ex.Message; }
+        };
+        _inspector.BatchLocateRequested += id =>
+        {
+            if (CurrentDocument?.SelectedChart.Notes.FirstOrDefault(n => n.Id == id) is { } note)
+                SeekBar(note.Time.ToDouble(), snap: false);
+        };
         _inspector.SpeedChanged += (id, speed) => _editing.ApplySpeed(CurrentDocument, _selectedNoteIds, id, speed);
         _inspector.LocateRequested += (id, nodeId) =>
         {
@@ -87,15 +116,38 @@ public sealed partial class MainWindow : Window
         _service.MessageReceived += message => Dispatcher.UIThread.Post(() => StageEvent(message));
         _service.RuntimeError += error => Dispatcher.UIThread.Post(() => Report("Godot: " + error));
         _text.LanguageChanged += UpdateLocalizedState;
+        var preferences = _preferences.Initial;
+        _snapDenominator = preferences.Grid;
+        WheelReversed = preferences.WheelReversed;
+        _previewVolume = preferences.Volume;
+        _previewEffects = preferences.Effects;
+        _tools.RestorePreferences(preferences);
+        this.FindControl<ComboBox>("LanguageChoice")!.SelectedIndex = preferences.Language == "zh-CN" ? 1 : 0;
+        _text.SetLanguage(preferences.Language);
+        this.FindControl<ComboBox>("MotionChoice")!.SelectedIndex = preferences.Motion;
         UpdateLocalizedState();
+        _preferences.Enabled = true;
+        if (_userStore.Warning is { } warning) Report(warning);
         Opened += (_, _) => StartStage();
         Closing += (_, _) =>
         {
             _factory.IsShuttingDown = true;
+            _preferences.Enabled = false;
             _text.LanguageChanged -= UpdateLocalizedState;
+            _factory.Release();
             _stageView.Host.SetGodotHandle(0);
             _service.Dispose();
         };
+    }
+
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        // Capture before base raises Dock's closing handlers and tears down floating hosts.
+        _preferences.Flush();
+        _layoutSession.Save();
+        _factory.IsShuttingDown = true;
+        base.OnClosing(e);
+        if (e.Cancel) _factory.IsShuttingDown = false;
     }
 
     internal StageView Stage => _stageView;
@@ -144,7 +196,8 @@ public sealed partial class MainWindow : Window
         _selectedNoteIds = new[] { id };
         _inspector.ShowDocument(CurrentDocument);
     }
-    internal void SelectNotesForVerification(params string[] ids)
+    internal void SelectNotesForVerification(params string[] ids) => SelectNotes(ids);
+    private void SelectNotes(params string[] ids)
     {
         if (CurrentDocument is null || ids.Length == 0) return;
         SelectNoteForVerification(ids[^1]);
@@ -307,6 +360,8 @@ public sealed partial class MainWindow : Window
                 this.FindControl<TextBlock>("ReadyBadge")!.Text = _text["Status.GodotLive"];
                 SendDocument();
                 SendContextText();
+                SendPreviewPreferences();
+                SendAuthoring();
                 _service.Send(new { command = "wheelDirection", reversed = WheelReversed });
                 Report(_text[CurrentDocument is null ? "Message.OpenPackage" : "Message.GodotReady"]);
                 UpdateNativeStatus();
@@ -317,6 +372,11 @@ public sealed partial class MainWindow : Window
                 if (kind == "track" && Enum.TryParse<EditorTrack>(value, out var track)) _tools.SelectTrack(track);
                 else if (kind == "type" && Enum.TryParse<V2NoteType>(value, out var type)) _tools.SelectPlacementType(type);
                 else if (kind == "tool" && value is "SELECT" or "PATH") _tools.SelectTool(value);
+                else if (kind == "volume" && double.TryParse(value, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var volume) && double.IsFinite(volume))
+                    _previewVolume = Math.Clamp(volume, 0, 100);
+                else if (kind == "effects" && value is "Full" or "Reduced" or "Off") _previewEffects = value;
+                _preferences.Changed();
                 break;
             case "selection":
                 _stageView.Host.FocusNative();
@@ -465,7 +525,7 @@ public sealed partial class MainWindow : Window
             ?? Array.Empty<double>();
         if (document is not null)
         {
-            _snapDenominator = document.GridDivisor;
+            document.GridDivisor = _snapDenominator;
             var last = document.SelectedChart.Notes.SelectMany(note =>
                 new[] { note.Time }.Concat(note.Nodes.Select(node => node.Time)))
                 .DefaultIfEmpty(ExactBarTime.Zero).Max().ToDouble();
@@ -531,8 +591,20 @@ public sealed partial class MainWindow : Window
         SendAuthoring();
     }
 
+    private WorkbenchPreferences CapturePreferences() => new()
+    {
+        Language = _text.CurrentLanguage, Grid = _snapDenominator, WheelReversed = WheelReversed,
+        PositionSnap = _tools.PositionSnapEnabled, PlacementWidth = _tools.PlacementWidth,
+        Volume = _previewVolume, Effects = _previewEffects,
+        Motion = this.FindControl<ComboBox>("MotionChoice")!.SelectedIndex,
+    };
+
+    private void SendPreviewPreferences() => _service.Send(new
+    { command = "previewPreferences", volume = _previewVolume, effects = _previewEffects });
+
     private void SendAuthoring()
     {
+        _preferences.Changed();
         _service.SetAuthoring(_tool, _tools.PlacementType.ToString(), _tools.PlacementTrack.ToString(),
             _tools.PlacementWidth, _snapDenominator, _tools.PositionSnapEnabled);
     }
@@ -669,6 +741,7 @@ public sealed partial class MainWindow : Window
         var index = (sender as ComboBox)?.SelectedIndex ?? 0;
         var profile = index switch { 1 => SukiAnimationProfile.Lite, 2 => SukiAnimationProfile.Minimal, _ => SukiAnimationProfile.Normal };
         SukiAnimation.SetProfile(this, profile);
+        _preferences.Changed();
         if (this.FindControl<TextBlock>("StatusText") is { } status)
             status.Text = _text.Format("Message.MotionProfile", _text[index switch { 1 => "Motion.Lite", 2 => "Motion.Minimal", _ => "Motion.Normal" }]);
     }
@@ -677,6 +750,7 @@ public sealed partial class MainWindow : Window
     {
         if (_factory is null) return;
         _text.SetLanguage((sender as ComboBox)?.SelectedIndex == 1 ? "zh-CN" : "en");
+        _preferences.Changed();
         Report(_text["Message.LanguageSwitched"]);
     }
 
@@ -751,6 +825,8 @@ public sealed partial class MainWindow : Window
     private void DeleteChartClicked(object? sender, RoutedEventArgs e) => DeleteChart();
     private async void SaveClicked(object? sender, RoutedEventArgs e) => await SavePackage(false);
     private async void SaveAsClicked(object? sender, RoutedEventArgs e) => await SavePackage(true);
+    private void CopyNotesClicked(object? sender, RoutedEventArgs e) => HandleShortcut(Key.C, KeyModifiers.Control, null);
+    private void PasteNotesClicked(object? sender, RoutedEventArgs e) => HandleShortcut(Key.V, KeyModifiers.Control, null);
     private void UndoClicked(object? sender, RoutedEventArgs e) => Undo();
     private void RedoClicked(object? sender, RoutedEventArgs e) => Redo();
     private void DeleteClicked(object? sender, RoutedEventArgs e) =>
@@ -758,10 +834,13 @@ public sealed partial class MainWindow : Window
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.Source is not TextBox && e.Source is not Avalonia.Controls.NumericUpDown && e.Source is not ComboBox && HandleShortcut(e.Key, e.KeyModifiers, e.Source))
+        if (!IsTextInput(e.Source) && HandleShortcut(e.Key, e.KeyModifiers, e.Source))
             e.Handled = true;
         base.OnKeyDown(e);
     }
+
+    private static bool IsTextInput(object? source) => source is Avalonia.Visual visual &&
+        visual.GetVisualAncestors().Prepend(visual).Any(v => v is TextBox or Avalonia.Controls.NumericUpDown or ComboBox);
 
     private bool HandleShortcut(Key key, KeyModifiers modifiers, object? source)
     {
@@ -790,6 +869,29 @@ public sealed partial class MainWindow : Window
                 case Key.S: _ = SavePackage(false); return true;
                 case Key.Z: Undo(); return true;
                 case Key.Y: Redo(); return true;
+                case Key.C:
+                    if (CurrentDocument is not null && _selectedNoteIds.Length > 0)
+                    {
+                        var copied = _noteClipboard.Copy(CurrentDocument, _selectedNoteIds);
+                        Report(_text.Format("Message.NotesCopied", copied));
+                        return true;
+                    }
+                    return false;
+                case Key.V:
+                    if (!_ioBusy && CurrentDocument is not null && _noteClipboard.Count > 0)
+                    {
+                        try
+                        {
+                            var anchor = ExactBarTime.FromFraction((long)Math.Round(Math.Max(0, _bar) * _snapDenominator), _snapDenominator);
+                            var pasted = _noteClipboard.Paste(CurrentDocument, anchor);
+                            SelectNotes(pasted);
+                            RefreshDocument();
+                            Report(_text.Format("Message.NotesPasted", pasted.Length));
+                        }
+                        catch (Exception ex) { Report(ex.Message); }
+                        return true;
+                    }
+                    return false;
             }
             return false;
         }
@@ -799,6 +901,7 @@ public sealed partial class MainWindow : Window
             case Key.Space when source is not Button: TogglePlayback(); return true;
             case Key.B when modifiers == KeyModifiers.None:
                 WheelReversed = !WheelReversed;
+                _preferences.Changed();
                 _service.Send(new { command = "wheelDirection", reversed = WheelReversed });
                 Report(_text[WheelReversed ? "Message.WheelReversed" : "Message.WheelNormal"]);
                 return true;
