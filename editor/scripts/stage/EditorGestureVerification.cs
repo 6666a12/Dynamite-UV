@@ -29,13 +29,30 @@ internal static class EditorGestureVerification
             Check(wheelSteps == 1, "wheel down navigates forward");
             stage.HandlePointerInput(up);
             Check(wheelSteps == 0, "wheel up navigates backward");
+            stage.WheelReversed = true;
+            stage.HandlePointerInput(down);
+            Check(wheelSteps == -1, "reversed wheel down navigates backward");
+            stage.HandlePointerInput(up);
+            Check(wheelSteps == 0, "reversed wheel up navigates forward");
+            down.Factor = .25f;
+            stage.HandlePointerInput(down);
+            Check(wheelSteps == -.25, "reversed wheel preserves fractional factor");
+            stage.SetChart(empty);
+            Check(stage.WheelReversed, "chart reload preserves wheel preference");
+            stage.WheelReversed = false;
+            stage.HandlePointerInput(down);
+            Check(wheelSteps == 0, "restored wheel preserves original direction");
             stage.Free();
             GD.Print("PASS Godot wheel navigation directions");
         }
         foreach (var track in Enum.GetValues<EditorTrack>())
         {
             var author = new EditorStageAuthoring();
+            author.Configure("PLACE", V2NoteType.Tap, track, .6, 16);
             using var motion = new InputEventMouseMotion();
+            author.HandleInput(motion, Point(track, .25, .6), [], empty.Metadata, 0, 1);
+            Check(author.PlacementPreview!.Center == .6 && author.PlacementPreview.Width == .6,
+                "decimal grid ghost has canonical 0.6 center and width");
             author.Configure("PLACE", V2NoteType.Tap, track, 1, 16);
             var point = Point(track, .25, 2.537);
             author.HandleInput(motion, point, [], empty.Metadata, 0, 1);

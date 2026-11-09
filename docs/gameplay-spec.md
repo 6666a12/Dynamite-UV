@@ -185,7 +185,7 @@ Perfect，落在输入窗内但超出 Good 窗（早侧或晚侧）立即按输�
 血量钳制在 `[0, 100]`；降到 0 即暂停谱面音乐并强制结算。**当前耗尽复用普通结算作为占位**，
 专用耗尽/失败结算后续扩展（待扩展），因此不改分数、不新增失败标识，既有保存规则照旧。
 自然完成结算仍保留既有音乐尾奏，不套用耗尽的暂停行为。
-Bleed 血条 UI 本轮未设计。Mine 走 `_engine.ApplyMine`，不经 `ApplyUnit`，不参与 BLEED 扣血。
+Bleed 血条及 HUD v8 已接入本体，显示/动效边界见 [游戏 HUD](<gameplay-hud-v8.md>)。Mine 走 `_engine.ApplyMine`，不经 `ApplyUnit`，不参与 BLEED 扣血。
 Hold 中途断触/头 Miss 的批量结算在 shared 规则内部落判定，客户端在两处批量结果上同样各计一次。
 
 `GameSettings.MirrorEnabled`（`mirrorEnabled`，默认 false，选曲页的 `MIRROR` 开关）开启后游玩

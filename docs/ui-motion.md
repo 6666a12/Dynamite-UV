@@ -1,9 +1,10 @@
 # UI 动效规格
 
 > 游戏动效基线与 token 日期：2026-10-08；2026-10-26 仅静态校正 §9 的编辑器能力注记，未调整时序或重做视觉验收。原生客户端已接入游戏 UI 动效；[网页参考](<ui-mock/motion-preview.html>)不是现有功能完成清单。
-> 本文保留有效 token、三种运动策略与场景约束；§9.1–§9.4 是编辑器设计目标，尚未全部接入。
+> 本文保留有效 token、三种运动策略、场景约束及两端共用命中粒子；旧编辑器扩展目标单独归档。
 > 2026-10-08 增补：`--t-hover` 独立 token（§3.1）、结算组内数据动效（§2.3 第 6 条）、选曲 v2 局部动效（§2.4）。
 > 2026-10-28 增补：屏风前的结果字标前奏（§2.3.0）与 `--t-outcome` token；只做过纯逻辑回归，未做视觉验收。
+> 2026-11-09 已把旧 Editor 目标单独归档；HUD v8 分档见 §2.6。
 > 不改变固定 UI/游玩布局；历史原文见 [归档快照](<archive/2026-10-07-cleanup/ui-motion.before.md>)。
 
 ## 1. 范围与基线
@@ -119,8 +120,7 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
    Reduced/Off 保持瞬时切换。
 2. 卡内内容切换：曲名/曲师/谱师 80ms 淡出 → 换文 → 120ms 淡入（换文由代际守卫，
    快速连切不写回旧文本）；封面在谱面就绪后 150ms 从 0 淡入。Reduced 保留淡变，Off 瞬时。
-3. 列表滚动：滚轮/触摸板走惯性指数趋近，client 固定 τ = 112ms（editor 同模型、τ 由
-   SCROLL INERTIA 设置给，见 §9.2）；触摸拖动与滚动条拖动 1:1 直连不插值；
+3. 列表滚动：滚轮/触摸板走惯性指数趋近，client 固定 τ = 112ms（当前对象见 [选曲滚动合同](editor-ui-design.md#选曲滚动合同)）；触摸拖动与滚动条拖动 1:1 直连不插值；
    选中行/展开卡的 `EnsureControlVisible`、程序刷新与跳转旁路惯性。
 4. Hover 全量覆盖 `--t-hover`（曲库行、模式行、全部设置行、按钮、预览传输键），
    端点色与原瞬时 hover 一致，只平滑中间过程。
@@ -132,6 +132,10 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 “测试命中”是用户主动触发的材质/特效预览，按 HIT EFFECTS / 残影设置走真实效果，不把 UI Motion Off 误当关闭玩法特效。
 模态期间禁用背景输入，关闭恢复；预设、RGB 与确认弹窗不使用长时间动画。实机验收见 [配色 v2](<note-colors-v2.md>)。
 
+### 2.6 游戏 HUD v8
+
+已接真实 BLEED 血量、判定统计和暂停事件；用户2026-11-09确认本体实际效果满意。Full 保留残条/局部切口/低血端标呼吸与封顶点亮；Reduced 降低点亮和柔光、去掉残条/冲击/呼吸；Off 直接显示状态，无插值/事件点亮/外溢光。暂停不为动效延迟，血量动画在暂停冻结；具体参数与职责见 [HUD v8](gameplay-hud-v8.md)。不以 UI Motion 改写命中规则或 HIT EFFECTS。
+
 ## 3. Motion token
 
 ### 3.1 时间
@@ -139,7 +143,7 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 | Token | Full | Reduced | Off | 用途 |
 | --- | ---: | ---: | ---: | --- |
 | `--t-micro` | 90ms | 70ms | 0ms | 按下确认、光点和状态 ping |
-| `--t-hover` | 100ms | 100ms | 0ms | Hover 颜色过渡（2026-10-08 拍板统一：editor `EditorMotion.HoverFade` / client `UiHoverFade` 同源实现；推进只在过渡期跑 `_Process`，「值变了才重绘」与「到终值才停表」是两个独立条件） |
+| `--t-hover` | 100ms | 100ms | 0ms | Hover 颜色过渡（client `UiHoverFade`；旧 Editor 同源实现已归档，推进只在过渡期跑 `_Process`，「值变了才重绘」与「到终值才停表」是两个独立条件） |
 | `--t-control` | 160ms | 100ms | 0ms | 按钮亮度、开关方块和输入反馈（hover 已拆出到 `--t-hover`） |
 | `--t-focus` | 260ms | 140ms | 0ms | 数值替换、选择确认、局部聚焦 |
 | `--t-enter` | 420ms | 180ms | 0ms | 面板、列表、HUD 内容进入 |
@@ -151,8 +155,7 @@ Track Relay 专用于“已选曲目 → 游玩上下文”的连续传递，也
 
 TRACK HANDOFF 另有状态门槛：Full 的上下文可读状态最少约 `650ms`，若真实 Gameplay 尚未 ready，则以约 `1200ms` 的周期维持低强度等待扫描；ready 和最短驻留同时满足后立即揭示，不额外等待整轮扫描。Reduced 使用 `180ms` 最短静态 handoff 与其后的 `180ms` Gameplay alpha reveal，不扫描；两段顺序执行至少 360ms，覆盖/加载另计。`220ms` 是 route/relay token，不是整个 handoff 的总预算。Off 为 `0ms`，但仍须先绘制稳定不透明 handoff 状态再提交 Gameplay。游戏以 `UiMotionProfile`、`ResultRevealTimeline` 和当前转场代码为实现来源；网页 demo 只在自身 JS/CSS 内保持 token 同源，不能覆盖原生结算 v2。
 
-hover 的统一实现档是 **100ms**（2026-10-08 拍板；editor 侧 `EditorMotion.HoverMotion`、client 侧
-`UiHoverMotion.Seconds` 同源），比 `--t-control` 的 160ms 更轻，专用于指针悬停的颜色/亮度过渡；
+hover 的统一实现档是 **100ms**（client `UiHoverMotion.Seconds`；旧 Editor 实现不代表现行工作台），比 `--t-control` 的 160ms 更轻，专用于指针悬停的颜色/亮度过渡；
 160ms 继续留给按下确认与输入反馈。选曲页的实现值：展开卡高度动画 200ms（`--t-focus` 档语义）、
 卡内文字淡切 80ms 出 / 120ms 入、封面就绪淡入 150ms（`--t-micro`/`--t-control` 档语义），
 明细见 [UI 设计施工约定](<editor-ui-design.md>) §2.1。
@@ -262,56 +265,12 @@ motion-preview.html?scene=result
   （alpha 0，Full 再左移 `ContentShift`），由揭示完成回调再播放入场；否则转场覆盖层退场时会先露出
   完整页面，随后又归零重播入场，表现为“先显示一下再渐入”。现有实现见各页 `PrepareEnterAnimation`。
 
-## 9. 编辑器目标与游戏粒子规格
+## 9. 共享命中特效与编辑器边界
 
-§9.1–§9.4 是把游戏语言/token 扩展到制谱器的**设计目标**，不是整体已实现宣告。2026-10-26 静态核对：Settings、SAVE/SAVE AS、部分淡入/hover/焦点反馈、滚动惯性、路径与放置导引已接入；真实音频/判定试玩仍不存在，Signal Lock/Track Relay、完整 stagger、放置爆发等不能据此视为完成。
-不新增缓动曲线或运动语言；Motion 设置当前有真实但局部的接点，REDUCED 与 FULL 尚无完整差异，OFF 也有待核查的局部反馈边界。详细能力及静态疑点见 [DynaMaker UV](<dyna-maker-uv.md>)，本表不覆盖其当前状态。
-§9.5 则记录已接入游戏的粒子参数，编辑器复用仍为目标。
+旧编辑器 §9.1–§9.4 的扩展目标已移至 [历史目标](archive/art/2026-10-editor-motion-targets.md)，不作为现行 Avalonia 工作台的接线清单。编辑器 Auto 播放/滚轮预览现已复用游戏音符与命中/持续视觉，实际能力见 [制谱器说明](dyna-maker-uv.md)。放置提交 Strength≈0.4 的爆发仍只是旧设计目标，不据 Auto 复用宣称已完成。
 
-### 9.1 手势与画布反馈
-
-| 交互 | Full 表现 | Reduced | Off |
-| --- | --- | --- | --- |
-| 放置·阶段 0 跟随 | 幽灵（约 80% 不透明）1:1 跟随光标与吸附结果，无插值 | 同 Full | 同 Full |
-| 放置·阶段 1 宽度拖拽 | 宽度实时渲染；跨 0.05 档时缘边亮闪 `--t-micro` | 同 Full | 不闪 |
-| 放置·提交确认 | 幽灵落为实体 + 缩小打击爆发（复用 `GameplayHitBloom`，Strength≈0.4，≤200ms） | 只做不透明度跳变 | 立即实体 |
-| Hold/Mixer 拖尾 | 拖动中虚线实时预览路径重采样，松开变实线；无插值 | 同 Full | 同 Full |
-| Hover | Note 边缘亮度 +20%、路径手柄 60%→100% 不透明，`--t-control` + `--e-standard` | 同 Full | 立即 |
-| 选中 chip | `--move-xs` 滑入 + 淡入，`--t-control` + `--e-enter` | 只淡入 | 立即 |
-| 右键菜单 | 以光标为锚点（近屏幕边缘翻转），项间 `--stagger` 自上而下单向进入，总长 ≤300ms | 整体淡入，无 stagger | 立即 |
-| 路径手柄出现 | 菱形手柄沿路径从头向尾依次点亮（`--stagger`），兼作方向提示 | 同时淡入 | 立即 |
-
-吸附成功不做专门光效（无吸附 ping）。**拖动式** scrubbing、放置跟随与拖尾预览在三档下全部 1:1 直连输入，不得插值
-（滚轮/触摸板是离散推力而不是拖动，按 §9.2 的滚动惯性处理，两者不冲突）。
-
-### 9.2 时间轴与网格
-
-| 交互 | Full 表现 | Reduced | Off |
-| --- | --- | --- | --- |
-| 标尺跳转 | 当前位置三角 `--t-focus` + `--e-standard` 滑动到位 | 同 Full | 立即 |
-| 网格密度切换 | 旧密度淡出 / 新密度淡入交叉 `--t-focus` | 同 Full | 立即 |
-| 滚轮/触摸板滚动（画布视图时间、Pack 差分行列表、选曲列表） | 惯性指数趋近，τ 由设置档/固定常量给（见 [UI 设计施工约定](<editor-ui-design.md#4-编辑器交互目标不是当前能力清单>) §4 第 14 条） | 同 Full | 立即（`MOTION = OFF` 时 τ 强制为 0） |
-| 播放/试玩 | 底部进度线与标尺三角与歌曲时钟 1:1 推进；判定线命中可复用 `GameplayHitBloom` | 同 Full | 同 Full |
-
-### 9.3 页面与组件
-
-| 交互 | Full 表现 | Reduced | Off |
-| --- | --- | --- | --- |
-| 页面转场（Start / Pack Select / Settings / Editor） | Signal Lock `--t-route`，同 §2.1 | §4 Reduced | §4 Off |
-| 进入编辑（Open in Editor） | Track Relay 变体 `--t-relay`：纯文本上下文卡（曲名+难度+Lv）→ READY → 分层揭示 判定线 → 网格 → 已有 Note | §4 Reduced | §4 Off |
-| 等级步进器 | 新块 scale 0→1，`--t-focus` + `--e-enter`；数字 `--move-xs` 上移替换；非法值红框单次脉冲（禁用抖动） | 同 Full | 立即 |
-| 难度列表 | 进入 `--stagger` 自上而下；「+ NEW CHART」hover 虚线→实线 `--t-control` | 无 stagger | 立即 |
-| 保存反馈 | HUD 状态灯 cyan 单闪 `--t-micro`；失败 pink | 状态文字直换 | 状态文字直换 |
-
-### 9.4 编辑器约束
-
-- 编辑器无循环氛围动画；用户不操作时界面稳定停住（同 §4 Full）。
-- 动效不得改变谱面时序、吸附结果、命中区、撤销栈或保存语义。
-- Reduced 去掉方向位移、stagger、爆发与滑动，保留不透明度状态切换；Off 全部立即提交，但同 §4 Off 一样先绘制稳定状态再开放输入。
-- 粒子特效属于纯视觉层，不承载业务事实；采用 §9.5 降级规则：该规则的 Reduced/Off 指的是游玩设置
-  `HIT EFFECTS` 档位（`HitEffectLevel`），UI MOTION（`UiMotionMode`）只负责界面与转场动效，不再影响游玩粒子。
-
-### 9.5 已接入游戏的打击粒子规格（编辑器复用目标）
+<a id="95-已接入游戏的打击粒子规格编辑器复用目标"></a>
+### 9.5 两端共用的打击粒子规格
 
 命中反馈 = 程序化核心爆发（`GameplayHitBloom`，12 帧式，不变）+ GPU 粒子质感层
 （`GameplayHitParticles`，火花/余烬两个发射器，加法混合）。粒子纹理全部运行时合成
@@ -343,4 +302,4 @@ motion-preview.html?scene=result
 爆发与接触效果同时关闭，只留判定残影与判定浮字；
 侧轨发射方向随带符号 Rotation（左 +π/2、右 −π/2）转向面板外侧。
 
-**编辑器目标**：放置提交确认拟复用缩小双层反馈（Strength≈0.4），未来试玩命中复用完整反馈。当前无真实音频/判定试玩链路，不能据本表称已接入。
+**编辑器边界**：Auto 预览已经复用完整命中与持续视觉；放置提交缩小爆发未接入。命中特效档位与 UI Motion 独立，不能混作同一个设置。

@@ -84,6 +84,15 @@ internal static class Verification
             var rightTrack = window.PlacementTrackForVerification == EditorTrack.Right;
             window.ShortcutForVerification(Key.Up);
             Check("Up cycles center-left-right-center", leftTrack && rightTrack && window.PlacementTrackForVerification == EditorTrack.Center);
+            Check("Wheel direction defaults to existing navigation", !window.WheelReversed);
+            Check("B reverses wheel direction", window.ShortcutForVerification(Key.B) && window.WheelReversed);
+            Check("Modified B does not toggle wheel direction", !window.ShortcutForVerification(Key.B, KeyModifiers.Control) &&
+                !window.ShortcutForVerification(Key.B, KeyModifiers.Shift) && window.WheelReversed);
+            window.ShortcutForVerification(Key.B);
+            Check("B restores wheel direction", !window.WheelReversed);
+            window.StageEventForVerification("key", "{\"key\":\"B\",\"ctrl\":false,\"shift\":false,\"alt\":false}");
+            Check("Native stage B uses the same wheel toggle", window.WheelReversed);
+            window.ShortcutForVerification(Key.B);
             Check("F1 opens and Escape closes help", window.ShortcutForVerification(Key.F1) &&
                 window.ShortcutsVisible && window.ShortcutForVerification(Key.Escape) && !window.ShortcutsVisible);
             CreatePackage(source);
@@ -315,6 +324,20 @@ internal static class Verification
             await window.AddChartForVerification(addForm);
             Check("Add difficulty selects a real second chart", window.CurrentDocument?.Charts.Count == 2 &&
                 window.CurrentDocument.SelectedChartId == "extra" && window.CurrentDocument.SelectedChart.Level == 14);
+            var chartChoice = window.FindControl<ComboBox>("ChartChoice")!;
+            var chartItems = chartChoice.Items.Cast<ComboBoxItem>().ToArray();
+            var selectedEvents = 0;
+            chartChoice.SelectionChanged += (_, _) => selectedEvents++;
+            for (var cycle = 0; cycle < 20; cycle++)
+            {
+                chartChoice.SelectedIndex = cycle % 2;
+                Dispatcher.UIThread.RunJobs();
+                Check($"Empty difficulty selection keeps stable items {cycle}",
+                    window.CurrentDocument!.SelectedChartId == (cycle % 2 == 0 ? "main" : "extra") &&
+                    window.CurrentDocument.SelectedChart.Notes.Count == 0 &&
+                    chartChoice.Items.Cast<ComboBoxItem>().SequenceEqual(chartItems));
+            }
+            Check("Difficulty changes raise one selection event each", selectedEvents == 20);
             window.StageEventForVerification("place", "{\"type\":0,\"track\":1,\"bar\":1,\"center\":2.5,\"width\":1,\"tailBar\":1}");
             window.SelectChartForVerification("main");
             window.ConfigurePlacementForVerification(V2NoteType.Hold, EditorTrack.Center, 1);
@@ -496,6 +519,7 @@ internal static class Verification
             window.ShortcutForVerification(Key.Z, KeyModifiers.Control);
             Check("One undo restores a multi-Note deletion", window.CurrentDocument.SelectedChart.Notes.Count == 2);
 
+            Check("Native box selection synchronizes all parents without editing", VerifyBoxSelection(window, tapId, holdId));
             window.CopyChartForVerification();
             Check("Copy difficulty clones authored Notes", window.CurrentDocument.Charts.Count == 3 &&
                 window.CurrentDocument.SelectedChartId == "main-copy" && window.CurrentDocument.SelectedChart.Notes.Count == 2);
@@ -528,6 +552,56 @@ internal static class Verification
                 settingsDialog.FindControl<TextBox>("ChartIdValue")?.Text == "renamed" &&
                 settingsDialog.FindControl<Avalonia.Controls.NumericUpDown>("OffsetValue")?.Value == .25m);
             settingsDialog.Close();
+            var precisionNote = window.CurrentDocument.SelectedChart.Notes.First(n => n.Type == V2NoteType.Tap);
+            window.SelectNoteForVerification(precisionNote.Id);
+            window.ApplyGeometryForVerification("1", .6, .6);
+            window.NudgeSelectionForVerification(0, 1);
+            Check("Decimal nudge 0.6 + 0.1 is canonical 0.7", precisionNote.Center == .7);
+            window.NudgeSelectionForVerification(0, -1);
+            Check("Decimal reverse nudge returns exact 0.6", precisionNote.Center == .6);
+            window.StageEventForVerification("noteMove",
+                $"{{\"noteId\":\"{precisionNote.Id}\",\"startBar\":1,\"endBar\":1,\"startCenter\":0,\"endCenter\":0.3,\"positionStep\":0.1}}");
+            Check("Grid drag commits canonical 0.9", precisionNote.Center == .9);
+            window.StageEventForVerification("noteResize",
+                $"{{\"noteId\":\"{precisionNote.Id}\",\"moveStartEdge\":false,\"edge\":1.3,\"widthStep\":0.05}}");
+            Check("Resize preserves decimal edge with canonical geometry", precisionNote.Center == .95 && precisionNote.Width == .7);
+            var preciseCenter = Math.BitIncrement(.6);
+            window.ApplyGeometryForVerification("1", preciseCenter, Math.BitIncrement(.6));
+            Check("Explicit high precision geometry remains untouched", precisionNote.Center == preciseCenter && precisionNote.Width == Math.BitIncrement(.6));
+            window.NudgeSelectionForVerification(1, 0);
+            Check("Time-only nudge preserves high precision geometry", precisionNote.Center == preciseCenter && precisionNote.Width == Math.BitIncrement(.6));
+            var precisionPath = window.CurrentDocument.SelectedChart.Notes.First(n => n.Type == V2NoteType.Hold);
+            var precisionNode = precisionPath.Nodes[0];
+            window.CurrentDocument.Execute(new EditPathNodeCommand(precisionPath.Id, precisionNode.Id, precisionNode.Time, .6, .6));
+            window.SelectNoteForVerification(precisionPath.Id);
+            window.StageEventForVerification("pathMove",
+                $"{{\"noteId\":\"{precisionPath.Id}\",\"nodeId\":\"{precisionNode.Id}\",\"startBar\":1,\"endBar\":1,\"startCenter\":0,\"endCenter\":0.3,\"positionStep\":0.1}}");
+            Check("Path node drag commits canonical center", precisionNode.Center == .9 && precisionNode.Width == .6);
+            window.SelectNoteForVerification(precisionNote.Id);
+            window.ApplyGeometryForVerification("1", .6, .6);
+            var precisionSave = Path.Combine(root, "precision-save");
+            await window.SavePackageToForVerification(precisionSave);
+            var precisionDocument = EditorPackageRepository.Open(precisionSave);
+            precisionDocument.SelectChart(window.CurrentDocument.SelectedChartId);
+            var preciseReload = precisionDocument.SelectedChart.Notes.Single(n => n.Id == precisionNote.Id);
+            Check($"Decimal geometry survives save/reopen exactly (live={precisionNote.Center:R}/{precisionNote.Width:R}, saved={preciseReload.Center:R}/{preciseReload.Width:R})", preciseReload.Center == .6 && preciseReload.Width == .6);
+            window.CurrentDocument.Execute(new SetNoteScrollSpeedMultiplierCommand(precisionNote.Id, preciseCenter));
+            window.SelectNoteForVerification(precisionNote.Id);
+            var precisionInspector = window.GetVisualDescendants().OfType<InspectorView>().Single();
+            precisionInspector.SetSpeedForVerification(preciseCenter);
+            Check("Unchanged speed Apply preserves loaded double", precisionNote.ScrollSpeedMultiplier == preciseCenter);
+            window.ApplyPackageSettingsForVerification(settings with
+            {
+                AudioOffsetSec = preciseCenter,
+                PackPreview = new V2Preview(preciseCenter, 8),
+                ChartPreview = new V2Preview(preciseCenter, 4),
+            });
+            var precisionDialog = new PackageSettingsDialog(window.CurrentDocument);
+            var precisionRequest = precisionDialog.RequestForVerification();
+            Check("Unchanged settings preserve offset and both preview doubles",
+                precisionRequest.AudioOffsetSec == preciseCenter &&
+                precisionRequest.PackPreview?.StartSec == preciseCenter && precisionRequest.ChartPreview?.StartSec == preciseCenter);
+            precisionDialog.Close();
         }
         catch (Exception ex)
         {
@@ -540,6 +614,20 @@ internal static class Verification
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }
         return failed ? 1 : 0;
+    }
+
+    private static bool VerifyBoxSelection(MainWindow window, string tap, string hold)
+    {
+        var document = window.CurrentDocument!;
+        var before = document.BuildChartSnapshot(document.SelectedChartId);
+        var revision = window.StageRevision;
+        window.StageEventForVerification("selection", System.Text.Json.JsonSerializer.Serialize(new
+        { ids = new[] { tap, hold }, primary = tap, parentId = tap, noteIds = new[] { tap, hold } }));
+        var selected = window.SelectedNoteIds.Count == 2 && window.SelectedNoteId == tap;
+        window.StageEventForVerification("selection", "{\"ids\":[],\"primary\":\"\",\"parentId\":\"\",\"noteIds\":[]}");
+        var cleared = window.SelectedNoteIds.Count == 0 && window.SelectedNoteId is null;
+        return selected && cleared && window.StageRevision == revision &&
+            V2JsonEncoder.EncodeChart(before).SequenceEqual(V2JsonEncoder.EncodeChart(document.BuildChartSnapshot(document.SelectedChartId)));
     }
 
     private static void ClickControl(Control control, string name) =>

@@ -14,6 +14,7 @@ internal static class WorkspaceVerification
 {
     internal static void Run(MainWindow window, Action<string, bool> check)
     {
+        VerifyDockButton(window, check);
         var factory = window.LayoutFactory;
         var root = factory.CreateLayout();
         check("Pinned previews reserve space for native stage", root.PinnedDockDisplayMode == PinnedDockDisplayMode.Inline);
@@ -102,6 +103,41 @@ internal static class WorkspaceVerification
             check("Mouse cancels create without result", !dialog.IsVisible && dialog.Result is null);
         }
         finally { dialog.Close(); }
+    }
+
+    private static void VerifyDockButton(MainWindow window, Action<string, bool> check)
+    {
+        var dock = window.FindControl<Dock.Avalonia.Controls.DockControl>("Dock")!;
+        var layout = dock.Layout;
+        var factory = window.LayoutFactory;
+        var originals = new[] { "stage", "tools", "timing", "properties" }
+            .Select(id => factory.Find(d => d.Id == id).Single()).ToArray();
+        for (var cycle = 0; cycle < 2; cycle++)
+        {
+            // Exercise the actual button -> MainWindow handler, not Factory.DockStage directly.
+            Click(window, window.Stage.FindControl<Button>("DockButton")!);
+            check($"Dock button while docked preserves entire workspace {cycle}",
+                ReferenceEquals(dock.Layout, layout) && originals.All(item =>
+                    factory.Find(d => d.Id == item.Id).SingleOrDefault() == item) &&
+                ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window));
+        }
+        window.ShortcutForVerification(Key.D, KeyModifiers.Control | KeyModifiers.Shift);
+        Dispatcher.UIThread.RunJobs();
+        check("Dock shortcut preserves layout and stage", ReferenceEquals(dock.Layout, layout) &&
+            ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window));
+        for (var cycle = 0; cycle < 2; cycle++)
+        {
+            factory.FloatStage();
+            Dispatcher.UIThread.RunJobs();
+            var floating = TopLevel.GetTopLevel(window.Stage) as Window;
+            if (floating is null || ReferenceEquals(floating, window))
+                throw new InvalidOperationException("Stage did not float before Dock button regression");
+            Click(floating, window.Stage.FindControl<Button>("DockButton")!);
+            check($"Dock button from floating preserves workspace {cycle}",
+                ReferenceEquals(dock.Layout, layout) && originals.All(item =>
+                    factory.Find(d => d.Id == item.Id).SingleOrDefault() == item) &&
+                ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window));
+        }
     }
 
     private static void VerifyLabels(MainWindow window, Action<string, bool> check)

@@ -5,7 +5,7 @@
 
 目前已建立纯规则核心、纯编辑核心、共享 Godot 视觉、游戏和编辑器适配五个边界。
 渲染/特效、文档会话、浏览、试听、校准音源、HUD、画布选择/命中/手势预览、创建请求、Track Handoff、选曲视口与设置编解码已独立成对象。
-制谱器响应式 UI 将从头设计；旧 Editor 页面和画布宿主不再作为现有模块或拆分对象。
+制谱器现行 UI 为 Avalonia Shell + Godot 原生舞台；旧 Penpot Editor 页面和旧 Godot 画布宿主不再作为现有模块或拆分对象。
 第三轮范围与行为证据见 [第三轮模块化](<archive/reports/2026-10-25-modularization-phase3.md>)；此前的草稿保存修正见
 [第二轮模块化](<archive/reports/2026-10-25-modularization-phase2.md>)。历史报告不代表旧 UI 仍存在。
 
@@ -48,10 +48,12 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `tools/chart-editor-core/Commands/` | 现有命令按 Pack/Chart/Note/Path/Timing 与验证规则分组 | EditorDocument 的 history/dirty、shared 的格式和写包合同 |
 | 两套测试目录 | 分成独立的场景测试类，公共 fixture/断言收在各自 TestSupport | Program 只解析参数、按原顺序调用测试并返回退出码 |
 | `presentation/game/GameplayNoteRenderer` / `GameplayEffects` | 两端共用的音符/连接段/残影/持续接收头与特效池生命周期；外观由 `IGameplayVisualSettings` 注入，镜像由 `GameplayRenderGeometry` 实例持有 | 游戏保留判定状态、成绩、设置和既有帧顺序；编辑器保留音频/文档/输入，按只读快照驱动视觉 |
+| `EditorMarqueeSelection` | 当前轨道的谱面位置/精确时间起终点、追加基线、完整父 Note 候选集合与提交/取消；不依赖渲染对象、不写文档 | 舞台使用 `EditorStagePlacement` 反查指针时间，播放/seek 更新终点并绘制投影/数量；控制器/IPC 同步 Shell 多选，文档命令仍由 Shell/Core 拥有 |
+| `EditorContextMenu` | 舞台内右键面板控件、选中反馈、边缘布局和关闭输入消费；不写文档 | 舞台判断空白/取消手势，控制器持有预览音量/效果，Shell 持有工具/放置面/类型和翻译，IPC 仅发送意图与状态 |
 | `EditorAutoTimeline` / `EditorAutoPreview` | JudgePlan 上的可 seek 事件游标 / 编辑器 Auto 视觉生命周期、当前持续状态恢复、CPU/GPU 暂停 | `EditorPreviewController` 仍负责音频与 IPC；`EditorStagePreview` 保留静态编辑视图、选择、手势和舞台布局 |
 | `EditorDocumentSession` | 当前文档、草稿资源、打开/创建/新增差分/保存用例 | shell 的对话框、消息和页流 |
 | `SongBrowseState` / `CanvasEditGesture` | 本地浏览状态 / 已有对象编辑手势的提交与取消 | UI 动画与预览投影、START 会话提交 |
-| `GameplayHud` | HUD 节点、文字缓存、判定闪字，读取值快照 | 分数/ACC 计算、时间、暂停和成绩保存 |
+| `GameplayHud` / `GameplayHudHeader` | 下方 HUD 与顶部装配，读取真实快照；`GameplayHudPlate` 拥有形状/文本/输入和 `HudLightState` 包络，`GameplayBleedBar` + `BleedHudState` 拥有血量显示插值 | 场景保留判定/血量/分数权威、既有暂停/失败回调和帧顺序；展示不计算损伤或演示统计，见 [HUD v8](<gameplay-hud-v8.md>) |
 | `SongPreviewPlayer` / `CalibrationBeatSource` | 试听加载和播放生命周期 / 合成节拍、零偏移时钟、循环位置展开 | 当前选择有效性 / 校准采样状态、统计和应用设置 |
 | `CalibrationSampling` | 采样相位、目标锁定、热身、note 归属、重复/stray 与完成；纯 C# | 页面读数、展示切换、建议偏移应用、保存和导航 |
 | `SongCardMotion` / `SongDetailCard` | 展开/收拢/文字/封面状态机 / 卡片控件子树和展示 | 列表位置、行可见性、底部操作、加载与页面导航 |
@@ -67,6 +69,7 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `HomeBrandBlock` / `HomeUtilityRow` / `HomePalette` | 品牌块、顶部工具入口与版本串、Home v2 颜色与字距 token | 入场登记、`Main.BuildDescription()` 构建身份串 |
 | `StandaloneEditorMain` / `EditorPreviewController` / `EditorStageAuthoring` | 装配 Godot 舞台 / 预览时钟、音频与 IPC / SELECT、PLACE、PATH、PAN 的手势状态 | Avalonia Shell 的文件、文档命令、布局、i18n 与快捷键；舞台不另写时间反查公式 |
 | `EditorStagePlacement` / `StagePlacementDraft` / `EditorPlacementOverlay` | 三轨转换、侧轨尺度与精确 BarTime 反查 / 中心坐标放置、宽度与尾点草稿 / 真实 NoteView ghost、导引读数和对齐标记 | 文档命令与保存仍由 ShellChartEditor/Core 拥有；旧 CanvasPlacementDraft 的左缘语义不混用 |
+| `EditorSpatialMath` | 十进制空间交互算术：规范网格值、相对位移加减与范围回退；不统一舍入文档或文件 | 舞台负责坐标投影，Shell/Core 命令负责提交；自由模式、精确输入与未修改字段保留原值，shared 保持严格格式/Digest |
 | `CanvasProjection` / `CanvasPlacementDraft` | 文档到可变预览数据的映射 / 新建音符宽度与 Hold 两阶段草稿 | 新 UI 的输入、坐标/吸附、选择恢复；提交仍走文档命令 |
 | `CanvasSelectionState` | Note.Id 多选、主选择/实际单选、BPM 精确时间、二级 Node.Id 与框选生命周期 | 新 UI 的输入与几何、选择事件、重绘和文档命令 |
 | `CanvasHitTesting` | 逆序遮挡、节点/头/尾/身体优先级与边缘 typed hit | 新 UI 的矩形、路径求值、坐标换算及 Hit 适配 |
@@ -91,20 +94,9 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 
 ## 文件职责导航
 
-完整类行数（含所有分部文件、内部类、空行和注释；用于限制重新增长，不是模块化评分）：
+当前文件与整个分部类的规模以 `python -B tools/architecture/check.py --report` 输出为准，预算以 `tools/architecture/policy.json` 为准；不在导航页复制易过期的“当前行数”表。行数包含空行、注释与内部类，只用于限制重新增长，不是模块化评分。历史拆分规模与行为证据见前述归档报告。
 
-| 类 | 第三轮前 | 当前 |
-| --- | ---: | ---: |
-| GameplayMain | 1823 | 1343 |
-| SongSelect | 2137 | 1122 |
-| CalibrationScreen | 1835 | 1213 |
-| StandaloneEditorMain | 2566 | 13 |
-
-其他当前总量：SettingsScreen 789、GameplayNoteRenderer 762；TransitionOverlay 239、TrackHandoffPresentation 583、TrackHandoffState 72。结算新增部分：ResultScreen 443、ResultOutcomePrelude 173、ResultPreludeTimeline 162、ResultOutcome 66、ResultFlow 54、ResultInputGuard 15、GameplayEndCondition 68。GameplayMain 包含 2026-10-30 游玩布局位移。
-首页 v2 部分（2026-10-29 结构报告）：Main 126、HomeEnergyReactor 365、HomeActionTile 222、HomeActions 83、HomeBrandBlock 61、HomeUtilityRow 44、HomePalette 47、HomeReticle 52；旧 HomeEnergyCore 170 行仍保留但未被引用。
-后续代码规模以 `tools/architecture/check.py --report` 的实际输出为准。
-
-对既往进程与剩余大文件的分析见 [2026-10-26 模块化复审](<modularity-review-2026-10-26.md>)。其中旧 Editor 页面和画布建议仅是历史记录，不再作为当前对象边界。
+对既往进程与剩余大文件的分析见 [2026-10-26 模块化复审](<archive/reports/2026-10-26-modularity-review.md>)。其中旧 Editor 页面和画布建议仅是历史记录，不再作为当前对象边界。
 
 Godot 场景绑定继续使用原入口文件及类名。以下分部文件用于局部整理，仍属于同一个类，
 不能当作已完成对象级隔离；字段随所属职责移动，也不新增“万能上下文”对象。
@@ -146,7 +138,7 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 | --- | --- | --- |
 | 1 | 制谱器新 UI | Avalonia Shell 已接文件、包/差分管理、多选批量命令、单选精确属性、BPM/Scroll、放置、SELECT 移动/调宽、PATH 与 PAN；预览按 load/update 分离并复用音频。下一步接真实波形、持久化、合并导出，并以长谱基准决定是否需要真正的差量舞台更新，保持 ChartEditor.Core 权威 |
 | 2 | SongSelect | 视口、滚动、卡片动画/展示、详情代际、浏览和试听已独立；动态行高/过滤场景的固定步距触摸命中仍是未复现疑点，需真实输入刻画 |
-| 3 | GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定（分部族 1343/1350，剩余空间很小，新阶段应继续落在 `ui/results/` 或纯对象） |
+| 3 | GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定（分部类预算余量以结构报告为准，新阶段应继续落在 `ui/results/` 或纯对象） |
 
 上述拆分不授权顺带更改 JudgeEngine、v2 读写、判定窗口、时钟公式、成绩身份或客户端布局数值。
 继续拆分以状态拥有者、输入输出、生命周期和回归证据为完成标准，不以一个文件缩短或新增 partial 为完成标准。

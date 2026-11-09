@@ -147,6 +147,12 @@ public sealed class EditorStageIpc : IDisposable
             writer.WriteNumber("audioRestarts", restarts);
         });
 
+    public void SendContextAction(string kind, string value) => Emit("contextAction", writer =>
+    {
+        writer.WriteString("kind", kind);
+        writer.WriteString("value", value);
+    });
+
     public void SendInput(string detail) => Emit("input", writer => writer.WriteString("detail", detail));
     public void SendError(string message) => Emit("error", writer => writer.WriteString("message", message));
 

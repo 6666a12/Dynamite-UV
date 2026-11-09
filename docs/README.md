@@ -1,6 +1,6 @@
 # 文档导航与维护约定
 
-> 2026-10-26 整理。按“接手入口 → 当前实现/操作 → 任务规格 → 历史/提案”阅读，不按文件日期把所有文档当作待办。
+> 按“接手入口 → 当前实现/操作 → 任务规格 → 历史/提案”阅读，不按文件日期把所有文档当作待办。入口与能力说明不复制测试数量、Git HEAD 或源码行数；动态状态以工作区、结构报告和验证记录为准。
 
 ## 接手最短路径
 
@@ -15,24 +15,24 @@
 | --- | --- |
 | [handoff.md](<handoff.md>) | 当前实现摘要、约束、未完成/待决策/暂缓/静态风险，不累加阶段流水 |
 | [module-map.md](<module-map.md>) | 项目关系、源码职责、对象边界与拆分入口；不是行为合同 |
-| [模块化复审（2026-10-26）](<modularity-review-2026-10-26.md>) | 既往拆分的有效性、剩余大文件分类、对象提取建议和所需回归；分析而非实施排期 |
 | [runtime-architecture.md](<runtime-architecture.md>) | 运行时会话/加载、不可重排的帧顺序、适配边界 |
 | [verification.md](<verification.md>) | 最近实际检查、历史验证、测试包身份、用户验收和复验命令 |
 | [dyna-maker-uv.md](<dyna-maker-uv.md>) | 制谱器 Avalonia + Godot 主线、文件/命令接线、核心依赖与持久化边界；[editor README](<../editor/README.md>) 提供启动入口 |
-| [制谱器审查核对（2026-11-07）](<editor-debug-review-2026-11-07.md>) | `result.json` 21 项真伪核实、修复与保留边界；实际执行见 verification |
+| [制谱器 UI 回归清单](<editor-ui-regression.md>) | UI 分层覆盖、真实窗口交互与未覆盖项；具体执行结果仍以 verification 为准 |
 | [releasing.md](<releasing.md>) | Public/Internal 隔离、clean worktree、签名和最终 APK 门禁 |
 
 ## 有效规格、安全与测量（按任务必读）
 
 | 文档 | 权威边界 |
 | --- | --- |
+| [gameplay-hud-v8.md](<gameplay-hud-v8.md>) | 已接本体的 BLEED 血条、顶部统计/暂停、无框标题卡、视觉判定线与三档动效边界 |
 | [gameplay-spec.md](<gameplay-spec.md>) | 社区玩法、Legacy 兼容、空间/判定/计分；原版研究不能覆盖社区决策 |
 | [chart-format-v2.md](<chart-format-v2.md>) | 已冻结的 v2 合同，不因 UI 能力不足而降格；[Schema/golden pack](<../schemas/chart-format-v2/>) 是机器合同 |
 | [mixer-receiver.md](<mixer-receiver.md>) | Mixer 放置/保持/宽限、时间重放和专项设备边界 |
 | [pixel-calibration.md](<pixel-calibration.md>) / [video-geometry-analysis.md](<video-geometry-analysis.md>) | 当前坐标与测量依据；改布局前必读，不因日期旧而归档 |
 | [original-judgement-analysis.md](<original-judgement-analysis.md>) | 原版证据、UNKNOWN 和有意差异，不是社区产品实现清单 |
 | [editor-ui-design.md](<editor-ui-design.md>) | Penpot 板位、设计/已接入边界、UI 施工与 MCP 安全约定；不是功能验收表 |
-| [ui-motion.md](<ui-motion.md>) | 游戏现行动效与编辑器目标动效；注意章节内的已接入/目标标识 |
+| [ui-motion.md](<ui-motion.md>) | 游戏现行动效与两端共用命中特效；旧编辑器目标已单独归档 |
 | [result-v2-design.md](<result-v2-design.md>) | 已接入结算的层级、时序和交互；旧设计示例数据不能覆盖现评级门槛 |
 | [result-outcomes.md](<result-outcomes.md>) | 已接入的正常结束双锁存、BLEED 失败、七类结果字标前奏（含 TRACK COMPLETE、三档/跳过/防穿透）与资产清单 |
 | [note-colors-v2.md](<note-colors-v2.md>) | 配色草稿/应用/比较、可读性限制与未完成的设备验收清单 |
@@ -40,6 +40,10 @@
 | [第三方通知](<../THIRD_PARTY_NOTICES.md>) / [APK policy](<../release/apk-policy.json>) / [资产来源](<../release/asset-provenance.json>) | 许可证、产品身份、发布内容和资产哈希；不能以文档整理放宽 |
 
 ## 只在追溯时阅读
+
+- [2026-10-26 模块化复审](archive/reports/2026-10-26-modularity-review.md)：当日建议，多个对象已被后续拆分取代。
+- [2026-11-07 制谱器审查](archive/reports/2026-11-07-editor-debug-review.md)：一次性核对/修复，不是新待办。
+- [2026-11-09 文档整理](archive/reports/2026-11-09-documentation-cleanup.md)：本次归档范围与验证边界。
 
 - [历史归档总索引](<archive/README.md>)：按时间/类型查阶段报告、旧盘点、已完成美术交付和未排期提案。
 - [2026-10-26 整理说明与原文清单](<archive/2026-10-26-cleanup/README.md>)：本次移动清单、整理前字节快照与 SHA-256。

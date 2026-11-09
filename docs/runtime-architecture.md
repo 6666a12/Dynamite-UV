@@ -8,7 +8,9 @@
 ```text
 client Godot scenes / UI / gameplay ──► presentation ──► shared
 client services / input / audio ─────────────────────► shared
-editor shell ──► presentation + chart-editor-core ────► shared
+editor Godot ──► presentation + chart-editor-core ────► shared
+editor shell ──► chart-editor-core + shared
+editor shell ◄── JSON-lines IPC / Win32 HWND ──► editor Godot
 chart-tool / core tests ─────────────────────────────► shared
 ```
 
@@ -69,7 +71,7 @@ main.tscn ── PLAY ──> song_select.tscn ── START ──> gameplay.tsc
 `SongPlayback.HasNaturallyEnded` 分别单调锁存，两者都成立才 `ShowResults`；
 音频自然结束后 `songTime` 会冻结/归零，因此该对象用音频结束后的真实帧 `delta`
 （单帧上限 0.5 秒）补足谱末条件，回退/固定帧时钟没有自然结束信号时只走谱末路径。
-BLEED 耗尽在本帧第 8 步之后、第 9 步之前单独短路：先 `Pause()` 再以 `stageFailure` 进结算。
+BLEED 耗尽在本帧第 8 步之后单独短路：先发布0血 HUD 快照，再 `Pause()` 并以 `stageFailure` 进结算，不写普通帧 trace，也不延迟失败。
 
 `JudgePlan`、`JudgeEngine`、`InputJudgeRules`、`V2InputProtection`、
 `SustainJudgementRules`、`VisualScrollMath` 和 `DropSpeedMap` 是 shared 权威规则，客户端
@@ -92,7 +94,7 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 
 ## 5. 展示、成绩与发布不变量
 
-- `GameplayStageView`、`GameplayHud`、Pause 和 Result 是展示层；HUD 接收显示值快照，成绩计算/写入仍由 gameplay 在显示
+- `GameplayStageRenderer`、`GameplayHud`、Pause 和 Result 是展示层；HUD 接收显示值快照，成绩计算/写入仍由 gameplay 在显示
   Result 前执行。结算的展示顺序是 `ResultFlow`（前奏 → 结算页）：`ResultOutcomePrelude`
   以压暗/斜纹区/结果字标做 1.55s（Reduced 0.26s、Off 0）前奏，自带 `_Process`，因为
   `ShowResults` 之后游玩场景不再推进帧逻辑；随后现有 Result v2 用两扇不透明屏风合拢才隐藏舞台，
@@ -109,10 +111,13 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 ## 6. 当前编辑器适配边界
 
 - `editor/shell` 的 Avalonia 进程拥有文件对话框、i18n、Dock 和快捷键；现有 Godot `editor` 进程通过 JSON-lines IPC 接收 Chart 快照并回传选择/时钟/按键，Win32 HWND 嵌入 Dock 文档。
-- `EditorDocumentSession` 管理打开/草稿/保存；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。外壳已接打开、保存/另存为、dirty 与目录选择。
-- Godot 预览通过 `V2RuntimeAdapter`、`V2BpmTimeline`、`V2ScrollMap` 和 `VisualScrollMath` 使用游戏几何；音频预览支持 WAV/MP3/Ogg/FLAC。玩家流速与音乐倍率是会话外预览状态，不进入谱面 Digest。仅预览调用显式豁免空草稿的计分 Note 要求，默认 strict 与写包不变。
-- `EditorStageAuthoring` 负责游戏舞台的放置、路径命中和坐标/时间反查；Shell 将事件转成可撤销文档命令。双击插点使用 shared 路径采样，拖动以原始精确 BarTime 加位移；根控制器补收全局左键松开，普通 Note 拖动/调宽和 Pan 尚未接线。
-- `EditorGameplayDigest` 保持纯核心；shared 的 `V2PackageWriter.Write/Create` 只由文档会话调用。保存成功才 MarkSaved，失败保留 dirty 与内存文档。能力范围与启动操作见 [DynaMaker UV](<dyna-maker-uv.md>)。
+- `EditorDocumentSession` 管理打开/草稿/保存；`EditorPackageRepository.Open` 做本地 strict v2 目录包打开。Shell 负责文件交互，`ShellChartEditor` 把舞台、Inspector 与 Timing 意图转换为核心文档命令；窗口不拥有格式或判定规则。
+- Godot 预览通过 `V2RuntimeAdapter`、`V2BpmTimeline`、`V2ScrollMap` 和 `VisualScrollMath` 使用游戏几何；音频预览支持 WAV/MP3/Ogg/FLAC。玩家流速、音乐倍率、预览音量与特效档位只影响当前预览，不写谱面或游戏设置。仅预览调用显式豁免空草稿的计分 Note 要求，默认 strict 与写包不变。
+- `EditorStageAuthoring` 拥有 SELECT/PLACE/PATH/PAN 手势，`EditorStagePlacement` 拥有轨道投影、吸附与时间反查；根控制器补收全局左键松开。手势提交经 Shell 转成可撤销命令，不直接修改权威文档。双击插点使用 shared 路径采样，精确时间编辑保留原始 BarTime。
+- `EditorMarqueeSelection` 拥有当前轨道的谱面位置/时间框选状态；按下固定起点，播放与 seek 更新终点，完整父 Note 数据参与范围判断，不依赖 Auto 视图是否可见/已回收。舞台只投影选框和数量，控制器经既有 selection IPC 提交身份；框选本身不写文档、不进入撤销栈。
+- 同差分编辑通过带 revision 的 `update` 保留播放状态、播放头和选择；切包/差分/音频来源走完整 `load`。`EditorPreviewController` 拥有音频与 IPC，`EditorAutoTimeline`/`EditorAutoPreview` 驱动共用渲染器；seek/编辑静默重建、普通暂停冻结，不补播历史命中；滚轮向前导航单独派发跨过的 Auto 判定，向后静默重建并重新允许命中，暂停滚轮仅推进视觉而不启动音频。
+- `EditorContextMenu` 只拥有舞台内右键控件和输入消费；工具请求回到 Shell，音量与特效交给预览控制器。不会成为第二个文档写入口。
+- `EditorGameplayDigest` 保持纯核心；工作台保存链路通过文档会话调用 shared 的 `V2PackageWriter.Write/Create`。保存成功才 MarkSaved，失败保留 dirty 与内存文档；磁盘发布后的清理异常不等于完全回滚。完整能力与限制见 [DynaMaker UV](<dyna-maker-uv.md>)，启动入口见 [editor README](<../editor/README.md>)。
 
 ## 7. 回归层级
 
@@ -124,7 +129,7 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 - **等价层**：涉及 legacy/v2 runtime 行为时，以 Internal deterministic trace / frame hash
   比较作为附加护栏；不用手工启动游戏替代自动回归。
 
-## 8. 当前拆分与结构检查（2026-10-25）
+## 8. 当前拆分与结构检查
 
 文件导航与后续对象级拆分见 [模块地图](<module-map.md>)。
 `GameplayMain.Input` 注入投影函数给 shared `PointerInputBuffer`，帧快照和指针生命周期由后者维护。
@@ -133,6 +138,7 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
 `SongDetailCard` 拥有卡片控件与展示；页面保留列表、加载身份、缓存和导航。`CalibrationSampling`
 拥有采样相位、热身、入样和完成，`CalibrationBeatSource` 拥有合成节拍与零偏移时钟；页面保留展示和设置保存。
 `GameplayPauseOverlay` 拥有暂停状态、覆盖层和动效，宿主保留输入清理、播放暂停/恢复与导航。
+HUD v8 的 `GameplayHudHeader` 装配统计/暂停/血条；`GameplayHudPlate` 与 `HudLightState` 只表达值变化，`GameplayBleedBar` / `BleedHudState` 只显示真实 BLEED 快照，不拥有判定规则。分档与暂停边界见 [HUD v8](gameplay-hud-v8.md)。
 `ResultFlow` 拥有“字标前奏 → 结算页”的交付顺序与“只一次”闸门，`ResultOutcomePrelude` 拥有前奏节点与
 自己的 `_Process`，`ResultOutcome` / `ResultPreludeTimeline` / `ResultInputGuard` / `GameplayEndCondition`
 是纯 C#（core-tests 直接链接）；`GameplayMain` 只保留成绩快照、归档节奏与导航回调。

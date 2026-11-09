@@ -22,7 +22,9 @@ public partial class GameplayMain
 
 
 	private GameplayHud _hud = null!;
-	private void BuildHud() => _hud = new GameplayHud(_hudRoot, TogglePause, StageOffsetY, TopHudOffsetY);
+	private void BuildHud() => _hud = new GameplayHud(_hudRoot, TogglePause, StageOffsetY, TopHudOffsetY,
+		() => GameSession.Settings.MotionMode, () => !_playbackStarted || _finished || _pause.IsPaused,
+		() => _playbackStarted && !_finished && !_pause.IsPaused && !TransitionDirector.IsBusy);
 	private void RefreshTitleTag() => _hud.RefreshTitleTag(_run, _auto);
 	private void FlashJudge(string text) => _hud.FlashJudge(text, GameSession.Settings.JudgeTextEnabled);
 	private void UpdateHud(double time)
@@ -31,7 +33,8 @@ public partial class GameplayMain
 			? Math.Clamp(_engine.Percent(_engine.JudgedTheoreticalMax), 0.0, 100.0) : 100.0;
 		_hud.Update(new GameplayHudSnapshot(_engine.NormalizedScore(_plan.TheoreticalMax), liveAcc,
 			_engine.CountPerfect, _engine.CountGreat, _engine.CountGood, _engine.CountMiss,
-			_engine.MaxCombo, _engine.Combo, time, _plan.EndTime), GetProcessDeltaTime());
+			_engine.MaxCombo, _engine.Combo, time, _plan.EndTime, _bleed is not null,
+			_bleed?.Rule == BleedRule.Hardcore, _bleed?.Health ?? 100), GetProcessDeltaTime());
 	}
 
 	// ---- UI ----
@@ -49,7 +52,7 @@ public partial class GameplayMain
 			Position = new Vector2(0f, StageOffsetY),
 		};
 		_stageRoot.AddChild(sharedStage);
-		sharedStage.BuildCommunityStageChrome(StageOffsetY);
+		sharedStage.BuildCommunityStageChrome(StageOffsetY, gameplayHud: true);
 		// Gameplay-owned judgement state still controls spawn/recycle, but its
 		// NoteView and sustain children now live in the shared stage layer.
 		_noteRoot = sharedStage.NoteLayer;
@@ -70,6 +73,7 @@ public partial class GameplayMain
 	{
 		ClearPointerState();
 		_playback.Pause();
+		_hud.PulsePause();
 	}
 
 	private void ResumeFromPause() => _playback.Resume();

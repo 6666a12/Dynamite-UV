@@ -166,6 +166,7 @@ public partial class GameplayMain : Node2D
 			? new BleedHealth(GameSession.Settings.GameplayMode == GameplayMode.Hardcore
 				? BleedRule.Hardcore : BleedRule.Standard)
 			: null;
+		UpdateHud(0);
 		foreach (var path in _plan.Sustains.Values)
 		{
 			_sustainStates[path.HeadId] = new SustainRuntime
@@ -259,9 +260,10 @@ public partial class GameplayMain : Node2D
 		SweepJudges(t);
 		FinalizeEndedMixers(t);
 		// BLEED 耗尽：本帧判定与 Mixer 收尾都已完成，先暂停音乐再立即进入失败字标前奏，
-		// 不等待谱末/音频结束；专用失败页与血条 UI 仍是后续独立设计。
+		// 不等待谱末/音频结束；先发布耗尽血量，专用失败页仍待设计。
 		if (_bleed is { IsDepleted: true })
 		{
+			UpdateHud(t); // publish depleted health before handing off to failure presentation
 			_playback.Pause();
 			ShowResults(stageFailure: true);
 			return;

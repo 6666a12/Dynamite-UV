@@ -126,6 +126,7 @@ internal static class EditorGeometryTests
         Check(Math.Abs(freeResize.Width - 1.1234) < 1e-12 && Math.Abs(fineResize.Width - 1.12) < 1e-12 &&
               Math.Abs(freeResize.Center - freeResize.Width / 2 - 2) < 1e-12,
             "free and fine resize preserve fixed logical edge without broadening bounds");
+        TestDecimalSpatialPrecision();
         TestSpatialRisks();
         TestStageBarTimeAt();
     }
@@ -134,6 +135,45 @@ internal static class EditorGeometryTests
     // SideDistanceScale，与 GameplayStageGeometry.PositionAt 互逆）-> 对 BPM/Scroll/落速的
     // 正向距离方程求根，得到 ExactBarTime。这里用非默认 BPM/Scroll + noteSpeedMultiplier 把
     // PositionAt + VisualScrollMath 的正向结果整圈读回来，并钉住 snap/free 边界。
+    private static void TestDecimalSpatialPrecision()
+    {
+        foreach (var step in new[] { .1, .05, .01 })
+            Check(EditorStagePlacement.QuantizePosition(.6, step) == .6,
+                $"grid {step} produces canonical 0.6 without binary multiplication tail");
+        Check(EditorStagePlacement.QuantizePosition(.15, .1) == .2 &&
+              EditorStagePlacement.QuantizePosition(-.15, .1) == -.1 &&
+              EditorStagePlacement.QuantizePosition(Math.BitDecrement(.15), .1) == .1 &&
+              EditorStagePlacement.QuantizePosition(Math.BitIncrement(.15), .1) == .2,
+            "decimal half-grid ties round upward without swallowing adjacent doubles");
+        var precise = Math.BitIncrement(.6);
+        Check(EditorStagePlacement.QuantizePosition(precise, 0) == precise &&
+              EditorSpatialMath.Add(precise, 0) == precise &&
+              EditorSpatialMath.Add(double.Epsilon, 0) == double.Epsilon &&
+              EditorSpatialMath.Add(1e100, .1) == 1e100,
+            "free, untouched and out-of-decimal-range values retain their representation");
+        Check(EditorPropertySteps.StepWidth(.55, 2, 1, false) == .6 &&
+              EditorPropertySteps.StepCenter(.7, 1, -1, false) == .6,
+            "property steps use decimal increments, not rounded display text");
+        var value = .6;
+        for (var i = 0; i < 100; i++) value = EditorPropertySteps.StepCenter(value, 1, 1, true);
+        for (var i = 0; i < 100; i++) value = EditorPropertySteps.StepCenter(value, 1, -1, true);
+        Check(value == .6, "repeated fine steps and reverse return exactly to 0.6");
+        var document = CreateCleanDocument("editor.precision", "hard", "Precision", "Community");
+        document.Execute(new AddNoteCommand(new EditableNote
+        {
+            Id = "precise", Type = V2NoteType.Tap, Track = EditorTrack.Center,
+            Time = ExactBarTime.One, Center = precise, Width = precise,
+        }));
+        var roundtrip = V2JsonDecoder.DecodeChart(V2JsonEncoder.EncodeChart(document.BuildChartSnapshot("hard")));
+        Check(roundtrip.NotesCenter.Single().Center == precise && roundtrip.NotesCenter.Single().Width == precise,
+            "explicit adjacent-double geometry is preserved by strict codec, not normalized globally");
+        var span = EditorStagePlacement.ResizeSnappedFromEdge(.9, .6, 1.3, false);
+        Check(span.Center == .95 && span.Width == .7, "decimal resize retains canonical center and width");
+        var delta = EditorStagePlacement.ResolvePositionDelta(2.537, .124, .1);
+        Check(EditorSpatialMath.Add(2.537, delta) == 2.7 && EditorSpatialMath.Add(.61, delta) == .773,
+            "single-anchor snapping preserves the other selected note's off-grid phase");
+    }
+
     private static void TestSpatialRisks()
     {
         foreach (var track in Enum.GetValues<EditorTrack>())

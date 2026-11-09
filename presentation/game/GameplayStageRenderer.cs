@@ -78,15 +78,17 @@ public partial class GameplayStageRenderer : Node2D
     public int RenderedLinkCount => _links.Count;
     public int RenderedCurvedLinkCount => _curvedLinkCount;
 
-    public void BuildCommunityStageChrome(float backdropTopPadding = 0f)
+    public void BuildCommunityStageChrome(float backdropTopPadding = 0f, bool gameplayHud = false)
     {
         EnsureLayers();
         foreach (var child in _chromeRoot!.GetChildren()) child.Free();
         _chromeRoot.AddChild(new GameplayBackdrop { ZIndex = -2, TopPadding = backdropTopPadding });
         var lineColor = new Color(.35f, .35f, .4f);
-        AddChromeLine(new Vector2(60f, GameplayStageGeometry.CenterLineY - 2f), new Vector2(1800f, 4f), lineColor);
-        AddChromeLine(new Vector2(GameplayStageGeometry.LeftLineX - 2f, 70f), new Vector2(4f, GameplayStageGeometry.CenterLineY - 70f), lineColor);
-        AddChromeLine(new Vector2(GameplayStageGeometry.RightLineX - 2f, 70f), new Vector2(4f, GameplayStageGeometry.CenterLineY - 70f), lineColor);
+        AddChromeLine(new Vector2(gameplayHud ? 0f : 60f, GameplayStageGeometry.CenterLineY - 2f), new Vector2(gameplayHud ? 1920f : 1800f, 4f), lineColor);
+        var sideTop = gameplayHud ? 72f - backdropTopPadding : 70f;
+        AddChromeLine(new Vector2(GameplayStageGeometry.LeftLineX - 2f, sideTop), new Vector2(4f, GameplayStageGeometry.CenterLineY - sideTop), lineColor);
+        AddChromeLine(new Vector2(GameplayStageGeometry.RightLineX - 2f, sideTop), new Vector2(4f, GameplayStageGeometry.CenterLineY - sideTop), lineColor);
+        if (gameplayHud) return; // Client HUD replaces the old inert Mixer decoration; editor unchanged.
         AddChromeLine(new Vector2(GameplayStageGeometry.CenterTrackX - 4f, 618f),
             new Vector2(8f, 28f), new Color(.5f, .5f, 1f));
         _chromeRoot.AddChild(new ColorRect

@@ -23,6 +23,30 @@ internal static class WorkspaceDesktopVerification
         var factory = window.LayoutFactory;
         var root = factory.CreateLayout();
         var child = window.Stage.Host.Diagnostics().Child;
+        var dockControl = window.FindControl<Dock.Avalonia.Controls.DockControl>("Dock")!;
+        var layout = dockControl.Layout;
+        var originals = new[] { "stage", "tools", "timing", "properties" }
+            .Select(id => factory.Find(d => d.Id == id).Single()).ToArray();
+        for (var cycle = 0; cycle < 3; cycle++)
+        {
+            if (cycle > 0)
+            {
+                factory.FloatStage();
+                await Task.Delay(700);
+            }
+            var top = (Window)TopLevel.GetTopLevel(window.Stage)!;
+            var button = window.Stage.FindControl<Button>("DockButton")!;
+            var point = button.PointToScreen(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2));
+            await click(top, point.X, point.Y);
+            await Task.Delay(700);
+            var diagnostic = window.Stage.Host.Diagnostics();
+            if (!ReferenceEquals(dockControl.Layout, layout) ||
+                originals.Any(item => factory.Find(d => d.Id == item.Id).SingleOrDefault() != item) ||
+                !ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window) ||
+                !diagnostic.Embedded || diagnostic.Child != child)
+                throw new InvalidOperationException($"Real Dock button destroyed workspace cycle {cycle}");
+        }
+        report("PASS real Dock button while docked and twice from floating preserves all panels and native HWND");
         foreach (var id in new[] { "tools", "timing", "properties" })
         {
             var tool = factory.Find(d => d.Id == id).Single();

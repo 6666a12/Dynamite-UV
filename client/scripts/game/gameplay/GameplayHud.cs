@@ -6,7 +6,7 @@ namespace DynamiteUniverse.Game;
 
 internal readonly record struct GameplayHudSnapshot(int Score, double LiveAcc,
     int CountPerfect, int CountGreat, int CountGood, int CountMiss, int MaxCombo,
-    int Combo, double Time, double EndTime);
+    int Combo, double Time, double EndTime, bool BleedEnabled, bool Hardcore, double BleedHealth);
 
 /// <summary>Owns HUD controls, text caches and judgement flashes; receives display values only.</summary>
 internal sealed class GameplayHud
@@ -15,8 +15,9 @@ internal sealed class GameplayHud
     private const float CenterLineY = GameplayStageGeometry.CenterLineY;
     private readonly Node2D _hudRoot;
     private readonly Node2D _topHudRoot;
+    private readonly GameplayHudHeader _header;
 
-    internal GameplayHud(Node2D root, Action pauseRequested, float stageOffsetY, float topOffsetY)
+    internal GameplayHud(Node2D root, Action pauseRequested, float stageOffsetY, float topOffsetY, Func<UiMotionMode> motion, Func<bool> frozen, Func<bool> canPause)
     {
         _topHudRoot = new Node2D
         {
@@ -30,51 +31,18 @@ internal sealed class GameplayHud
         };
         root.AddChild(_topHudRoot);
         root.AddChild(_hudRoot);
-        Build(pauseRequested);
+        _header = new GameplayHudHeader(_topHudRoot, pauseRequested, canPause, motion, frozen);
+        Build();
     }
 	private ColorRect _progressFill = null!;
 	private Label _scoreLabel = null!;
-	private Label _pillP = null!;
-	private Label _pillGr = null!;
-	private Label _pillGo = null!;
-	private Label _pillM = null!;
-	private Label _pillAcc = null!;
-	private Label _pillMc = null!;
+
 	private Label _comboLabel = null!;
 	private Label _comboSub = null!;
 	private Label _judgeFlash = null!;
-	private CutButton _pauseBtn = null!;
 
-	private void Build(Action pauseRequested)
+	private void Build()
 	{
-		// 原版风 HUD（2340 直出截图换算到 1440）：顶栏细青线框（中央缺口放暂停钮）、
-		// 底线上的发光进度段、左下曲名+难度、右下分数、顶部 ACC、
-		// 中央偏下 COMBO + 判定字。
-		var frameCol = new Color(UiFonts.Cyan, 0.45f);
-		AddHudLine(new Vector2(53, 64), new Vector2(773, 2), frameCol);
-		AddHudLine(new Vector2(1093, 64), new Vector2(773, 2), frameCol);
-
-		// 顶部中央：六个紧凑 pill；ACC 是得分/理论满分，不是 timing accuracy。
-		_pillP = MakePill(461, UiFonts.Cyan);
-		_pillGr = MakePill(629, UiFonts.Hard);
-		_pillGo = MakePill(797, UiFonts.Casual);
-		_pillM = MakePill(965, new Color(0.53f, 0.53f, 0.53f));
-		_pillAcc = MakePill(1133, new Color(0.64f, 0.90f, 0.21f));
-		_pillMc = MakePill(1301, UiFonts.Text);
-
-		// 顶部 pill 行下方正中间：暂停按钮（用户拍板：放大，嵌在顶栏缺口）
-		_pauseBtn = new CutButton
-		{
-			Position = new Vector2(900, 60),
-			Size = new Vector2(120, 64),
-			Text = "II",
-			FontSize = 30,
-			TechFont = true,
-			ZIndex = 2,
-		};
-		_pauseBtn.Pressed += () => pauseRequested();
-		_topHudRoot.AddChild(_pauseBtn);
-
 		// 底线上的发光进度段（从中央向两侧生长）
 		_hudRoot.AddChild(new ColorRect
 		{
@@ -102,7 +70,7 @@ internal sealed class GameplayHud
 				Cut = 16,
 				Fill = new Color(0.018f, 0.035f, 0.082f, 0.88f),
 				Border = new Color(UiFonts.Line, 0.82f),
-				BorderWidth = 1.5f,
+				BorderWidth = 0f,
 				MouseFilter = Control.MouseFilterEnum.Ignore,
 				ZIndex = 2,
 			};
@@ -194,45 +162,7 @@ internal sealed class GameplayHud
 		_hudRoot.AddChild(_judgeFlash);
 	}
 
-	private void AddHudLine(Vector2 pos, Vector2 size, Color color)
-	{
-		_topHudRoot.AddChild(new ColorRect
-		{
-			Color = color,
-			Position = pos,
-			Size = size,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		});
-	}
-
-	// 顶部 pill：切角暗底 + 居中彩色文字，返回值标签由 UpdateHud 刷新
-	private Label MakePill(float x, Color color)
-	{
-		_topHudRoot.AddChild(new CutPanel
-		{
-			Position = new Vector2(x, 12),
-			Size = new Vector2(158, 40),
-			Cut = 12,
-			Fill = new Color(0.03f, 0.05f, 0.10f, 0.72f),
-			ZIndex = 2,
-		});
-		var label = new Label
-		{
-			Position = new Vector2(x, 17),
-			Size = new Vector2(158, 32),
-			HorizontalAlignment = HorizontalAlignment.Center,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			ZIndex = 2,
-		};
-		label.AddThemeFontOverride("font", UiFonts.Tech);
-		label.AddThemeFontSizeOverride("font_size", 16);
-		label.AddThemeColorOverride("font_color", color);
-		_topHudRoot.AddChild(label);
-		return label;
-	}
-
-		private CutPanel _titleTagPanel = null!;
+	private CutPanel _titleTagPanel = null!;
 		private ColorRect _titleTagAccent = null!;
 		private Label _titleTag = null!;
 		private Label _titleTagStatus = null!;
@@ -248,7 +178,7 @@ internal sealed class GameplayHud
 			_titleTagStatus.Text = auto ? $"{difficulty}   /   AUTO · 不计成绩" : difficulty;
 			_titleTagStatus.AddThemeColorOverride("font_color", color);
 			_titleTagAccent.Color = color;
-			_titleTagPanel.Border = new Color(color, 0.56f);
+
 		}
 
 	private double _flashTimer;
@@ -256,15 +186,11 @@ internal sealed class GameplayHud
 
 	// HUD 刷新缓存：Label.Text 赋值触发全文 reshaping，值不变时跳过写入与插值。
 	private int _hudScore = -1;
-	private int _hudPerfect = -1;
-	private int _hudGreat = -1;
-	private int _hudGood = -1;
-	private int _hudMiss = -1;
-	private int _hudMaxCombo = -1;
 	private int _hudCombo = -1;
-	private double _hudLiveAcc = -1.0;
 
-	internal void FlashJudge(string text, bool enabled)
+        internal void PulsePause() => _header.PulsePause();
+
+        internal void FlashJudge(string text, bool enabled)
 	{
 		if (!enabled)
 			return;
@@ -296,39 +222,8 @@ internal sealed class GameplayHud
 			_hudScore = score;
 			_scoreLabel.Text = $"{score:N0}";
 		}
-		// 实时 ACC = 当前得分 / 已判定单元的理论满分（未判定不计入），并钳制在 0..100%。
-		var liveAcc = state.LiveAcc;
-		if (liveAcc != _hudLiveAcc)
-		{
-			_hudLiveAcc = liveAcc;
-			_pillAcc.Text = $"ACC {liveAcc:F2}%";
-		}
-		if (state.CountPerfect != _hudPerfect)
-		{
-			_hudPerfect = state.CountPerfect;
-			_pillP.Text = $"PERFECT {_hudPerfect}";
-		}
-		if (state.CountGreat != _hudGreat)
-		{
-			_hudGreat = state.CountGreat;
-			_pillGr.Text = $"GREAT {_hudGreat}";
-		}
-		if (state.CountGood != _hudGood)
-		{
-			_hudGood = state.CountGood;
-			_pillGo.Text = $"GOOD {_hudGood}";
-		}
-		if (state.CountMiss != _hudMiss)
-		{
-			_hudMiss = state.CountMiss;
-			_pillM.Text = $"MISS {_hudMiss}";
-		}
-		if (state.MaxCombo != _hudMaxCombo)
-		{
-			_hudMaxCombo = state.MaxCombo;
-			_pillMc.Text = $"M.COMBO {_hudMaxCombo}";
-		}
-		if (state.Combo != _hudCombo)
+		_header.Update(state);
+            if (state.Combo != _hudCombo)
 		{
 			_hudCombo = state.Combo;
 			_comboLabel.Text = _hudCombo > 1 ? $"{_hudCombo}" : "";

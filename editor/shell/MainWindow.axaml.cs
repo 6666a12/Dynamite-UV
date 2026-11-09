@@ -111,6 +111,7 @@ public sealed partial class MainWindow : Window
     internal bool Playing => _playing;
     internal double PlayerSpeed => _playerSpeed;
     internal double PlaybackRate => _playbackRate;
+    internal bool WheelReversed { get; private set; }
     internal string CurrentTool => _tool;
     internal int SnapDenominator => _snapDenominator;
     internal string? SelectedNoteId { get; private set; }
@@ -305,8 +306,17 @@ public sealed partial class MainWindow : Window
                 _stageView.Host.SetGodotHandle((nint)data.GetProperty("hwnd").GetInt64());
                 this.FindControl<TextBlock>("ReadyBadge")!.Text = _text["Status.GodotLive"];
                 SendDocument();
+                SendContextText();
+                _service.Send(new { command = "wheelDirection", reversed = WheelReversed });
                 Report(_text[CurrentDocument is null ? "Message.OpenPackage" : "Message.GodotReady"]);
                 UpdateNativeStatus();
+                break;
+            case "contextAction":
+                var kind = data.GetProperty("kind").GetString();
+                var value = data.GetProperty("value").GetString();
+                if (kind == "track" && Enum.TryParse<EditorTrack>(value, out var track)) _tools.SelectTrack(track);
+                else if (kind == "type" && Enum.TryParse<V2NoteType>(value, out var type)) _tools.SelectPlacementType(type);
+                else if (kind == "tool" && value is "SELECT" or "PATH") _tools.SelectTool(value);
                 break;
             case "selection":
                 _stageView.Host.FocusNative();
@@ -431,7 +441,7 @@ public sealed partial class MainWindow : Window
         return folders.Count == 0 ? null : folders[0].Path.LocalPath;
     }
 
-    private void RefreshDocument(bool reloadStage = true)
+    private void RefreshDocument(bool reloadStage = true, bool refreshChartChoices = true)
     {
         var document = CurrentDocument;
         SelectedNoteId = document?.Selection switch
@@ -461,7 +471,7 @@ public sealed partial class MainWindow : Window
                 .DefaultIfEmpty(ExactBarTime.Zero).Max().ToDouble();
             timeline.MaximumBar = Math.Max(32, Math.Ceiling(last + 4));
         }
-        RefreshChartChoices();
+        if (refreshChartChoices) RefreshChartChoices();
         UpdateDocumentChrome();
         UpdateSnapText();
         if (reloadStage) SendDocument();
@@ -492,7 +502,9 @@ public sealed partial class MainWindow : Window
             this.FindControl<ComboBox>("ChartChoice")!.SelectedItem is not ComboBoxItem { Tag: string id } ||
             id == document.SelectedChartId) return;
         document.SelectChart(id);
-        RefreshDocument();
+        // Avalonia is still committing this ComboBox selection. Its items must remain stable
+        // until that operation completes; changing the active chart does not change the list.
+        RefreshDocument(refreshChartChoices: false);
         Report(_text.Format("Message.ChartSelected", id));
     }
 
@@ -638,12 +650,9 @@ public sealed partial class MainWindow : Window
 
     private void DockStage()
     {
+        // Dock owns reparenting and its layout lifecycle. Clearing Layout here tears down
+        // the whole workspace, even when the stage is already docked.
         _factory.DockStage();
-        if (_stageView.Parent is ContentControl previousHost) previousHost.Content = null;
-        else if (_stageView.Parent is Panel previousPanel) previousPanel.Children.Remove(_stageView);
-        var dock = this.FindControl<DockControl>("Dock")!;
-        dock.Layout = null;
-        dock.Layout = _factory.CreateLayout();
         Report(_text["Message.Restored"]);
         Dispatcher.UIThread.Post(UpdateNativeStatus, DispatcherPriority.Render);
     }
@@ -671,8 +680,18 @@ public sealed partial class MainWindow : Window
         Report(_text["Message.LanguageSwitched"]);
     }
 
+    private void SendContextText()
+    {
+        var keys = new[] { "Context.Title", "Context.Track", "Context.Mode", "Context.Volume", "Context.Effects",
+            "Context.Off", "Context.Reduced", "Context.Full", "Context.Dismiss", "Inspector.NoteType",
+            "Inspector.LeftStage", "Inspector.CenterStage", "Inspector.RightStage", "Tools.Select", "Tools.Path" }
+            .Concat(Enum.GetNames<V2NoteType>().Select(type => "Inspector." + type));
+        _service.Send(new { command = "contextText", labels = keys.ToDictionary(key => key, key => _text[key]) });
+    }
+
     private void UpdateLocalizedState()
     {
+        SendContextText();
         this.FindControl<TextBlock>("ReadyBadge")!.Text = _text[Ready ? "Status.GodotLive" : "Status.StartingGodot"];
         UpdateDocumentChrome();
         UpdateTimeLabel();
@@ -778,6 +797,11 @@ public sealed partial class MainWindow : Window
         switch (key)
         {
             case Key.Space when source is not Button: TogglePlayback(); return true;
+            case Key.B when modifiers == KeyModifiers.None:
+                WheelReversed = !WheelReversed;
+                _service.Send(new { command = "wheelDirection", reversed = WheelReversed });
+                Report(_text[WheelReversed ? "Message.WheelReversed" : "Message.WheelNormal"]);
+                return true;
             case Key.R when modifiers == KeyModifiers.None: SeekBar(0); return true;
             case Key.A: SeekSeconds(modifiers == KeyModifiers.Shift ? -.01 : -1); return true;
             case Key.D: SeekSeconds(modifiers == KeyModifiers.Shift ? .01 : 1); return true;

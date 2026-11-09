@@ -13,6 +13,8 @@ public sealed partial class InspectorView : UserControl
     private EditorDocument? _document;
     private IReadOnlyList<string> _ids = Array.Empty<string>();
     private string? _primary;
+    private double _loadedSpeed = 1;
+    private decimal? _displayedSpeed;
 
     public event Action<string, double>? SpeedChanged;
     public event Action<string, string?, V2PathCurve>? CurveChanged;
@@ -141,7 +143,10 @@ public sealed partial class InspectorView : UserControl
         this.FindControl<TextBox>("BarTimeValue")!.Text = note is null ? "" : ExactBarTimeText.Format(node?.Time ?? note.Time);
         this.FindControl<TextBox>("WidthValue")!.Text = (node?.Width ?? note?.Width)?.ToString("R", CultureInfo.InvariantCulture) ?? "";
         this.FindControl<TextBox>("PositionValue")!.Text = (node?.Center ?? note?.Center)?.ToString("R", CultureInfo.InvariantCulture) ?? "";
-        this.FindControl<NumericUpDown>("SpeedValue")!.Value = (decimal)(note?.ScrollSpeedMultiplier ?? 1.0);
+        _loadedSpeed = note?.ScrollSpeedMultiplier ?? 1.0;
+        var speedControl = this.FindControl<NumericUpDown>("SpeedValue")!;
+        speedControl.Value = (decimal)Math.Clamp(_loadedSpeed, (double)speedControl.Minimum, (double)speedControl.Maximum);
+        _displayedSpeed = speedControl.Value;
         this.FindControl<ComboBox>("NoteTypeChoice")!.SelectedIndex = note is null ? 0 : (int)note.Type;
         this.FindControl<ComboBox>("TrackChoice")!.SelectedIndex = note is null ? (int)EditorTrack.Center : (int)note.Track;
         var curve = node?.CurveToNext ?? (node is null ? note?.CurveToNext : null) ?? V2PathCurve.Linear;
@@ -216,7 +221,8 @@ public sealed partial class InspectorView : UserControl
     private void ApplySpeed(object? sender, RoutedEventArgs e)
     {
         if (_primary is null || SelectedNote is null) return;
-        var value = (double)(this.FindControl<NumericUpDown>("SpeedValue")!.Value ?? 1m);
+        var displayed = this.FindControl<NumericUpDown>("SpeedValue")!.Value;
+        var value = displayed == _displayedSpeed ? _loadedSpeed : (double)(displayed ?? 1m);
         SpeedChanged?.Invoke(_primary, value);
     }
 

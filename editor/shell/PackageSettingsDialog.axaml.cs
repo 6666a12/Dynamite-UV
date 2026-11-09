@@ -18,6 +18,7 @@ public sealed partial class PackageSettingsDialog : Window
         Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp" },
     };
     private readonly IWorkbenchLocalizer _text = WorkbenchLocalizer.Shared;
+    private readonly Dictionary<string, (double Original, decimal? Displayed)> _numbers = new();
     private readonly EditableChart _chart;
     private readonly V2Preview? _packPreview;
     private bool _packPreviewEdited;
@@ -41,8 +42,8 @@ public sealed partial class PackageSettingsDialog : Window
         this.FindControl<TextBox>("PackCoverPathValue")!.Text = document.Cover ?? "";
         var packPreview = document.Preview ?? new V2Preview(0, 15);
         _packPreview = document.Preview;
-        this.FindControl<NumericUpDown>("PackPreviewStartValue")!.Value = (decimal)packPreview.StartSec;
-        this.FindControl<NumericUpDown>("PackPreviewDurationValue")!.Value = (decimal)packPreview.DurationSec;
+        LoadNumber("PackPreviewStartValue", packPreview.StartSec);
+        LoadNumber("PackPreviewDurationValue", packPreview.DurationSec);
         this.FindControl<NumericUpDown>("PackPreviewStartValue")!.ValueChanged += PackPreviewEdited;
         this.FindControl<NumericUpDown>("PackPreviewDurationValue")!.ValueChanged += PackPreviewEdited;
 
@@ -53,13 +54,13 @@ public sealed partial class PackageSettingsDialog : Window
         this.FindControl<NumericUpDown>("LevelValue")!.Value = _chart.Level ?? 12;
         this.FindControl<CheckBox>("UnratedValue")!.IsChecked = _chart.Unrated;
         this.FindControl<TextBox>("ChartersValue")!.Text = string.Join(", ", _chart.Charters);
-        this.FindControl<NumericUpDown>("OffsetValue")!.Value = (decimal)_chart.AudioOffsetSec;
+        LoadNumber("OffsetValue", _chart.AudioOffsetSec);
         this.FindControl<TextBox>("ChartAudioPathValue")!.Text = _chart.Audio ?? "";
         this.FindControl<CheckBox>("ChartAudioEnabledValue")!.IsChecked = _chart.Audio is not null;
         var chartPreview = _chart.Preview ?? packPreview;
         this.FindControl<CheckBox>("ChartPreviewEnabledValue")!.IsChecked = _chart.Preview is not null;
-        this.FindControl<NumericUpDown>("ChartPreviewStartValue")!.Value = (decimal)chartPreview.StartSec;
-        this.FindControl<NumericUpDown>("ChartPreviewDurationValue")!.Value = (decimal)chartPreview.DurationSec;
+        LoadNumber("ChartPreviewStartValue", chartPreview.StartSec);
+        LoadNumber("ChartPreviewDurationValue", chartPreview.DurationSec);
         UpdateOptionalFields();
     }
 
@@ -83,7 +84,7 @@ public sealed partial class PackageSettingsDialog : Window
             (int?)this.FindControl<NumericUpDown>("LevelValue")!.Value,
             this.FindControl<CheckBox>("UnratedValue")!.IsChecked == true,
             charters,
-            (double)(this.FindControl<NumericUpDown>("OffsetValue")!.Value ?? 0),
+            ReadNumber("OffsetValue", 0),
             ReadPackPreview(),
             chartPreviewEnabled ? Preview("ChartPreview") : null,
             _packAudioSource,
@@ -108,9 +109,24 @@ public sealed partial class PackageSettingsDialog : Window
     private void PackPreviewEdited(object? sender, NumericUpDownValueChangedEventArgs e) =>
         _packPreviewEdited = true;
 
+    private void LoadNumber(string name, double value)
+    {
+        var control = this.FindControl<NumericUpDown>(name)!;
+        control.Value = (decimal)Math.Clamp(value, (double)control.Minimum, (double)control.Maximum);
+        _numbers[name] = (value, control.Value);
+    }
+
+    private double ReadNumber(string name, decimal fallback)
+    {
+        var value = this.FindControl<NumericUpDown>(name)!.Value;
+        return _numbers.TryGetValue(name, out var loaded) && value == loaded.Displayed
+            ? loaded.Original : (double)(value ?? fallback);
+    }
+
+    internal EditorPackageSettingsRequest RequestForVerification() => BuildRequest();
+
     private V2Preview Preview(string prefix) => new(
-        (double)(this.FindControl<NumericUpDown>(prefix + "StartValue")!.Value ?? 0),
-        (double)(this.FindControl<NumericUpDown>(prefix + "DurationValue")!.Value ?? 15));
+        ReadNumber(prefix + "StartValue", 0), ReadNumber(prefix + "DurationValue", 15));
 
     private void Confirm(object? sender, RoutedEventArgs e)
     {

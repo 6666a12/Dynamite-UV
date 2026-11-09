@@ -10,6 +10,11 @@ public partial class EditorPreviewController : Control
     private readonly EditorStageIpc _ipc = new();
     private readonly HashSet<int> _selection = new();
     private EditorStagePreview _stage = null!;
+    private EditorContextMenu _menu = null!;
+    private string _tool = "SELECT";
+    private V2NoteType _type = V2NoteType.Tap;
+    private EditorTrack _track = EditorTrack.Center;
+    private DynamiteUniverse.Game.HitEffectLevel _effects = DynamiteUniverse.Game.HitEffectLevel.Full;
     private AudioStreamPlayer _audio = null!;
     private V2RuntimeAdapterResult? _adapted;
     private bool _playing;
@@ -35,6 +40,22 @@ public partial class EditorPreviewController : Control
         AddChild(_stage);
         _stage.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _stage.NotePicked += OnNotePicked;
+        _stage.NotesBoxSelected += ids =>
+        {
+            _selection.Clear();
+            _selection.UnionWith(ids);
+            if (_adapted is null) return;
+            var parents = _selection.OrderBy(id => id).Select(id =>
+            {
+                var note = _adapted.RuntimeChart.AllNotes.Single(item => item.Id == id);
+                return note.V2Metadata?.ParentSourceId ?? _adapted.SourceIdsByRuntimeId[id];
+            }).Distinct().ToArray();
+            _selection.Clear();
+            _selection.UnionWith(parents.Select(id => _adapted.RuntimeIdsBySourceId[id]));
+            _stage.SetSelection(_selection);
+            var primary = parents.FirstOrDefault() ?? "";
+            _ipc.SendSelection(parents, primary, primary, parents);
+        };
         _stage.NotePressed += OnNotePressed;
         _stage.PathNotePicked += OnPathNotePicked;
         _stage.PlaceRequested += _ipc.SendPlacement;
@@ -50,10 +71,21 @@ public partial class EditorPreviewController : Control
             if (_adapted is null || _stage.HasActiveDrag) return;
             var speed = VisualScrollMath.SpeedPixelsPerSecond(GameplayStageGeometry.BaseFallSpeedPx,
                 _adapted.Metadata.ScrollMap.RuntimeSpeedAt(_bar), _playerSpeed);
-            if (speed > 0) Seek(_adapted.Metadata.BpmTimeline.RuntimeBarAt(_second + steps * 100d / speed));
+            if (speed > 0) Seek(_adapted.Metadata.BpmTimeline.RuntimeBarAt(_second + steps * 100d / speed), scrub: true);
         };
         _audio = new AudioStreamPlayer { Name = "PreviewAudio" };
         AddChild(_audio);
+        _menu = new EditorContextMenu();
+        AddChild(_menu);
+        _stage.ContextRequested += async point =>
+        {
+            _menu.OpenAt(point, _stage.Size);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var first = _menu.FirstButtonPoint / _stage.Size;
+            SendInput(FormattableString.Invariant($"context button={first.X},{first.Y}"));
+        };
+        _menu.Requested += ContextAction;
+        Resized += () => _menu.Close();
         if (DisplayServer.GetName() != "headless")
         {
             GetWindow().Position = Vector2I.Zero;
@@ -96,7 +128,21 @@ public partial class EditorPreviewController : Control
 
     public override void _Input(InputEvent input)
     {
-        if (input is InputEventMouseButton { Pressed: true }) GetWindow().GrabFocus();
+        // Godot's --wid WM_MOUSEACTIVATE handler already sets keyboard focus to the child.
+        // Window.GrabFocus would call SetForegroundWindow(child), divorcing activation from
+        // the Avalonia top-level and breaking subsequent taskbar restore/Z-order.
+        if (_menu.IsOpen)
+        {
+            var point = GetGlobalTransformWithCanvas().AffineInverse() * GetGlobalMousePosition();
+            if (_menu.FilterInput(input, point)) GetViewport().SetInputAsHandled();
+            return; // Controls receive GUI input; stage and Shell shortcuts do not.
+        }
+        if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } && _stage.HasActiveDrag)
+        {
+            _stage.CancelGesture();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left })
             _stage.HandlePointerInput(input, viewportCoordinates: true);
         if (input is InputEventMouseMotion && _stage.HasActiveDrag)
@@ -117,10 +163,16 @@ public partial class EditorPreviewController : Control
             case "seek": Seek(root.GetProperty("bar").GetDouble()); break;
             case "playerSpeed": SetPlayerSpeed(root.GetProperty("multiplier").GetDouble()); break;
             case "playbackRate": SetPlaybackRate(root.GetProperty("multiplier").GetDouble()); break;
+            case "wheelDirection": _stage.WheelReversed = root.GetProperty("reversed").GetBoolean(); break;
+            case "contextText":
+                _menu.SetText(root.GetProperty("labels").EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString() ?? p.Name));
+                break;
             case "authoring":
-                _stage.SetAuthoring(root.GetProperty("tool").GetString()!,
-                    Enum.Parse<V2NoteType>(root.GetProperty("type").GetString()!),
-                    Enum.Parse<EditorTrack>(root.GetProperty("track").GetString()!),
+                _tool = root.GetProperty("tool").GetString()!;
+                _type = Enum.Parse<V2NoteType>(root.GetProperty("type").GetString()!);
+                _track = Enum.Parse<EditorTrack>(root.GetProperty("track").GetString()!);
+                _menu.Sync(_tool, _type, _track, _effects.ToString());
+                _stage.SetAuthoring(_tool, _type, _track,
                     root.GetProperty("width").GetDouble(), root.GetProperty("grid").GetInt32(),
                     !root.TryGetProperty("positionSnap", out var positionSnap) || positionSnap.GetBoolean());
                 break;
@@ -135,8 +187,22 @@ public partial class EditorPreviewController : Control
         }
     }
 
+    private void ContextAction(string kind, string value)
+    {
+        if (kind == "volume") _audio.VolumeLinear = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture) / 100f;
+        else if (kind == "effects" && Enum.TryParse<DynamiteUniverse.Game.HitEffectLevel>(value, out var level))
+        {
+            _effects = level;
+            _stage.SetEffectLevel(level);
+            _stage.SuspendPlayback(_panAudioSuspended);
+        }
+        else _ipc.SendContextAction(kind, value);
+        _menu.Sync(_tool, _type, _track, _effects.ToString());
+    }
+
     private void Load(System.Text.Json.JsonElement root, bool incremental)
     {
+        if (!incremental) _menu.Close();
         var revision = root.GetProperty("revision").GetInt64();
         if (revision <= _revision) return;
         var chart = V2JsonDecoder.DecodeChart(root.GetProperty("chart").GetString()!, "editor-preview",
@@ -145,7 +211,9 @@ public partial class EditorPreviewController : Control
             requireMainJudgement: false);
         var audioPath = root.TryGetProperty("audioPath", out var audioElement) &&
             audioElement.ValueKind == System.Text.Json.JsonValueKind.String ? audioElement.GetString() : null;
-        if (!incremental || audioPath != _audioPath)
+        // Chart identity and audio identity are independent: sibling difficulties commonly
+        // share one large track. Full chart loads still stop playback below, but reuse its stream.
+        if (audioPath != _audioPath)
         {
             var stream = EditorAudioLoader.Load(audioPath);
             _audio.Stop();
@@ -200,14 +268,15 @@ public partial class EditorPreviewController : Control
         SendTick();
     }
 
-    private void Seek(double bar)
+    private void Seek(double bar, bool scrub = false)
     {
         if (_adapted is null) return;
         _bar = Math.Max(0, bar);
         _second = _adapted.Metadata.BpmTimeline.RuntimeSecondsAt(_bar);
         if (_audio.Stream is { } stream) _second = Math.Min(_second, stream.GetLength());
         _bar = _adapted.Metadata.BpmTimeline.RuntimeBarAt(_second);
-        _stage.CurrentBar = _bar;
+        if (scrub) _stage.ScrubTo(_second);
+        else _stage.CurrentBar = _bar;
         _stage.SuspendPlayback(_panAudioSuspended);
         if (_playing && !_panAudioSuspended && _audio.Stream is not null && _second >= 0)
         {

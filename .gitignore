@@ -76,7 +76,8 @@
 /godot-editor-editor-mode.log
 /tmp_godot_userdata*/
 
-# Local agent/session metadata
+# Local agent/session metadata (including local settings and nested worktrees)
+/.claude/
 /.zcode/
 # AGENTS.md 必须保持被跟踪：tools/core-tests 的 FindRepositoryRoot 以它为仓库根哨兵。
 

@@ -33,6 +33,8 @@
     <Compile Include="../../client/scripts/ui/results/ResultPreludeTimeline.cs" Link="Ui/ResultPreludeTimeline.cs" />
     <Compile Include="../../client/scripts/ui/results/ResultInputGuard.cs" Link="Ui/ResultInputGuard.cs" />
     <!-- Normal-completion latch is Godot-free: verify the late-take dual latch and fallbacks. -->
+    <Compile Include="../../client/scripts/game/gameplay/BleedHudState.cs" Link="Gameplay/BleedHudState.cs" />
+    <Compile Include="../../client/scripts/game/gameplay/HudLightState.cs" Link="Gameplay/HudLightState.cs" />
     <Compile Include="../../client/scripts/game/gameplay/GameplayEndCondition.cs" Link="Gameplay/GameplayEndCondition.cs" />
     <None Include="Fixtures/synthetic_chart.json"
           CopyToOutputDirectory="PreserveNewest"

@@ -158,13 +158,12 @@ public static class EditorStagePlacement
     {
         var increment = fine ? EditorGeometry.FineCenterSnap : EditorGeometry.CenterSnap;
         var value = Math.Clamp(center, 0d, maximumCenter);
-        return Math.Clamp(Math.Floor(value / increment + .5d) * increment, 0d, maximumCenter);
+        return Math.Clamp(QuantizePosition(value, increment), 0d, maximumCenter);
     }
 
     /// <summary>Note widths snap to 1/<see cref="EditorGeometry.WidthSnapDivisor"/> of a chart unit.</summary>
     public static double SnapWidth(double width) =>
-        Math.Floor(width * EditorGeometry.WidthSnapDivisor + .5d) /
-        EditorGeometry.WidthSnapDivisor;
+        QuantizePosition(width, 1d / EditorGeometry.WidthSnapDivisor);
 
     /// <summary>Snap the grabbed anchor once; all selected Notes keep their relative phases.</summary>
     public static ExactBarTime ResolveMoveDelta(ExactBarTime anchor, ExactBarTime delta,
@@ -177,23 +176,23 @@ public static class EditorStagePlacement
     }
 
     /// <summary>Spatial quantization is an interaction preference, never a file restriction.</summary>
-    public static double QuantizePosition(double value, double step) => step > 0
-        ? Math.Floor(value / step + .5d) * step : value;
+    public static double QuantizePosition(double value, double step) => EditorSpatialMath.Quantize(value, step);
 
     /// <summary>Snap one grabbed anchor, preserving off-grid geometry on time-only moves.</summary>
     public static double ResolvePositionDelta(double anchor, double delta, double step) =>
-        delta == 0d ? 0d : QuantizePosition(anchor + delta, step) - anchor;
+        delta == 0d ? 0d : step <= 0 ? delta :
+            EditorSpatialMath.Subtract(QuantizePosition(EditorSpatialMath.Add(anchor, delta), step), anchor);
 
     /// <summary>Width snapping must retain the opposite logical edge, including at stage bounds.</summary>
     public static ResizedSpan ResizeSnappedFromEdge(double center, double width,
         double requestedEdge, bool moveStartEdge, double widthStep = .05d)
     {
         var span = ResizeFromEdge(center, width, requestedEdge, moveStartEdge);
-        var opposite = moveStartEdge ? center + width / 2d : center - width / 2d;
+        var opposite = EditorSpatialMath.Add(center, (moveStartEdge ? 1 : -1) * width / 2d);
         var snappedWidth = QuantizePosition(span.Width, widthStep);
         // Existing strict-v2 Notes may be narrower than the normal resize minimum.
         if (snappedWidth <= 0d) return new ResizedSpan(center, width);
-        return new ResizedSpan(moveStartEdge ? opposite - snappedWidth / 2d : opposite + snappedWidth / 2d,
+        return new ResizedSpan(EditorSpatialMath.Add(opposite, (moveStartEdge ? -1 : 1) * snappedWidth / 2d),
             snappedWidth);
     }
 
@@ -202,15 +201,15 @@ public static class EditorStagePlacement
     public static ResizedSpan ResizeFromEdge(double center, double width, double requestedEdge,
         bool moveStartEdge, double minimumWidth = .25d, double maximumCenter = MaximumCenter)
     {
-        var opposite = moveStartEdge ? center + width / 2d : center - width / 2d;
+        var opposite = EditorSpatialMath.Add(center, (moveStartEdge ? 1 : -1) * width / 2d);
         var edge = requestedEdge;
         if (moveStartEdge)
             edge = Math.Min(edge, opposite - minimumWidth);
         else
             edge = Math.Max(edge, opposite + minimumWidth);
 
-        var nextWidth = Math.Abs(opposite - edge);
-        var nextCenter = opposite + (edge - opposite) / 2d;
+        var nextWidth = Math.Abs(EditorSpatialMath.Subtract(opposite, edge));
+        var nextCenter = EditorSpatialMath.Add(opposite, EditorSpatialMath.Subtract(edge, opposite) / 2d);
         return new ResizedSpan(nextCenter, nextWidth);
     }
 }

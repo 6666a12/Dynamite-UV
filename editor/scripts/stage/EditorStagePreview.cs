@@ -15,9 +15,15 @@ public partial class EditorStagePreview : Control
     private V2RuntimeAdapterResult? _adapted;
     private bool _playing;
     private bool _playbackVisible;
+    private bool _scrubbing;
     private readonly Node2D _stageRoot;
     private readonly Control _selectionOverlay;
     private readonly EditorStageAuthoring _authoring = new();
+    private readonly EditorMarqueeSelection _marquee = new();
+    private EditorTrack _selectionTrack = EditorTrack.Center;
+    private EditorMarqueeSelection.Candidate[] _marqueeCandidates = Array.Empty<EditorMarqueeSelection.Candidate>();
+    internal IReadOnlySet<int> MarqueePreview => _marquee.Preview;
+    public event Action<IReadOnlySet<int>>? NotesBoxSelected;
     private IReadOnlyList<Note> _notes = Array.Empty<Note>();
     private IReadOnlySet<int> _selection = new HashSet<int>();
     private V2RuntimeChartMetadata? _metadata;
@@ -41,8 +47,28 @@ public partial class EditorStagePreview : Control
     public event Action<double>? PanTimeDelta;
     public event Action? PanEnded;
     public event Action<double>? WheelSteps;
+    public bool WheelReversed { get; set; }
+    public event Action<Vector2>? ContextRequested;
 
-    public bool HasActiveDrag => _authoring.HasActiveDrag;
+    public void CancelGesture()
+    {
+        _marquee.Cancel();
+        _authoring.Cancel();
+        RefreshPlacementPreview();
+        _selectionOverlay.QueueRedraw();
+    }
+
+    public void SetEffectLevel(HitEffectLevel level)
+    {
+        _autoPreview.SetEffectLevel(level);
+        if (_playbackVisible && _adapted is not null)
+        {
+            _autoPreview.Reset(_adapted, _currentTime, _playerSpeed);
+            _autoPreview.SetPaused(!_playing && !_scrubbing);
+        }
+    }
+
+    public bool HasActiveDrag => _authoring.HasActiveDrag || _marquee.Active;
 
     public EditorStagePreview()
     {
@@ -91,6 +117,7 @@ public partial class EditorStagePreview : Control
         get => _currentBar;
         set
         {
+            _scrubbing = false;
             _currentBar = value;
             _currentTime = _metadata?.BpmTimeline.RuntimeSecondsAt(value) ?? value * 1.6;
             // Assignments are discontinuities (seek/PAN/edit), never playback ticks.
@@ -106,12 +133,15 @@ public partial class EditorStagePreview : Control
     public void SetAuthoring(string tool, V2NoteType type, EditorTrack track, double width, int gridDivisor,
         bool positionSnap = true)
     {
+        _marquee.Cancel();
+        _selectionTrack = track;
         _authoring.Configure(tool, type, track, width, gridDivisor, positionSnap);
         RefreshPlacementPreview();
     }
 
     public void SetChart(V2RuntimeAdapterResult adapted, bool preserveCurrentBar = false, double? second = null)
     {
+        _marquee.Cancel();
         _authoring.Cancel();
         _adapted = adapted;
         _metadata = adapted.Metadata;
@@ -147,6 +177,7 @@ public partial class EditorStagePreview : Control
             _autoPreview.Reset(_adapted, _currentTime, _playerSpeed);
             SetPlaybackVisible(true);
         }
+        _scrubbing = false;
         _playing = playing;
         // Freeze the Auto frame on pause; an explicit seek restores the editable static view.
         _autoPreview.SetPaused(!playing);
@@ -162,7 +193,30 @@ public partial class EditorStagePreview : Control
         _selectionOverlay.QueueRedraw();
     }
 
-    public void SuspendPlayback(bool suspended) => _autoPreview.SetPaused(!_playing || suspended);
+    public void ScrubTo(double second)
+    {
+        if (_adapted is null || second == _currentTime) return;
+        if (!_playbackVisible || second < _currentTime)
+            _autoPreview.Reset(_adapted, Math.Min(second, _currentTime), _playerSpeed);
+        if (second > _currentTime) _autoPreview.ScrubForward(second);
+        _currentTime = second;
+        _currentBar = _adapted.Metadata.BpmTimeline.RuntimeBarAt(second);
+        _scrubbing = !_playing;
+        SetPlaybackVisible(true);
+        _autoPreview.SetPaused(false);
+        RefreshPlacementPreview();
+        _selectionOverlay.QueueRedraw();
+    }
+
+    public override void _Process(double delta)
+    {
+        // Wheel navigation moves chart time discretely; effects still decay in real time.
+        if (!_scrubbing || _playbackRoot.ProcessMode == ProcessModeEnum.Disabled) return;
+        _autoPreview.Advance(_currentTime, delta);
+        _selectionOverlay.QueueRedraw();
+    }
+
+    public void SuspendPlayback(bool suspended) => _autoPreview.SetPaused(suspended || (!_playing && !_scrubbing));
 
     private void SetPlaybackVisible(bool visible)
     {
@@ -177,8 +231,11 @@ public partial class EditorStagePreview : Control
         _selectionOverlay.QueueRedraw();
     }
 
-    private void RefreshPlacementPreview() => _placementOverlay.SetPlacement(
-        _authoring.PlacementPreview, _metadata, _currentTime, _playerSpeed, _notes);
+    private void RefreshPlacementPreview()
+    {
+        _placementOverlay.SetPlacement(_authoring.PlacementPreview, _metadata, _currentTime, _playerSpeed, _notes);
+        if (_marquee.Active) UpdateMarquee(_marquee.Pointer);
+    }
 
     private double DistancePixels(Note note, double time) => _metadata is null ? 0 :
         VisualScrollMath.DistancePixels(note.Second, time, GameplayStageGeometry.BaseFallSpeedPx,
@@ -219,9 +276,23 @@ public partial class EditorStagePreview : Control
     {
         DrawDragGhost();
         DrawPathGhost();
+        if (_marquee.Active && _marquee.Moved)
+        {
+            var start = MarqueeScreenPoint(_marquee.Start);
+            var end = MarqueeScreenPoint(_marquee.End);
+            var rect = new Rect2(start, end - start).Abs().Intersection(new Rect2(Vector2.Zero, Size));
+            if (rect.HasArea())
+            {
+                _selectionOverlay.DrawRect(rect, new Color(.21f, .88f, 1f, .10f));
+                _selectionOverlay.DrawRect(rect, new Color("35e0ff"), false, 1.5f);
+            }
+            _selectionOverlay.DrawString(ThemeDB.FallbackFont, _marquee.Pointer + new Vector2(12, -12),
+                $"{_marquee.Preview.Count}", fontSize: 18, modulate: new Color("35e0ff"));
+        }
+        var selected = _marquee.Active && _marquee.Moved ? _marquee.Preview : _selection;
         foreach (var note in _notes)
         {
-            if (!_selection.Contains(note.Id)) continue;
+            if (!selected.Contains(note.Id)) continue;
             if (SelectionBounds(note) is not { } rect) continue;
             rect.Position += new Vector2(0f, 40f);
             var scale = _stageRect.Size.X / 1920f;
@@ -271,7 +342,7 @@ public partial class EditorStagePreview : Control
                 center = span.Center;
                 width = span.Width;
             }
-            else if (note.V2Metadata?.IsPathNode != true) center += move.Center;
+            else if (note.V2Metadata?.IsPathNode != true) center = EditorSpatialMath.Add(center, move.Center);
             var bar = (note.V2Metadata!.ExactTime + move.Bar).ToDouble();
             if (GhostRect(note, metadata, bar, center, width) is not { } rect) continue;
             rect = new Rect2(_stageRect.Position + new Vector2(_panOffsetX * _stageScale, _panOffsetY * _stageScale) +
@@ -290,8 +361,8 @@ public partial class EditorStagePreview : Control
         var delta = EditorStagePlacement.ResolveMoveDelta(source.ExactTime,
             ExactTime(request.EndBar) - ExactTime(request.StartBar), _authoring.GridDivisor, request.Snap);
         var originalCenter = note.Position + note.Width / 2d;
-        var center = originalCenter + EditorStagePlacement.ResolvePositionDelta(originalCenter,
-            request.EndCenter - request.StartCenter, request.PositionStep);
+        var center = EditorSpatialMath.Add(originalCenter, EditorStagePlacement.ResolvePositionDelta(originalCenter,
+            request.EndCenter - request.StartCenter, request.PositionStep));
         if (GhostRect(note, metadata, (source.ExactTime + delta).ToDouble(), center, note.Width) is not { } rect) return;
         rect = new Rect2(_stageRect.Position + new Vector2(_panOffsetX * _stageScale, _panOffsetY * _stageScale) +
             rect.Position * _stageScale, rect.Size * _stageScale);
@@ -335,13 +406,49 @@ public partial class EditorStagePreview : Control
         return rect;
     }
 
+    private EditorMarqueeSelection.Point MarqueePoint(Vector2 pointer)
+    {
+        var point = (pointer - _stageRect.Position) / _stageScale - new Vector2(_panOffsetX, 40 + _panOffsetY);
+        var time = EditorStagePlacement.BarTimeAt(_marquee.Active ? _marquee.Track : _selectionTrack,
+            point.X, point.Y, _metadata!, _currentTime, _playerSpeed, _authoring.GridDivisor, snap: false);
+        var center = EditorStagePlacement.CenterAt(_marquee.Active ? _marquee.Track : _selectionTrack, point.X, point.Y);
+        return new(time, center);
+    }
+
+    private void UpdateMarquee(Vector2 pointer) => _marquee.Update(pointer, MarqueePoint(pointer), _marqueeCandidates);
+
+    private Vector2 MarqueeScreenPoint(EditorMarqueeSelection.Point point)
+    {
+        var bar = point.Time.ToDouble();
+        var remaining = VisualScrollMath.DistancePixels(_metadata!.BpmTimeline.RuntimeSecondsAt(bar), _currentTime,
+            GameplayStageGeometry.BaseFallSpeedPx, _metadata.ScrollMap.RuntimeSpeedAt(bar), _playerSpeed);
+        var design = GameplayStageGeometry.PositionAt(EditorStagePlacement.ToRuntimeTrack(_marquee.Track), point.Center, (float)remaining);
+        return _stageRect.Position + (new Vector2(design.X, design.Y) + new Vector2(_panOffsetX, 40 + _panOffsetY)) * _stageScale;
+    }
+
+    private void BeginMarquee(Vector2 pointer, bool additive)
+    {
+        // Source heads retain exact time/center even after Auto has recycled all visual bodies.
+        var source = _selectionTrack switch
+        {
+            EditorTrack.Left => _metadata!.SourceChart.NotesLeft,
+            EditorTrack.Right => _metadata!.SourceChart.NotesRight,
+            _ => _metadata!.SourceChart.NotesCenter,
+        };
+        _marqueeCandidates = source.Select(note => new EditorMarqueeSelection.Candidate(
+            _metadata!.RuntimeIdsBySourceId[note.Id], note.Time, note.Center)).ToArray();
+        var start = MarqueePoint(pointer);
+        _marquee.Begin(_selectionTrack, pointer, start, _selection, additive);
+    }
+
     public void HandlePointerInput(InputEvent input, bool viewportCoordinates = false)
     {
         if (_metadata is null) return;
         if (input is InputEventMouseButton { Pressed: true } wheel &&
             wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
         {
-            WheelSteps?.Invoke((wheel.ButtonIndex == MouseButton.WheelDown ? 1d : -1d) * wheel.Factor);
+            WheelSteps?.Invoke((wheel.ButtonIndex == MouseButton.WheelDown ? 1d : -1d) * wheel.Factor *
+                (WheelReversed ? -1d : 1d));
             AcceptEvent();
             return;
         }
@@ -359,11 +466,47 @@ public partial class EditorStagePreview : Control
             _ => null,
         };
         if (localPosition is not { } position) return;
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true })
+        {
+            if (HasActiveDrag) CancelGesture();
+            else
+            {
+                var hitPoint = (position - _stageRect.Position) / _stageScale - new Vector2(_panOffsetX, 40 + _panOffsetY);
+                if (!_notes.Any(note => SelectionBounds(note)?.HasPoint(hitPoint) == true))
+                {
+                    CancelGesture();
+                    ContextRequested?.Invoke(position);
+                }
+            }
+            AcceptEvent();
+            return;
+        }
+        if (_marquee.Active && (input is InputEventMouseMotion ||
+            input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }))
+        {
+            UpdateMarquee(position);
+            if (input is InputEventMouseButton)
+            {
+                var selected = _marquee.Finish();
+                SetSelection(selected);
+                NotesBoxSelected?.Invoke(selected);
+            }
+            _selectionOverlay.QueueRedraw();
+            AcceptEvent();
+            return;
+        }
         var designPoint = (position - _stageRect.Position) / (_stageRect.Size.X / 1920f);
         // PAN uses an unshifted drag reference so changing the offset does not feed back into
         // the next delta; selection and resizing after a pan use the shifted chart coordinates.
         designPoint -= new Vector2(_authoring.Tool == "PAN" ? 0f : _panOffsetX,
             40f + (_authoring.Tool == "PAN" ? 0f : _panOffsetY));
+        if (_authoring.Tool == "SELECT" && input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } click &&
+            _authoring.HitNote(designPoint, _notes, _metadata, _currentTime, _playerSpeed) < 0)
+        {
+            BeginMarquee(position, click.ShiftPressed || Input.IsKeyPressed(Key.Shift));
+            AcceptEvent();
+            return;
+        }
         if (_authoring.HandleInput(input, designPoint, _notes, _metadata, _currentTime,
                 _playerSpeed, _selection))
         {

@@ -71,8 +71,8 @@ internal sealed class ShellChartEditor(
             var time = originalTime + EditorStagePlacement.ResolveMoveDelta(originalTime, delta,
                 document.GridDivisor, snap && document.SnapEnabled);
             var positionStep = data.TryGetProperty("positionStep", out var step) ? step.GetDouble() : 0d;
-            var center = originalCenter + EditorStagePlacement.ResolvePositionDelta(originalCenter,
-                data.GetProperty("endCenter").GetDouble() - data.GetProperty("startCenter").GetDouble(), positionStep);
+            var center = EditorSpatialMath.Add(originalCenter, EditorStagePlacement.ResolvePositionDelta(originalCenter,
+                data.GetProperty("endCenter").GetDouble() - data.GetProperty("startCenter").GetDouble(), positionStep));
             var controller = new CanvasAuthoringController(document);
             if (nodeId is null) controller.MoveNote(noteId, time, center, width);
             else controller.EditPathNode(noteId, nodeId, time, center, width);
@@ -138,7 +138,7 @@ internal sealed class ShellChartEditor(
                 var node = document.SelectedChart.Notes.Single(note => note.Id == selectedNoteId)
                     .Nodes.Single(item => item.Id == nodeId);
                 var time = timeDirection == 0 ? node.Time : document.Snap(node.Time + timeDelta);
-                var center = node.Center + centerDelta;
+                var center = EditorSpatialMath.Add(node.Center, centerDelta);
                 document.Execute(new EditPathNodeCommand(selectedNoteId, nodeId, time, center, node.Width));
             }
             else
@@ -279,7 +279,7 @@ internal sealed class ShellChartEditor(
         foreach (var note in notes)
         {
             var time = note.Time + timeDelta;
-            var center = note.Center + centerDelta;
+            var center = EditorSpatialMath.Add(note.Center, centerDelta);
             if (note.Time == time && note.Center == center) continue;
             commands.Add(note.Type is V2NoteType.Hold or V2NoteType.Mixer
                 ? new MovePathNoteCommand(note.Id, time, center, note.Width)

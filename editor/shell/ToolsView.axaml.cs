@@ -38,6 +38,9 @@ public sealed partial class ToolsView : UserControl
         SelectTool("PLACE");
     }
 
+    public void SelectTrack(EditorTrack track) =>
+        this.FindControl<ComboBox>("PlacementTrackChoice")!.SelectedIndex = (int)track;
+
     public void CycleTrack()
     {
         this.FindControl<ComboBox>("PlacementTrackChoice")!.SelectedIndex = PlacementTrack switch

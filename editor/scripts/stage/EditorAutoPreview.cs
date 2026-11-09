@@ -58,6 +58,22 @@ internal sealed class EditorAutoPreview
         UpdateSustains();
     }
 
+    public void ScrubForward(double second)
+    {
+        // Resolve at each crossed event before final geometry can recycle an overshot body.
+        _timeline.Advance(second, unit =>
+        {
+            _renderer.SpawnNotes(unit.Time, _chart.Metadata.BpmTimeline.RuntimeBarAt(unit.Time));
+            Resolve(unit);
+        });
+        var bar = _chart.Metadata.BpmTimeline.RuntimeBarAt(second);
+        _renderer.SpawnNotes(second, bar);
+        _renderer.UpdateViews(second, bar, 0);
+        UpdateSustains();
+    }
+
+    public void SetEffectLevel(HitEffectLevel level) => _appearance.HitEffectLevel = level;
+
     public Rect2? SelectionBounds(int noteId)
     {
         if (_renderer.FindBody(noteId) is not { Visible: true, IsResidual: false } view) return null;
@@ -131,7 +147,12 @@ internal sealed class EditorAutoPreview
         public float FlashIntensityScale => 1;
         public int HitResidualMs => 300;
         public float HitResidualSeconds => .3f;
-        public HitEffectLevel HitEffectLevel => HitEffectLevel.Full;
-        public UiMotionMode MotionMode => UiMotionMode.Full;
+        public HitEffectLevel HitEffectLevel { get; set; } = HitEffectLevel.Full;
+        public UiMotionMode MotionMode => HitEffectLevel switch
+        {
+            HitEffectLevel.Off => UiMotionMode.Off,
+            HitEffectLevel.Reduced => UiMotionMode.Reduced,
+            _ => UiMotionMode.Full,
+        };
     }
 }

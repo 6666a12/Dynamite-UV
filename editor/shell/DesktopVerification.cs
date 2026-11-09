@@ -41,6 +41,12 @@ internal static class DesktopVerification
                 if (!window.Ready || !window.Stage.Host.Diagnostics().Embedded)
                     throw new InvalidOperationException("Initial native embedding failed");
                 lines.Add("PASS Godot startup stays hidden until native embedding");
+                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_ACTIVATION_ONLY") == "1")
+                {
+                    await VerifyActivation(window, lines.Add);
+                    result = 0;
+                    return;
+                }
                 if (Environment.GetEnvironmentVariable("DYNA_VERIFY_WORKSPACE_ONLY") == "1")
                 {
                     await WorkspaceDesktopVerification.Run(window, ClickNative, lines.Add);
@@ -51,6 +57,12 @@ internal static class DesktopVerification
                 var source = Path.Combine(outDir, "fixture-source");
                 if (Directory.Exists(source)) Directory.Delete(source, true);
                 Verification.CreatePackage(source);
+                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_CHART_SWITCH_ONLY") == "1")
+                {
+                    await VerifyEmptyChartSwitch(window, outDir, lines.Add);
+                    result = 0;
+                    return;
+                }
                 if (emptyDraftOnly)
                 {
                     var draft = Path.Combine(outDir, "empty-draft");
@@ -80,6 +92,101 @@ internal static class DesktopVerification
                 lines.Add("stage " + window.LastStageInput);
                 if (!window.LastStageInput.Contains("loaded chart=main notes=1 audio=True"))
                     throw new InvalidOperationException("The real chart and audio were not loaded by Godot");
+                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_CONTEXT_ONLY") == "1")
+                {
+                    await Task.Run(() =>
+                    {
+                        SetCursorPos(800, 450);
+                        mouse_event(1, 0, 0, 0, 0);
+                        Thread.Sleep(150);
+                        mouse_event(8, 0, 0, 0, 0);
+                        Thread.Sleep(60);
+                        mouse_event(16, 0, 0, 0, 0);
+                    });
+                    await Task.Delay(700);
+                    lines.Add("context " + window.LastStageInput);
+                    await Capture(window, outDir, "context-en.png");
+                    WorkbenchLocalizer.Shared.SetLanguage("zh-CN");
+                    await Task.Delay(500);
+                    await Capture(window, outDir, "context-zh.png");
+                    window.Stage.Host.FocusNative();
+                    var coords = window.LastStageInput["context button=".Length..].Split(',')
+                        .Select(s => double.Parse(s, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                    var click = window.Stage.Host.PointToScreen(new Point(
+                        coords[0] * window.Stage.Host.Bounds.Width, coords[1] * window.Stage.Host.Bounds.Height));
+                    await ClickNative(window, click.X, click.Y);
+                    await Task.Delay(400);
+                    if (window.PlacementTrackForVerification != EditorTrack.Left)
+                        throw new InvalidOperationException("Context side request did not synchronize Tools");
+                    await PressKey(0x09); await PressKey(0x09); await PressKey(0x09);
+                    await PressKey(0x0D); // First Note button: Tap.
+                    await Task.Delay(400);
+                    if (window.CurrentTool != "PLACE" || window.PlacementTypeForVerification != V2NoteType.Tap)
+                        throw new InvalidOperationException("Context Note request did not enter placement");
+                    await PressKey(0x1B);
+                    lines.Add("PASS real context menu open / language / side and Note sync / Escape");
+                    result = 0;
+                    return;
+                }
+                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_MARQUEE_ONLY") == "1")
+                {
+                    window.StageEventForVerification("place", "{\"type\":0,\"track\":1,\"bar\":2,\"center\":3.5,\"width\":0.5,\"tailBar\":2}");
+                    window.SelectToolForVerification("SELECT");
+                    await Task.Delay(500);
+                    var host = window.Stage.Host;
+                    var scale = Math.Min(host.Bounds.Width / 1920d, host.Bounds.Height / 1080d);
+                    var origin = new Point((host.Bounds.Width - 1920 * scale) / 2,
+                        (host.Bounds.Height - 1080 * scale) / 2);
+                    var from = host.PointToScreen(origin + new Vector(650 * scale, 760 * scale));
+                    var to = host.PointToScreen(origin + new Vector(1350 * scale, 960 * scale));
+                    await DragNative(window, from.X, from.Y, to.X, to.Y);
+                    if (window.SelectedNoteIds.Count != 2)
+                        throw new InvalidOperationException($"Native marquee selected {window.SelectedNoteIds.Count}, expected two");
+                    await Capture(window, outDir, "marquee-selected.png");
+                    await PressKey(0x2E);
+                    if (window.CurrentDocument!.SelectedChart.Notes.Count != 0)
+                        throw new InvalidOperationException("Marquee bulk delete failed");
+                    await PressCtrlKey(0x5A);
+                    if (window.CurrentDocument.SelectedChart.Notes.Count != 2)
+                        throw new InvalidOperationException("Marquee deletion undo failed");
+                    lines.Add("PASS real mouse marquee selects two Notes / bulk delete / one undo");
+                    window.StageEventForVerification("place", "{\"type\":0,\"track\":1,\"bar\":4,\"center\":3,\"width\":0.5,\"tailBar\":4}");
+                    window.SeekForVerification(1);
+                    await Task.Delay(350);
+                    // Keep the mouse held while the real audio clock moves several screens.
+                    try
+                    {
+                        await Task.Run(() =>
+                        {
+                            SetCursorPos(from.X, to.Y);
+                            mouse_event(1, 0, 0, 0, 0);
+                            Thread.Sleep(150);
+                            mouse_event(2, 0, 0, 0, 0);
+                            SetCursorPos(to.X, from.Y);
+                            mouse_event(1, 0, 0, 0, 0);
+                        });
+                        await Task.Delay(150);
+                        await PressKey(0x20);
+                        var deadline = DateTime.UtcNow.AddSeconds(12);
+                        while (window.CurrentSecond < 7.5 && DateTime.UtcNow < deadline) await Task.Delay(100);
+                        if (!window.Playing || window.CurrentSecond < 7.5)
+                            throw new InvalidOperationException("Held marquee did not allow real playback");
+                    }
+                    finally { mouse_event(4, 0, 0, 0, 0); }
+                    await Task.Delay(350);
+                    if (window.SelectedNoteIds.Count != 3)
+                        throw new InvalidOperationException($"Held playback marquee lost off-screen Notes: {window.SelectedNoteIds.Count}");
+                    await PressKey(0x20);
+                    await PressKey(0x2E);
+                    if (window.CurrentDocument.SelectedChart.Notes.Count != 0)
+                        throw new InvalidOperationException("Off-screen selected Notes were not deleted");
+                    await PressCtrlKey(0x5A);
+                    if (window.CurrentDocument.SelectedChart.Notes.Count != 3)
+                        throw new InvalidOperationException("Off-screen batch undo failed");
+                    lines.Add("PASS held mouse + real music playback across screens / 3 off-screen Notes / delete / undo");
+                    result = 0;
+                    return;
+                }
                 window.SendInvalidAuthoringForVerification();
                 await Task.Delay(350);
                 if (!window.Ready || !window.StatusMessage.Contains("Stage error", StringComparison.Ordinal))
@@ -304,6 +411,95 @@ internal static class DesktopVerification
         lifetime.Start(Array.Empty<string>());
         return result;
     }
+
+    private static async Task VerifyEmptyChartSwitch(MainWindow window, string outDir, Action<string> report)
+    {
+        var form = new EditorCreateForm("switch-test", "Empty Chart Switch", "Community",
+            Path.Combine(outDir, "fixture.wav"), "main", 2, "", 12, false, "Verification", 120, 0, null);
+        await window.CreatePackageForVerification(form);
+        await window.AddChartForVerification(form with { ChartId = "extra", DifficultyIndex = 3 });
+        var baseline = await window.StageServiceForVerification.AudioSnapshotAsync();
+        var choice = window.FindControl<ComboBox>("ChartChoice")!;
+        var items = choice.Items.Cast<ComboBoxItem>().ToArray();
+        var pid = window.StageProcessId;
+        for (var cycle = 0; cycle < 12; cycle++)
+        {
+            var target = cycle % 2;
+            var center = choice.PointToScreen(new Point(choice.Bounds.Width / 2, choice.Bounds.Height / 2));
+            await ClickNative(window, center.X, center.Y);
+            await Task.Delay(100);
+            var item = items[target];
+            var point = item.PointToScreen(new Point(item.Bounds.Width / 2, item.Bounds.Height / 2));
+            // Popup has its own HWND: do not reactivate the main window before clicking the item.
+            await Task.Run(() =>
+            {
+                SetCursorPos(point.X, point.Y);
+                mouse_event(2, 0, 0, 0, 0);
+                Thread.Sleep(60);
+                mouse_event(4, 0, 0, 0, 0);
+            });
+            await Task.Delay(150);
+            var snapshot = await window.StageServiceForVerification.AudioSnapshotAsync();
+            if (window.CurrentDocument?.SelectedChartId != (target == 0 ? "main" : "extra") ||
+                window.CurrentDocument.SelectedChart.Notes.Count != 0 || snapshot.Loads != baseline.Loads ||
+                snapshot.Playing || window.StageProcessId != pid || !choice.Items.Cast<ComboBoxItem>().SequenceEqual(items))
+                throw new InvalidOperationException($"Empty chart switch {cycle} failed: {snapshot}");
+        }
+        report("PASS 12 real ComboBox mouse switches between empty charts; same audio stream and Godot process");
+    }
+
+    private static async Task VerifyActivation(MainWindow window, Action<string> report)
+    {
+        window.Topmost = false;
+        var handle = window.TryGetPlatformHandle()!.Handle;
+        var child = window.Stage.Host.Diagnostics().Child;
+        var other = new Window { Title = "Activation regression", Width = 400, Height = 250 };
+        try
+        {
+            other.Show();
+            var otherHandle = other.TryGetPlatformHandle()!.Handle;
+            for (var cycle = 0; cycle < 2; cycle++)
+            {
+                var point = other.PointToScreen(new Point(200, 100));
+                await ClickNative(other, point.X, point.Y);
+                await Task.Delay(200);
+                if (GetForegroundWindow() != otherHandle)
+                    throw new InvalidOperationException($"Could not establish other foreground: actual={GetForegroundWindow()} expected={otherHandle}");
+                window.Width += cycle == 0 ? 10 : -10;
+                window.Stage.Host.QueueSync();
+                window.Stage.Host.FocusNative(); // Simulate delayed selection while another window is active.
+                await Task.Delay(300);
+                if (GetForegroundWindow() != otherHandle)
+                    throw new InvalidOperationException($"Background layout/selection stole activation: actual={GetForegroundWindow()} expected={otherHandle} host={handle} child={child}");
+                window.WindowState = WindowState.Minimized;
+                await Task.Delay(150);
+                window.WindowState = WindowState.Normal;
+                ActivateWindow(window);
+                await Task.Delay(350);
+                var d = window.Stage.Host.Diagnostics();
+                if (GetForegroundWindow() != handle || !d.Embedded || d.Child != child)
+                    throw new InvalidOperationException("Host restore failed to retain foreground and child");
+                var stagePoint = window.Stage.Host.PointToScreen(new Point(
+                    window.Stage.Host.Bounds.Width / 2, window.Stage.Host.Bounds.Height / 2));
+                await ClickNative(window, stagePoint.X, stagePoint.Y);
+                if (GetForegroundWindow() != handle || GetWindow((nint)child, 4) != 0)
+                    throw new InvalidOperationException("Stage click activated a child or retained a popup owner");
+                await PressKey(0x42);
+                if (!window.WheelReversed)
+                    throw new InvalidOperationException("Native keyboard focus lost after activation");
+                await PressKey(0x42);
+                if (window.WheelReversed) throw new InvalidOperationException("Second native B did not restore direction");
+            }
+            report("PASS non-topmost restore, background layout/focus isolation and native B twice");
+        }
+        finally { other.Close(); }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint GetWindow(nint window, uint command);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
 
     private static async Task VerifyPanAudioSuspension(MainWindow window)
     {

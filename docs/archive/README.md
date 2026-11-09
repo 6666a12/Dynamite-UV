@@ -3,6 +3,15 @@
 > 本目录保存阶段报告、制作记录、未排期提案和原文快照，**不是当前能力、待办、验收或实施授权**。
 > 当前工作从 [交接](<../handoff.md>) → [模块地图](<../module-map.md>) → [验证记录](<../verification.md>) 开始；专题见 [文档导航](<../README.md>)。
 
+## 2026-11-09 归档批次
+
+- [整理说明](reports/2026-11-09-documentation-cleanup.md)：范围、迁移清单与用户确认边界。
+- [2026-11-02—08 制谱器/格式验证](reports/2026-11-02-08-editor-verification.md)、[2026-10 游戏/结构验证](reports/2026-10-verification.md)：从当前验证页提取的阶段流水，保留失败与重试。
+- [2026-11-07 制谱器审查](reports/2026-11-07-editor-debug-review.md)、[UI 实施切片](reports/2026-11-07-editor-ui-implementation.md)、[2026-10-26 模块化复审](reports/2026-10-26-modularity-review.md)：一次性报告，不是待办。
+- [BLEED/HUD 设计过程](art/2026-11-08-09-bleed-hud-design.md)：独立试稿已被本体 v8 替代。
+- [旧 Editor UI](art/2026-10-editor-ui-design.md)、[旧 Editor 动效目标](art/2026-10-editor-motion-targets.md)：已删除 Godot 外壳的历史，不覆盖 Avalonia 主线。
+- [应用图标候选](art/2026-11-08-app-icon-candidates.md)：未选定/未接入的探索，归档不等于批准发布。
+
 ## 工程报告与检查点
 
 | 记录 | 用途与限制 |

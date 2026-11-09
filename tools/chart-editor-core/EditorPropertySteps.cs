@@ -44,16 +44,13 @@ public static class EditorPropertySteps
     public static double StepCenter(double center, double width, int direction, bool fine)
     {
         var increment = fine ? FineCenterStep : CenterStep;
-        return center + direction * increment;
+        return EditorSpatialMath.Add(center, direction * increment);
     }
 
-    /// <summary>步进宽度，下限 0.1，上限是不越过坐标域的 2·min(center, 5 - center)。</summary>
+    /// <summary>步进宽度，下限 0.1；保留超出推荐区域的合法宽度。</summary>
     public static double StepWidth(double width, double center, int direction, bool fine)
     {
         var increment = fine ? FineWidthStep : WidthStep;
-        return Math.Max(width + direction * increment, MinimumWidth);
+        return Math.Max(EditorSpatialMath.Add(width, direction * increment), MinimumWidth);
     }
-
-    /// <summary>0.1/0.05 这类步长在 double 上会累积尾差，回写前先归一到 1e-6。</summary>
-    private static double Round(double value) => Math.Round(value, 6);
 }

@@ -146,7 +146,119 @@ internal static class EditorAutoVerification
         stage.SetPlaying(true);
         stage.AdvancePlayback(1, 1);
         Check(Blooms(root) == 1, "resume after paused seek re-arms hits");
+        stage.SetPlaying(false);
+        stage.CurrentBar = .9;
+        stage.ScrubTo(1.2);
+        Check(root.Visible && Blooms(root) == 1 && stage.SelectionBounds(tap) is null,
+            "paused wheel crosses Tap with judgement instead of static fallthrough");
+        Check(root.GetChildren().OfType<NoteView>().Any(view => view.Visible && view.IsResidual),
+            "wheel overshoot retains hit residual");
+        stage._Process(.4);
+        Check(!root.GetChildren().OfType<NoteView>().Any(view => view.Visible && view.IsResidual),
+            "paused wheel residual decays in real time");
+        stage.ScrubTo(.9);
+        Check(Blooms(root) == 0 && stage.SelectionBounds(tap) is not null,
+            "backward wheel restores notes without historical bursts");
+        stage.ScrubTo(1.2);
+        Check(Blooms(root) == 1, "forward wheel after rewind rearms judgement");
+        stage.ScrubTo(4);
+        Check(root.GetChildren().OfType<NoteView>().Any(view => view.Visible && view.Model.Id == hold.Id && view.IsLineAnchored),
+            "wheel restores sustained Hold contact");
+        stage.ScrubTo(7);
+        Check(root.GetChildren().OfType<NoteView>().Any(view => view.Visible && view.Name.ToString().StartsWith("MixerSlider_")),
+            "wheel restores Mixer receiver");
+        stage.ScrubTo(8.5);
+        Check(stage.SelectionBounds(mixer) is null, "wheel ends Mixer without tail judgement");
+        stage.CurrentBar = .9;
+        stage.SetPlaying(true);
+        stage.ScrubTo(1.2);
+        Check(Blooms(root) == 1, "playing wheel also emits crossed hits");
+        VerifyMarquee(stage, tap);
         stage.Free();
+    }
+
+    private static void VerifyMarquee(EditorStagePreview stage, Note tap)
+    {
+        var gesture = new EditorMarqueeSelection();
+        gesture.Begin(DynamiteUniverse.ChartEditor.Core.EditorTrack.Center, new Vector2(100, 100),
+            new(Time(10), 4), new HashSet<int> { 9 }, false);
+        gesture.Update(Vector2.Zero, new(Time(0), 0), new[]
+        {
+            new EditorMarqueeSelection.Candidate(1, Time(2), 1),
+            new EditorMarqueeSelection.Candidate(2, Time(8), 3),
+            new EditorMarqueeSelection.Candidate(3, Time(12), 3),
+        });
+        Check(gesture.Finish().SetEquals(new HashSet<int> { 1, 2 }), "marquee selects exact chart range, not outside times");
+        gesture.Begin(DynamiteUniverse.ChartEditor.Core.EditorTrack.Center, Vector2.Zero,
+            new(Time(0), 0), new HashSet<int> { 9 }, true);
+        gesture.Update(new Vector2(100, 100), new(Time(10), 4),
+            new[] { new EditorMarqueeSelection.Candidate(1, Time(2), 1) });
+        Check(gesture.Finish().SetEquals(new HashSet<int> { 1, 9 }), "additive marquee unions original selection");
+        stage.SetPlaying(false);
+        stage.CurrentBar = .9;
+        stage.SetAuthoring("SELECT", V2NoteType.Tap, DynamiteUniverse.ChartEditor.Core.EditorStagePlacement.ToEditorTrack(tap.Track), 1, 16);
+        var center = stage.SelectionBounds(tap)!.Value.GetCenter() + new Vector2(0, 40);
+        var start = center - new Vector2(100, 100);
+        var end = center + new Vector2(100, 100);
+        IReadOnlySet<int>? selected = null;
+        var commits = 0;
+        stage.NotesBoxSelected += ids => { selected = ids; commits++; };
+        void Drag(Vector2 a, Vector2 b, bool shift = false, bool cancel = false)
+        {
+            using var press = new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = a, ShiftPressed = shift };
+            using var move = new InputEventMouseMotion { Position = b };
+            using var release = new InputEventMouseButton { ButtonIndex = MouseButton.Left, Position = b };
+            stage.HandlePointerInput(press);
+            stage.HandlePointerInput(move);
+            if (cancel) stage.CancelGesture();
+            stage.HandlePointerInput(release);
+            stage.HandlePointerInput(release); // Root fallback and GUI release must not commit twice.
+        }
+        Drag(start, end);
+        Check(selected?.Contains(tap.Id) == true && commits == 1, "marquee selects head with one release commit");
+        Drag(end, start);
+        Check(selected?.Contains(tap.Id) == true && commits == 2, "reverse marquee selects same head");
+        Drag(new Vector2(900, 1000), new Vector2(950, 1050), shift: true);
+        Check(selected?.Contains(tap.Id) == true, "Shift empty marquee preserves previous selection");
+        var before = commits;
+        Drag(start, end, cancel: true);
+        Check(commits == before, "cancelled marquee does not commit selection");
+        Drag(new Vector2(900, 1000), new Vector2(950, 1050));
+        Check(selected?.Count == 0, "empty marquee clears selection");
+        stage.CurrentBar = .5;
+        Vector2 At(double bar, double position)
+        {
+            var point = GameplayStageGeometry.PositionAt(tap.Track, position,
+                (float)((bar - .5) * GameplayStageGeometry.BaseFallSpeedPx));
+            return new Vector2(point.X, point.Y + 40);
+        }
+        using var longPress = new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = At(.75, 0) };
+        using var longMove = new InputEventMouseMotion { Position = At(.9, 4.5) };
+        using var longRelease = new InputEventMouseButton { ButtonIndex = MouseButton.Left, Position = longMove.Position };
+        stage.HandlePointerInput(longPress);
+        stage.HandlePointerInput(longMove);
+        stage.SetPlaying(true);
+        stage.AdvancePlayback(4, 3.5);
+        Check(stage.MarqueePreview.Contains(tap.Id) && stage.SelectionBounds(tap) is null,
+            "playing marquee retains Tap after Auto body disappears");
+        stage.AdvancePlayback(12, 8);
+        Check(stage.MarqueePreview.Count == 7, "stationary pointer expands chart range across multiple screens, excluding path nodes");
+        stage.CurrentBar = 4;
+        Check(stage.MarqueePreview.Count == 3, "rewinding shrinks range rather than accumulating every visited note");
+        stage.AdvancePlayback(12, 8);
+        var longBefore = commits;
+        stage.HandlePointerInput(longRelease);
+        stage.HandlePointerInput(longRelease);
+        Check(selected?.Count == 7 && commits == longBefore + 1,
+            "release commits off-screen judged parents once");
+        stage.SetPlaying(false);
+        stage.CurrentBar = .5;
+        stage.HandlePointerInput(longPress);
+        stage.HandlePointerInput(longMove);
+        stage.AdvancePlayback(12, 12);
+        Check(stage.MarqueePreview.Count == 0, "paused playback does not extend the held range");
+        stage.CancelGesture();
+        Check(selected?.Count == 7, "cancel preserves committed off-screen selection");
     }
 
     private static void VerifyEffectLevels(Node host, V2RuntimeAdapterResult chart)

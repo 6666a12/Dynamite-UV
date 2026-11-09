@@ -207,6 +207,8 @@
         "../../shared/DynamiteUniverse.Shared.csproj"
       ],
       "source_links": [
+        "../../client/scripts/game/gameplay/BleedHudState.cs",
+        "../../client/scripts/game/gameplay/HudLightState.cs",
         "../../client/scripts/game/gameplay/GameplayEndCondition.cs",
         "../../client/scripts/ui/results/ResultOutcome.cs",
         "../../client/scripts/ui/results/ResultPreludeTimeline.cs",
