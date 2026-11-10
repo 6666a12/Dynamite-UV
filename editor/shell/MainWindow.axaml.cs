@@ -594,6 +594,7 @@ public sealed partial class MainWindow : Window
     private WorkbenchPreferences CapturePreferences() => new()
     {
         Language = _text.CurrentLanguage, Grid = _snapDenominator, WheelReversed = WheelReversed,
+        ObjectSnap = _tools.ObjectSnapEnabled,
         PositionSnap = _tools.PositionSnapEnabled, PlacementWidth = _tools.PlacementWidth,
         Volume = _previewVolume, Effects = _previewEffects,
         Motion = this.FindControl<ComboBox>("MotionChoice")!.SelectedIndex,
@@ -605,6 +606,7 @@ public sealed partial class MainWindow : Window
     private void SendAuthoring()
     {
         _preferences.Changed();
+        _service.Send(new { command = "objectSnap", enabled = _tools.ObjectSnapEnabled });
         _service.SetAuthoring(_tool, _tools.PlacementType.ToString(), _tools.PlacementTrack.ToString(),
             _tools.PlacementWidth, _snapDenominator, _tools.PositionSnapEnabled);
     }

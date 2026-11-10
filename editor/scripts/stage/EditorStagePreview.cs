@@ -130,6 +130,11 @@ public partial class EditorStagePreview : Control
         }
     }
 
+    private bool _objectSnap;
+    public void SetObjectSnap(bool enabled) { _objectSnap = enabled; RefreshMagnetViewport(); }
+    private void RefreshMagnetViewport() => _authoring.SetMagnet(_objectSnap, _stageScale,
+        new Rect2(-_panOffsetX, -40 - _panOffsetY, 1920, 1080));
+
     public void SetAuthoring(string tool, V2NoteType type, EditorTrack track, double width, int gridDivisor,
         bool positionSnap = true)
     {
@@ -246,6 +251,7 @@ public partial class EditorStagePreview : Control
     {
         var scale = Mathf.Min(Size.X / 1920f, Size.Y / 1080f);
         _stageScale = scale;
+        RefreshMagnetViewport();
         var stageSize = new Vector2(1920f, 1080f) * scale;
         _stageRect = new Rect2((Size - stageSize) * .5f, stageSize);
         _stageRoot.Position = _stageRect.Position + new Vector2(_panOffsetX * scale, _panOffsetY * scale);
@@ -276,6 +282,16 @@ public partial class EditorStagePreview : Control
     {
         DrawDragGhost();
         DrawPathGhost();
+        if (_authoring.MagnetGuide is { } guide)
+        {
+            var offset = _stageRect.Position + new Vector2(_panOffsetX, 40 + _panOffsetY) * _stageScale;
+            var from = offset + guide.From * _stageScale;
+            var to = offset + guide.To * _stageScale;
+            _selectionOverlay.DrawLine(from, to, new Color("35e0ff"), 1.5f, true);
+            _selectionOverlay.DrawCircle(to, 4, new Color("35e0ff"), false, 1.5f);
+            _selectionOverlay.DrawString(ThemeDB.FallbackFont, from + new Vector2(10, -10),
+                guide.Feature == 0 ? "CENTER" : guide.Feature < 0 ? "START EDGE" : "END EDGE", fontSize: 14, modulate: new Color("35e0ff"));
+        }
         if (_marquee.Active && _marquee.Moved)
         {
             var start = MarqueeScreenPoint(_marquee.Start);

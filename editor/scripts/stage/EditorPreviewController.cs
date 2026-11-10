@@ -163,6 +163,7 @@ public partial class EditorPreviewController : Control
             case "seek": Seek(root.GetProperty("bar").GetDouble()); break;
             case "playerSpeed": SetPlayerSpeed(root.GetProperty("multiplier").GetDouble()); break;
             case "playbackRate": SetPlaybackRate(root.GetProperty("multiplier").GetDouble()); break;
+            case "objectSnap": _stage.SetObjectSnap(root.GetProperty("enabled").GetBoolean()); break;
             case "wheelDirection": _stage.WheelReversed = root.GetProperty("reversed").GetBoolean(); break;
             case "previewPreferences":
                 var volume = root.GetProperty("volume").GetDouble();

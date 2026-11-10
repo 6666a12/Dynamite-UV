@@ -25,6 +25,12 @@ public sealed class EditorStageAuthoring
     private const float ClickThresholdPx = 6f;
     private const float EdgeHandlePx = 14f;
     private const float MotionDedupePxSq = 1e-3f;
+    private readonly EditorObjectMagnet _magnet = new();
+    private IReadOnlyList<Note> _magnetNotes = Array.Empty<Note>();
+    private IReadOnlySet<int>? _magnetSelection;
+    public void SetMagnet(bool enabled, float scale, Rect2 visible)
+    { if (_magnet.Enabled != enabled) _magnet.Reset(); _magnet.Enabled = enabled; _magnet.Scale = scale; _magnet.VisibleDesignRect = visible; }
+    public (Vector2 From, Vector2 To, int Feature)? MagnetGuide => _magnet.Guide;
     private string _tool = "SELECT";
     private V2NoteType _type = V2NoteType.Tap;
     private EditorTrack _track = EditorTrack.Center;
@@ -75,6 +81,7 @@ public sealed class EditorStageAuthoring
 
     public void Cancel()
     {
+        _magnet.Reset();
         _placement = null;
         _placementPreview = null;
         _pathDrag = null;
@@ -90,6 +97,8 @@ public sealed class EditorStageAuthoring
         V2RuntimeChartMetadata metadata, double currentTime, double playerSpeed,
         IReadOnlySet<int>? selection = null)
     {
+        _magnetNotes = notes;
+        _magnetSelection = selection;
         switch (input)
         {
             case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } when _tool == "PLACE":
@@ -117,7 +126,7 @@ public sealed class EditorStageAuthoring
         if (_selectDrag is not { } drag) return false;
         runtimeId = drag.RuntimeId;
         groupRuntimeIds = drag.GroupRuntimeIds;
-        if (drag.Resize) resize = ResizeRequest(drag, drag.Current);
+        if (drag.Resize) resize = ResizeRequest(drag, drag.Current, metadata, currentTime, playerSpeed);
         else move = MoveRequest(drag, drag.Current, metadata, currentTime, playerSpeed);
         return true;
     }
@@ -296,6 +305,7 @@ public sealed class EditorStageAuthoring
             UpdatePlacement(point, metadata, currentTime, playerSpeed);
             if (_type is V2NoteType.Hold or V2NoteType.Mixer)
             {
+                _magnet.Reset();
                 _placement.BeginTail(_gridDivisor);
                 UpdatePlacement(point, metadata, currentTime, playerSpeed);
             }
@@ -314,6 +324,7 @@ public sealed class EditorStageAuthoring
             return true;
         }
         PathMoveRequested?.Invoke(PathMoveRequest(drag, point, metadata, currentTime, playerSpeed));
+        _magnet.Reset();
         return true;
     }
 
@@ -322,13 +333,17 @@ public sealed class EditorStageAuthoring
         ? PathMoveRequest(drag, drag.Current, metadata, currentTime, playerSpeed) : null;
 
     private StagePathMoveRequest PathMoveRequest(PathDrag drag, Vector2 point,
-        V2RuntimeChartMetadata metadata, double currentTime, double playerSpeed) =>
-        new(drag.Note.V2Metadata!.ParentSourceId,
+        V2RuntimeChartMetadata metadata, double currentTime, double playerSpeed)
+    {
+        var endBar = BarAt(drag.Note.Track, point, metadata, currentTime, playerSpeed, drag.Note.V2Metadata!.ScrollSpeedMultiplier);
+        var raw = EditorStagePlacement.CenterAt(ToEditorTrack(drag.Note.Track), point.X, point.Y);
+        var center = drag.Note.Position + drag.Note.Width / 2 + raw - drag.StartCenter;
+        var snapped = MagnetCenter(drag.Note, center, endBar, drag.StartBar, metadata, currentTime, playerSpeed, null);
+        return new(drag.Note.V2Metadata.ParentSourceId,
             drag.Note.V2Metadata.IsPathNode ? drag.Note.V2Metadata.SourceId : null, drag.StartBar,
-            BarAt(drag.Note.Track, point, metadata, currentTime, playerSpeed,
-                drag.Note.V2Metadata.ScrollSpeedMultiplier), drag.StartCenter,
-            EditorStagePlacement.CenterAt(ToEditorTrack(drag.Note.Track), point.X, point.Y),
-            !Input.IsKeyPressed(Key.Z), PositionStep);
+            endBar, drag.StartCenter, snapped is { } value ? drag.StartCenter + value - (drag.Note.Position + drag.Note.Width / 2) : raw,
+            !Input.IsKeyPressed(Key.Z), snapped is null ? PositionStep : 0);
+    }
 
     private void UpdatePlacement(Vector2 point, V2RuntimeChartMetadata metadata,
         double currentTime, double playerSpeed)
@@ -342,6 +357,11 @@ public sealed class EditorStageAuthoring
             var width = Math.Max(EditorStagePlacement.QuantizePosition(_width, WidthStep), .1);
             var center = EditorStagePlacement.QuantizePosition(
                 EditorStagePlacement.CenterAt(_track, point.X, point.Y), PositionStep);
+            var rawCenter = EditorStagePlacement.CenterAt(_track, point.X, point.Y);
+            var probe = PlacementNote(time, rawCenter, width, metadata);
+            var magnetic = _magnet.Resolve(probe, rawCenter, width, DistancePixels(probe, metadata, currentTime, playerSpeed),
+                _magnetNotes, metadata, currentTime, playerSpeed, _magnetSelection);
+            if (magnetic is { } aligned) center = aligned;
             var tail = _type is V2NoteType.Hold or V2NoteType.Mixer
                 ? time + ExactBarTime.FromFraction(1, _gridDivisor) : time;
             _placementPreview = new EditorPlacementVisual((int)_type, (int)_track, time,
@@ -353,11 +373,30 @@ public sealed class EditorStageAuthoring
             _placement.UpdateTail(SnappedBarAt(_track, point, metadata, currentTime, playerSpeed),
                 _gridDivisor);
         else
-            _placement.UpdateWidth(EditorStagePlacement.CenterAt(_track, point.X, point.Y), WidthStep);
+        {
+            var pointer = EditorStagePlacement.CenterAt(_track, point.X, point.Y);
+            _placement.UpdateWidth(pointer, 0);
+            var probe = PlacementNote(_placement.Time, _placement.Center, _placement.Width, metadata);
+            var aligned = _magnet.Resolve(probe, _placement.Center, _placement.Width,
+                DistancePixels(probe, metadata, currentTime, playerSpeed), _magnetNotes, metadata,
+                currentTime, playerSpeed, _magnetSelection, symmetricWidth: true);
+            if (aligned is { } value) _placement.AlignWidth(value);
+            else _placement.UpdateWidth(pointer, WidthStep);
+        }
         _placementPreview = new EditorPlacementVisual((int)_type, (int)_track,
             _placement.Time, _placement.TailTime, _placement.Center,
             _placement.Width, _placement.TailStage, snap);
     }
+
+    private Note PlacementNote(ExactBarTime time, double center, double width, V2RuntimeChartMetadata metadata) => new()
+    {
+        Id = -1, SubNoteId = -1, Track = EditorStagePlacement.ToRuntimeTrack(_track),
+        Type = _type switch { V2NoteType.Drag => NoteType.Drag, V2NoteType.ExTap => NoteType.ExTap,
+            V2NoteType.Hold => NoteType.HoldHead, V2NoteType.Mixer => NoteType.MixerHead,
+            V2NoteType.Mine => NoteType.Mine, V2NoteType.BarLine => NoteType.BarLine, _ => NoteType.Tap },
+        BarTime = time.ToDouble(), Second = metadata.BpmTimeline.RuntimeSecondsAt(time.ToDouble()),
+        BakedSecond = 0, Position = center - width / 2, Width = width,
+    };
 
     private void CommitPlacement()
     {
@@ -377,6 +416,7 @@ public sealed class EditorStageAuthoring
             _selectDrag = null;
             if (select.Start.DistanceTo(point) > ClickThresholdPx)
                 ReleaseSelectDrag(select, point, metadata, currentTime, playerSpeed);
+            _magnet.Reset();
             return true;
         }
         if (_panDrag is not { } pan) return false;
@@ -396,26 +436,48 @@ public sealed class EditorStageAuthoring
         var note = drag.Note;
         var sourceId = note.V2Metadata?.ParentSourceId;
         if (sourceId is null) return;
-        if (drag.Resize) NoteResizeRequested?.Invoke(ResizeRequest(drag, point));
+        if (drag.Resize) NoteResizeRequested?.Invoke(ResizeRequest(drag, point, metadata, currentTime, playerSpeed));
         else NoteMoveRequested?.Invoke(MoveRequest(drag, point, metadata, currentTime, playerSpeed));
     }
 
-    private StageNoteResizeRequest ResizeRequest(SelectDrag drag, Vector2 point)
+    private StageNoteResizeRequest ResizeRequest(SelectDrag drag, Vector2 point,
+        V2RuntimeChartMetadata metadata, double currentTime, double playerSpeed)
     {
         // Side-chart coordinates increase upwards, opposite to screen Y.
         var pointerDelta = drag.Note.Track == Track.Center
             ? point.X - drag.Start.X : drag.Start.Y - point.Y;
         var edge = drag.StartEdge + pointerDelta / drag.EdgeVisualScale;
-        return new StageNoteResizeRequest(drag.Note.V2Metadata!.ParentSourceId, drag.MoveStartEdge, edge, WidthStep);
+        var span = EditorStagePlacement.ResizeSnappedFromEdge(drag.Note.Position + drag.Note.Width / 2,
+            drag.Note.Width, edge, drag.MoveStartEdge, 0);
+        var snapped = _magnet.Resolve(drag.Note, span.Center, span.Width,
+            DistancePixels(drag.Note, metadata, currentTime, playerSpeed), _magnetNotes, metadata,
+            currentTime, playerSpeed, drag.GroupRuntimeIds, drag.Note.V2Metadata!.ParentSourceId,
+            drag.MoveStartEdge ? -1 : 1, resize: true);
+        return new StageNoteResizeRequest(drag.Note.V2Metadata!.ParentSourceId, drag.MoveStartEdge,
+            snapped ?? edge, snapped is null ? WidthStep : 0);
     }
 
     private StageNoteMoveRequest MoveRequest(SelectDrag drag, Vector2 point,
-        V2RuntimeChartMetadata metadata, double currentTime, double playerSpeed) =>
-        new(drag.Note.V2Metadata!.ParentSourceId, drag.StartBar,
-            BarAt(drag.Note.Track, point, metadata, currentTime, playerSpeed,
-                drag.Note.V2Metadata.ScrollSpeedMultiplier), drag.StartCenter,
-            EditorStagePlacement.CenterAt(ToEditorTrack(drag.Note.Track), point.X, point.Y),
-            !Input.IsKeyPressed(Key.Z), PositionStep);
+        V2RuntimeChartMetadata metadata, double currentTime, double playerSpeed)
+    {
+        var endBar = BarAt(drag.Note.Track, point, metadata, currentTime, playerSpeed, drag.Note.V2Metadata!.ScrollSpeedMultiplier);
+        var raw = EditorStagePlacement.CenterAt(ToEditorTrack(drag.Note.Track), point.X, point.Y);
+        var center = drag.Note.Position + drag.Note.Width / 2 + raw - drag.StartCenter;
+        var snapped = MagnetCenter(drag.Note, center, endBar, drag.StartBar, metadata, currentTime, playerSpeed, drag.GroupRuntimeIds);
+        return new(drag.Note.V2Metadata.ParentSourceId, drag.StartBar, endBar, drag.StartCenter,
+            snapped is { } value ? drag.StartCenter + value - (drag.Note.Position + drag.Note.Width / 2) : raw,
+            !Input.IsKeyPressed(Key.Z), snapped is null ? PositionStep : 0);
+    }
+
+    private double? MagnetCenter(Note note, double center, double endBar, double startBar,
+        V2RuntimeChartMetadata metadata, double time, double speed, IReadOnlySet<int>? excluded)
+    {
+        var bar = Math.Max(0, note.BarTime + endBar - startBar);
+        var remaining = VisualScrollMath.DistancePixels(metadata.BpmTimeline.RuntimeSecondsAt(bar), time,
+            GameplayStageGeometry.BaseFallSpeedPx, metadata.ScrollMap.RuntimeSpeedAt(bar), speed, note.V2Metadata!.ScrollSpeedMultiplier);
+        return _magnet.Resolve(note, center, note.Width, remaining, _magnetNotes, metadata, time, speed,
+            excluded ?? _magnetSelection, note.V2Metadata.ParentSourceId);
+    }
 
     private bool TryEdgeResize(Note note, Vector2 point, V2RuntimeChartMetadata metadata,
         double currentTime, double playerSpeed, out bool moveStartEdge)

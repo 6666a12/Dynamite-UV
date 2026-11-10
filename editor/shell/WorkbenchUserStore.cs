@@ -66,6 +66,7 @@ internal sealed record WorkbenchPreferences
     public string Language { get; init; } = "en";
     public int Grid { get; init; } = 16;
     public bool PositionSnap { get; init; } = true;
+    public bool ObjectSnap { get; init; }
     public bool WheelReversed { get; init; }
     public double PlacementWidth { get; init; } = 1;
     public double Volume { get; init; } = 100;

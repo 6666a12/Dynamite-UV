@@ -1,4 +1,6 @@
 {
+  "Tools.ObjectSnap": "Object snapping",
+  "Tools.ObjectSnapHint": "Same-track centres / matching edges. Hold Alt to bypass; time grid is unchanged.",
   "Batch.Transform": "GROUP TRANSFORM",
   "Batch.Properties": "SET PROPERTIES",
   "Batch.Offset": "Time offset",

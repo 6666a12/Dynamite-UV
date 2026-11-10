@@ -75,6 +75,11 @@ public sealed class StagePlacementDraft
         TailTime = candidate > minimum ? candidate : minimum;
     }
 
+    public void AlignWidth(double width)
+    {
+        if (!TailStage && double.IsFinite(width) && width >= MinimumWidth) Width = width;
+    }
+
     private ExactBarTime MinimumTail(int gridDivisor) =>
         Time + ExactBarTime.FromFraction(1, gridDivisor);
 

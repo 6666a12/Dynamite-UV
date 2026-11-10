@@ -1,4 +1,6 @@
 {
+  "Tools.ObjectSnap": "对象磁吸",
+  "Tools.ObjectSnapHint": "同轨中心／同侧边缘对齐。按住 Alt 临时绕过，不影响时间网格。",
   "Batch.Transform": "整体变换",
   "Batch.Properties": "统一属性",
   "Batch.Offset": "时间偏移",

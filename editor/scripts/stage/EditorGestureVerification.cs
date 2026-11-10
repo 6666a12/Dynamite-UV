@@ -11,6 +11,7 @@ internal static class EditorGestureVerification
 {
     public static void Run()
     {
+        EditorMagnetVerification.Run();
         var chart = new V2Chart
         {
             ChartId = "gesture-test", AudioOffsetSec = 0,

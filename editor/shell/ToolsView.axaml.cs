@@ -36,6 +36,8 @@ public sealed partial class ToolsView : UserControl
         SetPlacementWidth(preferences.PlacementWidth);
     }
 
+    // Experimental object magnet is suspended: never restore a previously enabled preference.
+    public bool ObjectSnapEnabled => false;
     public bool PositionSnapEnabled => this.FindControl<ComboBox>("PositionModeChoice")?.SelectedIndex != 1;
 
     public void SelectPlacementType(V2NoteType type)

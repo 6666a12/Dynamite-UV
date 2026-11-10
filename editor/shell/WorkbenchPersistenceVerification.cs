@@ -14,7 +14,12 @@ internal static class WorkbenchPersistenceVerification
         Directory.CreateDirectory(directory);
         var store = new WorkbenchUserStore(directory);
         var preferences = new WorkbenchPreferences { Language = "zh-CN", Grid = 5, PlacementWidth = 2.35,
-            PositionSnap = false, WheelReversed = true, Volume = 37, Effects = "Reduced", Motion = 1 };
+            ObjectSnap = true, PositionSnap = false, WheelReversed = true, Volume = 37, Effects = "Reduced", Motion = 1 };
+        var toolsView = new ToolsView();
+        toolsView.RestorePreferences(preferences);
+        check("Suspended object magnet ignores saved opt-in", !toolsView.ObjectSnapEnabled);
+        check("Object magnet control is absent", toolsView.FindControl<CheckBox>("ObjectSnapChoice") is null);
+        check("Position mode still restores independently", !toolsView.PositionSnapEnabled);
         check("Preferences save atomically", store.Save(WorkbenchPreferences.FileName, preferences));
         check("Preferences round trip", new WorkbenchUserStore(directory).Load<WorkbenchPreferences>(WorkbenchPreferences.FileName) == preferences);
         File.WriteAllText(Path.Combine(directory, WorkbenchPreferences.FileName), "{broken");
