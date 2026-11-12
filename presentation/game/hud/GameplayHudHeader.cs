@@ -4,7 +4,7 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Top HUD composition; does not own statistics, health rules or pause state.</summary>
-internal sealed class GameplayHudHeader
+public sealed class GameplayHudHeader
 {
     private readonly GameplayHudPlate[] _plates = new GameplayHudPlate[6];
     private readonly GameplayHudPlate _pause;
@@ -16,7 +16,7 @@ internal sealed class GameplayHudHeader
     private double _rawAcc = double.NaN;
     private bool? _hardcore;
 
-    internal GameplayHudHeader(Node2D root, Action pause, Func<bool> canPause,
+    public GameplayHudHeader(Node2D root, Action pause, Func<bool> canPause,
         Func<UiMotionMode> motion, Func<bool> frozen)
     {
         _bleed = new GameplayBleedBar { Motion = motion, Frozen = frozen };
@@ -40,8 +40,16 @@ internal sealed class GameplayHudHeader
         root.AddChild(_pause);
         _pause.SetText("II");
     }
-    internal void PulsePause() => _pause.Pulse();
-    internal void Update(GameplayHudSnapshot s)
+    private bool _minimal;
+    public void SetMinimal(bool minimal)
+    {
+        _minimal = minimal;
+        foreach (var plate in _plates) plate.Visible = !minimal;
+        _pause.Visible = !minimal;
+        if (minimal) _bleed.Visible = false;
+    }
+    public void PulsePause() => _pause.Pulse();
+    public void Update(GameplayHudSnapshot s)
     {
         UpdateCount(0, s.CountPerfect, "PERFECT", 0);
         UpdateCount(1, s.CountGreat, "GREAT", 1);
@@ -59,7 +67,7 @@ internal sealed class GameplayHudHeader
             var color = s.Hardcore ? GameplayBleedBar.HardcoreColor : GameplayBleedBar.StandardColor;
             foreach (var line in _lines) line.Color = new Color(color, 0.62f);
         }
-        _bleed.Observe(s.BleedEnabled, s.Hardcore, s.BleedHealth);
+        _bleed.Observe(s.BleedEnabled && !_minimal, s.Hardcore, s.BleedHealth);
     }
     private void UpdateCount(int cache, int value, string prefix, int plate)
     {

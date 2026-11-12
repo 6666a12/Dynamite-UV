@@ -24,7 +24,7 @@ public partial class GameplayMain
 	private void BuildHud() => _hud = new GameplayHud(_hudRoot, TogglePause, StageOffsetY, TopHudOffsetY,
 		() => GameSession.Settings.MotionMode, () => !_playbackStarted || _finished || _pause.IsPaused,
 		() => _playbackStarted && !_finished && !_pause.IsPaused && !TransitionDirector.IsBusy);
-	private void RefreshTitleTag() => _hud.RefreshTitleTag(_run, _auto);
+	private void RefreshTitleTag() => _hud.RefreshTitleTag(new(_run.SongTitle, _run.DifficultyColorKey, _run.DifficultyDisplay, _run.DifficultyLevel), _auto);
 	private void FlashJudge(string text) => _hud.FlashJudge(text, GameSession.Settings.JudgeTextEnabled);
 	private void UpdateHud(double time)
 	{

@@ -10,7 +10,7 @@
 - [2026-11-07 制谱器审查](reports/2026-11-07-editor-debug-review.md)、[UI 实施切片](reports/2026-11-07-editor-ui-implementation.md)、[2026-10-26 模块化复审](reports/2026-10-26-modularity-review.md)：一次性报告，不是待办。
 - [BLEED/HUD 设计过程](art/2026-11-08-09-bleed-hud-design.md)：独立试稿已被本体 v8 替代。
 - [旧 Editor UI](art/2026-10-editor-ui-design.md)、[旧 Editor 动效目标](art/2026-10-editor-motion-targets.md)：已删除 Godot 外壳的历史，不覆盖 Avalonia 主线。
-- [应用图标候选](art/2026-11-08-app-icon-candidates.md)：未选定/未接入的探索，归档不等于批准发布。
+- [应用图标候选](art/2026-11-08-app-icon-candidates.md)：2026-11-08 的旧候选（A/B/C 环与字母），未采纳；现行图标见 `design/app-icons-v2/` 并已接入两端。归档不等于批准发布。
 
 ## 工程报告与检查点
 

@@ -4,14 +4,14 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Borderless gameplay plate: cached shape, display-change lighting and optional pause input.</summary>
-internal partial class GameplayHudPlate : Control
+public partial class GameplayHudPlate : Control
 {
-    internal Color Accent { get; init; }
-    internal int CornerSide { get; init; } // -1 original, +1 mirrored, 0 symmetric pause
-    internal int FontSize { get; init; } = 16;
-    internal Func<UiMotionMode> Motion { get; init; } = () => UiMotionMode.Full;
-    internal Action? Activated { get; init; }
-    internal Func<bool>? CanActivate { get; init; }
+    public Color Accent { get; init; }
+    public int CornerSide { get; init; } // -1 original, +1 mirrored, 0 symmetric pause
+    public int FontSize { get; init; } = 16;
+    public Func<UiMotionMode> Motion { get; init; } = () => UiMotionMode.Full;
+    public Action? Activated { get; init; }
+    public Func<bool>? CanActivate { get; init; }
     private readonly HudLightState _light = new();
     private Label _label = null!;
     private Vector2[] _shape = [];
@@ -40,13 +40,13 @@ internal partial class GameplayHudPlate : Control
         AddChild(_label);
     }
 
-    internal void SetText(string text)
+    public void SetText(string text)
     {
         if (!_light.SetText(text, Motion())) return;
         _label.Text = text;
         QueueRedraw();
     }
-    internal void Pulse()
+    public void Pulse()
     {
         _light.Trigger(Motion());
         if (Activated is not null) _light.Trigger(Motion()); // pause uses full confirmation peak

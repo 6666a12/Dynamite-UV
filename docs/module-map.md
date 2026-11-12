@@ -51,9 +51,11 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `EditorMarqueeSelection` | 当前轨道的谱面位置/精确时间起终点、追加基线、完整父 Note 候选集合与提交/取消；不依赖渲染对象、不写文档 | 舞台使用 `EditorStagePlacement` 反查指针时间，播放/seek 更新终点并绘制投影/数量；控制器/IPC 同步 Shell 多选，文档命令仍由 Shell/Core 拥有 |
 | `EditorContextMenu` | 舞台内右键面板控件、选中反馈、边缘布局和关闭输入消费；不写文档 | 舞台判断空白/取消手势，控制器持有预览音量/效果，Shell 持有工具/放置面/类型和翻译，IPC 仅发送意图与状态 |
 | `EditorAutoTimeline` / `EditorAutoPreview` | JudgePlan 上的可 seek 事件游标 / 编辑器 Auto 视觉生命周期、当前持续状态恢复、CPU/GPU 暂停 | `EditorPreviewController` 仍负责音频与 IPC；`EditorStagePreview` 保留静态编辑视图、选择、手势和舞台布局 |
+| `EditorPreviewHud` | 独立Auto计分快照、seek重建、编辑态最小HUD与游戏效果预览模式；共用presentation/game/hud展示对象 | Shell传曲名/难度与模式意图；Controller持有音频和时钟，不写成绩、不新增Storyboard语义 |
+| `SustainOutline` | 连接体侧边和真实控制节点端边，按运行时IsShapeSample隐藏细分横线 | 两端renderer持有几何、裁剪和池生命周期；shared保留曲线/判定权威 |
 | `EditorDocumentSession` | 当前文档、草稿资源、打开/创建/新增差分/保存用例 | shell 的对话框、消息和页流 |
 | `SongBrowseState` / `CanvasEditGesture` | 本地浏览状态 / 已有对象编辑手势的提交与取消 | UI 动画与预览投影、START 会话提交 |
-| `GameplayHud` / `GameplayHudHeader` | 下方 HUD 与顶部装配，读取真实快照；`GameplayHudPlate` 拥有形状/文本/输入和 `HudLightState` 包络，`GameplayBleedBar` + `BleedHudState` 拥有血量显示插值 | 场景保留判定/血量/分数权威、既有暂停/失败回调和帧顺序；展示不计算损伤或演示统计，见 [HUD v8](<gameplay-hud-v8.md>) |
+| `presentation/game/hud/GameplayHud` / `GameplayHudHeader` | 下方 HUD 与顶部装配，读取真实快照；`GameplayHudPlate` 拥有形状/文本/输入和 `HudLightState` 包络，`GameplayBleedBar` + `BleedHudState` 拥有血量显示插值 | 场景保留判定/血量/分数权威、既有暂停/失败回调和帧顺序；展示不计算损伤或演示统计，见 [HUD v8](<gameplay-hud-v8.md>) |
 | `GameplayProgressState` / `GameplayProgressBar` / `JudgmentLineTimeline` | 顶部进度比例与成就退化、移动端点绘制 / 三轨只读活跃区间与启灯采样 | 场景提供歌曲有效时间/结束口径/判定计数；公共舞台只接收亮度，镜像映射不改变判定；见 [HUD 调整](gameplay-hud-v8.md) |
 | `WorkbenchUserStore` / `WorkbenchPreferenceSession` / `WorkbenchLayoutSession` | 独立用户目录的版本化快照、原子写入/损坏备份、偏好合并写入与启动前布局恢复；布局DTO不包含控件/HWND | Shell持有活控件/进程生命周期；预览音量和效果经IPC同步，测试使用隔离目录 |
 | `EditorNoteClipboard` | 完整父Note及路径的会话快照、精确相对拍时间、新身份和组合插入命令 | Shell拥有当前播放头/网格锚点、快捷键焦点保护、选区同步；不增加第二轮批量变换 |

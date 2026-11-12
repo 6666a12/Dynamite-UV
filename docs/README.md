@@ -20,11 +20,13 @@
 | [dyna-maker-uv.md](<dyna-maker-uv.md>) | 制谱器 Avalonia + Godot 主线、文件/命令接线、核心依赖与持久化边界；[editor README](<../editor/README.md>) 提供启动入口 |
 | [制谱器 UI 回归清单](<editor-ui-regression.md>) | UI 分层覆盖、真实窗口交互与未覆盖项；具体执行结果仍以 verification 为准 |
 | [releasing.md](<releasing.md>) | Public/Internal 隔离、clean worktree、签名和最终 APK 门禁 |
+| [Windows 编辑器打包](../tools/editor-release/README.md) | 当前固定测试profile、精简运行时/模板、便携卸载与构建操作；包身份统一见verification |
 
 ## 有效规格、安全与测量（按任务必读）
 
 | 文档 | 权威边界 |
 | --- | --- |
+| [网络服务第一阶段设计](<network-services-phase1.md>) | 已确认的免费曲库、开放注册、本人记录与上传重试范围；页面设计、自部署建议和待定项，尚未实现 |
 | [gameplay-hud-v8.md](<gameplay-hud-v8.md>) | 已接本体的 BLEED 血条、顶部统计/暂停、无框标题卡、视觉判定线与三档动效边界 |
 | [gameplay-spec.md](<gameplay-spec.md>) | 社区玩法、Legacy 兼容、空间/判定/计分；原版研究不能覆盖社区决策 |
 | [chart-format-v2.md](<chart-format-v2.md>) | 已冻结的 v2 合同，不因 UI 能力不足而降格；[Schema/golden pack](<../schemas/chart-format-v2/>) 是机器合同 |

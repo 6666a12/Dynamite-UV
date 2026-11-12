@@ -3,6 +3,32 @@
 > 维护原则：**执行日期、对象、条件、结果、未覆盖范围**一起写。静态核对、自动检查、导出验包、用户验收是四种证据，不能合并为“全通过”。
 > 当前功能与待办以 [交接](<handoff.md>) 为准；这里统一维护最近验证记录、测试包身份与操作命令，避免各 README 重复漂移。
 
+## 当前 Windows 编辑器测试包基线
+
+**2026-11-12 用户确认：当前配置“问题不大”，可作为现有测试包基线。** 后续测试与问题定位以本节身份为准，不继续使用早期同名candidate实验包。此确认不是所有设备、保存边界或公开发行检查全部通过的声明。
+
+| 字段 | 当前基线 |
+| --- | --- |
+| ZIP | `builds/editor-test-20261112-uninstall.zip`（本地忽略产物，不随克隆取得） |
+| 解压目录 | `builds/editor-test-20261112-uninstall/` |
+| 大小 / SHA-256 | 约67.15MiB / `165f8f7728031fa0487452c9550805947439066b46a3bab041a8779dc43bcc62` |
+| 平台 / 版本 | Windows x64 / `0.1.0-preview`；版本号未区分所有历史候选，须同时核对包名和hash |
+| 导出配置 | `windows-x64-test-v1`；定义在 [test-profile.json](../tools/editor-release/test-profile.json)，操作见 [打包说明](../tools/editor-release/README.md) |
+| 运行时 | Shell优先系统兼容.NET 10，包内裁剪自包含应用兜底；Godot舞台使用裁剪自包含.NET 9 |
+| 原生模板 | 保留3D API的精简Godot 4.7.1；模板hash及运行时版本由profile检查 |
+| 启动 / 卸载 | `DynaMakerUV.exe` / 关闭编辑器后运行 `Uninstall.cmd` 并确认；保留额外谱包、修改文件和用户偏好 |
+| 资源来源 | PCK显式复用transport候选；托管代码重新发布，来源/hash记录在包内distribution.json，不称本轮全新导出 |
+| 自动证据 | 最终包双运行时Shell回归、卸载只读预检、发布47项及ZIP校验；细节见下方2026-11-12记录 |
+
+### 基线中的修复与保留边界
+
+- 已包含目录尾分隔符首次保存修复、保存快照版本/dirty修复、文本框保存快捷键、成功发布资源解除外部依赖、保存期间关闭保护，以及便携卸载入口。
+- 保存修复版真实窗口首次保存和三差分持久化验证见下方；加卸载后的最终包未重复可见窗口专项。用户确认单独记录，不把前一包证据冒称为后一包重新执行。
+- 资源替换跨保存后的历史媒体Undo/Redo版本恢复仍未完善；独立原生Auto回归退出132、用户暂缓的headless结算问题未修。
+- 精简模板缺ANGLE回退、WinRT TTS、AccessKit，原生图标/版本资源未重新应用；跨GPU、DPI、低端性能、无.NET/不兼容.NET干净机器尚未全面覆盖。
+- 未签名，许可证/notice复核与干净可复现发布基线未完成；包内`local-candidate-not-cleared-for-publication`不因本次文档确认自动改变。没有安装器、自动更新或自动录制。
+- 导出参数暂时固定，不自动继续裁剪。运行时安全更新或模板变更须更新profile并复验；旧版本不是永久冻结。早期包仅作历史证据，不回写其失败结论。
+
 ## 原生对象回归入口
 
 先构建对应项目，再按下方运行约定结束残留 Godot。以下为入口，不代表本次重新执行。
@@ -25,7 +51,45 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 右键面板对象回归：`<Godot-Mono> --headless --path editor -- --verify-context`。检查菜单请求、选中状态、视口边缘和关闭/取消手势；不证明实际 HWND 输入、GPU 像素或音量听感。
 
+2026-11-11 首个 Windows x64 编辑器分发候选包：新增 `tools/editor-release/build.py`、原生 `tools/editor-release/launcher.cpp` 与 Shell `StageLaunch`。候选包位于忽略的 `builds/editor-candidate-20261111/`，约303MiB，包含 Avalonia Shell、Godot自包含舞台、包内.NET 10.0.10、运行来源日志、文件SHA-256、README和许可证/第三方通知目录；`distributionStatus` 明确为 `local-candidate-not-cleared-for-publication`。系统运行时优先与 `--bundled-runtime` 强制包内路径均已在仓库外中文/空格目录通过 `--launcher-check`；复制到该目录后直接运行 Shell headless 回归，退出0。包内运行时完整真实窗口回归 `tmp_shots/editor-distribution-20261111/desktop-results.txt` 通过：Godot嵌入、三差分/音频推进、Shell Save As、Inspector、Ctrl+Z/Y/S、重开。完整仓库 `builds/editor-distribution-verify.log` 返回0：结构319源文件，三端构建（Shell保留3条既有Watermark弃用警告）、核心/编辑器/Shell回归、38项发布测试和diff检查通过。Godot导出舞台运行时优先切换探针失败并已确认是Godot 4.7.1官方Mono导出模板要求其自包含runtime；没有修改引擎或伪称舞台支持系统优先。候选包未经代码签名，且29个NuGet包当前只有license标识而未发现包内notice文件，需依赖归属/notice复核后才能对外分发；未实现自动更新，未完成无.NET/不兼容.NET的真实机器测试，不称正式发行包。
+
 ## 最近验证记录
+
+2026-11-12 网络服务第一阶段设计记录：新增 network-services-phase1.md，分开记录用户确认的开放注册、免费管理员曲库、本人记录、结算上传与手动重试，以及服务器隔离/部署/页面的建议和待定细节；明确段位、联机、反作弊与脚本扩展不在第一阶段。同步文档导航和handoff入口。检查新专题及两份入口共88个本地链接目标均存在（不检查锚点），工作区diff检查通过，仅有既有LF/CRLF提示。本轮仅文档，未构建或运行产品、未实现网络功能、未接入Penpot或修改凭据/设计稿。
+
+2026-11-12 测试基线文档整理：按用户确认建立本页当前Windows测试包身份表，入口README/editor README、handoff、制谱器专题和打包说明改为引用该基线；清理“无完整桌面包”“多选尚未接入”“仍用runtime目录兜底”等过时现状，将已修保存问题与剩余媒体历史恢复缺口分开。历史失败/候选记录原文保留，不修改归档。检查7份更新文档132个本地链接目标无缺失，新基线锚点标题存在，diff检查通过（既有LF/CRLF提示）。本轮仅文档，不重跑构建/产品回归、不启动应用、不重新打包，现有ZIP/hash不变。
+
+2026-11-12 固定测试导出配置与便携卸载：新增windows-x64-test-v1配置，固定双裁剪、Shell 10.0.10/舞台9.0.18和验证过的模板SHA-256，构建遇版本/hash漂移失败。新增Uninstall.cmd/uninstall.ps1，确认后按manifest/hash删除程序文件，不递归删除根目录，保留额外谱包、修改文件及用户偏好；路径越界/reparse检查与占用预检查。遵守系统PowerShell执行策略，不设置Bypass。四项隔离卸载执行测试通过（中文/空格路径、保留额外谱面与修改文件、越界拒绝、占用拒绝），发布47项与结构/diff通过（editor-uninstall-release-tests.log）。新包builds/editor-test-20261112-uninstall/构建通过；双运行时Shell回归与最终包卸载只读预检通过（editor-uninstall-launcher.log、editor-uninstall-package-check.log：295项），未在用户真实目录执行卸载、未点击确认对话框或重跑本轮可见编辑窗口。ZIP 67.15MiB、CRC/hash通过，SHA-256 165f8f7728031fa0487452c9550805947439066b46a3bab041a8779dc43bcc62（editor-uninstall-zip.log）。许可证复核、干净构建/无.NET机器及模板覆盖限制仍保留；用户认可测试配置不等于这些发行检查完成。
+
+2026-11-12 保存状态与交互修复：会话新增SaveAsync，由调用线程捕获pack/chart/resource快照，仅writer在后台执行，回调用上下文确认保存版本；EditorDocument用单调ChangeVersion避免保存期间编辑/撤销重做被误清dirty。成功发布只解除仍匹配本次快照的pending资源，保存后移走外部替换音频、同会话继续保存通过。Shell在目录选择前设置ioBusy、保存期间禁止关闭；文本框Ctrl+S/Ctrl+Shift+S进入全局保存，保留其它文本编辑快捷键。新增SaveInteractionVerification直接触发SAVE控件、真实文本焦点按键和writer发布屏障，确认磁盘/内存/dirty与二次保存一致；首轮夹具控件未布局导致查找失败，补选择与布局后通过。`editor-save-safety-verify.log`完整verify通过（发布43项），`editor-save-safety-core.log`覆盖资源归属与尾分隔符生命周期。资源替换跨保存的Undo/Redo历史媒体版本保留仍未实现，不将本次解除当前pending依赖外推成该能力。新最小候选构建完成：`builds/editor-candidate-20261112-save-safety/`（editor-save-safety-build.log）；仍显式复用transport PCK并重新发布托管代码，精简模板/许可证/干净机器等限制不变。最终包系统/包内两条运行时路径的Shell回归通过（editor-save-safety-launcher.log）；包内运行时真实窗口首次保存（StorageProvider带尾分隔符路径、磁盘strict重开）与三差分保存/撤销重做/重开专项通过（tmp_shots/editor-save-safety-first-20261112/desktop-results.txt、editor-save-safety-persistence-20261112/desktop-results.txt）。ZIP已生成并校验hash/CRC，67.15MiB、解压168.10MiB，SHA-256 `8f3b9f13453340f0052e9a0de98e2b4101303fd3283579cb2ea5e095427e9c3d`（editor-save-safety-zip.log）。不代表用户手动目录对话框、所有设备或视觉验收。
+
+2026-11-12 单差分首次保存路径定位：用户明确最小包内已有Tap且选择全新空目录，排除空谱/非空目录解释。旧最小包`--smoke-empty`在注入不带尾分隔符路径时成功，但不能证明真实目录选择路径。隔离探针使用最小包程序集确认同一Tap草稿保存到空目录：无尾分隔符成功，有尾分隔符失败“参数错误”、meta/chart均不存在（editor-first-save-package-audit.log）；Avalonia StorageProvider返回的folder.Path.LocalPath确实带尾反斜杠（editor-save-ui-storage-audit.log）。writer把staging/placeholder后缀拼到原路径，结果变成目标子目录，发布移动父目录到其内部失败。修复RequireDirectoryPath/RequireDirectory统一TrimEndingDirectorySeparator，不放宽strict校验/非空目录保护；PackageLifecycleTests覆盖带尾分隔符首次保存、打开及另存为，editor-save-path-final-core.log通过。真实窗口smoke-empty改用StorageProvider解析的路径，并检查meta.json及strict重开的一颗Note，不仅检查dirty。其它已复现并发/快捷键/资源依赖缺陷未修；用户实际目录未读取或修改。完整verify通过（editor-save-path-fix-verify.log），最终生命周期补测通过（editor-save-path-final-core.log）。修复候选 `builds/editor-candidate-20261112-save-path-fix/` 构建通过（editor-save-path-fix-build.log），包内运行时真实窗口新建单差分/原生放置一个Tap/StorageProvider带尾反斜杠目录首次保存/磁盘strict重开通过（tmp_shots/editor-save-path-fixed-20261112/desktop-results.txt）；未自动操作系统目录选择对话框本身。对应ZIP已生成且hash/CRC验证通过（editor-save-path-fix-zip.log），仍只修复目录路径问题，不是保存全链路安全声明。
+
+2026-11-12 保存UI专项诊断（未修复）：使用独立临时谱包和本地探针，不访问用户实际谱包。`builds/editor-save-ui-audit.log` 直接触发顶部真实SAVE控件Click：正常保存磁盘速度1.3、dirty=false，证明按钮确实接到磁盘writer；文本框实际获焦后发送Ctrl+S，磁盘仍1.3、dirty=true，快捷键被文本输入过滤。利用writer现有PublicationInterceptor在快照完成/发布前建立确定性屏障，再通过Inspector速度入口编辑，真实SAVE结束后内存1.9、磁盘1.7、dirty=false，确认后台保存与UI编辑并发会误清dirty。`builds/editor-save-audit.log` 核心会话同样复现内存1.8/磁盘1.2/dirty=false；另确认资源替换保存成功后移走外部源，在同一会话继续保存抛V2DiagnosticException且pending=1，MarkSaved未解除外部资源依赖。测试为Avalonia headless真实控件/路由及磁盘读回，不是原生HWND鼠标端到端或用户具体复现；初次探针项目相对引用路径错误，修正后执行以上结果。未改产品代码、未出新包，现有候选仍含这些缺陷；此前顺序保存回归通过不能覆盖保存中继续编辑、文本框焦点和资源替换后不重开会话的场景。
+
+2026-11-12 精简模板兼容版：保留3D核心API以兼容官方GodotSharp，关闭Vulkan/D3D12及不使用的可选模块，原生EXE 104.32→46.98MiB（editor-slim-template-api-build.log）。最终 `builds/editor-candidate-20261112-slim-api/` 构建成功，PCK资源、普通启动/IPC及HUD门禁通过（editor-slim-api-build.log）；双运行时选择和Shell回归通过（editor-slim-api-launcher.log）。强制包内运行时真实窗口专项三差分/音频推进/保存/撤销重做/重开/内部预览通过（tmp_shots/editor-slim-api-20261112/desktop-results.txt）；系统运行时路径同一窗口专项随后通过（tmp_shots/editor-slim-api-system-20261112/desktop-results.txt）。截图已采集，但本轮工具未返回可供目视的图像内容，不宣称GPU像素验收。最终目录168.08MiB（原303.49MiB），294文件；实际ZIP `builds/editor-candidate-20261112-slim-api.zip` 为67.14MiB，文件hash与ZIP CRC检查通过，SHA-256 `a9779973cd929b6732b7de73ea1b2c6916f0fcdaded1ec9d05afcdc5b740f5f4`。测量见editor-slim-final-sizes.json、editor-slim-api-zip.log。构建环境缺少可选ANGLE/WinRT TTS/AccessKit依赖，原生模板只有OpenGL回退覆盖且未重新写入原生图标/版本资源，限制已入distribution.json；不作为默认公开发行配置。复用既有PCK、裁剪警告、无.NET真机与许可证等未覆盖范围同下条。
+
+2026-11-11—12 编辑器精简实验（尚非公开发行）：`build.py` 新增可选 `--trimmed-fallback` / `--trimmed-stage` / `--stage-template` / `--stage-from`；默认完整运行时策略保留。系统优先路径仍使用普通Shell，包内兜底为独立自包含裁剪Shell，不伪装通用.NET安装；Godot托管裁剪保留完整GodotSharp/项目程序集与原生托管入口。首轮JSON反射开关缺失导致Shell启动失败；中间产物复用使后续开关未生效，隔离发布后Shell回归通过。Godot首次裁剪关闭native hosting而退出139，保留SDK对应开关与桥接程序集后HUD/手势/菜单对象回归通过。源码自编译首版引擎42.62MiB，但`disable_3d=yes`使官方GodotSharp的Viewport.set_world_3d绑定失效；HUD专用入口未覆盖，普通启动/IPC和真实窗口发现，**`builds/editor-candidate-20261112-slim/` 不可用**。已新增普通启动/IPC错误门禁，负例退出1（editor-slim-startup-negative.log），不把退出0但日志有ERROR计为通过。
+
+仅运行时精简、保留官方引擎的 `builds/editor-candidate-20261112-slim-managed/` 已通过最终包双运行时启动/非图形回归（editor-slim-managed-launcher.log），包内裁剪Shell真实窗口三差分加载、音频推进、Save As、Inspector、Ctrl+Z/Y/S、重开与内部预览切换通过（editor-slim-managed-desktop.log，截图/保存产物tmp_shots/editor-slim-managed-20261112）。大小303.49→225.42MiB，实际逐文件DEFLATE payload124.55→87.39MiB，非已生成ZIP大小；测量见editor-slim-managed-size.json。完整仓库verify通过（editor-slim-full-verify.log），后续发布43项通过（editor-slim-release-tests-final3.log）；Shell既有3条Watermark警告与裁剪分析警告未消除。两次官方导出日志到打包完成后未退出，使用受跟踪任务停止，不能计成功；本轮候选明确复用transport候选PCK并记录来源/hash，托管代码重新发布。保留3D API的第二版原生模板及最终合并包验证另记。随后系统运行时路径同一真实窗口专项也通过（tmp_shots/editor-slim-managed-system-20261112/desktop-results.txt），候选293项文件hash全部匹配。没有无.NET机器、全部文件对话框/编码/DPI/低端性能或用户视觉验收；旧Auto退出132未修，许可证/签名/干净发行基线仍待处理。
+
+仅运行时精简ZIP已实际生成并通过CRC检查：`builds/editor-candidate-20261112-slim-managed.zip`，87.46MiB，SHA-256 `b5dc8d7e889d74d557869e294c5c23667b2c9894a0369429c00245af9b78d205`（editor-slim-managed-zip.log）。这是本地实验压缩包，不代表公开发行许可或干净机器验收。
+
+2026-11-11 隐藏游戏效果预览入口与编辑器大播放/暂停键：按用户决定移除StageView公开复选框，内部模式/IPC/验证入口保留、默认关闭且不持久化，自动录制尚未实现。编辑器新增独立 `EditorTransportButton`，184×80、中心(960,72)，绘制播放三角/暂停双竖线，不改变游戏本体120×64暂停键；Controller继续拥有播放/暂停/音频生命周期。`editor-transport-verify.log` 完整verify通过（结构324源文件、三端构建、核心/编辑器/Shell及发布39项）；随后补隐藏入口断言并重跑Shell headless通过（editor-transport-shell-final.log）。原生 `editor-transport-native.log` 验证按钮几何、无谱禁用、播放状态、鼠标/触摸意图和内部预览隐藏/恢复通过。未启动可见应用进行本轮目测，不等于真实HWND点击/用户视觉验收；旧Auto退出132问题未改。候选包 `builds/editor-candidate-20261111-transport/` 构建完成，最终PCK资源加载门禁通过（editor-transport-candidate.log）；本轮未对该包运行可见窗口回归，仍为未签名且待许可证复核的本地候选。
+
+2026-11-11 编辑器HUD/游戏效果预览与路径描边：将9个HUD展示/纯显示状态文件及UID移入 `presentation/game/hud/`，标题改由值快照传入，游戏保留原判定/血量/暂停/成绩权威，测试链接和结构策略同步、不放宽预算。编辑态保留标题/4px进度/蓝线，完整Auto预览用工具栏开关，隐藏舞台编辑导引并阻止舞台编辑手势，不锁定Shell文档命令、不实现Storyboard。`SustainOutline`只在真实节点画横向端边；`IsShapeSample`为运行时元数据，不写文件或Digest。阶跃改为同刻左极限和真实终点，三轨Hold/Mixer精确边界、非计分采样、原始字节回归通过；100阶跃样本300对象（原算法该样本25700），本机预热后约1.93–2.02ms/486360分配字节，不是低端FPS证据。`editor-preview-full-verify.log` 完整verify通过（结构323、三端构建、核心/编辑器/Shell、发布39项）；最终模式同步后 `editor-preview-final-verify.log` 同样打印VERIFICATION PASS，发布39项全过。新增原生HUD/描边测试 `editor-preview-hud-native2.log` 通过；游戏HUD `editor-preview-client-hud-native.log` 通过。真实窗口 `editor-preview-desktop.log` 验证三差分、音频推进、保存/重开、预览切换/seek且文档不变，截图在 `tmp_shots/editor-preview-20261111/`；不替代用户视觉验收。**独立Auto原生测试两次三轨行为断言完成后在Godot C#对象清理时失败，退出132，报ShaderMaterial unsafe reference/instance binding错误（editor-preview-auto-native.log、editor-preview-auto-recheck.log），未修复、不计为通过。** 首轮HUD测试夹具缺JudgeWasExplicit导致strict拒绝，修正后通过；首次renderer aggregate 805超800，端边配置职责移入SustainOutline后通过，未改预算。本批新包 `builds/editor-candidate-20261111-preview/` 已生成，最终PCK三种shader/两份字体加载门禁通过（editor-preview-candidate-build.log）；使用包内runtime运行该候选包真实窗口回归通过（editor-preview-package-smoke.log），截图在 `tmp_shots/editor-preview-package-20261111/`。后补阶跃投影同刻左极限断言并重跑编辑器测试通过（editor-preview-step-final.log）。候选包仍未签名且许可证复核未完成，不是正式公开发行包；低端设备/用户视觉验收仍待补。
+
+2026-11-11 候选包音符材质缺失修复：用户报告普通音符材质未加载，核对 `NoteView` 动态引用与导出preset确认遗漏 `res://shaders/note_material.gdshader`（旧note_surface已包含）。新增 `tools/editor-release/verify_resources.gd`，由build.py在空临时项目挂载最终PCK，实际加载两种shader与共享字体；旧包检测明确失败，日志 `builds/editor-material-old-pack-check.log`，不能将上轮窗口流程通过当作材质完整性证明。补齐显式导出项，并新增静态防漏回归；发布39项全部通过（`builds/editor-material-release-tests.log`），结构319源文件与diff检查通过。新包 `builds/editor-candidate-20261111-material-fix/` 构建成功（`builds/editor-material-fixed-build.log`），最终PCK两种shader与两份字体实际加载全部通过；本轮未重新运行可见窗口/GPU像素验收。未修改shader效果或判定逻辑，旧包未覆盖。
+
+2026-11-11 用户授权临时产物清理：删除旧Shell构建副本（floating-close-check、ui-fixes-shell、workspace-check）、旧dyna-maker-uv构建、发行运行时失败探针目录、首轮persistence样本、部分11月7—8日窗口smoke目录，以及 `.tmp/ui-research/alignment`、Dock/SukiUI/Ursa研究副本和 `.tmp/modularize2` / `.tmp/modularize3` 旧探针快照。按清理前目录统计估算释放约6.0GiB；清理后builds约352.0MiB、.tmp约302.9MiB、tmp_shots约265.1MiB。当前候选包 `builds/editor-candidate-20261111/` 的518项哈希全部匹配；最终persistence样本、当前两组窗口证据、截图驱动capture_frame.py及dxcam、builds根日志均保留，tmp_shots本轮未删除。**上述已删除旧目录在历史文档中的路径不再可用，历史通过记录不等于产物仍存在；不改写归档原文。** 没有删除Git跟踪文件，结构检查319源文件通过；本轮未重跑构建/产品回归，未清理设计源、Internal数据、系统临时目录或其他worktree。
+
+2026-11-11 品牌扫描worktree范围修复：`test_brand_identity.py` 将扫描提取为可测函数，遍历时剪枝仓库根下 `.claude/worktrees/`，不读取其中其他checkout；没有删除工作树、修改旧名称允许计数或发布资源白名单。新增隔离用例确认正式源码、未跟踪新源码、历史文档、其他 `.claude` 内容以及产品子目录中同名worktrees仍被检查。`builds/brand-worktree-scope.log` 4项通过；完整 `python -B tools/verify.py --no-restore` 在 `builds/brand-worktree-final-verify.log` 返回0并打印 `VERIFICATION PASS`：结构317源文件、三端增量构建各0警告/0错误、核心/编辑器/Shell回归、38项发布测试及diff检查全部通过。既有Watermark警告在此前重新编译Shell时出现，本次增量构建不代表警告代码已修复。之后仅同步入口/本页文档，另行diff复查。未启动Godot、未出包；headless结算问题按用户决定保留不改，历史失败记录不回写。
+
+2026-11-11 后续失败定位（仅诊断，未改品牌门禁/产品shader/退出语义）：品牌扫描额外57次命中全部来自 `.claude/worktrees/` 下三个已登记旧工作树（各19次，共12个文件），主工作区无额外命中、历史允许项无缺失。`test_brand_identity.py` 的物理递归不读取gitignore，且只排除当前测试文件自身，因而扫描了旧工作树的历史文档及检查脚本字面量；未删除工作树或扩大允许计数。结算首轮日志已有 `=== RESULT ===`，不是结算未触发：`ShowResults` 设置 `_finished` 后，`GameplayMain._Process` 提前返回，位于其后的验证 `CompleteFrame` 不再累计，故4200游玩帧目标不可达。另用隔离 `.tmp/result-shader-diagnostic/` 探针确认，原 `wordmark_diffuse.gdshader` 将内建TEXTURE传入sampler2D辅助函数时，headless稳定报9条 `custom_samplers` 错误；同一原shader在本机Vulkan Mobile/OpenGL Compatibility编译均无ERROR，探针改显式纹理uniform后headless无ERROR。日志 `builds/result-shader-probe-{original,uniform,mobile,gl_compatibility}.log`；这只验证编译/材质设置，不代表GPU像素或所有设备验收。三个问题分别为扫描范围污染、验证生命周期退出缺口和headless后端shader兼容，不能互相归因；本轮未实施修复。
+
+2026-11-11 首发前谱包保存/读取专项（本轮执行）：新增 `PackageLifecycleTests` / `PersistenceFixture`，默认编辑器回归运行三差分756父Note的完整磁盘往返；保留样本在 `builds/persistence-lifecycle-20261111-final/搬移后 Portable/`。`builds/editor-persistence-lifecycle-final.log` 通过：新建首次保存、独立dotnet子进程重开、完整字段/媒体/Digest对比、原外部资源移走后重开、编辑及撤销重做、Windows文件占用保存失败保护、另存为源包不变、差分复制/删除/重排、包音频替换与差分覆盖保持、搬移后重开、三轮重复保存字节稳定。真实Avalonia+Godot窗口专项 `builds/editor-persistence-desktop-v3.log` 通过三差分加载/音频位置推进、Inspector修改、Ctrl+Z/Y/S入口、另存为及重开；保存输出与截图在 `tmp_shots/persistence-20261111-v3/`。首轮窗口断言误把运行时对象数当父Note数、只接受loaded而非updated；第二轮固定500ms等待不足，改为等对应revision回执后通过。首版测试封面CRC错误，在进入最终样本前改为有效原创PNG；这些为测试夹具/同步修正，未修改产品保存规则。最终Shell构建 `editor-persistence-shell-build-v3.log` 为0错误、3条既有Watermark弃用警告；`editor-persistence-core-final.log` 编辑器核心与 `editor-persistence-headless-final.log` Shell回归通过；结构门禁317源文件通过。完整verify两次均为三端构建/核心/编辑器/Shell通过、发布37项中36通过，仍仅 `.claude/worktrees/` 旧副本品牌扫描失败（`editor-persistence-baseline.log` / `editor-persistence-final-verify.log`）；后续测试夹具最终修订另跑上述定向回归，未冒称完整verify全绿。没有读取/修改用户实际谱包，没有使用原版语料；未测试系统文件选择对话框、全部原生键鼠、断电/磁盘耗尽恢复、听感、DPI/性能或独立发行包环境，不替代用户验收。游戏首轮Mega加载成功并在有效trace中达到486/486 Perfect，但进入结算时headless shader报告 `custom_samplers` 错误，结算后固定帧计数不再推进，180秒超时退出（124）；末行trace因强制退出截断，不计为整轮通过。未修改结算/判定产品代码。最终以2280帧（固定60FPS、模拟38秒，在结算前退出）分别运行Shell保存的Mega/Hard/Normal，三次退出码均0且无ERROR；每个trace完整2280行、486/486 Perfect、pending=0、Miss=0、归一化1,000,000，见 `builds/editor-persistence-game-final-{mega,hard,normal}.log` / `persistence-game-final-{mega,hard,normal}.jsonl` 及 `editor-persistence-game-summary.json`。证明本次谱包经游戏实际ChartPack/音频解码/运行时适配/判定链可用，不证明结算headless已修复、真实触控或听感。最终确认Shell/Godot进程均已退出，diff检查通过（仅既有LF/CRLF提示）。
+
+2026-11-11 应用图标 v2 设计与接入：游戏与制谱器各一枚，由 `design/app-icons-v2/build_icons.py` 程序化生成（硬几何 4× 超采样后降采样；光效在 1024 分辨率走独立加色通道）。游戏版为三颗下落音符 + 命中爆闪与分叉电光，编辑版为同材质弯成的路径 + 菱形节点 + 粉色控制柄 + 网格底板。已拷入受跟踪目录并接线：`client/project.godot` 与 `editor/project.godot` 的 `config/icon`、`client/export_presets.cfg` 两个 Android preset 的 `launcher_icons`（192/432×3）与 `splash_screen/icon`、`editor/export_presets.cfg` 的 `application/icon` 与 `export_files`、`editor/shell/MainWindow.axaml` 的窗口 `Icon`；八份新资产登记进 `release/asset-provenance.json`。`python -B tools/architecture/check.py` PASS（314 源文件）；`dotnet build` 三端 0 错误（Shell 3 条既有 `SelectionInspector` TextBox.Watermark 弃用警告）；Shell `--headless` 回归通过；`test_release_contract` 8 项全通过（含 provenance 哈希）。adaptive 前景实体安全半径 0.537/0.541，低于 66dp 上限 0.611；单色墨量 0.178/0.157。发布测试全套仍只有既有的品牌扫描失败（`.claude/worktrees/` 旧副本），本次未新增失败、未放宽白名单。**未导出 APK、未在 Android 真机验证 adaptive/themed icon 与启动图、未启动可见窗口目视窗口图标、未验证 iOS/macOS 裁切；`_iterations/` 总目录视为可清理的过程稿，未取得真实窗口用户验收。**
 
 2026-11-10 对象磁吸暂停：用户报告吸向坐标2时出现1.9几/2.0几且不稳定，随后决定暂不完善磁吸。已移除左侧开关和提示，ToolsView强制返回关闭，忽略旧ObjectSnap=true偏好；原生实验实现保留，未修复算法，不再列为待手感验收。`builds/editor-magnet-hidden-build.log` Shell构建成功（0错误，3条既有SelectionInspector TextBox.Watermark弃用警告）；`editor-magnet-hidden-tests.log` Shell headless通过，新增旧开启偏好不生效、入口不存在、位置模式仍独立恢复三项断言。结构门禁314源文件、diff检查通过。未启动可见窗口或Godot，未重跑原生/核心/完整verify；本次只证明入口撤下及Shell关闭策略，不证明磁吸精度已修复。
 
@@ -50,10 +114,16 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 | [2026-11-02—08 制谱器/格式验证](archive/reports/2026-11-02-08-editor-verification.md) | 保留各轮构建、失败/重试、对象与真实窗口证据。用户已确认这批功能整体满意，可收尾；不外推全部 DPI/设备/性能 |
 | [2026-10 游戏与结构验证](archive/reports/2026-10-verification.md) | 旧构建/素材/拆分/布局/规则实施证据，不覆盖最新源码 |
 | [BLEED/HUD 设计过程](archive/art/2026-11-08-09-bleed-hud-design.md) | 已被本体 v8 替代的独立方案与预览；不再作为未接入待办 |
-| [应用图标候选](archive/art/2026-11-08-app-icon-candidates.md) | 未选定、未接入，暂无后续排期；不能当产品图标发布 |
+| [应用图标候选](archive/art/2026-11-08-app-icon-candidates.md) | 2026-11-08 的旧候选（A/B/C 环与字母），未采纳；现行图标见 `design/app-icons-v2/`。原文不改动，归档不等于批准发布 |
 | [更早原文快照](archive/2026-10-26-cleanup/README.md) | 原始记录保留，不回写历史验证结论 |
 
 ## 用户反馈与验收边界
+
+- **2026-11-12 基线确认**：用户明确当前导出配置可作为现有测试包基线；身份见[当前基线](#当前-windows-编辑器测试包基线)。不是仅计划固定，也不外推完整发布验收。
+
+- **2026-11-12 用户反馈**：save-safety最小包“不错”，要求增加卸载入口后交给他人测试，并暂时固定这套导出配置。记录为对该候选的积极试用反馈，不外推全部保存边界/设备/正式发行许可；固定配置为windows-x64-test-v1。
+
+- **2026-11-11 用户决定**：处理本地worktree污染品牌扫描的问题；headless结算shader兼容与验证退出问题暂不处理。保留诊断证据，不将其称为已修复，也不作为当前制谱器首发的自动新增任务。
 
 - **2026-11-09 用户确认**：游戏 HUD v8 本体实际效果满意；音符材质与命中特效（侧轨旋转、Mixer 徽章、默认亮度和残影）、Standard→Hardcore→Standard 模式切换基本通过。模式切换确认不代表成绩模式隔离已实现。
 - **2026-11-09 用户确认**：制谱器最近这批功能整体满意、可以收尾，范围包括放置/拖动/调宽/路径编辑、播放预览与滚轮命中特效、右键面板、跨屏框选、Dock 面板与窗口恢复。无需再把这一批整体列为待验收；设备/DPI/长谱性能等未覆盖边界仍保留。
@@ -121,6 +191,22 @@ dotnet run --project tools/core-tests/CoreTests.csproj -- --dev-testdata client/
 - 结构门禁只证明依赖/源码链接/行数预算，不是语义、编译、行为或性能证明。
 - `.tmp/modularize*/` 的快照/探针被忽略，可能不随克隆取得，不能当成已接入 CI 的稳定回归入口。涉及行为变化时应补版本化用例，不能只引用旧 headless 哈希。
 - 严禁为通过检查而放宽源码预算、发布白名单、品牌历史允许计数或把内部语料变为默认依赖。
+
+## 谱包保存/读取专项复验
+
+`tools/chart-editor-tests/Packages/PackageLifecycleTests.cs` 已接入默认编辑器核心回归。它通过 `EditorDocumentSession` 和文档命令创建原创合成谱包：三差分、每差分252个父Note（共756）、三轨七类对象、Hold/Mixer多节点、精确分数拍、BPM/Scroll及曲线、逐Note差速、包/差分试听与独立音频。用独立子进程重开并比对完整规范编码、媒体哈希及Digest；覆盖另存为源包不变、外部资源失效后的可移植性、资源替换/差分删除、Windows文件占用失败、Undo/Redo和重复保存字节稳定性。不使用原版语料，不测试断电恢复或发行包安装环境。
+
+如需保留样本供真实窗口/游戏验证，输出目录必须不存在：
+
+```powershell
+dotnet run --project tools/chart-editor-tests/ChartEditorTests.csproj -- --persistence-output builds/persistence-<unique-run>
+# 按下节约定先结束残留 Godot，再运行；截图目录同样使用新的运行名。
+$env:DYNA_VERIFY_PERSISTENCE_PACK = (Resolve-Path "builds/persistence-<unique-run>/搬移后 Portable").Path
+dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --smoke tmp_shots/persistence-<unique-run>
+Remove-Item Env:DYNA_VERIFY_PERSISTENCE_PACK
+```
+
+该专项 `--smoke` 使用真实Avalonia窗口、Godot子窗口和IPC，逐差分等待revision回执，检查音频播放位置推进、Inspector修改、快捷键入口、保存与重开，并采集截图。文件路径通过现有验证入口注入，**不覆盖系统文件选择对话框或全部原生键鼠操作**；声音推进不等于听感验收。截图仍依赖本机 `.tmp/ui-research/capture_frame.py`，不随克隆取得。默认完整非图形verify不会启动该窗口专项。
 
 ## 运行、截图和录屏
 

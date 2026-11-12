@@ -1,6 +1,6 @@
 # DynaMaker UV 当前说明
 
-> 2026-11-09：Avalonia + Godot 已成为正式 editor 主线。本文描述当前进程边界、已接线的 UI/文件/预览/制谱能力及未完成范围；旧 Penpot 页面与旧 Godot 外壳只作历史参考。用户已确认最近一批编辑功能整体满意、可收尾；剩余功能与专项边界仍见 §6，具体确认范围见 [验证记录](verification.md#用户反馈与验收边界)。
+> 2026-11-12：Avalonia + Godot 为正式 editor 主线，用户已确认当前Windows精简包配置作为测试基线（包身份统一见verification）。本文描述当前进程边界、已接线的 UI/文件/预览/制谱能力及未完成范围；旧 Penpot 页面与旧 Godot 外壳只作历史参考。剩余功能与专项边界见 §6，具体确认范围见 [验证记录](verification.md#用户反馈与验收边界)。
 
 ## 1. 进程与项目
 
@@ -14,6 +14,18 @@ editor/shell ──► ChartEditor.Core ──► shared
      │  IPC / HWND
 editor Godot ──► presentation ──────► shared
 ```
+
+## 1.1 Windows 测试基线与运行时
+
+- 用户入口是包根目录的原生 `DynaMakerUV.exe`，不依赖任何 .NET 才能进入运行时探测。它检查 x64 .NET 10 兼容启动能力：系统安装可用时运行普通 `shell/`；当前测试基线不可用时启动 `shell-bundled/` 的裁剪自包含Shell。旧完整运行时方案的 `runtime/` 仅用于未启用精简profile的构建。
+- 探测是一次独立的 `--runtime-check` 子进程，不把应用崩溃误判成运行时缺失；真正的 Shell 退出码不会自动在第二套运行时重试。`--bundled-runtime` 可用于诊断/复验，`--launcher-check` 只检查选择链路。
+- 启动器设置 `DOTNET_MULTILEVEL_LOOKUP=0` 并固定到选中的运行时，避免系统其他架构或全局目录偷偷改变结果。运行来源写入 `%LOCALAPPDATA%/DynaMakerUV/logs/launcher.log`。
+- Shell 发布目录包含 `shell/`，Godot 导出舞台包含 `stage/DynaMakerStage.exe`、`.pck` 及数据目录；包根还带 `distribution.json`、`files.sha256.json`、许可证/第三方通知和 `README.txt`。必须整体解压，不能只复制入口 EXE。
+- 4.7.1 Godot Windows .NET 导出模板自身按自包含方式携带舞台运行时。隔离探针证明仅移除其运行时并设置 `DOTNET_ROOT` 无法启动；因此当前不宣称舞台也遵循系统优先，首候选包是“Shell 系统优先/包内兜底 + Godot 舞台自包含”。
+- 构建脚本在独立空项目挂载最终舞台PCK，检查两种音符shader及共享字体能实际加载；这些由C#字符串动态引用的资源必须显式列入导出preset，源码中存在不等于已经打包。该检查不替代GPU画面验收。
+- 候选包不含自动更新、不含签名，`distributionStatus` 明确为本地候选；NuGet 依赖中仍有若干包只有 SPDX/license 元数据而没有随包 notice 文件，完成依赖归属复核并补齐后才能公开分发。
+- 2026-11-12 用户确认当前带卸载入口的包作为现有测试基线，暂时固定 `--profile windows-x64-test-v1`（[配置](../tools/editor-release/test-profile.json)、[构建说明](../tools/editor-release/README.md)）；包名/hash统一见[当前测试基线](verification.md#当前-windows-编辑器测试包基线)。参数漂移必须显式复核；不是免除许可证/干净机器等发布检查。便携包附Uninstall.cmd，确认后仅删除清单内hash未变的程序文件，保留谱包/额外文件/修改文件和用户偏好，不创建系统安装项，遵守PowerShell执行策略。
+- 实验精简参数：`tools/editor-release/build.py --trimmed-fallback` 保留普通 `shell/` 供系统.NET使用，另发布 `shell-bundled/` 自包含裁剪应用作离线兜底；它不是可供任意应用使用的通用.NET安装。`--trimmed-stage` 保留GodotSharp/项目程序集和原生托管入口，仅裁剪可达运行时依赖。两项均非默认，裁剪警告和实际覆盖以verification为准；不得用一次启动成功替代保存、布局、音频和原生舞台验证。
 
 ## 2. 已接线的文档与 UI 能力
 
@@ -33,6 +45,10 @@ editor Godot ──► presentation ──────► shared
 - 中英文资源位于 `editor/shell/Localization/`，`IWorkbenchLocalizer` 与 `{local:Tr}` 提供运行时切换和英语缺键回退。
 
 ## 3. 预览与快捷键
+
+- 2026-11-11 编辑态同步新版舞台：底线延长、去除旧中央Mixer装饰，保留无框标题/难度、顶部4px播放进度与两段蓝线，不显示判定统计或血条。顶部中央新增编辑器专用184×80播放/暂停按钮（中心960,72），没有谱面时禁用；播放状态来自现有Controller，游戏本体按钮不变。共用HUD组件位于 `presentation/game/hud/`。
+- 游戏效果预览按用户决定撤下UI入口，默认关闭且不持久化；底层完整HUD/Auto模式和内部验证入口保留，供未来自动录制使用（自动录制尚未实现）。内部模式隐藏编辑选区/放置导引与编辑器大按钮、禁用舞台编辑手势；Shell文件/属性命令仍是原入口，不是锁定文档的只读模式。显示为Standard Auto满血预览，不模拟真实失误；seek重算统计，不写成绩、不改dirty、不新增Storyboard。
+- Hold连接体只在谱面真实节点处显示横向端边，自动细分点只参与侧边与填充。阶跃曲线以同刻左极限+终点表达，避免256段近似；曲线公式/原始节点/判定/Digest不改变。性能数据和未覆盖设备见verification。
 
 - Godot 使用 `V2RuntimeAdapter`、`V2BpmTimeline`、`V2ScrollMap`、`VisualScrollMath` 与 `GameplayStageRenderer`，保留 1920×1080、等比缩放、游戏 +40Y 偏移和逐 Note 差速。
 - 播放使用与游戏共用的 `GameplayNoteRenderer`/特效池：普通命中转残影并消失、Mine Auto 避让无爆发、Hold 动态头/连续接触/尾判、Mixer 动态接收头/持续粒子/结束回收。中间 Hold/Mixer 计分点与社区游戏一样不额外生成命中爆发；不新增 Mixer 尾判。编辑器特效默认 Full，可在空白处右键菜单切换；Note 亮度为 130%，残影为 300ms，不读取或修改游戏设置；游戏 Full/Reduced/Off 继续保留。
@@ -60,7 +76,7 @@ editor Godot ──► presentation ──────► shared
 - `EditorSpatialAnalysis` 只给建议，不修改游戏规则或阻止保存：三级提示分别为推荐区越界、判定线处可能不可见、检查到不可触达范围。分析包含正常/镜像、普通触宽扩边与 Mine/Mixer 身体的严格范围；路径节点及有预算的中间采样不构成全路径安全证明。设备边缘、HUD 遮挡、时间和操作速度不在分析范围。
 - SELECT 多选只对被抓父 Note 的时间锚点吸附一次，再按全组最早时间限制公共时间增量；空间增量不再受推荐边界限制；ghost 按各轨道与差速重新投影。路径命令维持头部空间编辑、全路径时间平移的既有语义。边缘调宽共用固定逻辑对边的吸附计算，避免松手时预览与提交不一致。
 - 2026-11-07 `result.json` 的历史逐项核实、修复和数值表示边界见 [审查核对](<archive/reports/2026-11-07-editor-debug-review.md>)。
-- 成功保存后才 `MarkSaved`；打开/创建失败不替换当前文档；保存失败保留内存文档与 dirty。
+- 成功保存后才确认已保存版本；打开/创建失败不替换当前文档；保存失败保留内存文档与 dirty。Shell使用会话SaveAsync：UI线程采集快照、后台仅写不可变请求、UI线程采用结果；保存期间的新编辑保留dirty并提示再次保存，不将最新历史位置误认作磁盘版本。保存/目录选择期间阻止关闭窗口与重复文件操作；文本框内Ctrl+S/Ctrl+Shift+S仍进入全局保存。已成功写入且没有被新替换覆盖的pending资源映射解除，后续保存与预览使用谱包内文件。
 - 未落盘草稿新增差分仍保留外部音频/封面来源；首次保存合并草稿原资源与 pending 替换，后者优先。跨格式音频替换同步目的扩展名；取消差分音频覆盖优先于已浏览来源；未编辑试听字段时保留包预览缺省。
 - 仅内存预览的编码、解码和 RuntimeAdapter 显式使用 `requireMainJudgement:false`，使空草稿可以放置首个 Note；默认 strict 打开、编码、Digest 与写包规则不变，空草稿仍不能直接保存。
 - Godot 根控制器补收全局左键松开，并先把 viewport 坐标转换到舞台 Control 局部坐标，保证嵌入窗口中的放置和路径拖动能够提交；文档命令保持幂等，不重复写入。单条 IPC 命令的数据、枚举、IO 或解码异常以 `error` 事件返回，不再直接终止舞台。
@@ -79,12 +95,13 @@ editor Godot ──► presentation ──────► shared
 
 ## 6. 尚未完成
 
-- 多选Inspector试用版已接入精确整体变换、宽度/轨道与非路径类型批量设置；需要用户确认实际布局与交互。基础复制粘贴、范围框选、Shift追加及既有批量操作已接入。
-- 第一轮偏好持久化、Dock 布局恢复、基础复制粘贴已接入并有非图形回归；尚未取得本轮真实窗口/用户验收，不等于完整桌面包已交付。
+- 多选Inspector已接入精确整体变换、宽度/轨道与非路径类型批量设置；用户此前无异议，当前整体包已成为测试基线，不将其整体重列为待验收。基础复制粘贴、范围框选、Shift追加及既有批量操作已接入。
+- 偏好持久化、Dock布局恢复和基础复制粘贴已有自动回归及相应用户反馈；设备/DPI/完整手动Dock等专项不因整体基线确认而自动通过，具体证据见verification。
+- 资源替换跨保存的历史媒体Undo/Redo版本恢复未完善；独立原生Auto对象测试退出清理异常尚未修复。首次保存尾分隔符、保存中编辑dirty、文本框保存快捷键和当前资源外部依赖问题已修复，不再列为未修任务。
 - 对象磁吸按用户决定隐藏并强制停用，暂不修算法；旧ObjectSnap偏好字段兼容保留但不启用功能，正常保存偏好时写为false。原有自动回归不证明用户报告的精度问题已解决。破坏性类型转换、时间缩放/反转和图案镜像仍不做。
 - 真实波形分析不列为当前目标，使用专门音频工具；BPM 导入保留后续候选，尚未实施。
 - 首个稳定版本前不做正式插件 API；当前保留内部官方扩展空间，不为假设的插件需求冻结接口。
-- 包含 Avalonia Shell、Godot 舞台和全部运行时的合并桌面导出包。现有 Godot export preset 只覆盖原生舞台；用户本人也会使用发行包，因此偏好/布局必须从现在起使用独立用户数据位置，不依赖源码或安装目录可写，升级不得覆盖个人配置。
+- 合并桌面候选包已包含 Avalonia Shell、Godot 舞台和离线运行时，运行策略见§1.1；正式公开发行所需许可证复核、干净构建基线及无.NET机器验证尚未完成。偏好/布局继续使用独立用户数据位置，不依赖安装目录可写，升级不得覆盖个人配置。
 - 其他 DPI、完整手动 Dock 拖放、长谱/大音频性能和听感专项。
 
 ## 7. 构建与验证

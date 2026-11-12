@@ -27,24 +27,8 @@ public sealed class GodotStageService : IDisposable
     {
         if (_disposed) throw new ObjectDisposedException(nameof(GodotStageService));
         if (Running) return;
-        var editorRoot = FindEditorRoot();
-        var engine = Environment.GetEnvironmentVariable("DYNAMAKER_GODOT") ?? Path.GetFullPath(Path.Combine(
-            editorRoot, "../../godot/Godot_v4.7.1-stable_mono_win64/Godot_v4.7.1-stable_mono_win64.exe"));
-        if (!File.Exists(engine)) throw new FileNotFoundException("Godot 4.7.1 Mono executable not found", engine);
-        var start = new ProcessStartInfo(engine)
-        {
-            WorkingDirectory = editorRoot,
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        start.ArgumentList.Add("--path");
-        start.ArgumentList.Add(editorRoot);
+        var start = StageLaunch.Create(AppContext.BaseDirectory, Directory.GetCurrentDirectory(),
+            Environment.GetEnvironmentVariable("DYNAMAKER_GODOT"));
         start.ArgumentList.Add("--resolution");
         start.ArgumentList.Add("1x1");
         if (parentHandle != 0)
@@ -79,11 +63,11 @@ public sealed class GodotStageService : IDisposable
     }
 
     public void Load(string chartJson, string title, string artist, string? audioPath, double bar,
-        long revision, IReadOnlyList<string> selection) =>
-        Send(new { command = "load", chart = chartJson, title, artist, audioPath, bar, revision, selection });
+        long revision, IReadOnlyList<string> selection, string difficulty = "", int? level = null) =>
+        Send(new { command = "load", chart = chartJson, title, artist, audioPath, bar, revision, selection, difficulty, level });
     public void Update(string chartJson, string title, string artist, string? audioPath,
-        long revision, IReadOnlyList<string> selection) =>
-        Send(new { command = "update", chart = chartJson, title, artist, audioPath, revision, selection });
+        long revision, IReadOnlyList<string> selection, string difficulty = "", int? level = null) =>
+        Send(new { command = "update", chart = chartJson, title, artist, audioPath, revision, selection, difficulty, level });
     public void TogglePlayback(bool playing) => Send(new { command = "play", playing });
     public void Seek(double bar) => Send(new { command = "seek", bar });
     public void SetPlayerSpeed(double multiplier) => Send(new { command = "playerSpeed", multiplier });
@@ -146,20 +130,4 @@ public sealed class GodotStageService : IDisposable
         }
     }
 
-    private static string FindEditorRoot()
-    {
-        var candidates = new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory };
-        foreach (var candidate in candidates)
-        {
-            var directory = new DirectoryInfo(candidate);
-            while (directory is not null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "DynaMakerUv.Editor.csproj")) &&
-                    File.Exists(Path.Combine(directory.FullName, "project.godot")))
-                    return directory.FullName;
-                directory = directory.Parent!;
-            }
-        }
-        throw new DirectoryNotFoundException("The DynaMaker UV Godot editor project was not found");
-    }
 }

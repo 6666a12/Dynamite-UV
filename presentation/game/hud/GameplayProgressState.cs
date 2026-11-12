@@ -1,9 +1,9 @@
 namespace DynamiteUniverse.Game;
 
-internal enum ProgressRunStatus { AllPerfect, FullCombo, Broken }
+public enum ProgressRunStatus { AllPerfect, FullCombo, Broken }
 
 /// <summary>Display-only progress and irreversible achievement loss; never decides completion.</summary>
-internal sealed class GameplayProgressState
+public sealed class GameplayProgressState
 {
     public double Fraction { get; private set; }
     public ProgressRunStatus Status { get; private set; }

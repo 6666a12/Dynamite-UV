@@ -8,6 +8,14 @@ public sealed partial class StageView : UserControl
 {
     public event Action? FloatRequested;
     public event Action? DockRequested;
+    // Hidden internal mode reserved for capture tooling; no user-facing toggle or persistence.
+    internal event Action<bool>? GamePreviewChanged;
+    internal bool GamePreviewEnabled { get; private set; }
+    internal void SetGamePreviewForVerification(bool enabled)
+    {
+        GamePreviewEnabled = enabled;
+        GamePreviewChanged?.Invoke(enabled);
+    }
     public event Action? PlayRequested;
     public NativeStageHost Host { get; }
 

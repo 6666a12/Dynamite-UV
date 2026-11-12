@@ -47,7 +47,7 @@ public static class EditorPathProjection
         return (sample.Center, sample.Width);
     }
 
-    /// <summary>把整条路径展开成时间递增的点串（头 + 每段插值细分 + 每个控制节点）。
+    /// <summary>把整条路径展开成点串；阶跃在同一终点保留左极限与真实节点，其余点时间递增。
     /// <paramref name="positionScalePx"/> 是 1 个谱面单位在屏幕上的像素数，
     /// <paramref name="widthScalePx"/> 是宽度误差的像素系数（与实机取同一组值）。</summary>
     public static IReadOnlyList<EditorPathSample> Flatten(EditorPathShape shape,
@@ -73,7 +73,11 @@ public static class EditorPathProjection
             var current = points[index];
             var curve = previous.CurveToNext ?? V2PathCurve.Linear;
             // 时间不递增的区间只可能来自未提交的草稿预览，此时不做求值（PCHIP 会除以零区间）。
-            if (curve != V2PathCurve.Linear && current.Time > previous.Time)
+            if (curve == V2PathCurve.Hold && current.Time > previous.Time)
+            {
+                result.Add(new EditorPathSample(current.Time, previous.Center, previous.Width, false));
+            }
+            else if (curve != V2PathCurve.Linear && current.Time > previous.Time)
             {
                 evaluator ??= new V2PathEvaluator(ToPathNote(shape));
                 var subdivisions = RequiredSubdivisions(evaluator, previous.Time, current.Time,

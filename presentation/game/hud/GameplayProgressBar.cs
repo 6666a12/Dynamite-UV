@@ -4,13 +4,15 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Top-edge progress, a small moving light and redundant achievement text.</summary>
-internal partial class GameplayProgressBar : Control
+public partial class GameplayProgressBar : Control
 {
     private readonly GameplayProgressState _state = new();
     private Label _status = null!;
     public Func<UiMotionMode> Motion { get; init; } = () => UiMotionMode.Full;
-    internal double Fraction => _state.Fraction;
-    internal Color FillColor => _state.Status switch
+    public double Fraction => _state.Fraction;
+    private bool _editing;
+    public void SetEditing(bool editing) { _editing = editing; _status.Visible = !editing; QueueRedraw(); }
+    public Color FillColor => _editing ? new Color("#83bce8") : _state.Status switch
     {
         ProgressRunStatus.AllPerfect => new Color("#f2ce79"),
         ProgressRunStatus.FullCombo => new Color("#83bce8"),
@@ -34,13 +36,13 @@ internal partial class GameplayProgressBar : Control
         Refresh();
     }
 
-    internal void Observe(GameplayHudSnapshot snapshot)
+    public void Observe(GameplayHudSnapshot snapshot)
     {
         _state.Observe(snapshot.Time, snapshot.EndTime, snapshot.CountGreat, snapshot.CountGood, snapshot.CountMiss);
         Refresh();
     }
 
-    internal void Complete() { _state.Complete(); QueueRedraw(); }
+    public void Complete() { _state.Complete(); QueueRedraw(); }
 
     private void Refresh()
     {

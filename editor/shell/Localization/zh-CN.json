@@ -1,4 +1,5 @@
 {
+  "Stage.GamePreview": "游戏效果预览 · AUTO",
   "Tools.ObjectSnap": "对象磁吸",
   "Tools.ObjectSnapHint": "同轨中心／同侧边缘对齐。按住 Alt 临时绕过，不影响时间网格。",
   "Batch.Transform": "整体变换",
@@ -237,6 +238,7 @@
   "Message.OpenPackage": "从文件菜单或 Ctrl+O 打开 strict v2 目录包",
   "Message.Opened": "已打开 {0}",
   "Message.Saved": "谱面包已保存到 {0}",
+  "Message.SavedWithNewEdits": "保存时的快照已写入 {0}；期间的新修改尚未保存，请再次保存",
   "Message.FileError": "文件操作失败：{0}",
   "Message.SaveBeforeOpen": "请先保存当前谱面包再打开另一个；未保存修改已保留",
   "Message.NoteSpeedSent": "NOTE {0} · 流速 ×{1:0.00} 已应用到文档",

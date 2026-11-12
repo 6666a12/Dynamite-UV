@@ -4,12 +4,12 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse.Game;
 
 /// <summary>BLEED visual node. Receives the real health snapshot and owns only display animation.</summary>
-internal partial class GameplayBleedBar : ColorRect
+public partial class GameplayBleedBar : ColorRect
 {
-    internal static readonly Color StandardColor = new("3689d9");
-    internal static readonly Color HardcoreColor = new("bd3445");
-    internal Func<UiMotionMode> Motion { get; init; } = () => UiMotionMode.Full;
-    internal Func<bool> Frozen { get; init; } = () => false;
+    public static readonly Color StandardColor = new("3689d9");
+    public static readonly Color HardcoreColor = new("bd3445");
+    public Func<UiMotionMode> Motion { get; init; } = () => UiMotionMode.Full;
+    public Func<bool> Frozen { get; init; } = () => false;
     private readonly BleedHudState _state = new();
     private ShaderMaterial _shader = null!;
     private bool _configured;
@@ -28,7 +28,7 @@ internal partial class GameplayBleedBar : ColorRect
         Material = _shader;
         Visible = false;
     }
-    internal void Observe(bool enabled, bool hardcore, double health)
+    public void Observe(bool enabled, bool hardcore, double health)
     {
         Visible = enabled;
         if (!enabled) return;

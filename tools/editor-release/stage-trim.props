@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup Condition="'$(EditorTrimScratch)' != ''">
+    <!-- Godot SDK otherwise uses .godot intermediates even with an artifacts path. -->
+    <BaseIntermediateOutputPath>$(EditorTrimScratch)/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(EditorTrimScratch)/obj/$(MSBuildProjectName)/</MSBuildProjectExtensionsPath>
+    <IntermediateOutputPath>$(EditorTrimScratch)/obj/$(MSBuildProjectName)/$(Configuration)/</IntermediateOutputPath>
+  </PropertyGroup>
+</Project>

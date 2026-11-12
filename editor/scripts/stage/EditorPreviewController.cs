@@ -39,6 +39,8 @@ public partial class EditorPreviewController : Control
         _stage = new EditorStagePreview { Name = "StagePreview" };
         AddChild(_stage);
         _stage.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _stage.PauseRequested += () => SetPlaying(false);
+        _stage.TransportRequested += () => SetPlaying(!_playing);
         _stage.NotePicked += OnNotePicked;
         _stage.NotesBoxSelected += ids =>
         {
@@ -190,6 +192,7 @@ public partial class EditorPreviewController : Control
                     root.GetProperty("width").GetDouble(), root.GetProperty("grid").GetInt32(),
                     !root.TryGetProperty("positionSnap", out var positionSnap) || positionSnap.GetBoolean());
                 break;
+            case "gamePreview": _menu.Close(); _stage.SetGamePreview(root.GetProperty("enabled").GetBoolean()); break;
             case "audioSnapshot":
                 _ipc.SendAudioSnapshot(root.GetProperty("requestId").GetInt64(), _second,
                     _audio.GetPlaybackPosition(), _audio.Playing, _audio.StreamPaused,
@@ -243,6 +246,10 @@ public partial class EditorPreviewController : Control
         }
         _adapted = adapted;
         _bar = adapted.Metadata.BpmTimeline.RuntimeBarAt(_second);
+        _stage.SetHudChart(adapted, root.GetProperty("title").GetString() ?? "",
+            root.TryGetProperty("difficulty", out var difficulty) ? difficulty.GetString() ?? "" : "",
+            root.TryGetProperty("level", out var level) && level.ValueKind == System.Text.Json.JsonValueKind.Number ? level.GetInt32() : null,
+            _audio.Stream?.GetLength() ?? 0);
         _stage.SetChart(adapted, incremental, _second);
         _stage.SetPlayerSpeed(_playerSpeed);
         _stage.SuspendPlayback(_panAudioSuspended);

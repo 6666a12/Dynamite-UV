@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
@@ -33,23 +35,54 @@ FROZEN_WIRE_LITERALS = {
 }
 
 
-class BrandIdentityTests(unittest.TestCase):
-    def test_legacy_identity_is_limited_to_explicit_compatibility_and_history(self) -> None:
-        actual: Counter[tuple[str, str]] = Counter()
-        for path in REPO_ROOT.rglob("*"):
-            if path.resolve() == Path(__file__).resolve():
-                continue
-            if (not path.is_file() or path.suffix.casefold() not in TEXT_SUFFIXES or
-                    any(part in EXCLUDED_PARTS for part in path.relative_to(REPO_ROOT).parts)):
+def scan_legacy_identity(root: Path) -> Counter[tuple[str, str]]:
+    actual: Counter[tuple[str, str]] = Counter()
+    # Local agent worktrees are separate checkouts, not this product's source tree.
+    # Exclude only this root-relative container; a product folder named "worktrees"
+    # (or any other .claude content) must remain subject to the same identity rules.
+    local_worktrees = root / ".claude" / "worktrees"
+    for directory, dirs, files in os.walk(root):
+        parent = Path(directory)
+        dirs[:] = [name for name in dirs if name not in EXCLUDED_PARTS and
+                   parent / name != local_worktrees]
+        for name in files:
+            path = parent / name
+            if (name in EXCLUDED_PARTS or path.suffix.casefold() not in TEXT_SUFFIXES or
+                    path.resolve() == Path(__file__).resolve()):
                 continue
             try:
                 text = path.read_text(encoding="utf-8-sig")
             except UnicodeDecodeError:
                 continue
-            relative = path.relative_to(REPO_ROOT).as_posix()
+            relative = path.relative_to(root).as_posix()
             for match in LEGACY_PATTERN.finditer(text):
                 actual[(relative, match.group(0))] += 1
-        self.assertEqual(actual, ALLOWED_LEGACY_MATCHES)
+    return actual
+
+
+class BrandIdentityTests(unittest.TestCase):
+    def test_legacy_identity_is_limited_to_explicit_compatibility_and_history(self) -> None:
+        self.assertEqual(scan_legacy_identity(REPO_ROOT), ALLOWED_LEGACY_MATCHES)
+
+    def test_scan_skips_only_local_worktree_container(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="brand-scope-") as directory:
+            root = Path(directory)
+            paths = [
+                ".claude/worktrees/old-checkout/client/source.cs",
+                "client/source.cs",
+                "client/worktrees/source.cs",
+                "client/.claude/worktrees/source.cs",
+                ".claude/instructions.md",
+                "docs/archive/history.md",
+                "client/new-untracked-source.cs",
+            ]
+            for relative in paths:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("DuxCommunity", encoding="utf-8")
+            self.assertEqual(scan_legacy_identity(root), Counter({
+                (relative, "DuxCommunity"): 1 for relative in paths[1:]
+            }))
 
     def test_project_and_android_identity_are_final(self) -> None:
         self.assertFalse((REPO_ROOT / "client" / "DuxCommunity.csproj").exists())

@@ -42,8 +42,24 @@ public sealed class EditorDocumentSession
 
     public EditorSaveResult Save(string destinationDirectory)
     {
+        var save = PrepareSave(destinationDirectory);
+        return save.Complete(save.Write());
+    }
+
+    public async Task<EditorSaveResult> SaveAsync(string destinationDirectory)
+    {
+        var save = PrepareSave(destinationDirectory); // Snapshot on the document owner's thread.
+        var result = await Task.Run(save.Write);
+        return save.Complete(result); // Adopt on the captured UI synchronization context.
+    }
+
+    private (Func<V2PackageWriteResult> Write, Func<V2PackageWriteResult, EditorSaveResult> Complete)
+        PrepareSave(string destinationDirectory)
+    {
         var document = Document ?? throw new InvalidOperationException("没有可保存的文档。");
-        V2PackageWriteResult result;
+        var version = document.ChangeVersion;
+        var resources = document.PendingResourceReplacements;
+        Func<V2PackageWriteResult> write;
         EditorSaveKind kind;
         if (document.IsUnpersisted)
         {
@@ -56,26 +72,30 @@ public sealed class EditorDocumentSession
             var pending = document.PendingResourceReplacements;
             if (pending.Count > 0)
                 request = request with { ExternalResources = MergeFirstSaveResources(document, request.ExternalResources, pending) };
-            result = V2PackageWriter.Create(request);
+            write = () => V2PackageWriter.Create(request);
             kind = EditorSaveKind.Created;
         }
         else
         {
-            result = V2PackageWriter.Write(new V2PackageWriteRequest
+            var request = new V2PackageWriteRequest
             {
                 SourceDirectory = document.PackageDirectory!,
                 DestinationDirectory = destinationDirectory,
                 Pack = document.BuildPackSnapshot(),
                 Charts = document.BuildAllChartSnapshots(),
-                ExternalResources = document.PendingResourceReplacements,
+                ExternalResources = resources,
                 AllowEmptyDestination = true,
-            });
+            };
+            write = () => V2PackageWriter.Write(request);
             kind = EditorSaveKind.Saved;
         }
 
-        document.MarkSaved(result.DestinationDirectory);
-        Draft = null;
-        return new(kind, result.DestinationDirectory, document.Charts.Count);
+        return (write, result =>
+        {
+            document.CompleteSave(result.DestinationDirectory, version, resources);
+            if (ReferenceEquals(Document, document)) Draft = null;
+            return new(kind, result.DestinationDirectory, document.Charts.Count);
+        });
     }
 
     /// <summary>

@@ -10,6 +10,7 @@ public sealed record V2RuntimeNoteMetadata
     public required ExactBarTime ExactTime { get; init; }
     public required V2NoteType SourceType { get; init; }
     public required bool IsPathNode { get; init; }
+    public bool IsShapeSample { get; init; }
     public V2PathCurve? CurveToNext { get; init; }
     public double ScrollSpeedMultiplier { get; init; } = 1.0;
     /// <summary>Resolved Hold judgement state; null for non-Hold points.</summary>
@@ -194,7 +195,7 @@ public static class V2RuntimeAdapter
                 result.Add(RuntimeNote(point.SourceId, path.Id, point.RuntimeId, subId,
                     RuntimeType(path.Type, pathNode: true), track, point.Time,
                     point.Center, point.Width, timeline, path.Type, true,
-                    point.CurveToNext, point.HoldJudge, path.ScrollSpeedMultiplier));
+                    point.CurveToNext, point.HoldJudge, path.ScrollSpeedMultiplier, point.IsShapeSample));
             }
         }
         result.Sort(static (left, right) =>
@@ -207,7 +208,7 @@ public static class V2RuntimeAdapter
 
     private readonly record struct FlattenedPathPoint(
         int RuntimeId, string SourceId, ExactBarTime Time, double Center, double Width,
-        V2PathCurve? CurveToNext, bool? HoldJudge);
+        V2PathCurve? CurveToNext, bool? HoldJudge, bool IsShapeSample = false);
 
     private static IReadOnlyList<FlattenedPathPoint> FlattenPathPoints(V2PathNote path,
         Track track, IReadOnlyDictionary<string, int> ids,
@@ -222,7 +223,21 @@ public static class V2RuntimeAdapter
             var curve = nodeIndex == 0
                 ? path.CurveToNext ?? V2PathCurve.Linear
                 : path.Nodes[nodeIndex - 1].CurveToNext ?? V2PathCurve.Linear;
-            if (curve != V2PathCurve.Linear)
+            if (curve == V2PathCurve.Hold)
+            {
+                // A step is discontinuous: retain the left limit at the exact endpoint,
+                // then link to the authored endpoint at the same time. No 256-piece ramp.
+                var sample = nodeIndex == 0
+                    ? new V2PathSample(path.Center, path.Width)
+                    : new V2PathSample(path.Nodes[nodeIndex - 1].Center, path.Nodes[nodeIndex - 1].Width);
+                var runtimeId = checked(nextRuntimeId++);
+                var sourceId = $"{path.Id}.__shape.{nodeIndex}.step";
+                sourceIdsByRuntimeId.Add(runtimeId, sourceId);
+                result.Add(new FlattenedPathPoint(runtimeId, sourceId, node.Time,
+                    sample.Center, sample.Width, V2PathCurve.Linear,
+                    path.Type == V2NoteType.Hold ? false : null, true));
+            }
+            else if (curve != V2PathCurve.Linear)
             {
                 var subdivisions = RequiredSubdivisions(
                     evaluator, leftTime, node.Time, track);
@@ -236,7 +251,7 @@ public static class V2RuntimeAdapter
                     sourceIdsByRuntimeId.Add(runtimeId, sourceId);
                     result.Add(new FlattenedPathPoint(runtimeId, sourceId, time,
                         sample.Center, sample.Width, V2PathCurve.Linear,
-                        path.Type == V2NoteType.Hold ? false : null));
+                        path.Type == V2NoteType.Hold ? false : null, true));
                 }
             }
             result.Add(new FlattenedPathPoint(ids[node.Id], node.Id, node.Time,
@@ -294,7 +309,7 @@ public static class V2RuntimeAdapter
     private static Note RuntimeNote(string sourceId, string parentSourceId, int runtimeId,
         int subId, NoteType type, Track track, ExactBarTime time, double center, double width,
         V2BpmTimeline timeline, V2NoteType sourceType, bool pathNode,
-        V2PathCurve? curve, bool? holdJudge, double scrollSpeedMultiplier)
+        V2PathCurve? curve, bool? holdJudge, double scrollSpeedMultiplier, bool isShapeSample = false)
     {
         var second = timeline.ToSeconds(time);
         return new Note
@@ -316,6 +331,7 @@ public static class V2RuntimeAdapter
                 ExactTime = time,
                 SourceType = sourceType,
                 IsPathNode = pathNode,
+                IsShapeSample = isShapeSample,
                 CurveToNext = curve,
                 ScrollSpeedMultiplier = scrollSpeedMultiplier,
                 HoldJudge = holdJudge,

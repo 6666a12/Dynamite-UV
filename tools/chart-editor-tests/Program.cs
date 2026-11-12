@@ -5,10 +5,22 @@ using DynamiteUniverse.Shared.Chart.V2;
 
 internal static class Program
 {
-    private static int Main()
+    private static int Main(string[] args)
     {
         try
         {
+            if (args.Length == 3 && args[0] == "--verify-persistence-child")
+            {
+                PackageLifecycleTests.VerifyChild(args[1], args[2]);
+                return 0;
+            }
+            if (args.Length == 2 && args[0] == "--persistence-output")
+            {
+                PackageLifecycleTests.Run(args[1]);
+                return 0;
+            }
+            StepPathTests.Run();
+            PackageLifecycleTests.Run();
             EditorBatchEditTests.Run();
             EditorNoteClipboardTests.Run();
             EditorGeometryTests.TestExactSnap();

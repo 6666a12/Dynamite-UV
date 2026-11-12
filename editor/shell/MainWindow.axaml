@@ -7,6 +7,7 @@
         xmlns:u="https://irihi.tech/ursa"
         x:Class="DynamiteUniverse.Editor.Shell.MainWindow"
         Title="DynaMaker UV"
+        Icon="avares://DynaMakerUv.Editor.Shell/Assets/app-icon.png"
         Width="1600" Height="1000" MinWidth="1280" MinHeight="800"
         Background="{DynamicResource Bg}"
         FontFamily="{DynamicResource OfficialFont}" Foreground="{DynamicResource Ink}"

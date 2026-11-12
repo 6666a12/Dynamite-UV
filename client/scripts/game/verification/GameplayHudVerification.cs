@@ -31,7 +31,8 @@ public partial class GameplayHudVerification : Node
             Require(progress.FillColor == new Color("#edf1f7"), "broken run uses white");
             hud.CompleteProgress();
             Require(progress.Fraction == 1, "normal completion reaches right edge");
-            hud.RefreshTitleTag(GameplayRunContext.InternalFallback, true);
+            var run = GameplayRunContext.InternalFallback;
+            hud.RefreshTitleTag(new(run.SongTitle, run.DifficultyColorKey, run.DifficultyDisplay, run.DifficultyLevel), true);
             var top = root.GetNode<Node2D>("TopHud");
             var bar = top.GetChildren().OfType<GameplayBleedBar>().Single();
             var plates = top.GetChildren().OfType<GameplayHudPlate>().ToArray();

@@ -4,12 +4,14 @@ using DynamiteUniverse.Shared.Chart;
 
 namespace DynamiteUniverse.Game;
 
-internal readonly record struct GameplayHudSnapshot(int Score, double LiveAcc,
+public readonly record struct GameplayHudTitle(string SongTitle, string DifficultyColorKey, string DifficultyDisplay, int? DifficultyLevel);
+
+public readonly record struct GameplayHudSnapshot(int Score, double LiveAcc,
     int CountPerfect, int CountGreat, int CountGood, int CountMiss, int MaxCombo,
     int Combo, double Time, double EndTime, bool BleedEnabled, bool Hardcore, double BleedHealth);
 
 /// <summary>Owns HUD controls, text caches and judgement flashes; receives display values only.</summary>
-internal sealed class GameplayHud
+public sealed class GameplayHud
 {
     private const float CenterTrackX = GameplayStageGeometry.CenterTrackX;
     private const float CenterLineY = GameplayStageGeometry.CenterLineY;
@@ -17,7 +19,7 @@ internal sealed class GameplayHud
     private readonly Node2D _topHudRoot;
     private readonly GameplayHudHeader _header;
 
-    internal GameplayHud(Node2D root, Action pauseRequested, float stageOffsetY, float topOffsetY, Func<UiMotionMode> motion, Func<bool> frozen, Func<bool> canPause)
+    public GameplayHud(Node2D root, Action pauseRequested, float stageOffsetY, float topOffsetY, Func<UiMotionMode> motion, Func<bool> frozen, Func<bool> canPause)
     {
         _topHudRoot = new Node2D
         {
@@ -36,6 +38,13 @@ internal sealed class GameplayHud
         root.AddChild(_progress);
         Build();
     }
+    public void SetMinimal(bool minimal)
+    {
+        _header.SetMinimal(minimal);
+        _scoreLabel.Visible = _comboLabel.Visible = _comboSub.Visible = _judgeFlash.Visible = !minimal;
+        _progress.SetEditing(minimal);
+    }
+
     private readonly GameplayProgressBar _progress;
 	private Label _scoreLabel = null!;
 
@@ -151,7 +160,7 @@ internal sealed class GameplayHud
 		private Label _titleTag = null!;
 		private Label _titleTagStatus = null!;
 
-		internal void RefreshTitleTag(GameplayRunContext run, bool auto)
+		public void RefreshTitleTag(GameplayHudTitle run, bool auto)
 		{
 			var color = UiFonts.DiffColor(run.DifficultyColorKey);
 			var display = run.DifficultyDisplay.ToUpperInvariant();
@@ -172,10 +181,10 @@ internal sealed class GameplayHud
 	private int _hudScore = -1;
 	private int _hudCombo = -1;
 
-        internal void CompleteProgress() => _progress.Complete();
-        internal void PulsePause() => _header.PulsePause();
+        public void CompleteProgress() => _progress.Complete();
+        public void PulsePause() => _header.PulsePause();
 
-        internal void FlashJudge(string text, bool enabled)
+        public void FlashJudge(string text, bool enabled)
 	{
 		if (!enabled)
 			return;
@@ -185,7 +194,7 @@ internal sealed class GameplayHud
 		_flashTimer = JudgeFlashDuration;
 	}
 
-	internal void Update(GameplayHudSnapshot state, double delta)
+	public void Update(GameplayHudSnapshot state, double delta)
 	{
 		if (_flashTimer > 0)
 		{

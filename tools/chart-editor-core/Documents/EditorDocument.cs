@@ -176,6 +176,7 @@ public sealed class EditorDocument
     public bool IsUnpersisted { get; private set; }
     public bool HasUnsavedChanges { get; private set; }
     public bool IsDirty => HasUnsavedChanges;
+    internal long ChangeVersion { get; private set; }
     public IReadOnlyList<V2ExternalResourceMapping> PendingResourceReplacements =>
         _pendingResourceReplacements.Select(item => new V2ExternalResourceMapping(item.Value, item.Key)).ToArray();
 
@@ -358,6 +359,7 @@ public sealed class EditorDocument
         {
             _allIds = null;
         }
+        ChangeVersion++;
         _undo.Push(new EditorHistoryEntry(command, chartId));
         if (_redo.Count > 0 && _savedHistoryPosition > _historyPosition)
             _savedHistoryPosition = -1;
@@ -382,6 +384,7 @@ public sealed class EditorDocument
             _allIds = null;
         }
         _redo.Push(entry);
+        ChangeVersion++;
         _historyPosition--;
         UpdateDirtyState();
     }
@@ -401,8 +404,21 @@ public sealed class EditorDocument
         {
             _allIds = null;
         }
+        ChangeVersion++;
         _undo.Push(entry);
         _historyPosition++;
+        UpdateDirtyState();
+    }
+
+    internal void CompleteSave(string directory, long version, IReadOnlyList<V2ExternalResourceMapping> resources)
+    {
+        foreach (var resource in resources)
+            if (_pendingResourceReplacements.TryGetValue(resource.PackageRelativePath, out var source) &&
+                string.Equals(source, resource.ExternalSourcePath, StringComparison.OrdinalIgnoreCase))
+                _pendingResourceReplacements.Remove(resource.PackageRelativePath);
+        PackageDirectory = Path.GetFullPath(directory);
+        IsUnpersisted = false;
+        _savedHistoryPosition = ChangeVersion == version ? _historyPosition : -1;
         UpdateDirtyState();
     }
 

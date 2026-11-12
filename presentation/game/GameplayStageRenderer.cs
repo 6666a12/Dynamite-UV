@@ -8,7 +8,7 @@ namespace DynamiteUniverse.Game;
 public partial class GameplayStageRenderer : Node2D
 {
     private readonly Dictionary<int, NoteView> _views = new();
-    private readonly List<(Note From, Note To, Polygon2D Body, Line2D? Frame)> _links = new();
+    private readonly List<(Note From, Note To, Polygon2D Body, SustainOutline? Frame)> _links = new();
     private int _curvedLinkCount;
     private IReadOnlyList<Note> _notes = Array.Empty<Note>();
     private IReadOnlySet<int> _ghostNoteIds = new HashSet<int>();
@@ -140,8 +140,10 @@ public partial class GameplayStageRenderer : Node2D
             var body = new Polygon2D { Color = GameplayVisualMapper.LinkColorFor(from), ZIndex = -1 };
             var ghostLink = _ghostNoteIds.Contains(from.Id) || _ghostNoteIds.Contains(to.Id);
             body.Modulate = new Color(1f, 1f, 1f, ghostLink ? 0.6f : 1f);
-            Line2D? frame = from.Type is NoteType.HoldHead or NoteType.HoldNode
-                ? new Line2D { Width = 3f, DefaultColor = new Color(NoteVisualSpec.Hold, .9f), ZIndex = -1 }
+            SustainOutline? frame = from.Type is NoteType.HoldHead or NoteType.HoldNode
+                ? new SustainOutline { Width = 3f, DefaultColor = new Color(NoteVisualSpec.Hold, .9f), ZIndex = -1,
+                    Track = from.Track, CapStart = from.V2Metadata?.IsShapeSample != true,
+                    CapEnd = to.V2Metadata?.IsShapeSample != true }
                 : null;
             if (frame is not null) frame.Modulate = new Color(1f, 1f, 1f, ghostLink ? 0.6f : 1f);
             _noteRoot.AddChild(body);
@@ -203,7 +205,7 @@ public partial class GameplayStageRenderer : Node2D
             note.BarTime - _previewBar) * _remainingScale;
     }
 
-    private void UpdateLink((Note From, Note To, Polygon2D Body, Line2D? Frame) link)
+    private void UpdateLink((Note From, Note To, Polygon2D Body, SustainOutline? Frame) link)
     {
         var a = GameplayVisualMapper.PositionAt(link.From, Remaining(link.From), MirrorEnabled);
         var b = GameplayVisualMapper.PositionAt(link.To, Remaining(link.To), MirrorEnabled);
@@ -229,29 +231,11 @@ public partial class GameplayStageRenderer : Node2D
             if (link.Frame is not null) link.Frame.Visible = false;
             return;
         }
-        var curve = link.From.V2Metadata?.CurveToNext ?? V2PathCurve.Linear;
-        if (curve == V2PathCurve.Linear)
-        {
-            link.Body.Polygon = GameplayVisualMapper.LinkPolygon(link.From.Track, a, b, wa, wb);
-            if (link.Frame is not null) link.Frame.Points = GameplayVisualMapper.LinkFrame(link.From.Track, a, b, wa, wb);
-        }
-        else
-        {
-            var points = new List<Vector2>(13);
-            var halfWidths = new List<float>(13);
-            for (var index = 0; index <= 12; index++)
-            {
-                var u = index / 12d;
-                var progress = curve == V2PathCurve.Smooth
-                    ? u * u * (3d - 2d * u)
-                    : V2Curves.Progress(curve, u);
-                points.Add(a.Lerp(b, (float)progress));
-                halfWidths.Add(Mathf.Lerp(wa, wb, (float)progress));
-            }
-            link.Body.Polygon = GameplayVisualMapper.LinkRibbon(link.From.Track, points, halfWidths);
-            if (link.Frame is not null) link.Frame.Points = GameplayVisualMapper.LinkRibbonFrame(link.From.Track, points, halfWidths);
-        }
-        link.Body.Visible = true;
+        // RuntimeAdapter already flattened the exact curve. Re-easing each small
+        // segment would distort it and manufacture another set of render samples.
+        link.Body.Polygon = GameplayVisualMapper.LinkPolygon(link.From.Track, a, b, wa, wb);
+        if (link.Frame is not null) link.Frame.Points = GameplayVisualMapper.LinkFrame(link.From.Track, a, b, wa, wb);
+        link.Body.Visible = link.From.Second != link.To.Second || link.From.V2Metadata?.IsShapeSample != true;
         if (link.Frame is not null)
         {
             link.Frame.Visible = true;

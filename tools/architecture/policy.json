@@ -32,7 +32,7 @@
     },
     {
       "files": [
-        "client/scripts/game/gameplay/GameplayHud.cs"
+        "presentation/game/hud/GameplayHud.cs"
       ],
       "forbidden": "\\b(?:JudgeEngine|JudgeUnit|GameplayMain|GameSession)\\b",
       "reason": "HUD receives display values and callbacks, not scene/judge/session objects"
@@ -94,7 +94,7 @@
     "client/scripts/ui/song_select/SongBrowseState.cs": 130,
     "tools/chart-editor-core/Documents/EditorDocumentSession.cs": 150,
     "tools/chart-editor-core/Canvas/CanvasEditGesture.cs": 120,
-    "client/scripts/game/gameplay/GameplayHud.cs": 400,
+    "presentation/game/hud/GameplayHud.cs": 400,
     "client/scripts/game/gameplay/GameplayPauseOverlay.cs": 280,
     "client/scripts/ui/song_select/SongPreviewPlayer.cs": 120,
     "client/scripts/ui/calibration/CalibrationBeatSource.cs": 200,
@@ -207,10 +207,10 @@
         "../../shared/DynamiteUniverse.Shared.csproj"
       ],
       "source_links": [
-        "../../client/scripts/game/gameplay/BleedHudState.cs",
-        "../../client/scripts/game/gameplay/GameplayProgressState.cs",
-        "../../client/scripts/game/gameplay/JudgmentLineTimeline.cs",
-        "../../client/scripts/game/gameplay/HudLightState.cs",
+        "../../presentation/game/hud/BleedHudState.cs",
+        "../../presentation/game/hud/GameplayProgressState.cs",
+        "../../presentation/game/hud/JudgmentLineTimeline.cs",
+        "../../presentation/game/hud/HudLightState.cs",
         "../../client/scripts/game/gameplay/GameplayEndCondition.cs",
         "../../client/scripts/ui/results/ResultOutcome.cs",
         "../../client/scripts/ui/results/ResultPreludeTimeline.cs",

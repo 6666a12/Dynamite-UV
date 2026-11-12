@@ -575,10 +575,12 @@ public static class V2PackageWriter
         }
     }
 
+    // Folder picker URIs include a trailing separator. Strip it so staging and
+    // backup suffixes produce siblings, not children; filesystem roots stay intact.
     private static string RequireDirectoryPath(string value, string label)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
-        var full = Path.GetFullPath(value);
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(value));
         if (File.Exists(full))
             throw new IOException($"{label} is a file: {full}");
         return full;
@@ -587,7 +589,7 @@ public static class V2PackageWriter
     private static string RequireDirectory(string value, string label)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
-        var full = Path.GetFullPath(value);
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(value));
         if (!Directory.Exists(full))
             throw new DirectoryNotFoundException($"{label} does not exist: {full}");
         return full;

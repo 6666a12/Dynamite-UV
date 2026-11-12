@@ -1,4 +1,5 @@
 {
+  "Stage.GamePreview": "GAME PREVIEW · AUTO",
   "Tools.ObjectSnap": "Object snapping",
   "Tools.ObjectSnapHint": "Same-track centres / matching edges. Hold Alt to bypass; time grid is unchanged.",
   "Batch.Transform": "GROUP TRANSFORM",
@@ -237,6 +238,7 @@
   "Message.OpenPackage": "Open a strict v2 package directory from FILE or Ctrl+O",
   "Message.Opened": "Opened {0}",
   "Message.Saved": "Saved package to {0}",
+  "Message.SavedWithNewEdits": "Saved snapshot to {0}; newer edits are still unsaved. Save again.",
   "Message.FileError": "File operation failed: {0}",
   "Message.SaveBeforeOpen": "Save the current package before opening another one; unsaved changes were preserved",
   "Message.NoteSpeedSent": "NOTE {0} · scroll speed ×{1:0.00} applied to the document",

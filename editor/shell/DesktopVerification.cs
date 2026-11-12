@@ -55,6 +55,13 @@ internal static class DesktopVerification
                     result = 0;
                     return;
                 }
+                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_PERSISTENCE_PACK") is { Length: > 0 } persistencePack)
+                {
+                    await PackageDesktopVerification.Run(window, persistencePack, outDir, lines.Add,
+                        name => Capture(window, outDir, name));
+                    result = 0;
+                    return;
+                }
                 var source = Path.Combine(outDir, "fixture-source");
                 if (Directory.Exists(source)) Directory.Delete(source, true);
                 Verification.CreatePackage(source);
@@ -79,8 +86,14 @@ internal static class DesktopVerification
                     await ClickNative(window, 830, 714);
                     if (window.CurrentDocument?.SelectedChart.Notes.Count != 1)
                         throw new InvalidOperationException("The first Note could not be placed in an empty draft: " + window.StatusMessage);
-                    await window.SavePackageToForVerification(draft);
-                    if (window.CurrentDocument?.HasUnsavedChanges != false)
+                    Directory.CreateDirectory(draft);
+                    var folder = await window.StorageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(draft)))
+                        ?? throw new InvalidOperationException("Storage provider did not resolve first-save directory");
+                    lines.Add("first-save storage path " + folder.Path.LocalPath);
+                    await window.SavePackageToForVerification(folder.Path.LocalPath);
+                    if (window.CurrentDocument?.HasUnsavedChanges != false ||
+                        !File.Exists(Path.Combine(draft, "meta.json")) ||
+                        EditorPackageRepository.Open(draft).SelectedChart.Notes.Count != 1)
                         throw new InvalidOperationException("The first Note did not make the new draft saveable: " + window.StatusMessage);
                     lines.Add("PASS empty draft live stage / first native Note placement / first save");
                     await Capture(window, outDir, "empty-first-note.png");

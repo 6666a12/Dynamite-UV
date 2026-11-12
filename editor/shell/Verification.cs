@@ -45,8 +45,12 @@ internal static class Verification
         var window = new MainWindow(Path.Combine(root, "user-data"));
         try
         {
+            await SaveInteractionVerification.Run(Path.Combine(root, "save-interactions"), Check);
+            StageLaunchVerification.Run(Path.Combine(root, "launch"), Check);
             window.Show();
             Dispatcher.UIThread.RunJobs();
+            Check("Game preview UI entry is absent and starts disabled", !window.Stage.GamePreviewEnabled &&
+                window.Stage.FindControl<CheckBox>("GamePreviewToggle") is null);
             Check("Real Dock layout", window.GetVisualDescendants().OfType<DockControl>()
                 .Single().GetVisualDescendants().OfType<DocumentControl>().Any());
             Check("Ursa controls are templated", window.GetVisualDescendants().OfType<IconButton>()

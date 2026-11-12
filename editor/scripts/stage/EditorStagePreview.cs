@@ -12,6 +12,11 @@ public partial class EditorStagePreview : Control
     private readonly EditorPlacementOverlay _placementOverlay;
     private readonly Node2D _playbackRoot;
     private readonly EditorAutoPreview _autoPreview;
+    private readonly Node2D _hudRoot;
+    private EditorPreviewHud? _hud;
+    private bool _gamePreview;
+    public event Action? PauseRequested;
+    public event Action? TransportRequested;
     private V2RuntimeAdapterResult? _adapted;
     private bool _playing;
     private bool _playbackVisible;
@@ -60,6 +65,12 @@ public partial class EditorStagePreview : Control
 
     public void SetEffectLevel(HitEffectLevel level)
     {
+        if (_hud is not null) _hud.Motion = level switch
+        {
+            HitEffectLevel.Off => DynamiteUniverse.Ui.UiMotionMode.Off,
+            HitEffectLevel.Reduced => DynamiteUniverse.Ui.UiMotionMode.Reduced,
+            _ => DynamiteUniverse.Ui.UiMotionMode.Full,
+        };
         _autoPreview.SetEffectLevel(level);
         if (_playbackVisible && _adapted is not null)
         {
@@ -92,7 +103,7 @@ public partial class EditorStagePreview : Control
             ShowControlNodes = true,
         };
         _stageRoot.AddChild(_renderer);
-        _renderer.BuildCommunityStageChrome(40f);
+        _renderer.BuildCommunityStageChrome(40f, gameplayHud: true);
         _renderer.SetNotes(_notes);
         _playbackRoot = new Node2D { Name = "AutoPlayback", Position = new Vector2(0, 40), Visible = false };
         _stageRoot.AddChild(_playbackRoot);
@@ -106,11 +117,37 @@ public partial class EditorStagePreview : Control
         _selectionOverlay = new Control { MouseFilter = MouseFilterEnum.Ignore, ZIndex = 10 };
         AddChild(_selectionOverlay);
         _selectionOverlay.Draw += DrawSelection;
+        _hudRoot = new Node2D { Name = "EditorHud", ZIndex = 15 };
+        AddChild(_hudRoot);
         Resized += LayoutStage;
         GuiInput += input => HandlePointerInput(input);
     }
 
-    public override void _Ready() => LayoutStage();
+    public override void _Ready()
+    {
+        _hud = new EditorPreviewHud(_hudRoot, () => PauseRequested?.Invoke(), () => TransportRequested?.Invoke());
+        LayoutStage();
+    }
+
+    public void SetHudChart(V2RuntimeAdapterResult chart, string title, string difficulty, int? level, double audioLength) =>
+        _hud?.SetChart(chart, title, difficulty, level, audioLength);
+
+    public void SetGamePreview(bool enabled)
+    {
+        if (_gamePreview == enabled) return;
+        CancelGesture();
+        _gamePreview = enabled;
+        _hud?.SetGamePreview(enabled);
+        _selectionOverlay.Visible = _placementOverlay.Visible = !enabled;
+        if (enabled && _adapted is not null)
+        {
+            _autoPreview.Reset(_adapted, _currentTime, _playerSpeed);
+            SetPlaybackVisible(true);
+            _autoPreview.SetPaused(!_playing);
+        }
+        else if (!_playing) SetPlaybackVisible(false);
+        LayoutStage();
+    }
 
     public double CurrentBar
     {
@@ -121,8 +158,9 @@ public partial class EditorStagePreview : Control
             _currentBar = value;
             _currentTime = _metadata?.BpmTimeline.RuntimeSecondsAt(value) ?? value * 1.6;
             // Assignments are discontinuities (seek/PAN/edit), never playback ticks.
-            if (_playing && _adapted is not null) _autoPreview.Reset(_adapted, _currentTime, _playerSpeed);
-            SetPlaybackVisible(_playing);
+            if ((_playing || _gamePreview) && _adapted is not null) _autoPreview.Reset(_adapted, _currentTime, _playerSpeed);
+            SetPlaybackVisible(_playing || _gamePreview);
+            if (_gamePreview) _autoPreview.SetPaused(!_playing);
             _renderer.SetPreviewBar(value);
             _renderer.SetPreviewTime(_currentTime);
             RefreshPlacementPreview();
@@ -215,6 +253,11 @@ public partial class EditorStagePreview : Control
 
     public override void _Process(double delta)
     {
+        if (_hud is not null)
+        {
+            _hud.Playing = _playing;
+            _hud.Update(_currentTime, delta, _renderer);
+        }
         // Wheel navigation moves chart time discretely; effects still decay in real time.
         if (!_scrubbing || _playbackRoot.ProcessMode == ProcessModeEnum.Disabled) return;
         _autoPreview.Advance(_currentTime, delta);
@@ -254,7 +297,9 @@ public partial class EditorStagePreview : Control
         RefreshMagnetViewport();
         var stageSize = new Vector2(1920f, 1080f) * scale;
         _stageRect = new Rect2((Size - stageSize) * .5f, stageSize);
-        _stageRoot.Position = _stageRect.Position + new Vector2(_panOffsetX * scale, _panOffsetY * scale);
+        _hudRoot.Position = _stageRect.Position;
+        _hudRoot.Scale = Vector2.One * scale;
+        _stageRoot.Position = _stageRect.Position + (_gamePreview ? Vector2.Zero : new Vector2(_panOffsetX * scale, _panOffsetY * scale));
         _stageRoot.Scale = Vector2.One * scale;
         _selectionOverlay.Size = Size;
         _selectionOverlay.QueueRedraw();
@@ -459,7 +504,7 @@ public partial class EditorStagePreview : Control
 
     public void HandlePointerInput(InputEvent input, bool viewportCoordinates = false)
     {
-        if (_metadata is null) return;
+        if (_metadata is null || _gamePreview) return;
         if (input is InputEventMouseButton { Pressed: true } wheel &&
             wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
         {

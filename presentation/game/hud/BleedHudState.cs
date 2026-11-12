@@ -3,7 +3,7 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Display-only BLEED interpolation. Never computes damage, healing or failure.</summary>
-internal sealed class BleedHudState
+public sealed class BleedHudState
 {
     public double Health { get; private set; } = 1;
     public double Display { get; private set; } = 1;

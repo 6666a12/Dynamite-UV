@@ -91,7 +91,7 @@ public sealed partial class GameplayNoteRenderer
         public bool IsHold;
         public Color BaseColor;
         public Polygon2D Poly = null!;
-        public Line2D? Frame; // Hold 面板的亮描边轮廓（实机面板边缘亮条）
+        public SustainOutline? Frame; // Hold 面板的亮描边轮廓（实机面板边缘亮条）
         public Vector2[] PolyScratch = new Vector2[4]; // 复用缓冲，避免每帧 new
         public Vector2[] FrameScratch = new Vector2[5];
     }
@@ -216,6 +216,7 @@ public sealed partial class GameplayNoteRenderer
             link.FromId = n.Id;
             link.ToId = n.SubNoteId;
             link.Track = n.Track;
+            link.Frame?.Configure(n, toNote);
             link.Wa = LinkHalfFor(n);
             link.Wb = LinkHalfFor(toNote);
             link.BaseColor = LinkColorFor(n);
@@ -229,7 +230,7 @@ public sealed partial class GameplayNoteRenderer
     private NoteLink CreateLink(bool isHold)
     {
         var poly = new Polygon2D { Visible = false, ZIndex = 0 };
-        var frame = isHold ? new Line2D
+        var frame = isHold ? new SustainOutline
         {
             Width = 3f,
             DefaultColor = new Color(NoteVisualSpec.Hold, 0.9f),
@@ -391,7 +392,7 @@ public sealed partial class GameplayNoteRenderer
         else if (link.IsHold)
             fillAlpha = Mathf.Lerp(0.08f, 0.28f, proximity);
         link.Poly.Color = new Color(link.BaseColor, fillAlpha);
-        link.Poly.Visible = true;
+        link.Poly.Visible = from.Second != to.Second || from.V2Metadata?.IsShapeSample != true;
         if (link.Frame != null)
         {
             var frameAlpha = link.Track == Track.Center

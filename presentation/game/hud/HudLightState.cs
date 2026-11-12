@@ -3,7 +3,7 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Bounded event light envelope; unchanged display strings never retrigger it.</summary>
-internal sealed class HudLightState
+public sealed class HudLightState
 {
     public double Amount { get; private set; }
     private string? _text;

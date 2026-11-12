@@ -1,0 +1,19 @@
+<Project>
+  <!-- Imported only by packaging probes, never by normal development builds. -->
+  <PropertyGroup Condition="'$(EditorTrimProbe)' == 'true'">
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <_EnableConsumingManagedCodeFromNativeHosting>true</_EnableConsumingManagedCodeFromNativeHosting>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(EditorTrimProbe)' == 'true'">
+    <!-- Godot calls these through native entry points and generated script bridges. -->
+    <TrimmerRootAssembly Include="GodotSharp" />
+    <TrimmerRootAssembly Include="DynaMakerUv.Editor" />
+    <TrimmerRootAssembly Include="DynamiteUniverse.Presentation" />
+    <TrimmerRootAssembly Include="DynamiteUniverse.Shared" />
+    <TrimmerRootAssembly Include="ChartEditor.Core" />
+  </ItemGroup>
+</Project>

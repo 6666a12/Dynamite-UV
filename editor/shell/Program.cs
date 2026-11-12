@@ -7,6 +7,12 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Length == 1 && args[0] == "--runtime-check")
+        {
+            Console.WriteLine($"Runtime: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} / {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+            return Environment.Version.Major == 10 &&
+                System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X64 ? 0 : 1;
+        }
         if (args.Contains("--headless")) return Verification.RunHeadless();
         if (args.Contains("--smoke-empty"))
             return DesktopVerification.Run(args.ElementAtOrDefault(args.ToList().IndexOf("--smoke-empty") + 1) ??

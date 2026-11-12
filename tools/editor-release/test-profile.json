@@ -1,0 +1,11 @@
+{
+  "name": "windows-x64-test-v1",
+  "rid": "win-x64",
+  "trimmedFallback": true,
+  "trimmedStage": true,
+  "shellRuntimeVersion": "10.0.10",
+  "stageRuntimeVersion": "9.0.18",
+  "godotRevision": "a13da4feb8d8aefc283c3763d33a2f170a18d541",
+  "templateSha256": "91bb0d16c354f4d17db79bd5ad0dc5f2241584d8b2631d4d41d66c1fa963e2c3",
+  "notes": "User-approved temporary test profile. No automatic PCK reuse. Not public release clearance."
+}

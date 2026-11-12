@@ -68,6 +68,7 @@ public sealed partial class MainWindow : Window
         _stageView.FloatRequested += FloatStage;
         _stageView.DockRequested += DockStage;
         _stageView.PlayRequested += TogglePlayback;
+        _stageView.GamePreviewChanged += enabled => _service.Send(new { command = "gamePreview", enabled });
         _inspector.BatchEditRequested = edit =>
         {
             if (_ioBusy || CurrentDocument is not { } document) return _text["Batch.Unavailable"];
@@ -142,6 +143,7 @@ public sealed partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        if (_ioBusy) { e.Cancel = true; return; }
         // Capture before base raises Dock's closing handlers and tears down floating hosts.
         _preferences.Flush();
         _layoutSession.Save();
@@ -477,15 +479,16 @@ public sealed partial class MainWindow : Window
     private async Task SavePackage(bool saveAs, string? destination = null)
     {
         if (_ioBusy || CurrentDocument is not { } document) return;
-        var directory = destination ?? (saveAs || document.IsUnpersisted ? await PickFolder("File.SaveAs") : document.PackageDirectory);
-        if (directory is null) return;
         _ioBusy = true;
         try
         {
-            EditorSaveResult? result = null;
-            await Task.Run(() => result = _session.Save(directory));
+            var directory = destination ?? (saveAs || document.IsUnpersisted ? await PickFolder("File.SaveAs") : document.PackageDirectory);
+            if (directory is null) return;
+            var result = await _session.SaveAsync(directory);
             RefreshDocument(false);
-            Report(_text.Format("Message.Saved", result!.DestinationDirectory));
+            Report(document.HasUnsavedChanges
+                ? _text.Format("Message.SavedWithNewEdits", result.DestinationDirectory)
+                : _text.Format("Message.Saved", result.DestinationDirectory));
         }
         catch (Exception ex) { Report(_text.Format("Message.FileError", ex.Message)); }
         finally { _ioBusy = false; }
@@ -583,12 +586,15 @@ public sealed partial class MainWindow : Window
             ? new[] { nodeId } : _selectedNoteIds;
         var revision = ++_stageRevision;
         if (LastStageUpdateIncremental)
-            _service.Update(chart, document.Title, document.Artist, audioPath, revision, selection);
-        else _service.Load(chart, document.Title, document.Artist, audioPath, _bar, revision, selection);
+            _service.Update(chart, document.Title, document.Artist, audioPath, revision, selection,
+                document.SelectedChart.Difficulty.ToString(), document.SelectedChart.Level);
+        else _service.Load(chart, document.Title, document.Artist, audioPath, _bar, revision, selection,
+            document.SelectedChart.Difficulty.ToString(), document.SelectedChart.Level);
         _loadedDocument = document;
         _loadedChartId = document.SelectedChartId;
         _loadedAudioPath = audioPath;
         SendAuthoring();
+        _service.Send(new { command = "gamePreview", enabled = _stageView.GamePreviewEnabled });
     }
 
     private WorkbenchPreferences CapturePreferences() => new()
@@ -836,7 +842,9 @@ public sealed partial class MainWindow : Window
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (!IsTextInput(e.Source) && HandleShortcut(e.Key, e.KeyModifiers, e.Source))
+        if ((!IsTextInput(e.Source) || (e.Key == Key.S &&
+             (e.KeyModifiers == KeyModifiers.Control || e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift)))) &&
+            HandleShortcut(e.Key, e.KeyModifiers, e.Source))
             e.Handled = true;
         base.OnKeyDown(e);
     }

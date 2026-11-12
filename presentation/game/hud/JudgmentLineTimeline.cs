@@ -5,9 +5,9 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Immutable per-track activity intervals. Sampling is seek-safe and independent of hits/FPS.</summary>
-internal sealed class JudgmentLineTimeline
+public sealed class JudgmentLineTimeline
 {
-    internal readonly record struct Activity(Track Track, double Start, double End);
+    public readonly record struct Activity(Track Track, double Start, double End);
     private readonly Activity[][] _tracks;
     public const double DarkLevel = 0.14;
     public const double IdleGap = 10;
