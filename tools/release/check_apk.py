@@ -17,6 +17,8 @@ import shutil
 import subprocess
 import sys
 import zipfile
+import xml.etree.ElementTree as ET
+from godot_project import custom_features
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
@@ -418,19 +420,16 @@ def inspect_apk(apk_path: Path, mode: str, policy: dict[str, Any], result: GateR
             result.errors.append(f"{mode} APK is missing required ABI directory: {abi!r}")
 
     project_entry = _find_entry_by_suffix(normalized_entries, "project.binary")
-    if project_entry is not None:
-        project_bytes = b""
+    if project_entry is None:
+        result.errors.append("missing unique project.binary for custom feature verification")
+    else:
         try:
             with zipfile.ZipFile(apk_path, "r") as archive:
-                project_bytes = archive.read(project_entry)
-        except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
-            result.errors.append(f"cannot read project.binary for feature check: {exc}")
-        required_feature = mode_policy.get("required_custom_feature", "").encode("utf-8")
-        if required_feature and required_feature not in project_bytes:
-            result.errors.append(
-                f"{mode} APK project.binary is missing custom feature "
-                f"{mode_policy['required_custom_feature']!r}"
-            )
+                features = custom_features(archive.read(project_entry))
+            if mode_policy["required_custom_feature"] not in features:
+                result.errors.append(f"{mode} APK project.binary is missing custom feature {mode_policy['required_custom_feature']!r}")
+        except (OSError, RuntimeError, zipfile.BadZipFile, ValueError) as exc:
+            result.errors.append(f"cannot verify project.binary custom features: {exc}")
 
     sparse_pck = _find_entry_by_suffix(normalized_entries, "assets.sparsepck")
     if sparse_pck is not None:
@@ -683,7 +682,7 @@ def inspect_signature(
             )
 
 
-def _run_apkanalyzer(tool: Path, arguments: list[str], apk_path: Path) -> str:
+def _run_apkanalyzer(tool: Path, arguments: list[str], apk_path: Path, *, multiline: bool = False) -> str:
     command = [str(tool), *arguments, str(apk_path)]
     try:
         completed = subprocess.run(
@@ -705,7 +704,7 @@ def _run_apkanalyzer(tool: Path, arguments: list[str], apk_path: Path) -> str:
         raise GateConfigurationError(
             f"apkanalyzer {' '.join(arguments)} failed: {details}"
         )
-    if not value or "\n" in value or "\r" in value:
+    if not value or (not multiline and ("\n" in value or "\r" in value)):
         raise GateConfigurationError(
             f"apkanalyzer {' '.join(arguments)} returned no single verifiable value"
         )
@@ -737,6 +736,31 @@ def inspect_identity(
         "debuggable": ["manifest", "debuggable"],
     }
     expected = policy["modes"][mode]
+    try:
+        manifest = ET.fromstring(_run_apkanalyzer(apkanalyzer, ["manifest", "print"], apk_path, multiline=True))
+        android = "{http://schemas.android.com/apk/res/android}"
+        application = manifest.find("application")
+        if application is None:
+            raise ValueError("manifest has no application")
+        approved = {expected["application_label"], f"@{label['type']}/{label['name']}"}
+        app_label = application.get(android + "label")
+        if app_label not in approved:
+            raise ValueError("application label does not reference the approved label")
+        for component in list(application.findall("activity")) + list(application.findall("activity-alias")):
+            launcher = any(
+                any(a.get(android + "name") == "android.intent.action.MAIN" for a in intent.findall("action")) and
+                any(c.get(android + "name") in {"android.intent.category.LAUNCHER", "android.intent.category.LEANBACK_LAUNCHER"}
+                    for c in intent.findall("category")) for intent in component.findall("intent-filter"))
+            component_label = component.get(android + "label")
+            if component_label is None and component.tag == "activity-alias":
+                target_name = component.get(android + "targetActivity")
+                target = next((a for a in application.findall("activity") if a.get(android + "name") == target_name), None)
+                if target is not None:
+                    component_label = target.get(android + "label")
+            if launcher and (component_label if component_label is not None else app_label) not in approved:
+                raise ValueError("launcher label overrides the approved application label")
+    except (GateConfigurationError, ET.ParseError, ValueError) as exc:
+        result.errors.append(f"critical manifest label verification failed: {exc}")
     for field_name, command in commands.items():
         try:
             actual = _run_apkanalyzer(apkanalyzer, command, apk_path)

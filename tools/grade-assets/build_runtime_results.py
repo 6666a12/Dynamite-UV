@@ -24,6 +24,14 @@ def penpot_svg(prefix):
     raise ValueError('Penpot vector missing: '+prefix)
 
 
+def runtime_assets():
+    """Exact outputs owned by this generator; never certify stale or outcome files."""
+    names = ['cover_placeholder.svg', 'fc.svg', 'ap.svg', 'back.svg', 'retry.svg']
+    for key in SOURCES:
+        names.extend((f'grades/{key}.png', f'grades/{key}_entry.png', f'background_{key}.svg'))
+    return [DEST / name for name in names]
+
+
 def main():
     (DEST/'grades').mkdir(parents=True, exist_ok=True)
     manifest = {'source':'approved clean-room v5_current / v5_current_xy / v5_current_d deliveries', 'fps':24, 'frame_size':512,
@@ -69,20 +77,17 @@ def main():
     a=data.index(marker)+len(marker)
     b=data.index(')',a)
     files=[v.strip().strip('"') for v in data[a:b].split(',')]
-    for asset in sorted(DEST.rglob('*')):
-        if asset.suffix not in ('.png','.svg'):continue
+    for asset in runtime_assets():
         path='res://'+asset.relative_to(ROOT/'client').as_posix()
         if path not in files:files.append(path)
     data=data[:a]+', '.join(json.dumps(v) for v in files)+data[b:]
     presets.write_text(data,encoding='utf-8')
     provenance_path=ROOT/'release/asset-provenance.json'
     provenance=json.loads(provenance_path.read_text(encoding='utf-8'))
-    provenance['assets']=[a for a in provenance['assets']
-                          if not a['path'].startswith('client/assets/results/')
-                          or a['path'].startswith('client/assets/results/outcomes/')]
+    owned = {asset.relative_to(ROOT).as_posix() for asset in runtime_assets()}
+    provenance['assets']=[a for a in provenance['assets'] if a['path'] not in owned]
     generator=Path(__file__).resolve()
-    for asset in sorted(DEST.rglob('*')):
-        if asset.suffix not in ('.png','.svg'):continue
+    for asset in runtime_assets():
         provenance['assets'].append({
             'path':asset.relative_to(ROOT).as_posix(),
             'sha256':hashlib.sha256(asset.read_bytes()).hexdigest(),

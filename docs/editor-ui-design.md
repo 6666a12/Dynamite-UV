@@ -1,6 +1,6 @@
 # UI 设计稿与施工约定
 
-> 2026-11-09 整理：保留游戏设计位置、采用方案和 MCP 安全施工规则；旧 Godot Editor 板与交互流水已归档。本文不是功能验收清单，本次未连接或修改 Penpot。
+> 2026-11-12 更新：Claude Code 已连接 Penpot 并核对当前文件；旧 `Editor UI` 页面已由用户删除。游戏画板已重建分入六个功能页面，当前页面索引及迁移边界见 §1.1。保留游戏设计位置、采用方案和 MCP 安全施工规则；本文不是功能验收清单。
 > 当前制谱器 Avalonia + Godot 主线与核心接线见 [DynaMaker UV](<dyna-maker-uv.md>)；格式权威见 [v2 合同](<chart-format-v2.md>)，游戏动效权威见 [ui-motion.md](<ui-motion.md>)。
 > 旧 Editor 板和实现说明见 [历史设计](archive/art/2026-10-editor-ui-design.md)，不得据历史状态重开已完成工作。
 > 旧版比较过程、已解决项与阶段状态已存 [原文快照](<archive/2026-10-07-cleanup/editor-ui-design.before.md>)。
@@ -9,6 +9,7 @@
 
 ## 1. 设计稿在哪
 
+- 当前 Claude Code 连接（2026-11-12）：`penpot` 使用 HTTP transport，保存在用户 `.claude.json` 的项目 local 配置，不在仓库。已通过插件读取文件及页面，不只是服务端握手；浏览器需打开目标文件、运行 MCP Plugin 并保持标签页活跃。不得据旧客户端配置推定新会话已加载工具。
 - Penpot 网页端，文件 **「Dynamaker UV UI design」**（账号 Natsume K）。
 - 接入方式：Penpot MCP（streamable HTTP），URL 带 userToken。**历史本机连接记录（2026-10-17，本次未复验）**：当时 DSH Desktop 的 `web` profile 在
   `%APPDATA%/dsh-desktop/harness/profiles/web/cordis.patch.yml` 插入
@@ -37,13 +38,122 @@
     导出 PNG 到 `.tmp/pp7_select_v2*.png`；`python penpot_build7.py [板 key…]`
     默认只重建这两块新板，也可用 build6 的 key 重建任意既有板。
 
+## 1.1 当前页面与功能拆分
+
+2026-11-12 已完成重建迁移：文件 ID `24d9d841-759d-81bc-8008-b55a77e8150d`，现有下列六个分类页，共34个画板；原 `Game UI` 的34板在核对后删除，空原页也已删除。旧 `Editor UI` 页先前已由用户删除，不恢复。所有新页面从(0,0)开始按三列排列，步长2120×1280，保持板内相对坐标。旧脚本、旧对象ID和下文历史坐标不能直接用于新页面。
+
+用户要求将拥挤的 `Game UI` 按功能拆成多个 Penpot **页面（Page）**，后续明确允许脚本重建后删除原板；采用先重建、校验再删源的顺序，不将整板栅格化。分组如下，**重建、校验与原页清理已完成**：
+
+| 目标页面 | 保留的画板 | 数量 |
+| --- | --- | --- |
+| `Game UI — Home` | Home、Home v2 Compact、Home Power-On 01–03（旧方案保留追溯） | 5 |
+| `Game UI — Song Select` | Song Select、Song Select v2、v2 Expanded | 3 |
+| `Game UI — Gameplay` | Gameplay、Pause、Signal Lock、Track Handoff、Handoff Lock、Handoff Discharge | 6 |
+| `Game UI — Settings` | Gameplay/Audio/Display/Effects 四设置板、Calibration 两板、Note Colors v2 两板 | 8 |
+| `Game UI — Results` | Result、Result v2 六个阶段 | 7 |
+| `Game UI — Grade Studies` | Grade Directions/Lighting/Surface/Set 五个探索板 | 5 |
+
+音符配色两板的4条交互已重建并指向新板，`Flow 1`起点为新的配色编辑板；两个网格的轨道和单元格已核对一致。各页没有顶层散落非画板对象。历史方案仍保留在对应分类页，不因迁移成为当前产品规格。
+
+第一轮已保存版本 `Before Game UI page organization · 2026-11-12`，跨页appendChild被活动页保护拒绝；当轮撤除空试验页，原稿未变。用户随后授权重建迁移，另保存 `Before verified rebuild migration · 2026-11-12`。跨页clone同样不可用，改用原生图形/文字逐层重建、图片沿用媒体填充；仅原稿已有SVG特效组通过SVG重新导入（内部ID/包装层会改变，需检查视觉与引用），不是整板截图。
+
+当前页面索引（画板按下表次序，从左到右、从上到下排列；第i项从0开始，坐标为`(i%3*2120, floor(i/3)*1280)`）：
+
+| 页面 | 页面 ID | 画板顺序 |
+| --- | --- | --- |
+| Settings | `30863453-d807-80da-8008-ef13478ac249` | Settings Gameplay、Audio、Display；Calibration Live、Result、Settings Effects；Note Colors v2 Draft、Readability |
+| Home | `30863453-d807-80da-8008-ef15552ae400` | Home、Home Power-On 01、02、03、Home v2 Compact |
+| Song Select | `30863453-d807-80da-8008-ef15552f0307` | Song Select、Song Select v2、v2 Expanded |
+| Gameplay | `30863453-d807-80da-8008-ef1555336825` | Signal Lock、Track Handoff、Handoff Lock；Handoff Discharge、Gameplay、Pause |
+| Results | `30863453-d807-80da-8008-ef155537079a` | Result、Result v2 01–06 |
+| Grade Studies | `30863453-d807-80da-8008-ef15553a9dad` | Grade Directions v4、Lighting v4、Lighting v5、Surface Current v5、Set v5 Current |
+
+全34板核对文字内容/字体、尺寸、相对坐标与可映射对象的填充/描边/阴影等属性无差异；SVG特效组内部包装层及ID改变，未做逐对象等价证明。新旧画板/可映射形状ID保存在文件插件数据`gameUiMigration20261112`。删源前另保存`Game UI rebuilt and checked — before source removal · 2026-11-12`（保留新旧两套供恢复），完成后保存`Game UI organized into six pages · 2026-11-12`。旧ID链接须转向新对象。
+
+标签页重启会清空storage，须按实际对象恢复，不能依据超时重复创建。网格恢复需分阶段建立空容器、轨道，再逐个放入单元格，避免异步排布冲突。历史中断过程见verification。
+
+技术检查：generateMarkup对部分SVG组重复输出子元素且带绝对viewBox，直接导入导致失真；已删除该错误的Track Handoff副本后重建，未动原板。原生SVG export可正常归一化但服务端曾500超时；备选为取完整首个根g、显式平移到局部坐标。Track Handoff及Gameplay原/新PNG数值对比分别平均通道误差约0.06–0.13/255和0.08–0.13/255，仍非逐像素相同；设置样板有文字亚像素重排。图片读取工具未提供可目视的图像，**未宣称视觉验收或全部无损**。迁移核对已完成，保留上述视觉验收边界，不将属性核对等同于全板像素一致。
+
+## 1.2 在线功能首版设计稿
+
+2026-11-12 新增 `Game UI — Online` 页面（ID `3765ced0-d076-80df-8008-ef32ce17ee18`），不改动前述六个分类页。当前为待用户评审的主页面草稿，不代表功能实现：
+
+| 画板 | ID | 坐标/尺寸 |
+| --- | --- | --- |
+| `Game — Online v2 · 01 Login` | `3765ced0-d076-80df-8008-ef32fb966012` | (0,0)，1920×1080 |
+| `Game — Online v2 · 02 Chart Store` | `3765ced0-d076-80df-8008-ef32fbce12f0` | (2120,0)，1920×1080 |
+
+当前v2按用户反馈改为无边框探索：深色底、青蓝选中态、留白和明暗层次，不再逐块套切角描边。英文Space Grotesk，中文Noto Sans SC。登录页去掉宣传大标题和外框，左侧保留服务器身份/地址/切换入口，右侧使用下划线输入框。商店改为单列纵向列表视口（上下裁切半行、选中项前移/放大），右侧扩大封面与详情，内容只保留封面、标题、谱师、差分、BPM及下载按钮。删除永久免费口号、宣传介绍、版本/大小/上架说明和分页。所有服务器/曲目/BPM为设计示例，示例说明移至页面插件数据`onlineV2DesignNotes`，不占产品界面；封面是中性占位，不生成曲绘或使用原版素材。v1图层保留在各画板隐藏组`Archive · v1 before borderless revision`供回退，现有选曲页未改动。
+
+点击登录按钮可原型跳转到商店（不是实际鉴权）；当前Flow 1起点为登录页。列表是静态滚动状态示意，不宣称Penpot已具备真实滚动/惯性；动效方向为选中项小幅位移放大、详情淡入切换，待评审后再细化。注册表单、服务器切换弹层、个人记录、下载中/失败、登录错误等详细状态尚未设计，按钮除该原型跳转外不具备实现能力。设计范围见 [网络服务第一阶段](network-services-phase1.md)。v2可见文本无画板边界溢出，商店PNG已导出；图片读取工具仍未提供可目视图像，不宣称视觉验收，等待用户在Penpot评审。
+
+2026-11-12 后续细化：六行差分改为沿用选曲配色的等级方块，详情HARD/MEGA紧凑排列；登录页服务器信息上移，下方新增公告预览、日期与展开入口（虚构示例，公告展开尚未接交互）。恢复连接后确认先前账号浮层实际已保存，未重复创建。`Online · Account dropdown`（ID `b05bcbc7-af24-804f-8008-ef468b909f32`）位于(4240,0)、344×350，使用无描边底色/阴影、12px圆角、56px菜单行，展示本人记录、切换服务器、退出登录；记录行展示悬停样式。商店用户名已接open-overlay，位置(1500,92)，点击外部关闭、不遮暗整页；退出仅原型跳转登录，记录/切服未实现。新增展开状态板`Game — Online v2 · 03 Account menu expanded`（ID `00bc4a80-87db-80e4-8008-ef4a758dd3e4`），位于(0,1280)、1920×1080，供直接评审。四个顶层画板可见文本外边界无溢出，overlay目的地/位置/外部关闭配置已读回；展开PNG导出成功，但Read未显示图像，未目视或实际点击验收。下拉风格可用于其他入口，尚未做共享组件资产或完整状态集。
+
+## 1.3 选曲页v3低边框探索（仅Penpot）
+
+2026-11-12 用户要求以当前游戏实现而非旧Penpot稿为基线，只制作设计，不改游戏。只读核对`SongSelect.Layout.cs`、`SongSelect.QuickSettings.cs`、`SongDetailCard.cs`与`SongRow.cs`后，在`Game UI — Song Select`页新增两板，保留旧三板：
+
+| 画板 | ID | 坐标/尺寸 |
+| --- | --- | --- |
+| `Game — Song Select v3 · 01 Collapsed` | `bac61716-ba66-8029-8008-ef4e0622a5e9` | (0,1280)，1920×1080 |
+| `Game — Song Select v3 · 02 Expanded` | `bac61716-ba66-8029-8008-ef4e066e0c51` | (2120,1280)，1920×1080 |
+
+保留左快捷设置、右侧列表内原位展开、底部难度/BEST/CLEAR/评级/START结构；不套用商店右侧独立详情。列表x590、宽1280、高736，行96/间隔22、展开392，封面288方形等取当前源码。移除大型CutPanel外框和整圈选中描边，使用低对比底色、青色短定位线、轻分隔及彩色难度块；开关仍有清晰轨道/滑块，START保留实色主操作。曲目/成绩为虚构示例，不引用原版素材。
+
+两板示意STANDARD、BLEED/MIRROR/AUTO关闭；Hardcore强制BLEED语义不变（尚未单独画状态）。筛选仍灰色占位；试听仍只在展开后启动，暂停入口及只读进度保留，不新增拖动seek。原型只接首曲展开/收起导航，未实现真实滚动、音频、设置或START，动效继续遵守现有Full/Reduced/Off方向。几何和行为来源写入画板插件数据`designContract`。文本画板外边界检查无溢出，列表裁切为源码736高；展开PNG导出成功，但Read未呈现可目视图像，不宣称视觉验收。等待用户评审后再决定是否落地游戏。
+
+## 1.4 切角与明暗层级修订（仅设计，待评审）
+
+2026-11-12 用户指出无边框稿顶部偏高、切角丢失且整体偏暗。已对Online当前四板与Song Select v3两板试调：背景`#0D1524`、普通表面`#18283D`、选中/展开`#24445A`；主文字`#F0F5FF`、次文字`#AFBED2`、辅助文字`#899DB7`，禁用筛选保留暗色。选曲品牌字号34、局部y43，返回字号22、y48。主按钮、列表底面、模式选中底面、差分块恢复切角实色轮廓，不恢复全区域描边；开关/试听保持圆形操作语义。Online公告增加较亮切角底面，下拉菜单外轮廓也恢复小切角。被替换矩形以隐藏的pre-cut backup保留，原型交互复制到新路径；旧Online v1隐藏组不变。六板可见文字外边界及交互数量已检查，选曲展开PNG导出成功；未做全板目视或实机验收，没有修改游戏源码。
+
+2026-11-12 未激活按钮试色：先在Song Select v3两板试用`#192D3F`（背景`#0D1524`与激活底面`#24445A`的近似中间色），为Hardcore未选项、全部设置、返回增加无描边切角底面，关闭态开关轨道使用同色。激活STANDARD保持原底色/青色定位线，真正禁用的筛选仍灰暗；未扩展到Online，待用户看效果。此处“未激活”指可操作但未选中，不等于disabled。
+
+2026-11-12 选曲v3收尾：用户反馈其余方向基本无异议，仅调整返回/START内容为按钮内水平及垂直居中；两板普通歌曲行共18个差分块由44×44改为44×34，数字21→18，保持中心位置、颜色与切角。未调整底部大难度切换按钮或Online差分。本次仅设计，不作为游戏实机验收或实现授权。
+
+## 1.5 设置 / 调色 / 校准 v3（仅Penpot）
+
+2026-11-12 以游戏SettingsScreen.Layout、NoteColorsScreen.Layout、CalibrationScreen.Layout为语义依据，在`Game UI — Settings`保留旧8板，新增下列8板。采用§1.4的亮度层次、中间色未激活按钮、切角实色底面、弱化大框与按钮文字居中，不修改游戏实现。
+
+| 画板 | ID | 坐标 |
+| --- | --- | --- |
+| Settings v3 Gameplay | `33297f09-0040-80b1-8008-ef5884cd1c60` | (0,3840) |
+| Settings v3 Audio | `33297f09-0040-80b1-8008-ef58881fdd13` | (2120,3840) |
+| Settings v3 Display | `33297f09-0040-80b1-8008-ef58b644237c` | (4240,3840) |
+| Settings v3 Effects | `33297f09-0040-80b1-8008-ef58b7b7c3d6` | (0,5120) |
+| Calibration v3 Live | `33297f09-0040-80b1-8008-ef58dfd66234` | (2120,5120) |
+| Calibration v3 Result | `33297f09-0040-80b1-8008-ef58ead7d7a2` | (4240,5120) |
+| Note Colors v3 Hold / Draft | `33297f09-0040-80b1-8008-ef59072448a5` | (0,6400) |
+| Note Colors v3 Readability / Hold | `33297f09-0040-80b1-8008-ef592324b413` | (2120,6400) |
+
+全部1920×1080。修正旧稿Gameplay将JUDGE TEXT误写HIT EFFECTS、前三页缺Effects标签/校准入口；Display仍只展示已有UI MOTION，不虚构设置项。四tab、校准入口/返回/重试/应用及配色观察来回导航指向新v3，均只是原型，不实际保存值；已选tab不自导航。校准示例建议偏移由+3修正为按5ms取整的+5ms，不修改实际计算规则。
+
+调色只改周边界面，保留六类图标、音符陈列、SV/Hue、三种测试背景和近似色比较区的几何/颜色/描边。核对13处受保护区域内容一致（同名Type glyph按所属类型匹配）。禁用重做不按可操作未激活按钮提亮。
+
+按用户中途反馈补查对齐：修正校准重建底面相对文字的4px偏移，返回/目标加减/APPLY/RETRY文字匹配按钮框居中；Effects页脚配色入口与RESET共享y946中心线；观察页类型标签恢复色块右侧固定区域，避免整框居中挤占色块。七组重点按钮居中属性读回通过，8板文字无外边界溢出。Effects/调色草稿PNG已导出但非最终对齐后的完整目视验收；未运行产品，等待用户评审。预设/RGB等详细弹层未在本轮新增，不把导航稿当作全部手势已完成。
+
+2026-11-12 头部纠偏：用户截图指出Settings各页标题视觉位置不一致，之前仅检查按钮文字框居中不足以发现问题。现四张Settings v3统一按Effects参考：标题字号36、字距0、文本框(176,58,700,56)，返回切角按钮(64,50,72,72)，字形36居中；标题和按钮中心y86。Calibration两板标题(176,62,520,56)、返回(64,54,72,72)，中心y90，副标题y116。返回按钮由96缩至72，内容区不变。实读标题textBounds视觉中心与按钮中心相差约0.4px，六页一致；未据此宣称像素截图目视验收。
+
+2026-11-12 头部最终修订（覆盖上一段Calibration定位/字重）：按用户要求，8张v3页主标题统一Space Grotesk 600、36px、字距0，同时设置整段TextRange以避免仅顶层属性一致。四张Settings保留(176,58)标题位置及72px返回按钮；Calibration改为与NOTE COLORS/READABILITY相同：标题(152,30)、高44，副标题(154,80)、16px，返回按钮(48,28)、76×76，箭头复用调色页形状。逐页读回顶层字重、文字范围字重及variant均600；以此为当前头部方案。
+
+## 1.6 v3 游戏外观接入（当前工作区）
+
+2026-11-12 用户确认上述设计，并授权接入游戏，约束为**只改外观，不改行为**。选曲、四 tab 设置、Calibration 两状态和音符调色/可读性观察已接入 v3；§1.3–1.5 中“仅 Penpot / 未授权实现”是此前设计阶段记录，不再描述当前工作区。Online 不在本次实现范围。
+
+- 客户端 `ui/common/MenuStyle.cs` 集中维护新菜单色值与真实 Space Grotesk 600 标题字体。`CutButton` / `TechButton` 的低边框为显式启用项，旧调用方默认外观不变；共享 `presentation/UiFonts` 未全局换色，首页、结果、游戏舞台及编辑器不随菜单改色。
+- 选曲保留原列表尺寸、行高/展开高度和视口滚动，移除外围大框，使用切角层次底面、小等级块、底部 BEST/CLEAR 分列和难度色条。两项读数仍取同一成绩记录；无数据/加载中的状态一并保留。关闭态圆形开关绘制在原输入矩形内；返回及全部设置的矩形按新布局移动。
+- Settings 标题(176,58)、36/600，返回(64,50)、72方形；Calibration 与调色共用(152,30)标题、(48,28)76方形返回及矢量箭头。Settings 大内容框和 Calibration 统计底板保留节点/入场登记但绘制透明，避免改变原有进场时序。
+- 原控件输入方法、事件接线、设置数值/保存、试听生命周期、校准采样/公式、配色草稿/比较/撤销/应用保持原逻辑；真实音符样张、HSV操作区及三种测试背景不替换为设计示例。
+- 新字体来自 Google Fonts 的600字重交付，原样加入客户端，归属及 SHA-256 记录在 THIRD_PARTY_NOTICES / asset-provenance。中文继续沿用现有系统字体回退，不宣称跨设备与 Penpot Noto Sans SC 像素一致。
+
+构建和回归证据见 verification；尚未进行这轮游戏窗口目视/触屏验收，设计稿批准不等同于游戏实机批准。
+
 ## 2. 板清单（画布坐标 / 尺寸）
 
 旧 Editor UI 画板与工作台探索已移至 [历史设计](archive/art/2026-10-editor-ui-design.md)。它们不代表 Avalonia 工作台；当前能力见 [制谱器说明](dyna-maker-uv.md)。
 
-**Page「Game UI」** 保留基础十四板及后续资产/结算/首页概念板。尺寸以 1920×1080 为主，x 间距 2120。
+**原Page「Game UI」的历史清单**：以下坐标是迁移前参考，不再是当前定位依据；实际页面与坐标按§1.1查找。尺寸以1920×1080为主。
 基础板中的旧 Song Select 和 Result 仅作历史对照；当前分别采用 Song Select v2 与 Result v2。
-下面表格用于定位，不意味着每一块参考板都是当前 UI。
+下面表格保留历史内容说明，不代表每块参考板都是当前UI；不可按旧坐标操作新页。
 
 | 板 | 坐标 | 尺寸 | 内容 |
 | --- | --- | --- | --- |

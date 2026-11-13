@@ -18,23 +18,27 @@ internal sealed class SongPreviewPlayer : IDisposable
     private AudioStream? _stream;
     private double _start;
     private double _duration;
+    private bool _ended;
 
     internal bool Playing { get; private set; }
-    internal double Elapsed => _player.GetPlaybackPosition() - _start;
+    internal double Elapsed => _ended ? _duration : _player.GetPlaybackPosition() - _start;
 
     internal SongPreviewPlayer(Node parent, Func<string, AudioStream?> loadAudio)
     {
         _loadAudio = loadAudio;
         _player = new AudioStreamPlayer { Name = "PreviewPlayer", Bus = "Music" };
+        _player.Finished += () => { Playing = false; _ended = true; };
         parent.AddChild(_player);
     }
 
     // The page stops the old preview before looking up the new chart, including failed lookups.
     internal void Load(SongPreviewKey key, ChartPreview? preview)
     {
-        _start = Math.Max(0.0, preview?.StartSec ?? 0.0);
+        var start = preview?.StartSec ?? 0.0;
+        _start = double.IsFinite(start) ? Math.Max(0.0, start) : 0.0;
         var duration = preview?.DurationSec ?? FallbackDuration;
-        _duration = duration > 0.0 ? duration : FallbackDuration;
+        _duration = double.IsFinite(duration) && duration > 0.0 ? duration : FallbackDuration;
+        _ended = false;
         _ = _loader.Start(key, () => _loadAudio(key.Path));
     }
 
@@ -46,8 +50,15 @@ internal sealed class SongPreviewPlayer : IDisposable
             _stream = null;
             return new(false, result.Key, result.Error?.Message ?? "");
         }
+        var length = stream.GetLength();
+        if (double.IsFinite(length) && length > 0)
+        {
+            if (_start >= length) _start = 0;
+            _duration = Math.Min(_duration, length - _start);
+        }
         _stream = stream;
         _player.Stream = stream;
+        _player.StreamPaused = false;
         _player.Play((float)_start);
         Playing = true;
         return new(true, result.Key, "");
@@ -56,6 +67,7 @@ internal sealed class SongPreviewPlayer : IDisposable
     internal void Stop()
     {
         _loader.Cancel();
+        _ended = false;
         Playing = false;
         if (_player.Stream != null)
         {
@@ -68,6 +80,14 @@ internal sealed class SongPreviewPlayer : IDisposable
     internal bool TogglePause()
     {
         if (_stream == null) return false;
+        if (_ended)
+        {
+            _ended = false;
+            _player.StreamPaused = false;
+            _player.Play((float)_start);
+            Playing = true;
+            return true;
+        }
         Playing = !Playing;
         _player.StreamPaused = !Playing;
         return true;
@@ -83,6 +103,7 @@ internal sealed class SongPreviewPlayer : IDisposable
     {
         if (!(Playing && elapsed >= _duration)) return false;
         Playing = false;
+        _ended = true;
         _player.Stop();
         return true;
     }

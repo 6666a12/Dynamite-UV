@@ -31,6 +31,10 @@ public sealed partial class MainWindow : Window
     private readonly ShellChartEditor _editing;
     private bool _playing;
     private bool _ioBusy;
+    private bool _closePending;
+    private bool _closeApproved;
+    internal Func<Task<UnsavedCloseChoice>>? ClosePromptForVerification { get; set; }
+    internal Task CloseDecisionForVerification { get; private set; } = Task.CompletedTask;
     private double _bar;
     private double _second;
     private double _playerSpeed = 1.0;
@@ -130,7 +134,7 @@ public sealed partial class MainWindow : Window
         _preferences.Enabled = true;
         if (_userStore.Warning is { } warning) Report(warning);
         Opened += (_, _) => StartStage();
-        Closing += (_, _) =>
+        Closed += (_, _) =>
         {
             _factory.IsShuttingDown = true;
             _preferences.Enabled = false;
@@ -143,13 +147,44 @@ public sealed partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if (_ioBusy) { e.Cancel = true; return; }
+        if (_ioBusy || _closePending) { e.Cancel = true; return; }
+        if (!_closeApproved && CurrentDocument?.HasUnsavedChanges == true)
+        {
+            e.Cancel = true;
+            CloseDecisionForVerification = ConfirmClose();
+            return;
+        }
         // Capture before base raises Dock's closing handlers and tears down floating hosts.
         _preferences.Flush();
         _layoutSession.Save();
         _factory.IsShuttingDown = true;
         base.OnClosing(e);
-        if (e.Cancel) _factory.IsShuttingDown = false;
+        if (e.Cancel) { _factory.IsShuttingDown = false; _closeApproved = false; }
+    }
+
+    private async Task ConfirmClose()
+    {
+        _closePending = true;
+        var document = CurrentDocument;
+        var version = document?.ChangeVersion;
+        var close = false;
+        try
+        {
+            // Yield so even a synchronously completed test/user decision cannot re-enter OnClosing.
+            await Task.Yield();
+            var choice = await (ClosePromptForVerification?.Invoke() ?? UnsavedCloseDialog.Show(this, _text));
+            if (!ReferenceEquals(document, CurrentDocument) || _ioBusy) return;
+            if (choice == UnsavedCloseChoice.Save)
+            {
+                await SavePackage(false);
+                close = ReferenceEquals(document, CurrentDocument) && document?.HasUnsavedChanges != true;
+            }
+            else if (choice == UnsavedCloseChoice.Discard)
+                close = document?.ChangeVersion == version;
+        }
+        catch (Exception ex) { Report(_text.Format("Message.FileError", ex.Message)); }
+        finally { _closePending = false; }
+        if (close) { _closeApproved = true; Close(); }
     }
 
     internal StageView Stage => _stageView;
@@ -238,6 +273,8 @@ public sealed partial class MainWindow : Window
             Report(_text["Message.SaveBeforeOpen"]);
             return;
         }
+        var previous = CurrentDocument;
+        var version = previous?.ChangeVersion;
         EditorCreateResult? result;
         if (form is null)
         {
@@ -245,11 +282,13 @@ public sealed partial class MainWindow : Window
             result = await dialog.ShowDialog<EditorCreateResult?>(this);
         }
         else result = EditorCreateRequest.Build(EditorCreateMode.NewPackage, form, _snapDenominator);
-        if (result?.DraftRequest is null) return;
+        if (result?.DraftRequest is null || _ioBusy || !ReferenceEquals(previous, CurrentDocument) ||
+            previous?.ChangeVersion != version) return;
+        if (CurrentDocument?.HasUnsavedChanges == true) { Report(_text["Message.SaveBeforeOpen"]); return; }
         _ioBusy = true;
         try
         {
-            await Task.Run(() => _session.CreateDraft(result.DraftRequest));
+            await _session.CreateDraftAsync(result.DraftRequest);
             _bar = 0;
             _second = 0;
             RefreshDocument();
@@ -463,12 +502,16 @@ public sealed partial class MainWindow : Window
             Report(_text["Message.SaveBeforeOpen"]);
             return;
         }
+        var previous = CurrentDocument;
+        var version = previous?.ChangeVersion;
         var directory = path ?? await PickFolder("File.Open");
-        if (directory is null) return;
+        if (directory is null || _ioBusy || !ReferenceEquals(previous, CurrentDocument) ||
+            previous?.ChangeVersion != version) return;
+        if (CurrentDocument?.HasUnsavedChanges == true) { Report(_text["Message.SaveBeforeOpen"]); return; }
         _ioBusy = true;
         try
         {
-            await Task.Run(() => _session.Open(directory));
+            await _session.OpenAsync(directory);
             RefreshDocument();
             Report(_text.Format("Message.Opened", CurrentDocument!.Title));
         }

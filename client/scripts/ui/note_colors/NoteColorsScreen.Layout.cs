@@ -14,8 +14,9 @@ public partial class NoteColorsScreen
     private void BuildHeader()
     {
         Line(_content, 48, 131, 1824);
-        Button(_content, "‹", 48, 28, 76, 76, RequestBack, size: 40);
-        _title = Text(_content, "NOTE COLORS", 152, 28, 700, 48, 36, bold: true);
+        Button(_content, "‹", 48, 28, 76, 76, RequestBack, size: 40).BackChevron = true;
+        _title = Text(_content, "NOTE COLORS", 152, 30, 700, 44, 36, bold: true);
+        MenuStyle.Heading(_title);
         _subtitle = Text(_content, "音符配色  /  EFFECTS", 154, 80, 700, 26, 16, MutedColor);
         _status = Text(_content, "未应用修改", 1088, 46, 248, 32, 18, WarningColor);
         _presetButton = Button(_content, "", 1352, 28, 520, 76, ShowPresets);
@@ -53,7 +54,7 @@ public partial class NoteColorsScreen
         Text(_main, $"跟随当前特效设置 · 亮度 {Settings.NoteBrightnessPercent}%", 752, 893, 392, 24, 14,
             new Color("748496"), align: HorizontalAlignment.Right);
 
-        Panel(_main, 1200, 160, 672, 768, cut: 24);
+        Panel(_main, 1200, 160, 672, 768, cut: 24).BorderWidth = 0;
         Text(_main, "选择音符", 1232, 180, 240, 24, 16, MutedColor);
         Text(_main, "单独调色 · 整套预览", 1540, 180, 300, 24, 14, MutedColor, align: HorizontalAlignment.Right);
         for (var i = 0; i < 6; i++)

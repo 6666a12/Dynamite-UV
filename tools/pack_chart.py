@@ -47,7 +47,23 @@ def main() -> int:
         print(f"错误：封面文件不存在: {args.cover}", file=sys.stderr)
         return 1
 
+    chart_name = f"chart_{args.diff}.json"
+    reserved = {"meta.json", *(f"chart_{diff}.json" for diff in DIFFS)}
+    media = [args.audio] + ([args.cover] if args.cover is not None else [])
+    names = [path.name.casefold() for path in media]
+    if len(set(names)) != len(names) or any(name in reserved for name in names):
+        print("错误：音频/封面文件名互相冲突或占用谱面/元数据文件名", file=sys.stderr)
+        return 1
     pack_dir = args.out / args.id
+    meta_path = pack_dir / "meta.json"
+    if meta_path.is_file():
+        existing = json.loads(meta_path.read_text(encoding="utf-8"))
+        reserved.update(str(c.get("file", "")).casefold() for c in existing.get("charts", []))
+        # Reject collisions with previously registered charts/media as well as this invocation.
+        old_media = {str(existing.get(key, "")).casefold() for key in ("audio", "cover")}
+        if any(name in reserved for name in names) or chart_name.casefold() in old_media:
+            print("错误：文件名与现有包的谱面/媒体冲突", file=sys.stderr)
+            return 1
     pack_dir.mkdir(parents=True, exist_ok=True)
 
     meta_path = pack_dir / "meta.json"

@@ -112,6 +112,10 @@ public sealed class CalibrationSampling
                 deviation,
                 attributedNote);
 
+        // Window rejection precedes duplicate classification: only valid repeated hits get a readout.
+        if (!double.IsFinite(deviation) || Math.Abs(deviation) > CalibrationStats.MaxAcceptedDeviationMs)
+            return new HitResult(HitOutcome.Stray, deviation, attributedNote);
+
         // 每颗 note 至多贡献一个样本：对同一颗 note 连击（±150ms 内的第二次击打）不是独立观测。
         if (attributedNote == LastSampledNote)
             return new HitResult(HitOutcome.Duplicate, deviation, attributedNote);

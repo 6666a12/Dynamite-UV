@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import argparse
 import math
+import hashlib
+import json
+import re
 import sys
 import threading
 import time
@@ -29,30 +32,46 @@ def fetch_size(url: str) -> int:
 
 
 def fetch_range(url: str, start: int, end: int, dest: Path,
-                progress: list[int], idx: int) -> None:
-    """下载 [start, end] 到 dest；已存在且大小正确则跳过。失败重试 5 次。"""
+                progress: list[int], idx: int, validator: str | None = None) -> None:
+    """Download an exact range. Resume only with matching source, validator and content hash."""
     want = end - start + 1
-    if dest.exists() and dest.stat().st_size == want:
-        progress[idx] = want
-        return
+    receipt = dest.with_suffix(dest.suffix + ".json")
+    identity = {"source": hashlib.sha256(url.encode()).hexdigest(), "start": start,
+                "end": end, "validator": validator}
+    try:
+        saved = json.loads(receipt.read_text(encoding="utf-8"))
+        if validator and saved.get("identity") == identity and dest.stat().st_size == want and \
+                saved.get("sha256") == hashlib.sha256(dest.read_bytes()).hexdigest():
+            progress[idx] = want
+            return
+    except (OSError, ValueError, AttributeError):
+        pass
     for attempt in range(5):
         try:
-            req = urllib.request.Request(
-                url, headers={**UA, "Range": f"bytes={start}-{end}"})
-            with urllib.request.urlopen(req, timeout=60) as r, \
-                    open(dest, "wb") as f:
+            headers = {**UA, "Range": f"bytes={start}-{end}"}
+            if validator:
+                headers["If-Range"] = validator
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                content_range = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+)", r.headers.get("Content-Range", ""))
+                if r.status != 206 or not content_range or tuple(map(int, content_range.groups()[:2])) != (start, end) \
+                        or int(content_range.group(3)) <= end:
+                    raise ValueError("server did not return the requested byte range")
                 got = 0
-                while True:
-                    buf = r.read(1 << 16)
-                    if not buf:
-                        break
-                    f.write(buf)
-                    got += len(buf)
-                    progress[idx] = got
-            if dest.stat().st_size == want:
-                return
+                with open(dest, "wb") as f:
+                    while buf := r.read(min(1 << 16, want - got + 1)):
+                        got += len(buf)
+                        if got > want:
+                            raise ValueError("range response exceeds requested size")
+                        f.write(buf)
+                        progress[idx] = got
+            if got != want:
+                raise ValueError("short range response")
+            receipt.write_text(json.dumps({"identity": identity,
+                "sha256": hashlib.sha256(dest.read_bytes()).hexdigest()}), encoding="utf-8")
+            return
         except Exception as e:
-            print(f"[seg {idx}] 第 {attempt + 1} 次失败: {e}", flush=True)
+            print(f"[seg {idx}] 第 {attempt + 1} 次失败: {type(e).__name__}", flush=True)
             time.sleep(2 * (attempt + 1))
     raise RuntimeError(f"分段 {idx} 多次失败")
 
@@ -66,7 +85,13 @@ def main() -> None:
     args = ap.parse_args()
 
     out = Path(args.out)
-    total = fetch_size(args.url)
+    with urllib.request.urlopen(urllib.request.Request(args.url, method="HEAD", headers=UA), timeout=30) as response:
+        total = int(response.headers["Content-Length"])
+        validator = response.headers.get("ETag")
+        if validator and validator.startswith("W/"):
+            validator = None
+    if args.workers <= 0 or args.chunk_mb <= 0 or total <= 0:
+        ap.error("workers, chunk-mb and resource size must be positive")
     chunk = args.chunk_mb << 20
     nseg = math.ceil(total / chunk)
     parts = out.parent / (out.name + ".parts")
@@ -96,7 +121,7 @@ def main() -> None:
             start = i * chunk
             end = min(total - 1, start + chunk - 1)
             futs.append(ex.submit(fetch_range, args.url, start, end,
-                                  parts / f"{i:05d}.part", progress, i))
+                                  parts / f"{i:05d}.part", progress, i, validator))
         for f in futs:
             f.result()
 
@@ -109,6 +134,7 @@ def main() -> None:
         sys.exit(f"合并后大小不符: {out.stat().st_size} != {total}")
     for p in parts.glob("*.part"):
         p.unlink()
+        p.with_suffix(p.suffix + ".json").unlink(missing_ok=True)
     parts.rmdir()
     print("完成", flush=True)
 

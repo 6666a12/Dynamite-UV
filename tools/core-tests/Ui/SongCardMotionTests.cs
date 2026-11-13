@@ -13,6 +13,13 @@ internal static class SongCardMotionTests
 
     internal static void Run(Action<bool, string> check)
     {
+        var immediate = new SongCardMotion(Row, Card);
+        immediate.Expand(true, Full);
+        check(immediate.Collapse(Full) == SongCardMotion.CollapseOutcome.Completed,
+            "collapse before first expansion frame completes immediately");
+        immediate.Advance(2, Full, 0);
+        check(!immediate.IsPresenting && !immediate.IsCollapsing && !immediate.Animating && immediate.ShownHeight == Row,
+            "immediate collapse cannot leave a stuck presenting card");
         LandingPoints(check);
         ReverseContinuesFromCurrentValue(check);
         MotionModes(check);

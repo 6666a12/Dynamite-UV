@@ -11,6 +11,11 @@ public partial class CutButton : Control
 {
 	public enum ButtonStyle { Outline, Solid }
 
+	/// <summary>Opt-in v3 paint; input and animation timing remain unchanged.</summary>
+	public bool LowBorder { get; init; }
+	public bool BackChevron { get; init; }
+	public bool MinimalAccent { get; init; }
+
 	private string _text = "";
 	private string _subText = "";
 	private ButtonStyle _styleKind = ButtonStyle.Outline;
@@ -175,6 +180,12 @@ public partial class CutButton : Control
 			fg = UiFonts.Text.Lerp(_accent, hover);
 		}
 
+		if (LowBorder && !_disabled)
+		{
+			fill = _styleKind == ButtonStyle.Solid ? fill : MenuStyle.Idle.Lerp(MenuStyle.Active, hover);
+			fg = _styleKind == ButtonStyle.Solid ? MenuStyle.Ink : MenuStyle.Text.Lerp(_accent, hover);
+		}
+
 		if (press > 0f || commit > 0f)
 		{
 			var confirmation = Mathf.Max(press, commit);
@@ -183,6 +194,12 @@ public partial class CutButton : Control
 			fg = fg.Lerp(Colors.White, 0.16f * confirmation);
 		}
 
+		if (MinimalAccent)
+		{
+			fill = new Color(fill, 0f);
+			if (!_disabled) fg = _accent;
+			DrawRect(new Rect2(0, 8, 4, Size.Y - 16), fg);
+		}
 		DrawColoredPolygon(pts, fill);
 		if (profile.AllowDirectionalMotion && hover > 0f && !_disabled)
 		{
@@ -194,17 +211,22 @@ public partial class CutButton : Control
 		}
 
 		var closed = _closedPoints ??= UiGeometry.Close(pts);
-		DrawPolyline(closed, border, 2f, true);
+		if (!LowBorder) DrawPolyline(closed, border, 2f, true);
 		if (profile.AllowDirectionalMotion && (press > 0f || commit > 0f))
 		{
 			var trace = Mathf.Max(press, commit);
 			DrawPolyline(closed, new Color(1f, 1f, 1f, 0.55f * trace), 1f + trace, true);
 		}
 
+		if (BackChevron)
+		{
+			MenuStyle.BackChevron(this, fg);
+			return;
+		}
 		var font = _techFont ? UiFonts.TechBold : UiFonts.Cjk;
 		var hAlign = _alignLeft ? HorizontalAlignment.Left : HorizontalAlignment.Center;
-		var textShift = profile.AllowDirectionalMotion ? 3f * hover : 0f;
-		var textX = (_alignLeft ? 28f : 0f) + textShift;
+		var textShift = !LowBorder && profile.AllowDirectionalMotion ? 3f * hover : 0f;
+		var textX = (_alignLeft ? (LowBorder ? 24f : 28f) : 0f) + textShift;
 		var textW = _alignLeft ? Size.X - 56f : Size.X;
 		if (_subText.Length > 0)
 		{
@@ -214,13 +236,14 @@ public partial class CutButton : Control
 				hAlign, textW, _fontSize, fg);
 			var fgSub = _styleKind == ButtonStyle.Solid && !_disabled
 				? new Color(fg, 0.65f)
-				: (_disabled ? fg : UiFonts.Dim);
+				: (_disabled ? fg : LowBorder ? MenuStyle.Secondary : UiFonts.Dim);
 			DrawString(font, new Vector2(textX, yMain + subSize + 8), _subText,
 				hAlign, textW, subSize, fgSub);
 		}
 		else
 		{
-			DrawString(font, new Vector2(textX, Size.Y * 0.5f + _fontSize * 0.35f), _text,
+			var baseline = LowBorder ? MenuStyle.Baseline(font, _fontSize, Size.Y) : Size.Y * 0.5f + _fontSize * 0.35f;
+			DrawString(font, new Vector2(textX, baseline), _text,
 				hAlign, textW, _fontSize, fg);
 		}
 	}

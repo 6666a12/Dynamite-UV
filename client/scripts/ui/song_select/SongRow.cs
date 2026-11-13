@@ -17,7 +17,6 @@ public partial class SongRow : Control
     private double _commitElapsed;
     private double _commitDuration;
     private Vector2[]? _points;
-    private Vector2[]? _closedPoints;
 
     [Signal]
     public delegate void PressedEventHandler();
@@ -51,7 +50,6 @@ public partial class SongRow : Control
         if (what == NotificationResized)
         {
             _points = null;
-            _closedPoints = null;
         }
     }
 
@@ -123,23 +121,14 @@ public partial class SongRow : Control
         var hover = UiEase.Standard(profile.IsAnimated ? _hoverAmount : (_hover ? 1f : 0f));
         var selected = UiEase.Standard(profile.IsAnimated ? _selectedAmount : (_selected ? 1f : 0f));
         var commit = profile.IsAnimated ? UiEase.Echo(_commitAmount) : 0f;
-        var active = Mathf.Max(Mathf.Max(hover, selected), commit);
         const float cut = 10f;
         Vector2[] pts = _points ??= UiGeometry.CutCorners(Size, cut);
-        var idleFill = new Color(0.06f, 0.08f, 0.16f, 0.35f);
-        var hoverFill = new Color(UiFonts.PanelHover, 0.6f);
+        var idleFill = MenuStyle.Surface;
+        var hoverFill = MenuStyle.Idle;
         var fill = idleFill.Lerp(hoverFill, hover)
-            .Lerp(new Color("18244a"), selected)
+            .Lerp(MenuStyle.Active, selected)
             .Lerp(new Color("27496d"), commit * 0.44f);
         DrawColoredPolygon(pts, fill);
-
-        if (active > 0f)
-        {
-            var closed = _closedPoints ??= UiGeometry.Close(pts);
-            var border = UiFonts.Line.Lerp(UiFonts.Cyan, Mathf.Max(selected, commit));
-            border.A *= active;
-            DrawPolyline(closed, border, 2f, true);
-        }
 
         if (profile.AllowDirectionalMotion && selected > 0f)
         {
@@ -157,13 +146,13 @@ public partial class SongRow : Control
 
         // 左：曲名 + 曲师·谱师
         DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.44f), _pack.Title,
-            HorizontalAlignment.Left, Size.X * 0.55f, 30, UiFonts.Text);
+            HorizontalAlignment.Left, Size.X * 0.55f, 30, MenuStyle.Text);
         DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.78f),
             $"{_pack.Artist} · 谱师 {_pack.Charter}",
-            HorizontalAlignment.Left, Size.X * 0.55f, 18, UiFonts.Dim);
+            HorizontalAlignment.Left, Size.X * 0.55f, 18, MenuStyle.Secondary);
 
         // 右：难度徽章（从右往左排，giga 在最右）
-        const float chipW = 46f, chipH = 32f, gap = 8f;
+        const float chipW = 44f, chipH = 34f, gap = 8f;
         var x = Size.X - 20f;
         var y = (Size.Y - chipH) * 0.5f;
         for (var i = _pack.Charts.Count - 1; i >= 0; i--)
@@ -174,15 +163,15 @@ public partial class SongRow : Control
                 : chart.Unrated ? "—" : "?";
             x -= chipW;
             var col = UiFonts.DiffColor(chart.Difficulty);
-            const float cc = 6f;
+            const float cc = 5f;
             Vector2[] chip =
             {
                 new(x + cc, y), new(x + chipW, y), new(x + chipW, y + chipH - cc),
                 new(x + chipW - cc, y + chipH), new(x, y + chipH), new(x, y + cc),
             };
             DrawColoredPolygon(chip, col);
-            DrawString(UiFonts.TechBold, new Vector2(x, y + chipH * 0.5f + 7f),
-                badge, HorizontalAlignment.Center, chipW, 19, UiFonts.InkText);
+            DrawString(UiFonts.TechBold, new Vector2(x, y + MenuStyle.Baseline(UiFonts.TechBold, 18, chipH)),
+                badge, HorizontalAlignment.Center, chipW, 18, MenuStyle.Ink);
             x -= gap;
         }
     }

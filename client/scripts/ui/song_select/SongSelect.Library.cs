@@ -58,15 +58,18 @@ public partial class SongSelect
 
     private void SelectVisibleRowAt(Vector2 position)
     {
-        var contentY = position.Y - ListY + _songScroll.ScrollVertical;
-        var stride = RowHeight + RowGap;
-        var index = Mathf.FloorToInt(contentY / stride);
-        var withinRow = contentY - index * stride;
-        if (withinRow < 0 || withinRow > RowHeight)
+        // Container geometry includes the animated detail card, filtering and row gaps.
+        if (_detailCard.Visible && _detailCard.GetGlobalRect().HasPoint(position))
+        {
+            _detailCard.HandleListTap(position);
             return;
-        if (index < 0 || index >= _visibleOrder.Count)
-            return;
-        OnRowPressed(_visibleOrder[index]);
+        }
+        foreach (var index in _visibleOrder)
+            if (_rows[index].Visible && _rows[index].GetGlobalRect().HasPoint(position))
+            {
+                OnRowPressed(index);
+                return;
+            }
     }
 
     private void ExpandCard()

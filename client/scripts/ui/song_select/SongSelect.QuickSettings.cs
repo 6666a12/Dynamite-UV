@@ -45,21 +45,14 @@ public partial class SongSelect
 
     private void BuildQuickSettings()
     {
-        _settingsRoot.AddChild(new CutPanel
-        {
-            Position = new Vector2(QsX, QsY),
-            Size = new Vector2(QsWidth, QsHeight),
-        });
-
-        var heading = MakeLabel(new Vector2(QsL, 142), new Vector2(300, 28), 14, UiFonts.Dim);
+        var heading = MakeLabel(new Vector2(QsL, 134), new Vector2(408, 26), 14, MenuStyle.Muted);
         heading.Text = "QUICK SETTINGS";
         _settingsRoot.AddChild(heading);
-        AddLine(_settingsRoot, new Vector2(QsL, 176), new Vector2(QsR - QsL, 1.5f));
 
-        var modeLabel = MakeLabel(new Vector2(QsL, 218), new Vector2(200, 32), 26, UiFonts.Text);
+        var modeLabel = MakeLabel(new Vector2(QsL, 218), new Vector2(200, 32), 26, MenuStyle.Text);
         modeLabel.Text = "MODE";
         _settingsRoot.AddChild(modeLabel);
-        _modeDesc = MakeLabel(new Vector2(QsL, 252), new Vector2(408, 26), 15, UiFonts.Dim);
+        _modeDesc = MakeLabel(new Vector2(QsL, 252), new Vector2(408, 26), 15, MenuStyle.Secondary);
         _settingsRoot.AddChild(_modeDesc);
 
         for (var i = 0; i < 2; i++)
@@ -107,14 +100,11 @@ public partial class SongSelect
             RefreshQuickSettings();
         };
 
-        AddLine(_settingsRoot, new Vector2(QsL, 772), new Vector2(QsR - QsL, 1.5f),
-            new Color(UiFonts.Line, 0.6f));
-
         var all = new QuickActionRow
         {
             MotionProfileProvider = () => UiMotionProfile.For(GameSession.Settings.MotionMode),
-            Position = new Vector2(QsL, 824),
-            Size = new Vector2(QsR - QsL, 80),
+            Position = new Vector2(60, 818),
+            Size = new Vector2(424, 92),
             Glyph = UiGlyphKind.Sliders,
             Text = "全部设置",
             SubText = "ALL SETTINGS",
@@ -139,14 +129,15 @@ public partial class SongSelect
             Position = new Vector2(QsL + 27, cy - 10),
             Size = new Vector2(20, 20),
             Glyph = glyph,
-            Color = UiFonts.Text,
+            Visible = false,
+            Color = MenuStyle.Text,
         };
         _settingsRoot.AddChild(icon);
 
-        var title = MakeLabel(new Vector2(QsL + 64, cy - 25), new Vector2(260, 28), 20, UiFonts.Text);
+        var title = MakeLabel(new Vector2(QsL, cy - 25), new Vector2(260, 28), 20, MenuStyle.Text);
         title.Text = label;
         _settingsRoot.AddChild(title);
-        sub = MakeLabel(new Vector2(QsL + 64, cy - 2), new Vector2(300, 22), 13, UiFonts.Dim);
+        sub = MakeLabel(new Vector2(QsL, cy + 6), new Vector2(290, 22), 13, MenuStyle.Muted);
         // 副文案必须在这里落字：三个开关各有各的说明，只在 RefreshQuickSettings 里改 BLEED
         // 会让 MIRROR / AUTO 的 13px 小字永远空着。
         sub.Text = subText;
@@ -189,9 +180,9 @@ public partial class SongSelect
         _mirrorSwitch.SetState(settings.MirrorEnabled, locked: false);
         _autoSwitch.SetState(settings.AutoEnabled, locked: false);
 
-        _bleedIcon.Color = _bleedSwitch.IsOn ? UiFonts.Cyan : UiFonts.Text;
-        _mirrorIcon.Color = _mirrorSwitch.IsOn ? UiFonts.Cyan : UiFonts.Text;
-        _autoIcon.Color = _autoSwitch.IsOn ? UiFonts.Cyan : UiFonts.Text;
+        _bleedIcon.Color = _bleedSwitch.IsOn ? UiFonts.Cyan : MenuStyle.Text;
+        _mirrorIcon.Color = _mirrorSwitch.IsOn ? UiFonts.Cyan : MenuStyle.Text;
+        _autoIcon.Color = _autoSwitch.IsOn ? UiFonts.Cyan : MenuStyle.Text;
         _bleedIcon.QueueRedraw();
         _mirrorIcon.QueueRedraw();
         _autoIcon.QueueRedraw();

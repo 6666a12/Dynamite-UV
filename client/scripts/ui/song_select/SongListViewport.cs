@@ -58,7 +58,7 @@ internal sealed class SongListViewport
                 return true;
             }
             case InputEventScreenTouch touch when !touch.Pressed && _touchId == touch.Index:
-                if (!_touchMoved && _listRect().HasPoint(touch.Position))
+                if (!touch.Canceled && !_touchMoved && _listRect().HasPoint(touch.Position))
                     _selectAt(touch.Position);
                 _touchId = null;
                 _touchMoved = false;

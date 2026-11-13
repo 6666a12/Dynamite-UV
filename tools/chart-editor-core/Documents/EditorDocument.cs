@@ -176,7 +176,7 @@ public sealed class EditorDocument
     public bool IsUnpersisted { get; private set; }
     public bool HasUnsavedChanges { get; private set; }
     public bool IsDirty => HasUnsavedChanges;
-    internal long ChangeVersion { get; private set; }
+    public long ChangeVersion { get; private set; }
     public IReadOnlyList<V2ExternalResourceMapping> PendingResourceReplacements =>
         _pendingResourceReplacements.Select(item => new V2ExternalResourceMapping(item.Value, item.Key)).ToArray();
 

@@ -34,6 +34,8 @@ def inspect(root: Path, policy: dict) -> tuple[list[str], list[tuple[int, str]],
         if packages != sorted(expected["packages"]):
             errors.append(f"{project}: package dependencies changed: {packages}")
 
+    boundaries = [(set(root.glob(pattern)), boundary) for boundary in policy.get("source_boundaries", [])
+                  for pattern in boundary["files"]]
     for directory in policy["source_roots"]:
         source_root = root / directory
         if not source_root.is_dir():
@@ -46,8 +48,8 @@ def inspect(root: Path, policy: dict) -> tuple[list[str], list[tuple[int, str]],
             source = path.read_text(encoding="utf-8-sig")
             lines = len(source.splitlines())
             sizes.append((lines, name))
-            for boundary in policy.get("source_boundaries", []):
-                if any(path.relative_to(root).match(pattern) for pattern in boundary["files"]):
+            for matches, boundary in boundaries:
+                if path in matches:
                     if re.search(boundary["forbidden"], source):
                         errors.append(f"{name}: {boundary['reason']}")
             limit = policy["file_limits"].get(name, policy["default_file_limit"])

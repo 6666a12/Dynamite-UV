@@ -37,28 +37,14 @@ public partial class SettingsScreen
 
     private void BuildTopBar()
     {
-        AddChild(new ColorRect
-        {
-            Position = Vector2.Zero,
-            Size = new Vector2(UiLayout.DesignWidth, BarHeight),
-            Color = new Color(UiFonts.Bg, 0.92f),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        });
-        AddChild(new ColorRect
-        {
-            Position = new Vector2(0f, BarHeight),
-            Size = new Vector2(UiLayout.DesignWidth, 2f),
-            Color = UiFonts.Line,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        });
-
         var back = new CutButton
         {
-            Position = new Vector2(TabX, 12f),
-            Size = new Vector2(TouchButton, TouchButton),
-            Cut = 18f,
+            LowBorder = true,
+            Position = new Vector2(64f, 50f),
+            Size = new Vector2(72f, 72f),
+            Cut = 12f,
             Text = "‹",
-            FontSize = 44,
+            FontSize = 36,
             Accent = UiFonts.Cyan,
         };
         back.Pressed += Back;
@@ -67,13 +53,13 @@ public partial class SettingsScreen
 
         var title = new Label
         {
-            Position = new Vector2(176f, 30f),
-            Size = new Vector2(900f, 60f),
+            Position = new Vector2(176f, 58f),
+            Size = new Vector2(700f, 56f),
             Text = "SETTINGS",
             VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
-        UiLabels.TechBold(title, 40, UiFonts.Text);
+        MenuStyle.Heading(title);
         AddChild(title);
         _enterItems.Add(title);
 
@@ -86,7 +72,7 @@ public partial class SettingsScreen
             VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
-        UiLabels.Tech(version, 13, UiFonts.Dim);
+        UiLabels.Tech(version, 13, MenuStyle.Secondary);
         AddChild(version);
         _enterItems.Add(version);
     }
@@ -131,9 +117,9 @@ public partial class SettingsScreen
             Position = new Vector2(CardX, CardY),
             Size = new Vector2(CardWidth, CardHeight),
             Cut = 20f,
-            Fill = new Color(UiFonts.Panel, 0.92f),
+            Fill = Colors.Transparent,
             Border = UiFonts.Line,
-            BorderWidth = 1.5f,
+            BorderWidth = 0f,
         };
         AddChild(card);
         _enterItems.Add(card);
@@ -273,7 +259,8 @@ public partial class SettingsScreen
     {
         var entry = new CutButton
         {
-            Position = new Vector2(ColumnRight - 240f, FooterLineY + 40f),
+            LowBorder = true,
+            Position = new Vector2(ColumnRight - 240f, FooterLineY + 46f),
             Size = new Vector2(240f, 48f),
             Cut = 12f,
             Text = "音符配色 ▶",
@@ -326,8 +313,8 @@ public partial class SettingsScreen
 
         var reset = new FlatTextButton
         {
-            Position = new Vector2(ColumnLeft, FooterTextY - 16f),
-            Size = new Vector2(420f, 32f),
+            Position = new Vector2(ColumnLeft, 914f),
+            Size = new Vector2(300f, 64f),
             Text = "RESET DEFAULTS",
         };
         reset.Pressed += () =>
@@ -350,7 +337,7 @@ public partial class SettingsScreen
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         parent.AddChild(item);
-        AddLabel(item, text, 14, UiFonts.Dim, false, 0f, 14f, 600f, 28f);
+        AddLabel(item, text, 14, MenuStyle.Secondary, false, 0f, 14f, 600f, 28f);
         item.AddChild(new ColorRect
         {
             Position = new Vector2(0f, 34f),
@@ -376,10 +363,10 @@ public partial class SettingsScreen
 
     private static Label? AddRowLabel(Control row, string title, string? subText)
     {
-        AddLabel(row, title, 26, UiFonts.Text, false, 0f, RowHeight * 0.5f - 15f, 700f, 36f);
+        AddLabel(row, title, 26, MenuStyle.Text, false, 0f, RowHeight * 0.5f - 15f, 700f, 36f);
         if (subText == null)
             return null;
-        return AddLabel(row, subText, 15, UiFonts.Dim, false, 0f, RowHeight * 0.5f + 17f, 700f, 26f);
+        return AddLabel(row, subText, 15, MenuStyle.Secondary, false, 0f, RowHeight * 0.5f + 17f, 700f, 26f);
     }
 
     private static Label AddLabel(Control parent, string text, int fontSize, Color color, bool bold,
@@ -410,6 +397,7 @@ public partial class SettingsScreen
 
         var minus = new CutButton
         {
+            LowBorder = true,
             Position = new Vector2(leftX, 30f),
             Size = new Vector2(TouchButton, TouchButton),
             Cut = 18f,
@@ -426,6 +414,7 @@ public partial class SettingsScreen
 
         var plus = new CutButton
         {
+            LowBorder = true,
             Position = new Vector2(rightX, 30f),
             Size = new Vector2(TouchButton, TouchButton),
             Cut = 18f,
@@ -454,6 +443,7 @@ public partial class SettingsScreen
     {
         var entry = new CutButton
         {
+            LowBorder = true,
             Position = new Vector2(0f, RowHeight - 44f),
             Size = new Vector2(240f, 44f),
             Cut = 12f,

@@ -32,11 +32,32 @@ public sealed class EditorDocumentSession
         return created.Document;
     }
 
+    public Task<EditorDocument> OpenAsync(string directory) => ReplaceAsync(() =>
+        (EditorPackageRepository.Open(directory), (EditorProjectDraft?)null));
+
+    public Task<EditorDocument> CreateDraftAsync(EditorProjectDraftRequest request) => ReplaceAsync(() =>
+    {
+        var draft = EditorProjectDraftFactory.Create(request);
+        return (draft.Document, (EditorProjectDraft?)draft);
+    });
+
+    private async Task<EditorDocument> ReplaceAsync(Func<(EditorDocument Document, EditorProjectDraft? Draft)> prepare)
+    {
+        var previous = Document;
+        var version = previous?.ChangeVersion;
+        var result = await Task.Run(prepare);
+        // Adopt on the owner's context only if no edits or replacement occurred during preparation.
+        if (!ReferenceEquals(Document, previous) || previous?.ChangeVersion != version)
+            throw new InvalidOperationException("文档在加载期间已更改，已保留当前文档，请重试。");
+        Document = result.Document;
+        Draft = result.Draft;
+        return Document;
+    }
+
     public void AddChart(EditableChart chart)
     {
         var document = Document ?? throw new InvalidOperationException("没有打开的包。");
-        // Adding a difficulty does not change the package's first-save resource ownership.
-        // In particular, an unpersisted draft must retain its external audio and cover.
+        // Adding a difficulty preserves the draft's first-save external audio/cover ownership.
         document.Execute(new AddChartCommand(chart));
     }
 
@@ -98,12 +119,7 @@ public sealed class EditorDocumentSession
         });
     }
 
-    /// <summary>
-    /// Overlays staged replacements onto the draft's original external resources for the first
-    /// save. Pending sources win on a destination conflict; original mappings whose destination is
-    /// no longer referenced by the document (e.g. the old pack audio after a format change) drop
-    /// out so the new package does not carry orphaned media.
-    /// </summary>
+    /// <summary>Pending resources override original draft media; unreferenced mappings are omitted.</summary>
     private static IReadOnlyList<V2ExternalResourceMapping> MergeFirstSaveResources(
         EditorDocument document, IReadOnlyList<V2ExternalResourceMapping> original,
         IReadOnlyList<V2ExternalResourceMapping> pending)

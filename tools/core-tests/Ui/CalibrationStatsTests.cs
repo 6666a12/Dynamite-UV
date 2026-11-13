@@ -143,8 +143,8 @@ internal static class CalibrationStatsTests
         // 混音补偿在两次调用间归零会造成圈内几毫秒的回退，这不算回卷。
         var jitter = new LoopPositionUnwrapper(loop);
         jitter.Advance(1.000);
-        check(Math.Abs(jitter.Advance(0.995) - 0.995) < 1e-9,
-            "small in-loop backward jitter is not a wrap");
+        check(Math.Abs(jitter.Advance(0.995) - 1.000) < 1e-9,
+            "small in-loop backward jitter is clamped without adding a lap");
         check(Math.Abs(jitter.Advance(1.10) - 1.10) < 1e-9, "jitter does not corrupt the timeline");
 
         // 回卷瞬间 raw 可能被 GetTimeSinceLastMix 推过圈长（如 2.01），回卷后仍要识别。

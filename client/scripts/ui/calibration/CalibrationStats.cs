@@ -129,6 +129,7 @@ public sealed class LoopPositionUnwrapper
     private readonly double _loopSeconds;
     private double _lastRaw = -1.0;
     private double _baseSeconds;
+    private double _lastPosition = double.NegativeInfinity;
 
     public LoopPositionUnwrapper(double loopSeconds)
     {
@@ -143,6 +144,7 @@ public sealed class LoopPositionUnwrapper
         if (_lastRaw >= 0.0 && rawPositionSeconds < _lastRaw - _loopSeconds * 0.5)
             _baseSeconds += _loopSeconds;
         _lastRaw = rawPositionSeconds;
-        return _baseSeconds + rawPositionSeconds;
+        _lastPosition = Math.Max(_lastPosition, _baseSeconds + rawPositionSeconds);
+        return _lastPosition;
     }
 }

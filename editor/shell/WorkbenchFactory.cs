@@ -122,8 +122,11 @@ public sealed class WorkbenchFactory : Factory
 
     public void DockStage()
     {
+        AttachDock(_stageDock);
         if (_stage.Owner is IDock source && !ReferenceEquals(source, _stageDock))
             MoveDockable(source, _stageDock, _stage, null);
+        else if (_stageDock.VisibleDockables?.Contains(_stage) != true)
+            AddDockable(_stageDock, _stage);
         if (_stageDock.VisibleDockables?.Contains(_placeholder) == true)
             RemoveDockable(_placeholder, false);
         _stageDock.ActiveDockable = _stage;
@@ -147,21 +150,7 @@ public sealed class WorkbenchFactory : Factory
     {
         UnpinDockable(tool);
         RestoreDockable(tool);
-        // Closing the final tab can collapse its original dock out of the tree.
-        if (_main.VisibleDockables?.Contains(destination) != true)
-        {
-            if (ReferenceEquals(destination, _leftDock))
-            {
-                _main.VisibleDockables!.Insert(0, destination);
-                _main.VisibleDockables.Insert(1, new ProportionalDockSplitter { CanResize = true });
-            }
-            else
-            {
-                _main.VisibleDockables!.Add(new ProportionalDockSplitter { CanResize = true });
-                _main.VisibleDockables.Add(destination);
-            }
-            InitDockable(destination, _main);
-        }
+        AttachDock(destination);
         if (destination.VisibleDockables?.Contains(tool) != true)
         {
             if (tool.Owner is IDock owner && owner.VisibleDockables?.Contains(tool) == true)
@@ -169,6 +158,29 @@ public sealed class WorkbenchFactory : Factory
             else AddDockable(destination, tool);
         }
         destination.ActiveDockable = tool;
+    }
+
+    private void AttachDock(IDock destination)
+    {
+        if (_main.VisibleDockables?.Contains(destination) == true) return;
+        // Detach first: assigning Owner alone leaves a second parent collection behind.
+        if (destination.Owner is IDock owner && owner.VisibleDockables?.Contains(destination) == true)
+            RemoveDockable(destination, false);
+        if (_root.VisibleDockables?.Contains(_main) != true)
+            AddDockable(_root, _main);
+        var children = _main.VisibleDockables ??= CreateList<IDockable>();
+        var index = ReferenceEquals(destination, _leftDock) ? 0 :
+            ReferenceEquals(destination, _stageDock) && children.Contains(_rightDock)
+                ? children.IndexOf(_rightDock) : children.Count;
+        children.Insert(index, destination);
+        if (children.Count > 1)
+        {
+            var splitter = new ProportionalDockSplitter { CanResize = true };
+            children.Insert(index < children.Count - 1 ? index + 1 : index, splitter);
+            InitDockable(splitter, _main);
+        }
+        InitDockable(destination, _main);
+        _root.ActiveDockable = _main;
     }
 
     public void AddAnalysisPanel()
@@ -187,7 +199,7 @@ public sealed class WorkbenchFactory : Factory
         description.Bind(TextBlock.TextProperty, Translation("Dock.AudioDescription"));
         _analysis = new Tool
         {
-            Id = "audio-analysis", Owner = _leftDock,
+            Id = "audio-analysis",
             Content = new Border { Padding = new Avalonia.Thickness(18), Child = new StackPanel
             {
                 Spacing = 12,
@@ -195,8 +207,7 @@ public sealed class WorkbenchFactory : Factory
             } },
         };
         UpdateText();
-        _leftDock.VisibleDockables!.Add(_analysis);
-        _leftDock.ActiveDockable = _analysis;
+        RestoreTool(_analysis, _leftDock);
     }
 
     private void UpdateText()

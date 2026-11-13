@@ -105,30 +105,26 @@ internal partial class QuickModeRow : Control
     public override void _Draw()
     {
         var points = UiGeometry.CutCorners(Size, 12f);
-        var ink = _selected ? UiFonts.Cyan : UiFonts.Dim;
+        var ink = _selected ? UiFonts.Cyan : MenuStyle.Secondary;
         if (_selected)
         {
-            DrawColoredPolygon(points, new Color("18244a"));
-            DrawPolyline(UiGeometry.Close(points), UiFonts.Cyan, 2f, true);
-            DrawRect(new Rect2(2, 14, 6, Size.Y - 28), new Color(UiFonts.Cyan, 0.92f));
+            DrawColoredPolygon(points, MenuStyle.Active);
+            DrawRect(new Rect2(0, 16, 3, 40), MenuStyle.Accent);
         }
         else
         {
-            if (_hoverFade.Value > 0f)
-                DrawColoredPolygon(points, new Color(0.06f, 0.08f, 0.16f, 0.35f)
-                    .Lerp(new Color(UiFonts.PanelHover, 0.55f), _hoverFade.Value));
-            DrawPolyline(UiGeometry.Close(points), UiFonts.Line, 1.5f, true);
+            DrawColoredPolygon(points, MenuStyle.Idle.Lerp(MenuStyle.Active, _hoverFade.Value));
         }
 
-        UiGlyphs.Draw(this, Glyph, new Vector2(24, (Size.Y - 26) * 0.5f), 26, ink, 2f);
-        DrawString(UiFonts.TechBold, new Vector2(64, Size.Y * 0.5f + 6.5f), Label,
-            HorizontalAlignment.Left, Size.X - 64, 18, ink);
+        DrawString(MenuStyle.HeadingFont, new Vector2(32, MenuStyle.Baseline(MenuStyle.HeadingFont, 23, Size.Y)), Label,
+            HorizontalAlignment.Left, Size.X - 64, 23, ink);
     }
 }
 
 /// <summary>108×50 小开关（方块 40）；锁定态整体压暗 + 方块停右侧 60% + 左侧挂锁。</summary>
 internal partial class QuickSwitch : Control
 {
+    private readonly StyleBoxFlat _trackStyle = new();
     internal const float SwitchKnob = 40f;
     public required Func<UiMotionProfile> MotionProfileProvider { private get; init; }
 
@@ -166,6 +162,8 @@ internal partial class QuickSwitch : Control
         _locked = locked;
         // 锁定态方块停在右侧 60%（设计稿），解锁后回到正常端点。
         var target = locked ? 0.6f : on ? 1f : 0f;
+        _tween?.Kill();
+        _tween = null;
         if (Math.Abs(_knob - target) < 0.01f)
         {
             QueueRedraw();
@@ -208,20 +206,12 @@ internal partial class QuickSwitch : Control
     public override void _Draw()
     {
         var dim = _locked ? 0.55f : 1f;
-        var track = UiGeometry.CutCorners(Size, 14f);
-        if (_on)
-        {
-            DrawColoredPolygon(track, new Color(UiFonts.Cyan, 0.14f * dim));
-            DrawPolyline(UiGeometry.Close(track), new Color(UiFonts.Cyan, dim), 2.5f, true);
-        }
-        else
-        {
-            DrawPolyline(UiGeometry.Close(track), new Color(UiFonts.Line, dim), 2.5f, true);
-        }
-
-        var knobX = 12f + _knob * (Size.X - 24f - SwitchKnob);
-        var knob = UiGeometry.CutCorners(knobX, (Size.Y - SwitchKnob) * 0.5f, SwitchKnob, SwitchKnob, 10f);
-        DrawColoredPolygon(knob, _on ? new Color(UiFonts.Cyan, dim) : new Color(UiFonts.Dim, 0.55f));
+        // Paint smaller rounded controls inside the original input rectangle.
+        _trackStyle.BgColor = new Color(_on ? MenuStyle.Active : MenuStyle.Idle, dim);
+        _trackStyle.SetCornerRadiusAll(22);
+        DrawStyleBox(_trackStyle, new Rect2(6, 4, 102, 44));
+        var knobX = 28f + _knob * 58f;
+        DrawCircle(new Vector2(knobX, 26), 14, _on ? new Color(MenuStyle.Accent, dim) : MenuStyle.Secondary);
         if (_locked)
             UiGlyphs.Draw(this, UiGlyphKind.Lock, new Vector2(12f, Size.Y * 0.5f - 10f), 20,
                 new Color(UiFonts.Cyan, 0.85f), 1.8f);
@@ -285,15 +275,11 @@ internal partial class QuickActionRow : Control
     {
         var points = UiGeometry.CutCorners(Size, 14f);
         var hover = _hoverFade.Value;
-        DrawColoredPolygon(points, new Color(0.06f, 0.08f, 0.16f, 0.85f)
-            .Lerp(new Color(UiFonts.PanelHover, 0.9f), hover));
-        DrawPolyline(UiGeometry.Close(points),
-            UiFonts.Line.Lerp(UiFonts.Cyan, hover), 2f, true);
-        UiGlyphs.Draw(this, Glyph, new Vector2(26, (Size.Y - 26) * 0.5f), 26, UiFonts.Cyan, 2.2f);
-        DrawString(UiFonts.Cjk, new Vector2(72, Size.Y * 0.5f - 2f), Text,
-            HorizontalAlignment.Left, Size.X - 88, 24, UiFonts.Text);
-        DrawString(UiFonts.Tech, new Vector2(72, Size.Y * 0.5f + 24f), SubText,
-            HorizontalAlignment.Left, Size.X - 88, 13, UiFonts.Dim);
+        DrawColoredPolygon(points, MenuStyle.Idle.Lerp(MenuStyle.Active, hover));
+        DrawString(UiFonts.Cjk, new Vector2(16, 44), Text + "  ↗",
+            HorizontalAlignment.Left, Size.X - 32, 24, MenuStyle.Text);
+        DrawString(UiFonts.Tech, new Vector2(16, 76), SubText,
+            HorizontalAlignment.Left, Size.X - 32, 13, MenuStyle.Muted);
     }
 }
 
@@ -370,12 +356,9 @@ internal partial class PreviewTransport : Control
 
     public override void _Draw()
     {
-        var points = UiGeometry.CutCorners(Size, 18f);
-        var ink = _disabled ? new Color(UiFonts.Dim, 0.5f) : UiFonts.Cyan;
-        DrawColoredPolygon(points, new Color(0.06f, 0.08f, 0.16f, 0.85f));
-        DrawPolyline(UiGeometry.Close(points), _disabled
-            ? new Color(UiFonts.Line, 0.6f)
-            : new Color(UiFonts.Cyan, 0.85f).Lerp(UiFonts.Cyan, _hoverFade.Value), 2f, true);
+        var ink = _disabled ? new Color(MenuStyle.Secondary, 0.5f) : UiFonts.Cyan;
+        DrawCircle(Size * 0.5f, Size.X * 0.5f, _disabled ? new Color(MenuStyle.Idle, 0.5f)
+            : new Color("30596B").Lerp(MenuStyle.Active, _hoverFade.Value));
         UiGlyphs.Draw(this, _playing ? UiGlyphKind.Pause : UiGlyphKind.Play,
             new Vector2((Size.X - 24) * 0.5f, (Size.Y - 24) * 0.5f), 24, ink, 2f);
     }

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,13 @@ INTERNAL_IDENTITY = {
     "version_code": "4",
     "debuggable": "true",
 }
+
+
+def project_binary(features: str) -> bytes:
+    text = features.encode()
+    value = struct.pack('<II', 4, len(text)) + text + b'\0' * (-len(text) % 4)
+    key = b'_custom_features'
+    return b'ECFG' + struct.pack('<II', 1, len(key)) + key + struct.pack('<I', len(value)) + value
 
 
 def import_text(source: str, destination: str) -> str:
@@ -59,6 +67,9 @@ import os
 import sys
 identity = json.loads(os.environ["FAKE_APK_IDENTITY"])
 args = sys.argv[1:]
+if args[:2] == ["manifest", "print"]:
+    print(identity.get("manifest_xml", '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="@string/godot_project_name_string" /></manifest>'))
+    raise SystemExit(0)
 if args[:2] == ["manifest", "application-id"]:
     key = "application_id"
 elif args[:2] == ["manifest", "version-name"]:
@@ -94,6 +105,9 @@ import os
 import sys
 identity = json.loads(os.environ["FAKE_APK_IDENTITY"])
 args = sys.argv[1:]
+if args[:2] == ["manifest", "print"]:
+    print(identity.get("manifest_xml", '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="@string/godot_project_name_string" /></manifest>'))
+    raise SystemExit(0)
 if args[:2] == ["manifest", "application-id"]:
     key = "application_id"
 elif args[:2] == ["manifest", "version-name"]:
@@ -170,8 +184,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
             "AndroidManifest.xml": b"synthetic manifest",
             "classes.dex": b"synthetic dex",
             "assets/project.binary": (
-                b"ECFG synthetic internal_testdata" if "internal" in filename
-                else b"ECFG synthetic public_release"
+                project_binary("internal_testdata" if "internal" in filename else "public_release")
             ),
             "assets/assets.sparsepck": b"GDPCsynthetic",
             "assets/scenes/main.tscn.remap": b"[remap]\npath=\"res://.godot/exported/main.scn\"\n",
@@ -472,9 +485,29 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
     def test_public_rejects_missing_custom_feature(self) -> None:
         apk = self.make_apk(
             "dynamite-universe-public.apk",
-            {"assets/project.binary": b"ECFG unclassified"},
+            {"assets/project.binary": project_binary("unclassified")},
         )
         self.assert_rejected(self.run_gate("public", apk), "missing custom feature")
+
+    def test_feature_substring_is_not_a_feature(self) -> None:
+        apk = self.make_apk("dynamite-universe-public.apk",
+                            {"assets/project.binary": project_binary("not_public_release")})
+        self.assert_rejected(self.run_gate("public", apk), "missing custom feature")
+
+    def test_feature_in_unrelated_property_is_rejected(self) -> None:
+        fake = project_binary("public_release").replace(b'_custom_features', b'application/name')
+        apk = self.make_apk("dynamite-universe-public.apk", {"assets/project.binary": fake})
+        self.assert_rejected(self.run_gate("public", apk), "cannot verify project.binary")
+
+    def test_manifest_must_use_the_checked_label(self) -> None:
+        apk = self.make_apk("dynamite-universe-public.apk")
+        identity = {**PUBLIC_IDENTITY, "manifest_xml": '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="Wrong" /></manifest>'}
+        self.assert_rejected(self.run_gate("public", apk, identity), "manifest label")
+
+    def test_launcher_cannot_override_the_checked_label(self) -> None:
+        apk = self.make_apk("dynamite-universe-public.apk")
+        identity = {**PUBLIC_IDENTITY, "manifest_xml": '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="@string/godot_project_name_string"><activity android:label="Wrong"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>'}
+        self.assert_rejected(self.run_gate("public", apk, identity), "launcher label")
 
     def test_public_rejects_debuggable_identity(self) -> None:
         apk = self.make_apk("dynamite-universe-public.apk")

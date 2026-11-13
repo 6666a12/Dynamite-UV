@@ -63,9 +63,10 @@ internal partial class SongDetailCard : Control
             Position = Vector2.Zero,
             Size = new Vector2(listWidth, CardHeight),
             Cut = CardCut,
-            Fill = new Color("18244a"),
+            Fill = MenuStyle.Active,
             Border = UiFonts.Cyan,
-            BorderWidth = 2f,
+            BorderWidth = 0f,
+            MouseFilter = MouseFilterEnum.Ignore,
         });
         AddChild(new ColorRect
         {
@@ -94,11 +95,11 @@ internal partial class SongDetailCard : Control
         AddChild(_cover);
 
         _title = MakeLabel(new Vector2(InfoInsetX, 44), new Vector2(listWidth - InfoInsetX - 40, 64),
-            46, UiFonts.Text);
+            46, MenuStyle.Text);
         AddChild(_title);
-        _artist = MakeLabel(new Vector2(InfoInsetX, 136), new Vector2(700, 40), 24, UiFonts.Text);
+        _artist = MakeLabel(new Vector2(InfoInsetX, 136), new Vector2(700, 40), 24, MenuStyle.Text);
         AddChild(_artist);
-        _charter = MakeLabel(new Vector2(InfoInsetX, 174), new Vector2(700, 36), 22, UiFonts.Dim);
+        _charter = MakeLabel(new Vector2(InfoInsetX, 174), new Vector2(700, 36), 22, MenuStyle.Secondary);
         AddChild(_charter);
 
         _transport = new PreviewTransport
@@ -110,11 +111,11 @@ internal partial class SongDetailCard : Control
         _transport.Pressed += () => TransportPressed?.Invoke();
         AddChild(_transport);
 
-        var previewLabel = MakeLabel(new Vector2(BarInsetX, 258), new Vector2(200, 26), 14, UiFonts.Dim);
+        var previewLabel = MakeLabel(new Vector2(BarInsetX, 258), new Vector2(200, 26), 14, MenuStyle.Secondary);
         previewLabel.Text = "PREVIEW";
         AddChild(previewLabel);
         _previewTime = MakeLabel(new Vector2(listWidth - CardPad - 320, 258),
-            new Vector2(320, 26), 15, UiFonts.Dim);
+            new Vector2(320, 26), 15, MenuStyle.Secondary);
         _previewTime.HorizontalAlignment = HorizontalAlignment.Right;
         AddChild(_previewTime);
 
@@ -148,6 +149,16 @@ internal partial class SongDetailCard : Control
 
     /// <summary>展开态：收拢动画落点才转 false。</summary>
     public bool IsPresenting => _motion.IsPresenting;
+    public bool CanPreview => IsPresenting && !_motion.IsCollapsing;
+
+    public void HandleListTap(Vector2 position)
+    {
+        if (_transport.GetGlobalRect().HasPoint(position))
+        {
+            if (!_transport.Disabled) TransportPressed?.Invoke();
+        }
+        else CollapseRequested?.Invoke();
+    }
 
     /// <summary>逐帧推进的门闩：没有高度/文字/封面动画段时为 false，页面据此整段早退。</summary>
     public bool Animating => _motion.Animating;

@@ -74,7 +74,7 @@ internal sealed record WorkbenchPreferences
     public int Motion { get; init; }
 
     public bool IsValid => Version == 1 && Language is "en" or "zh-CN" && Grid is >= 1 and <= 64 &&
-        double.IsFinite(PlacementWidth) && PlacementWidth >= 0.1 && PlacementWidth <= (double)decimal.MaxValue &&
+        double.IsFinite(PlacementWidth) && PlacementWidth >= 0.1 && PlacementWidth < (double)decimal.MaxValue &&
         double.IsFinite(Volume) && Volume is >= 0 and <= 100 &&
         Effects is "Full" or "Reduced" or "Off" && Motion is >= 0 and <= 2;
 }

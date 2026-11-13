@@ -47,7 +47,7 @@ internal partial class CalibrationStage : Control
     /// note 从轨道顶部下落到判定线的时长（秒）。取游玩同款公式：
     /// <c>距离 = 音频秒数 × 流速 × 玩家落速 × BaseFallSpeedPx</c>，其中流速取 1.0
     /// （校准页没有谱面变速），玩家落速 = <c>FallSpeedLevel / 10</c>。
-    /// 所以时长 = 行程 / (BaseFallSpeedPx × level/10)；行程取游玩中轨的 790px。
+    /// 所以时长 = 实际绘制行程 / (BaseFallSpeedPx × level/10)。
     /// </summary>
     public float FallSeconds
     {
@@ -55,7 +55,7 @@ internal partial class CalibrationStage : Control
         {
             var player = Math.Max(0.1, FallSpeedMultiplier());
             var speed = GameplayVisualMapper.BaseFallSpeedPx * player;
-            return (float)(GameplayStageGeometry.CenterPreviewTravelPx / speed);
+            return (float)((JudgeY - LaneTop - NoteHeight * 0.5f) / speed);
         }
     }
 
@@ -331,15 +331,12 @@ internal partial class StepperButton : Control
         var hover = UiEase.Standard(MotionProfile.IsAnimated
             ? _hoverFade.Value
             : (_hover && !_disabled ? 1f : 0f));
-        var border = UiFonts.Line.Lerp(UiFonts.Cyan, hover);
-        var fill = new Color(new Color("0f1429"), 0.85f)
-            .Lerp(UiFonts.PanelHover, hover);
+        var fill = _disabled ? new Color("0F1429", 0.85f) : MenuStyle.Idle.Lerp(MenuStyle.Active, hover);
         var glyphColor = (_disabled ? UiFonts.Dim : UiFonts.Cyan).Lerp(Colors.White, hover * 0.4f);
 
         var points = UiGeometry.CutCorners(Size, Cut);
         DrawColoredPolygon(points, fill);
-        DrawPolyline(UiGeometry.Close(points), border, 2f, true);
-        DrawString(UiFonts.Tech, new Vector2(0f, Size.Y * 0.5f + 8f), Glyph,
+        DrawString(UiFonts.Tech, new Vector2(0f, MenuStyle.Baseline(UiFonts.Tech, 22, Size.Y)), Glyph,
             HorizontalAlignment.Center, Size.X, 22, glyphColor);
     }
 }

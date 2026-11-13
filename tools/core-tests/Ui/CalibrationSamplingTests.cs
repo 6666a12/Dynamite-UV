@@ -9,6 +9,16 @@ internal static class CalibrationSamplingTests
 
     public static void Run(Action<bool, string> check)
     {
+        var repeated = New();
+        repeated.Hit(0.02);
+        repeated.Hit(4.02);
+        check(repeated.Hit(4.5).Outcome == HitOutcome.Stray && repeated.Count == 1,
+            "out-of-window duplicate is stray and does not append a sample");
+        var clock = new LoopPositionUnwrapper(2);
+        check(clock.Advance(1) == 1 && clock.Advance(.995) == 1 && clock.Advance(1.01) == 1.01,
+            "loop clock clamps small backward jitter without delaying forward progress");
+        clock.Advance(1.99);
+        check(Math.Abs(clock.Advance(.01) - 2.01) < 1e-9, "loop clock still unwraps actual wrap");
         FirstTapWarmsUp(check);
         WarmupEnds(check);
         HalfBarAttribution(check);

@@ -60,20 +60,18 @@ internal partial class SettingsTabItem : Control
         var points = UiGeometry.CutCorners(Size, 14f);
         if (_selected)
         {
-            DrawColoredPolygon(points, new Color(UiFonts.Panel, 0.95f));
+            DrawColoredPolygon(points, MenuStyle.Active);
             DrawRect(new Rect2(0f, 14f, 8f, Size.Y - 14f), UiFonts.Cyan);
         }
         else
         {
-            if (_hover)
-                DrawColoredPolygon(points, new Color(UiFonts.PanelHover, 0.55f));
-            DrawPolyline(UiGeometry.Close(points), UiFonts.Line, 1.5f, true);
+            DrawColoredPolygon(points, _hover ? MenuStyle.Active : MenuStyle.Idle);
         }
 
         DrawString(_selected ? UiFonts.TechBold : UiFonts.Tech,
-            new Vector2(40f, Size.Y * 0.5f + 8.4f), Text,
-            HorizontalAlignment.Left, Size.X - 40f, 24,
-            _selected ? UiFonts.Text : UiFonts.Dim);
+            new Vector2(0f, MenuStyle.Baseline(_selected ? UiFonts.TechBold : UiFonts.Tech, 24, Size.Y)), Text,
+            HorizontalAlignment.Center, Size.X, 24,
+            _selected ? MenuStyle.Text : MenuStyle.Secondary);
     }
 }
 
@@ -133,18 +131,17 @@ internal partial class SettingsToggle : Control
         var track = UiGeometry.CutCorners(Size, 16f);
         if (_on)
         {
-            DrawColoredPolygon(track, new Color(UiFonts.Cyan, 0.14f));
-            DrawPolyline(UiGeometry.Close(track), UiFonts.Cyan, 2.5f, true);
+            DrawColoredPolygon(track, MenuStyle.Active);
         }
         else
         {
-            DrawPolyline(UiGeometry.Close(track), UiFonts.Line, 2.5f, true);
+            DrawColoredPolygon(track, MenuStyle.Idle);
         }
 
         var knobX = 12f + _knob * (Size.X - 24f - ToggleKnob);
         var knob = UiGeometry.CutCorners(knobX, (Size.Y - ToggleKnob) * 0.5f,
             ToggleKnob, ToggleKnob, 12f);
-        DrawColoredPolygon(knob, _on ? UiFonts.Cyan : new Color(UiFonts.Dim, 0.55f));
+        DrawColoredPolygon(knob, _on ? UiFonts.Cyan : new Color(MenuStyle.Secondary, 0.55f));
     }
 
     private UiMotionProfile MotionProfile => MotionProfileProvider();
@@ -227,13 +224,13 @@ internal partial class SettingsSlider : Control
         var trackLeft = TrackHandle * 0.5f;
         var centerY = Size.Y * 0.5f;
         DrawRect(new Rect2(trackLeft, centerY - 3f, TrackWidth, 6f),
-            new Color(UiFonts.Text, 0.14f));
+            new Color(MenuStyle.Text, 0.14f));
         var fill = TrackWidth * Ratio;
         DrawRect(new Rect2(trackLeft, centerY - 3f, fill, 6f), Accent);
         var handle = UiGeometry.CutCorners(
             trackLeft + fill - TrackHandle * 0.5f, centerY - TrackHandle * 0.5f,
             TrackHandle, TrackHandle, 12f);
-        DrawColoredPolygon(handle, UiFonts.Text);
+        DrawColoredPolygon(handle, MenuStyle.Secondary);
     }
 }
 
@@ -312,16 +309,11 @@ internal partial class SettingsSegments : Control
             var points = UiGeometry.CutCorners(origin.X, origin.Y, SegmentWidth, SegmentHeight, 16f);
 
             var selected = i == _selected;
-            if (selected)
-                DrawColoredPolygon(points, new Color(UiFonts.Cyan, 0.16f));
-            else if (i == _hover)
-                DrawColoredPolygon(points, new Color(UiFonts.PanelHover, 0.55f));
-            DrawPolyline(UiGeometry.Close(points), selected ? UiFonts.Cyan : UiFonts.Line,
-                2.5f, true);
+            DrawColoredPolygon(points, selected || i == _hover ? MenuStyle.Active : MenuStyle.Idle);
             DrawString(UiFonts.TechBold,
                 origin + new Vector2(0f, SegmentHeight * 0.5f + 7f), _labels[i],
                 HorizontalAlignment.Center, SegmentWidth, 20,
-                selected ? UiFonts.Cyan : UiFonts.Dim);
+                selected ? UiFonts.Cyan : MenuStyle.Secondary);
         }
     }
 }
@@ -361,8 +353,10 @@ internal partial class FlatTextButton : Control
         }
     }
 
-    public override void _Draw() =>
-        DrawString(UiFonts.Tech, new Vector2(0f, Size.Y * 0.5f + 5.6f), Text,
-            HorizontalAlignment.Left, Size.X, 16,
-            _hover ? UiFonts.Cyan : UiFonts.Dim);
+    public override void _Draw()
+    {
+        DrawColoredPolygon(UiGeometry.CutCorners(Size, 12f), _hover ? MenuStyle.Active : MenuStyle.Idle);
+        DrawString(UiFonts.Tech, new Vector2(0f, MenuStyle.Baseline(UiFonts.Tech, 16, Size.Y)), Text,
+            HorizontalAlignment.Center, Size.X, 16, _hover ? UiFonts.Cyan : MenuStyle.Secondary);
+    }
 }

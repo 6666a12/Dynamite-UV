@@ -19,6 +19,7 @@ public partial class SongSelect
         _diffBtn.Disabled = true;
         _startBtn.Disabled = true;
         _bestLabel.Text = "";
+        _clearLabel.Text = "";
         _bestGrade.Text = "";
         StopPreview();
     }
@@ -56,7 +57,7 @@ public partial class SongSelect
 
     private bool IsCurrentPreviewLoad(int generation, string packId, string chartId)
     {
-        if (!IsInsideTree() || !_expanded || CurrentPack is not { } pack || pack.Charts.Count == 0)
+        if (!IsInsideTree() || !_detailCard.CanPreview || CurrentPack is not { } pack || pack.Charts.Count == 0)
             return false;
         // 当前身份由页面解析（代际/包/谱的比对在详情请求对象里）。
         var chart = pack.Charts[Mathf.Clamp(_diffIdx, 0, pack.Charts.Count - 1)];
@@ -73,7 +74,7 @@ public partial class SongSelect
 
     private void TogglePreviewPause()
     {
-        if (_expanded && _previewPlayer.TogglePause())
+        if (_detailCard.CanPreview && _previewPlayer.TogglePause())
             _detailCard.SetTransportPlaying(_previewPlayer.Playing);
     }
 
@@ -82,12 +83,13 @@ public partial class SongSelect
     {
         var readout = _previewPlayer.Readout(elapsed);
         _detailCard.ShowPreviewProgress(readout.Fraction, readout.Elapsed, readout.Duration);
-        if (_previewPlayer.StopAtEnd(readout.Elapsed))
-            _detailCard.SetTransportPlaying(false);
+        _previewPlayer.StopAtEnd(readout.Elapsed);
+        _detailCard.SetTransportPlaying(_previewPlayer.Playing);
     }
 
     private void BeginRefreshAll()
     {
+        StopPreview();
         var generation = _detailRequest.Begin();
         var pack = CurrentPack;
         for (var i = 0; i < _rows.Count; i++)
@@ -112,11 +114,13 @@ public partial class SongSelect
         _detailCard.SetTransportEnabled(false);
         _detailCard.ShowChartLoading();
         _diffBtn.Disabled = false;
+        _diffBtn.Accent = UiFonts.DiffColor(diff.Difficulty);
         _diffBtn.Text = diff.Level is { } level
             ? $"{diff.Display.ToUpperInvariant()} · Lv {level}"
             : $"{diff.Display.ToUpperInvariant()} · UNRATED";
         _startBtn.Disabled = true;
-        _bestLabel.Text = "BEST —   PREPARING";
+        _bestLabel.Text = "—";
+        _clearLabel.Text = "PREPARING";
         _bestGrade.Text = "";
 
         CallDeferred(nameof(CompleteRefreshAll), generation, pack.Id, diff.ChartId);
@@ -201,7 +205,7 @@ public partial class SongSelect
         // Complete 在 Begin 后一帧就到，文字淡出多半还在半途：不打断它，
         // 让"淡出落零→代际守卫换文→淡入"自然走完；提前落 alpha 反而会把旧文本定格在卡上。
         _detailCard.SettleTextDim();
-        if (_expanded && loaded is not null)
+        if (_detailCard.CanPreview && loaded is not null)
             StartPreview();
 
         ScoreRecord? rec = null;
@@ -211,13 +215,15 @@ public partial class SongSelect
             rec = GameSession.Scores.Get(pack.Id, diff.LegacyScoreKey(pack.PackageFormat));
         if (rec != null)
         {
-            _bestLabel.Text = $"BEST {rec.Score:N0}   CLEAR {rec.Acc:F2}%";
+            _bestLabel.Text = $"{rec.Score:N0}";
+            _clearLabel.Text = $"{rec.Acc:F2}%";
             _bestGrade.Text = DynamiteUniverse.Shared.Score.ScoreStoreCore.GradeLabel(rec.Grade);
             _bestGrade.AddThemeColorOverride("font_color", UiFonts.GradeColor(rec.Grade));
         }
         else
         {
-            _bestLabel.Text = "BEST —   尚无成绩";
+            _bestLabel.Text = "—";
+            _clearLabel.Text = "尚无成绩";
             _bestGrade.Text = "";
         }
     }

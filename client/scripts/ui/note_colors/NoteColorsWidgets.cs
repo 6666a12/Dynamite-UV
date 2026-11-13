@@ -109,6 +109,9 @@ public partial class TechButton : Control
 {
     public enum Kind { Outline, Accent, Solid }
 
+    public bool LowBorder { get; init; }
+    public bool BackChevron { get; set; }
+
     private readonly NoteColorPointerCapture _pointer = new();
     private string _text = "";
     private int _fontSize = 14;
@@ -321,14 +324,26 @@ public partial class TechButton : Control
             text = new Color("EDF2FA");
         }
 
+        if (LowBorder && _enabled)
+        {
+            fill = _kind == Kind.Solid ? fill
+                : (_kind == Kind.Accent || _selected ? MenuStyle.Active : MenuStyle.Idle)
+                    .Lerp(Accent, down ? 0.16f : _hover ? 0.08f : 0f);
+            text = _kind == Kind.Solid ? MenuStyle.Ink : _selected ? Accent : MenuStyle.Text;
+        }
         DrawColoredPolygon(points, fill);
-        DrawPolyline(UiGeometry.Close(points), border, _kind == Kind.Solid ? 1.5f : 2f, true);
+        if (!LowBorder) DrawPolyline(UiGeometry.Close(points), border, _kind == Kind.Solid ? 1.5f : 2f, true);
         if (_enabled && HasFocus() && Size.X > 12f && Size.Y > 12f)
         {
             var inset = NoteColorsWidgets.CutCorners(Size - new Vector2(8f, 8f), Math.Max(0f, Cut - 3f));
             for (var i = 0; i < inset.Length; i++)
                 inset[i] += new Vector2(4f, 4f);
             DrawPolyline(UiGeometry.Close(inset), _kind == Kind.Solid ? UiFonts.InkText : Accent, 1f, true);
+        }
+        if (BackChevron)
+        {
+            MenuStyle.BackChevron(this, text);
+            return;
         }
         var font = _fontOverride ?? (_text.Any(c => c is >= '\u2E80' and <= '\u9FFF' or >= '\uF900' and <= '\uFAFF' or >= '\uFF00' and <= '\uFFEF')
             ? UiFonts.Cjk : UiFonts.TechBold);

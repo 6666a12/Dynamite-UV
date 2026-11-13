@@ -104,28 +104,14 @@ public partial class CalibrationScreen
 
     private void BuildHeader()
     {
-        var bar = new ColorRect
-        {
-            Position = Vector2.Zero,
-            Size = new Vector2(UiLayout.DesignWidth, BarHeight),
-            Color = new Color(UiFonts.Bg, 0.92f),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        _headerRoot.AddChild(bar);
-        _headerRoot.AddChild(new ColorRect
-        {
-            Position = new Vector2(0f, BarHeight),
-            Size = new Vector2(UiLayout.DesignWidth, 2f),
-            Color = UiFonts.Line,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        });
-
         var back = new CutButton
         {
-            Position = new Vector2(48f, 12f),
-            Size = new Vector2(96f, 96f),
-            Cut = 20f,
+            LowBorder = true,
+            Position = new Vector2(48f, 28f),
+            Size = new Vector2(76f, 76f),
+            Cut = 12f,
             Text = "‹",
+            BackChevron = true,
             FontSize = 44,
             Accent = UiFonts.Cyan,
         };
@@ -133,16 +119,17 @@ public partial class CalibrationScreen
         _headerRoot.AddChild(back);
         RegisterEntrance(back, EnterGroup.Header);
 
-        var title = AddLabel(_headerRoot, 176f, 30f, 520f, 60f, "CALIBRATION", 40,
-            UiFonts.Text, bold: true, HorizontalAlignment.Left);
+        var title = AddLabel(_headerRoot, 152f, 30f, 520f, 44f, "CALIBRATION", 36,
+            MenuStyle.Text, bold: true, HorizontalAlignment.Left);
+        MenuStyle.Heading(title);
         RegisterEntrance(title, EnterGroup.Header);
 
-        var subtitle = AddLabel(_headerRoot, 178f, 90f, 520f, 24f, "JUDGE OFFSET · 判定偏移校准", 13,
-            UiFonts.Dim);
+        var subtitle = AddLabel(_headerRoot, 154f, 80f, 700f, 26f, "JUDGE OFFSET · 判定偏移校准", 16,
+            MenuStyle.Secondary);
         RegisterEntrance(subtitle, EnterGroup.Header);
 
         var tempo = AddLabel(_headerRoot, 1330f, 46f, 520f, 40f, "120 BPM · 4/4 · 1 NOTE / BAR", 13,
-            UiFonts.Dim, align: HorizontalAlignment.Right);
+            MenuStyle.Secondary, align: HorizontalAlignment.Right);
         RegisterEntrance(tempo, EnterGroup.Header);
     }
 
@@ -150,11 +137,11 @@ public partial class CalibrationScreen
 
     private void BuildPhaseBlock()
     {
-        _phaseTag = AddLabel(_phaseRoot, PhaseX, PhaseTagY, 340f, 22f, "PHASE 01 / 02", 13, UiFonts.Dim);
+        _phaseTag = AddLabel(_phaseRoot, PhaseX, PhaseTagY, 340f, 22f, "PHASE 01 / 02", 13, MenuStyle.Secondary);
         _phaseTitle = AddLabel(_phaseRoot, PhaseX, PhaseTitleY, 380f, 52f, "TAP · 跟拍", 36,
             UiFonts.Cyan, bold: true);
         _phaseGuide = AddLabel(_phaseRoot, PhaseX, PhaseGuideY, 340f, 56f,
-            "音符压线的瞬间，击打屏幕任意位置", 15, UiFonts.Dim);
+            "音符压线的瞬间，击打屏幕任意位置", 15, MenuStyle.Secondary);
 
         for (var i = 0; i < _phaseSegments.Length; i++)
         {
@@ -169,12 +156,12 @@ public partial class CalibrationScreen
             _phaseSegments[i] = segment;
         }
 
-        AddLabel(_phaseRoot, PhaseX, CurrentLabelY, 340f, 22f, "当前偏移 · CURRENT", 13, UiFonts.Dim);
+        AddLabel(_phaseRoot, PhaseX, CurrentLabelY, 340f, 22f, "当前偏移 · CURRENT", 13, MenuStyle.Secondary);
         _currentOffsetValue = AddLabel(_phaseRoot, PhaseX, CurrentValueY, 340f, 44f, "+0 ms", 30,
-            UiFonts.Text, bold: true);
-        AddLabel(_phaseRoot, PhaseX, TipWarmupY, 340f, 24f, "前 2 拍为热身，不计入统计", 13, UiFonts.Dim);
-        AddLabel(_phaseRoot, PhaseX, TipScopeY, 340f, 24f, "校准结果只影响判定时机，不改变谱面", 13, UiFonts.Dim);
-        AddLabel(_phaseRoot, PhaseX, TipExitY, 340f, 24f, "左上角返回可随时退出，不写入任何设置", 12, UiFonts.Dim);
+            MenuStyle.Text, bold: true);
+        AddLabel(_phaseRoot, PhaseX, TipWarmupY, 340f, 24f, "前 2 拍为热身，不计入统计", 13, MenuStyle.Secondary);
+        AddLabel(_phaseRoot, PhaseX, TipScopeY, 340f, 24f, "校准结果只影响判定时机，不改变谱面", 13, MenuStyle.Secondary);
+        AddLabel(_phaseRoot, PhaseX, TipExitY, 340f, 24f, "左上角返回可随时退出，不写入任何设置", 12, MenuStyle.Secondary);
 
         foreach (var child in _phaseRoot.GetChildren())
             if (child is Control control)
@@ -217,15 +204,15 @@ public partial class CalibrationScreen
         _stageRoot.AddChild(_hitReadout);
         RegisterEntrance(_hitReadout, EnterGroup.Stage);
 
-        AddLabel(_hitReadout, LastHitLabelX, LastHitLabelY, 190f, 22f, "LAST HIT", 14, UiFonts.Dim);
+        AddLabel(_hitReadout, LastHitLabelX, LastHitLabelY, 190f, 22f, "LAST HIT", 14, MenuStyle.Secondary);
         _lastHitValue = AddLabel(_hitReadout, LastHitValueX, LastHitValueY, 130f, 68f, "—", 56,
-            UiFonts.Dim, bold: true);
-        _lastHitUnit = AddLabel(_hitReadout, LastHitUnitX, LastHitUnitY, 60f, 30f, "ms", 20, UiFonts.Dim);
+            MenuStyle.Secondary, bold: true);
+        _lastHitUnit = AddLabel(_hitReadout, LastHitUnitX, LastHitUnitY, 60f, 30f, "ms", 20, MenuStyle.Secondary);
         _earlyLateLegend = AddLabel(_hitReadout, StageX, EarlyLateLegendY, StageWidth, 20f,
-            "EARLY − / LATE +", 12, UiFonts.Dim, align: HorizontalAlignment.Center);
+            "EARLY − / LATE +", 12, MenuStyle.Secondary, align: HorizontalAlignment.Center);
 
         _frozenTag = AddLabel(_stageRoot, StageX, FrozenTagY, StageWidth, 24f,
-            "采样完成 · SIGNAL FROZEN", 13, UiFonts.Dim, align: HorizontalAlignment.Center);
+            "采样完成 · SIGNAL FROZEN", 13, MenuStyle.Secondary, align: HorizontalAlignment.Center);
         _frozenTag.Visible = false;
     }
 
@@ -239,9 +226,9 @@ public partial class CalibrationScreen
             Position = new Vector2(PanelX, PanelY),
             Size = new Vector2(PanelWidth, PanelHeight),
             Cut = PanelCut,
-            Fill = new Color("0f1429", 0.85f),
+            Fill = Colors.Transparent,
             Border = UiFonts.Line,
-            BorderWidth = 2f,
+            BorderWidth = 0f,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         _panelRoot.AddChild(_statsPanel);
@@ -257,10 +244,10 @@ public partial class CalibrationScreen
         RegisterEntrance(_statsContent, EnterGroup.Panel);
 
         AddLabel(_statsContent, PanelInnerX, 196f, PanelInnerWidth, 24f,
-            "信号分析 · SIGNAL ANALYSIS", 14, UiFonts.Dim);
+            "信号分析 · SIGNAL ANALYSIS", 14, MenuStyle.Secondary);
         AddDivider(_statsContent, 236f);
 
-        AddLabel(_statsContent, PanelInnerX, 278f, 340f, 32f, "目标样本 · TARGET", 18, UiFonts.Text);
+        AddLabel(_statsContent, PanelInnerX, 278f, 340f, 32f, "目标样本 · TARGET", 18, MenuStyle.Text);
         _targetMinus = new StepperButton
         {
             MotionProfileProvider = () => UiMotionProfile.For(GameSession.Settings.MotionMode),
@@ -273,7 +260,7 @@ public partial class CalibrationScreen
         _statsContent.AddChild(_targetMinus);
 
         _targetValue = AddLabel(_statsContent, TargetValueX, 268f, 102f, 44f, "16", 26,
-            UiFonts.Text, bold: true, HorizontalAlignment.Center);
+            MenuStyle.Text, bold: true, HorizontalAlignment.Center);
 
         _targetPlus = new StepperButton
         {
@@ -286,21 +273,21 @@ public partial class CalibrationScreen
         _targetPlus.Pressed += () => AdjustTargetSamples(1);
         _statsContent.AddChild(_targetPlus);
         AddLabel(_statsContent, PanelInnerX, TargetSubY, PanelInnerWidth, 20f,
-            "8 – 32 · 每档 4 拍", 12, UiFonts.Dim);
+            "8 – 32 · 每档 4 拍", 12, MenuStyle.Secondary);
 
-        AddLabel(_statsContent, PanelInnerX, StatFirstRowY, 340f, 32f, "中位数 · MEDIAN", 18, UiFonts.Text);
+        AddLabel(_statsContent, PanelInnerX, StatFirstRowY, 340f, 32f, "中位数 · MEDIAN", 18, MenuStyle.Text);
         _medianValue = AddLabel(_statsContent, 1556f, StatFirstRowY - 8f, 280f, 44f, "—", 28,
             UiFonts.Cyan, bold: true, HorizontalAlignment.Right);
 
         var spreadY = StatFirstRowY + StatRowPitch;
-        AddLabel(_statsContent, PanelInnerX, spreadY, 340f, 32f, "离散度 · SPREAD", 18, UiFonts.Text);
+        AddLabel(_statsContent, PanelInnerX, spreadY, 340f, 32f, "离散度 · SPREAD", 18, MenuStyle.Text);
         _spreadValue = AddLabel(_statsContent, 1556f, spreadY - 8f, 280f, 44f, "—", 28,
-            UiFonts.Text, bold: true, HorizontalAlignment.Right);
+            MenuStyle.Text, bold: true, HorizontalAlignment.Right);
 
         AddDivider(_statsContent, 556f);
-        AddLabel(_statsContent, PanelInnerX, ProgressLabelY, 340f, 22f, "采样进度 · PROGRESS", 13, UiFonts.Dim);
+        AddLabel(_statsContent, PanelInnerX, ProgressLabelY, 340f, 22f, "采样进度 · PROGRESS", 13, MenuStyle.Secondary);
         _progressCount = AddLabel(_statsContent, 1556f, ProgressLabelY - 4f, 280f, 26f, "0 / 16", 15,
-            UiFonts.Text, bold: true, HorizontalAlignment.Right);
+            MenuStyle.Text, bold: true, HorizontalAlignment.Right);
         _statsContent.AddChild(new ColorRect
         {
             Position = new Vector2(PanelInnerX, ProgressTrackY),
@@ -318,11 +305,11 @@ public partial class CalibrationScreen
         _statsContent.AddChild(_progressFill);
 
         AddLabel(_statsContent, PanelInnerX, SuggestedLabelY, PanelInnerWidth, 22f,
-            "建议偏移 · SUGGESTED OFFSET", 14, UiFonts.Dim);
+            "建议偏移 · SUGGESTED OFFSET", 14, MenuStyle.Secondary);
         _suggestedValue = AddLabel(_statsContent, PanelInnerX, SuggestedValueY, PanelInnerWidth, 72f,
             "—", 64, UiFonts.Cyan, bold: true);
         AddLabel(_statsContent, PanelInnerX, SuggestedSubY, PanelInnerWidth, 22f,
-            "随击打样本实时更新 · 打满目标后可应用", 13, UiFonts.Dim);
+            "随击打样本实时更新 · 打满目标后可应用", 13, MenuStyle.Secondary);
 
         foreach (var child in _statsContent.GetChildren())
             if (child is Control control)
@@ -338,9 +325,9 @@ public partial class CalibrationScreen
             Position = new Vector2(PanelX, PanelY),
             Size = new Vector2(PanelWidth, PanelHeight + 20f),
             Cut = PanelCut,
-            Fill = new Color("0f1429", 0.85f),
+            Fill = Colors.Transparent,
             Border = UiFonts.Line,
-            BorderWidth = 2f,
+            BorderWidth = 0f,
             MouseFilter = Control.MouseFilterEnum.Ignore,
             Visible = false,
         };
@@ -356,25 +343,27 @@ public partial class CalibrationScreen
         _panelRoot.AddChild(_resultContent);
 
         AddLabel(_resultContent, PanelInnerX, ResultHeadingY, PanelInnerWidth, 24f,
-            "校准完成 · CALIBRATION COMPLETE", 14, UiFonts.Dim);
+            "校准完成 · CALIBRATION COMPLETE", 14, MenuStyle.Secondary);
         AddDivider(_resultContent, ResultDividerY);
         AddLabel(_resultContent, PanelInnerX, ResultSuggestedLabelY, PanelInnerWidth, 22f,
-            "建议偏移 · SUGGESTED OFFSET", 14, UiFonts.Dim);
+            "建议偏移 · SUGGESTED OFFSET", 14, MenuStyle.Secondary);
         _resultSuggestedValue = AddLabel(_resultContent, PanelInnerX, ResultSuggestedValueY,
             PanelInnerWidth, 96f, "—", 88, UiFonts.Cyan, bold: true);
         _resultSuggestedSub = AddLabel(_resultContent, PanelInnerX, ResultSuggestedSubY,
-            PanelInnerWidth, 24f, "—", 15, UiFonts.Dim);
+            PanelInnerWidth, 24f, "—", 15, MenuStyle.Secondary);
         AddDivider(_resultContent, ResultDivider2Y);
         _resultDelta = AddLabel(_resultContent, PanelInnerX, ResultDeltaY, PanelInnerWidth, 28f,
-            "—", 16, UiFonts.Text);
+            "—", 16, MenuStyle.Text);
 
         _applyButton = new CutButton
         {
+            LowBorder = true,
             Position = new Vector2(PanelInnerX, ResultApplyY),
             Size = new Vector2(PanelInnerWidth, ResultButtonHeight),
             Cut = ResultButtonCut,
             Text = "应用偏移 · APPLY",
             StyleKind = CutButton.ButtonStyle.Solid,
+            Accent = MenuStyle.Accent,
             TechFont = false,
             FontSize = 22,
         };
@@ -383,6 +372,7 @@ public partial class CalibrationScreen
 
         _retryButton = new CutButton
         {
+            LowBorder = true,
             Position = new Vector2(PanelInnerX, ResultRetryY),
             Size = new Vector2(PanelInnerWidth, ResultButtonHeight),
             Cut = ResultButtonCut,
@@ -402,8 +392,8 @@ public partial class CalibrationScreen
             Size = new Vector2(PanelInnerWidth, 44f),
             Text = "放弃并返回 · DISCARD",
             FontSize = 15,
-            BaseColor = UiFonts.Dim,
-            HoverColor = UiFonts.Text,
+            BaseColor = MenuStyle.Secondary,
+            HoverColor = MenuStyle.Text,
             Alignment = HorizontalAlignment.Center,
         };
         _discardLabel.Pressed += NavigateBack;

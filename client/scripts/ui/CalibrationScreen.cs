@@ -115,7 +115,7 @@ public partial class CalibrationScreen : Node2D
     public override void _Ready()
     {
         GameSession.EnsureInit();
-        AddChild(new NeonBackground { Size = UiLayout.DesignSize });
+        AddChild(new NeonBackground { Size = UiLayout.DesignSize, BaseColor = MenuStyle.Background });
 
         // 目标样本数 8–32、每档 4，持久化到 GameSettings.CalibrationTargetSamples。
         _sampling = new CalibrationSampling(BarSeconds, GameSession.Settings.CalibrationTargetSamples);
@@ -251,6 +251,7 @@ public partial class CalibrationScreen : Node2D
     /// <summary>带符号读数：入样是有色毫秒，热身是同样的数值但灰显。</summary>
     private void ShowHitReadout(HitReadout kind, double deviationMs)
     {
+        _strayReadoutRemaining = 0.0;
         _lastHitMs = deviationMs;
         _lastHitKind = kind;
         BeginFadeIn(_hitReadout);
@@ -282,6 +283,7 @@ public partial class CalibrationScreen : Node2D
         _lastHitKind = HitReadout.None;
         _strayReadoutRemaining = 0.0;
         _completeElapsed = 0.0;
+        RefreshReadouts();
         ApplyPhase();
     }
 

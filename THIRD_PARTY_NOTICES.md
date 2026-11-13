@@ -23,7 +23,7 @@ not licensed under the OFL.
 
 - Files: `client/assets/fonts/SpaceGrotesk-Regular.woff2`,
   `client/assets/fonts/SpaceGrotesk-Bold.woff2` and matching files under
-  `docs/ui-mock/fonts/`
+  `docs/ui-mock/fonts/`; `client/assets/fonts/SpaceGrotesk-SemiBold.ttf` (600 weight, Google Fonts CSS delivery)
 - Copyright: Copyright 2018 The Space Grotesk Project Authors
   (<https://github.com/floriankarsten/space-grotesk>)
 - License: SIL Open Font License, Version 1.1
@@ -31,7 +31,7 @@ not licensed under the OFL.
 - License text: [`third_party/space-grotesk/OFL-1.1.txt`](third_party/space-grotesk/OFL-1.1.txt)
 - Public APK copy: `client/assets/licenses/SpaceGrotesk-OFL-1.1.txt`
 
-The Regular and Bold fonts are redistributed unmodified. The project's own
+The Regular, SemiBold and Bold fonts are redistributed unmodified. The project's own
 code and assets are not licensed under the OFL.
 
 ## Godot Engine

@@ -47,6 +47,7 @@ internal static class Verification
         {
             await SaveInteractionVerification.Run(Path.Combine(root, "save-interactions"), Check);
             StageLaunchVerification.Run(Path.Combine(root, "launch"), Check);
+            await ReplacementGuardVerification.Run(Path.Combine(root, "replacement"), Check);
             window.Show();
             Dispatcher.UIThread.RunJobs();
             Check("Game preview UI entry is absent and starts disabled", !window.Stage.GamePreviewEnabled &&
@@ -624,7 +625,9 @@ internal static class Verification
         }
         finally
         {
+            window.ClosePromptForVerification = () => Task.FromResult(UnsavedCloseChoice.Discard);
             window.Close();
+            await window.CloseDecisionForVerification;
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }
         return failed ? 1 : 0;

@@ -68,12 +68,24 @@ internal static class SaveInteractionVerification
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForSave(window);
             check("Second save publishes edits made during first save", ReadSpeed() == 1.9 && !document.HasUnsavedChanges);
+            window.ApplySpeedForVerification(2.0);
+            window.ClosePromptForVerification = () => Task.FromResult(UnsavedCloseChoice.Cancel);
+            window.Close();
+            await window.CloseDecisionForVerification;
+            check("Dirty close cancellation preserves document and window", window.IsVisible && document.HasUnsavedChanges);
+            window.ClosePromptForVerification = () => Task.FromResult(UnsavedCloseChoice.Save);
+            window.Close();
+            await window.CloseDecisionForVerification;
+            check("Dirty close saves before closing", !window.IsVisible && ReadSpeed() == 2.0 && !document.HasUnsavedChanges);
         }
         finally
         {
             resume.Set();
             interceptor.SetValue(null, null);
+            await WaitForSave(window);
+            window.ClosePromptForVerification = () => Task.FromResult(UnsavedCloseChoice.Discard);
             window.Close();
+            await window.CloseDecisionForVerification;
             Dispatcher.UIThread.RunJobs();
         }
         double ReadSpeed() => EditorPackageRepository.Open(source).SelectedChart.Notes[0].ScrollSpeedMultiplier;

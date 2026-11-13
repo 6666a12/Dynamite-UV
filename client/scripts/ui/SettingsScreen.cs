@@ -5,10 +5,8 @@ using DynamiteUniverse.Shared.Judge;
 namespace DynamiteUniverse.Ui;
 
 /// <summary>
-/// 设置页 —— 按 Page 2「Game UI」设计稿实现的移动端横屏布局：顶部大返回键 + SETTINGS 标题
-/// + 右上版本号，左侧竖排大 tab（GAMEPLAY / AUDIO / DISPLAY），右侧切角内容卡。
-/// 几何常量逐条取自 .tmp/penpot_build5.py（1920×1080 设计坐标）；
-/// 数值仍来自 GameSettings，保存与音频总线应用路径不变。
+/// 设置页：v3 低边框菜单布局，顶部返回键 + SETTINGS 标题 + 右上版本号，
+/// 左侧四 tab、右侧设置项。仅展示使用新样式，数值、保存与音频总线应用路径不变。
 /// </summary>
 public partial class SettingsScreen : Node2D
 {
@@ -58,7 +56,7 @@ public partial class SettingsScreen : Node2D
     public override void _Ready()
     {
         GameSession.EnsureInit();
-        AddChild(new NeonBackground { Size = UiLayout.DesignSize });
+        AddChild(new NeonBackground { Size = UiLayout.DesignSize, BaseColor = MenuStyle.Background });
 
         BuildTopBar();
         BuildTabs();

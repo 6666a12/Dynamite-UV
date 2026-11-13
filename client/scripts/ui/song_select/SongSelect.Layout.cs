@@ -39,28 +39,22 @@ public partial class SongSelect
     // 底部
     private CutButton _diffBtn = null!;
     private Label _bestLabel = null!;
+    private Label _clearLabel = null!;
     private Label _bestGrade = null!;
     private CutButton _startBtn = null!;
 
     private void BuildTopBar()
     {
-        var bar = new ColorRect
-        {
-            Color = new Color(0.04f, 0.06f, 0.12f, 0.9f),
-            Size = new Vector2(UiLayout.DesignWidth, 76),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        _topRoot.AddChild(bar);
-        AddLine(_topRoot, new Vector2(0, 76), new Vector2(UiLayout.DesignWidth, 2));
-
-        var logo = new Label { Position = new Vector2(66, 16), Text = "Dynamite Universe" };
-        UiLabels.Tech(logo, 34, UiFonts.Text);
+        var logo = new Label { Position = new Vector2(64, 43), Text = "Dynamite Universe" };
+        UiLabels.Tech(logo, 34, MenuStyle.Text);
         _topRoot.AddChild(logo);
 
         var back = new CutButton
         {
-            Position = new Vector2(1736, 12),
-            Size = new Vector2(140, 52),
+            LowBorder = true,
+            Accent = MenuStyle.Accent,
+            Position = new Vector2(1708, 36),
+            Size = new Vector2(180, 56),
             Text = "返回",
             FontSize = 22,
         };
@@ -72,13 +66,7 @@ public partial class SongSelect
 
     private void BuildLibrary()
     {
-        _listRoot.AddChild(new CutPanel
-        {
-            Position = new Vector2(560, PanelY),
-            Size = new Vector2(1320, PanelHeight),
-        });
-
-        _libTitle = MakeLabel(new Vector2(ListX, HeaderY), new Vector2(700, 30), 20, UiFonts.Dim);
+        _libTitle = MakeLabel(new Vector2(ListX, HeaderY), new Vector2(700, 30), 20, MenuStyle.Secondary);
         _listRoot.AddChild(_libTitle);
 
         // 筛选占位：只有描边、整体压到 55%，无交互（筛选项待拍板）。
@@ -137,7 +125,7 @@ public partial class SongSelect
 
         BuildExpandedCard();
 
-        _emptyState = MakeLabel(Vector2.Zero, new Vector2(ListWidth, 60), 24, UiFonts.Dim);
+        _emptyState = MakeLabel(Vector2.Zero, new Vector2(ListWidth, 60), 24, MenuStyle.Secondary);
         _emptyState.Text = "没有匹配的谱面";
         _emptyState.HorizontalAlignment = HorizontalAlignment.Center;
         _emptyState.Visible = false;
@@ -154,21 +142,14 @@ public partial class SongSelect
 
     private void BuildSearchField()
     {
-        _listRoot.AddChild(new CutPanel
-        {
-            Position = new Vector2(SearchX, SearchY),
-            Size = new Vector2(SearchWidth, SearchHeight),
-            Cut = SearchCut,
-            Fill = new Color("0f1429", 0.85f),
-            Border = UiFonts.Line,
-            BorderWidth = 2f,
-        });
+        AddLine(_listRoot, new Vector2(SearchX, SearchY + SearchHeight - 2),
+            new Vector2(SearchWidth, 1), new Color("2A4156"));
         _listRoot.AddChild(new GlyphIcon
         {
             Position = new Vector2(SearchX + 24, HeaderCy - 11),
             Size = new Vector2(22, 22),
             Glyph = UiGlyphKind.Search,
-            Color = UiFonts.Dim,
+            Color = MenuStyle.Secondary,
         });
 
         // LineEdit 承担输入与 IME 组合态，样式全部让给切角底板。
@@ -186,8 +167,8 @@ public partial class SongSelect
         _search.AddThemeStyleboxOverride("read_only", empty);
         _search.AddThemeFontOverride("font", UiFonts.Tech);
         _search.AddThemeFontSizeOverride("font_size", 18);
-        _search.AddThemeColorOverride("font_color", UiFonts.Text);
-        _search.AddThemeColorOverride("font_placeholder_color", UiFonts.Dim);
+        _search.AddThemeColorOverride("font_color", MenuStyle.Text);
+        _search.AddThemeColorOverride("font_placeholder_color", MenuStyle.Secondary);
         _search.AddThemeColorOverride("caret_color", UiFonts.Cyan);
         _search.TextChanged += _ => ApplySearchFilter();
         _listRoot.AddChild(_search);
@@ -206,11 +187,19 @@ public partial class SongSelect
 
     private void BuildBottomBar()
     {
+        _bottomRoot.AddChild(new ColorRect
+        {
+            Position = new Vector2(0, 950), Size = new Vector2(1920, 130),
+            Color = new Color("121F32"), MouseFilter = Control.MouseFilterEnum.Ignore,
+        });
         _diffBtn = new CutButton
         {
+            LowBorder = true,
+            Accent = MenuStyle.Accent,
             Position = new Vector2(40, 966),
             Size = new Vector2(300, 88),
-            StyleKind = CutButton.ButtonStyle.Solid,
+            MinimalAccent = true,
+            AlignLeft = true,
             SubText = "点击切换难度 ▲",
             FontSize = 30,
             TechFont = true,
@@ -218,11 +207,16 @@ public partial class SongSelect
         _diffBtn.Pressed += BrowseNextDifficulty;
         _bottomRoot.AddChild(_diffBtn);
 
-        _bottomRoot.AddChild(new CutPanel { Position = new Vector2(360, 966), Size = new Vector2(1120, 88), Cut = 10 });
-
-        _bestLabel = new Label { Position = new Vector2(390, 992), Size = new Vector2(850, 40) };
-        UiLabels.Tech(_bestLabel, 28, UiFonts.Dim);
+        var bestHeading = MakeLabel(new Vector2(390, 976), new Vector2(240, 22), 14, MenuStyle.Muted);
+        bestHeading.Text = "BEST";
+        _bottomRoot.AddChild(bestHeading);
+        var clearHeading = MakeLabel(new Vector2(722, 976), new Vector2(240, 22), 14, MenuStyle.Muted);
+        clearHeading.Text = "CLEAR";
+        _bottomRoot.AddChild(clearHeading);
+        _bestLabel = MakeLabel(new Vector2(390, 1000), new Vector2(310, 44), 30, MenuStyle.Text);
         _bottomRoot.AddChild(_bestLabel);
+        _clearLabel = MakeLabel(new Vector2(722, 1000), new Vector2(460, 44), 30, MenuStyle.Secondary);
+        _bottomRoot.AddChild(_clearLabel);
 
         _bestGrade = new Label
         {
@@ -230,16 +224,18 @@ public partial class SongSelect
             Size = new Vector2(140, 68),
             HorizontalAlignment = HorizontalAlignment.Right,
         };
-        UiLabels.Tech(_bestGrade, 48, UiFonts.Dim);
+        UiLabels.Tech(_bestGrade, 48, MenuStyle.Secondary);
         _bottomRoot.AddChild(_bestGrade);
 
         _startBtn = new CutButton
         {
+            LowBorder = true,
+            Accent = MenuStyle.Accent,
             Position = new Vector2(1500, 966),
             Size = new Vector2(380, 88),
             Text = "START ▶",
             StyleKind = CutButton.ButtonStyle.Solid,
-            FontSize = 34,
+            FontSize = 32,
             TechFont = true,
         };
         _startBtn.Pressed += CommitAndStart;

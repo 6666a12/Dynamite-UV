@@ -10,11 +10,11 @@ namespace DynamiteUniverse.Ui;
 /// </summary>
 public partial class NoteColorsScreen : Node2D
 {
-    private static readonly Color Background = new("090C12");
-    private static readonly Color PanelColor = new("111720");
+    private static readonly Color Background = MenuStyle.Background;
+    private static readonly Color PanelColor = MenuStyle.Surface;
     private static readonly Color BorderColor = new("29313E");
-    private static readonly Color TextColor = new("EDF2FA");
-    private static readonly Color MutedColor = new("8995A8");
+    private static readonly Color TextColor = MenuStyle.Text;
+    private static readonly Color MutedColor = MenuStyle.Secondary;
     private static readonly Color WarningColor = new("E8BB79");
     private static readonly string[] Names = ["TAP", "EX TAP", "DRAG", "HOLD", "MIXER", "MINE"];
     private static readonly string[] Descriptions =
@@ -416,7 +416,7 @@ public partial class NoteColorsScreen : Node2D
         Action action, TechButton.Kind kind = TechButton.Kind.Outline, int size = 18, bool register = true)
     {
         var button = new TechButton { Position = new(x, y), Size = new(width, height), Text = text,
-            FontSize = size, Cut = 12, StyleKind = kind };
+            FontSize = size, Cut = 12, StyleKind = kind, LowBorder = true, Accent = MenuStyle.Accent };
         button.Pressed += () => { if (!TransitionDirector.IsBusy && !_inputShield.Visible) action(); };
         parent.AddChild(button);
         if (register) _normalButtons.Add(button);

@@ -31,7 +31,7 @@ public partial class SongSelect : Node2D
             pack.Id, pack.Title, pack.Artist, pack.Charts.Select(chart =>
                 new SongBrowseChart(chart.ChartId, chart.CharterDisplay)).ToArray())).ToArray());
 
-        UiLayout.AddBackground(this);
+        AddChild(new NeonBackground { Size = UiLayout.DesignSize, BaseColor = MenuStyle.Background });
 
         _topRoot = new Node2D { Name = "SongSelectTop" };
         _settingsRoot = new Node2D { Name = "SongSelectQuickSettings" };
@@ -67,7 +67,10 @@ public partial class SongSelect : Node2D
         CompleteChartDetailsLoad();
         CompletePreviewLoad();
         if (!_previewPlayer.Playing)
+        {
+            _detailCard.SetTransportPlaying(false);
             return;
+        }
         // 播放器位置是流内位置（含 Play(from) 的起点），减去起点即本次试听已播时长。
         UpdatePreviewReadout(_previewPlayer.Elapsed);
     }

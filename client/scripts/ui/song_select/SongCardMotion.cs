@@ -149,9 +149,11 @@ public sealed class SongCardMotion
     {
         if (!IsPresenting)
             return CollapseOutcome.Ignored;
-        if (!profile.Directional)
+        if (!profile.Directional || _shownHeight == _rowHeight)
         {
             IsPresenting = false;
+            _collapsing = false;
+            _shownHeight = _targetHeight = _rowHeight;
             return CollapseOutcome.Completed;
         }
         if (_collapsing)

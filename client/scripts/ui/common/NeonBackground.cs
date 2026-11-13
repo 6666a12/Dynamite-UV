@@ -5,6 +5,7 @@ namespace DynamiteUniverse.Ui;
 /// <summary>样式稿背景：深海军蓝底 + 极淡斜向透视线 + 底部辉光（菜单/选曲用）。</summary>
 public partial class NeonBackground : Control
 {
+    public Color BaseColor { get; init; } = UiFonts.Bg;
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
@@ -14,7 +15,7 @@ public partial class NeonBackground : Control
     public override void _Draw()
     {
         var size = Size;
-        DrawRect(new Rect2(Vector2.Zero, size), UiFonts.Bg);
+        DrawRect(new Rect2(Vector2.Zero, size), BaseColor);
 
         // 底部辉光：同心圆叠出近似径向渐变（center 略低于底边）
         var glowCenter = new Vector2(size.X * 0.5f, size.Y * 1.12f);
