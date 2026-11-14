@@ -135,7 +135,8 @@ public partial class StoreScreen : Node2D
     {
         if (_access is null || !OnlineSession.Connection.IsCurrent(_access)) return;
         CancelCover();
-        _selected = release; _details.ShowRelease(release); Rebuild();
+        _selected = release; _details.ShowRelease(release);
+        foreach (var row in _rows) row.Select(row.Release.Id == release.Id);
         _coverId = release.Id;
         _coverCancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _cover = release.Display?.Cover is null ? null : OnlineSession.Catalog.CoverAsync(_access, release, _coverCancellation.Token);

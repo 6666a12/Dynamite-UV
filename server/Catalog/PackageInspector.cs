@@ -11,13 +11,14 @@ public sealed record ReleaseChart(string ChartId, string Digest, string RulesetI
 internal static class PackageInspector
 {
     internal const long MaxArchive = SafePackageArchive.MaxArchive;
-    internal static ValidatedPack Inspect(string zipPath, string staging)
+    internal static ValidatedPack Inspect(string zipPath, string staging, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         var expandedRoot = Path.Combine(staging, "expanded");
-        SafePackageArchive.Extract(zipPath, expandedRoot);
+        SafePackageArchive.Extract(zipPath, expandedRoot, ct);
         using var zip = ZipFile.OpenRead(zipPath);
         var pack = V2JsonDecoder.DecodePackFile(Path.Combine(expandedRoot, "meta.json"));
-        string Resolve(string relative) => V2PackageWriter.ResolveRegularFile(expandedRoot, relative);
+        string Resolve(string relative) { ct.ThrowIfCancellationRequested(); return V2PackageWriter.ResolveRegularFile(expandedRoot, relative); }
         var durations = new Dictionary<string, double>();
         var resolved = V2PackageValidator.Validate(pack, new V2PackageValidationHooks
         {
@@ -38,7 +39,7 @@ internal static class PackageInspector
             using var audio = File.OpenRead(Resolve(chart.ResolvedAudio));
             var digest = V2GameplayDigest.Compute(chart.Chart, chart.Entry.JudgePreset, Convert.ToHexStringLower(SHA256.HashData(audio)));
             charts.Add(new(chart.Entry.Id, digest.Sha256, digest.RulesetId));
-            if (auditedAudio.Add(chart.ResolvedAudio)) CatalogMediaValidator.Validate(Resolve(chart.ResolvedAudio), false);
+            if (auditedAudio.Add(chart.ResolvedAudio)) CatalogMediaValidator.Validate(Resolve(chart.ResolvedAudio), false, ct);
             var entry = chart.Entry;
             display.Add(new(entry.Id, entry.Difficulty.ToString().ToLowerInvariant(), entry.DifficultyKey,
                 entry.Level, entry.Unrated, entry.Charters, chart.Chart.Bpms.Min(b => b.Bpm), chart.Chart.Bpms.Max(b => b.Bpm)));
@@ -48,7 +49,7 @@ internal static class PackageInspector
         string? coverPath = null;
         if (pack.Cover is not null)
         {
-            coverPath = Resolve(pack.Cover); CatalogMediaValidator.Validate(coverPath, true);
+            coverPath = Resolve(pack.Cover); CatalogMediaValidator.Validate(coverPath, true, ct);
             using var image = File.OpenRead(coverPath);
             var mediaType = Path.GetExtension(pack.Cover).ToLowerInvariant() switch
             { ".png" => "image/png", ".webp" => "image/webp", _ => "image/jpeg" };

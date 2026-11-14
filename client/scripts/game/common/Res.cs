@@ -17,12 +17,8 @@ public static class Res
     /// 在这里统一收口，避免恶意包通过音频路径逼出失控分配；64 MiB 的 16-bit 交错 PCM
     /// 约等于 6 分钟 44.1 kHz 立体声，足够覆盖谱面常用长度。
     /// </summary>
-    private const int MaxFlacBytes = 64 * 1024 * 1024;
-    private static readonly FlacDecoderOptions FlacOptions = FlacDecoderOptions.Default with
-    {
-        MaxInputBytes = MaxFlacBytes,
-        MaxPcmBytes = MaxFlacBytes,
-    };
+    private static readonly FlacDecoderOptions FlacOptions = FlacDecoderOptions.GamePlayback;
+    private static int MaxFlacBytes => FlacOptions.MaxInputBytes;
     private static readonly PathResourceCache<AudioStream> AudioCache = new(MaxCachedAudio);
     private static readonly object AudioLock = new();
     private static readonly object VirtualFileLock = new();
@@ -111,7 +107,7 @@ public static class Res
                 return null;
             }
             var length = file.GetLength();
-            if (length == 0 || length > MaxFlacBytes)
+            if (length == 0 || length > (ulong)MaxFlacBytes)
             {
                 GD.PushError($"Res.LoadAudio: FLAC 大小 {length} 字节超出允许范围 {path}");
                 return null;

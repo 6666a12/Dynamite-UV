@@ -11,7 +11,7 @@ internal static class StoreClientTests
         var root = Path.Combine(Path.GetTempPath(), "du-store-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
         try
         {
-            foreach (var bad in new[] { "../escape.json", "/absolute.json", "a\\b.json", "CON.json", "a/../b.json", "a:", "a/", "script.cs" })
+            foreach (var bad in new[] { "../escape.json", "/absolute.json", "a\\b.json", "CON.json", "a/../b.json", "a:", "a/", "script.cs", "chart?.json", "chart*.json", "chart|.json", "chart<.json", "chart>.json", "chart\".json" })
             {
                 var archive = Path.Combine(root, Guid.NewGuid() + ".zip");
                 using (var zip = ZipFile.Open(archive, ZipArchiveMode.Create))
@@ -31,6 +31,19 @@ internal static class StoreClientTests
             catch (OnlineException ex) { check(ex.Code == "redirect_refused", "Catalog refuses credential redirects"); }
             using var corrupt = new CatalogTransport(new Reply(HttpStatusCode.OK, [1, 2, 4]));
             var installer = new CatalogInstaller(Path.Combine(root, "installs"), corrupt);
+            check(installer.Installed(_ => throw new UnauthorizedAccessException()).Count == 0,
+                "Unlistable installation root does not break library loading");
+            var receipt = new InstalledRelease(Guid.NewGuid(), source, "Fixture", release);
+            var receiptDir = Path.Combine(root, "installs", "installed", receipt.InstallationId.ToString("N"));
+            Directory.CreateDirectory(Path.Combine(receiptDir, "pack"));
+            File.WriteAllText(Path.Combine(receiptDir, "receipt.json"), System.Text.Json.JsonSerializer.Serialize(receipt));
+            IEnumerable<string> InterruptedScan(string _)
+            {
+                yield return receiptDir;
+                throw new DirectoryNotFoundException();
+            }
+            check(installer.Installed(InterruptedScan).Count == 1, "Mid-scan I/O failure preserves safely collected receipts");
+            Directory.Delete(receiptDir, true);
             await installer.InstallAsync(access, "Server", release);
             check(installer.State.Error == "integrity_failed" && installer.Installed().Count == 0,
                 "Wrong archive hash never produces installed receipt");

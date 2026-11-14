@@ -19,7 +19,7 @@ public static class SafePackageArchive
         {
             cancellation.ThrowIfCancellationRequested();
             var name = entry.FullName; var parts = name.Split('/');
-            if (name.Length > 240 || name.Contains('\\') || name.Contains(':') || name.Any(char.IsControl) ||
+            if (name.Length > 240 || name.IndexOfAny(['\\', ':', '"', '<', '>', '|', '?', '*']) >= 0 || name.Any(char.IsControl) ||
                 parts.Any(p => p is "" or "." or ".." || p.EndsWith('.') || p.EndsWith(' ') ||
                     new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
                         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" }.Contains(p.Split('.')[0], StringComparer.OrdinalIgnoreCase)) ||

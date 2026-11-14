@@ -28,7 +28,16 @@ internal static class ClientNetworkTests
         check(state.State.Account is not null, "Confirmed current server can log in");
         fake.Offline = true; await state.RefreshAsync();
         check(state.State.Account is not null, "Transport failure does not sign out current identity");
-        fake.Offline = false; fake.Instance = Guid.NewGuid(); await state.DiscoverAsync();
+        fake.Offline = false;
+        var access = state.CaptureCatalog(Guid.NewGuid());
+        fake.DelayedMe = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refresh = state.RefreshAsync();
+        state.RejectCatalogSession(access);
+        check(state.State.Account is null && !state.State.Busy, "Rejected catalog session cancels pending account operation");
+        fake.DelayedMe.SetResult(fake.Account); await refresh;
+        check(state.State.Account is null && state.State.Status == "unauthorized", "Late refresh cannot restore rejected credentials");
+        fake.DelayedMe = null;
+        fake.Instance = Guid.NewGuid(); await state.DiscoverAsync();
         check(state.State.Account is null && state.State.NeedsConfirmation, "Changed instance clears credentials and requires confirmation");
         using var redirect = new AccountTransport(new Replies(_ => new HttpResponseMessage(HttpStatusCode.Redirect)
             { Headers = { Location = new Uri("https://other.invalid/") } }));
@@ -51,13 +60,14 @@ internal static class ClientNetworkTests
     {
         internal Guid Instance = Guid.NewGuid(); internal bool Offline; internal int Logins;
         internal TaskCompletionSource<OnlineLogin>? Delayed;
-        private readonly OnlineAccount _account = new(Guid.NewGuid(),"fixture");
+        internal readonly OnlineAccount Account = new(Guid.NewGuid(),"fixture");
+        internal TaskCompletionSource<OnlineAccount>? DelayedMe;
         public Task<OnlineDescriptor> DiscoverAsync(ServerAddress s,CancellationToken ct) => Task.FromResult(new OnlineDescriptor(
-            "dynamite-universe",1,Instance,"Fixture","test",new(true,false,false),new(1,0,0)));
+            "dynamite-universe",1,Instance,"Fixture","test",new(true,true,true),new(1,1,2,"dynamite-uv-pack/2","gameplay-v1")));
         public Task<OnlineLogin> LoginAsync(ServerAddress s,string u,string p,CancellationToken ct)
-        { Logins++; return Delayed?.Task ?? Task.FromResult(new OnlineLogin(new string('b',64),DateTimeOffset.UtcNow.AddHours(1),_account)); }
-        public Task<OnlineAccount> RegisterAsync(ServerAddress s,string u,string p,CancellationToken ct) => Task.FromResult(_account);
-        public Task<OnlineAccount> MeAsync(ServerAddress s,string t,CancellationToken ct) => Offline ? Task.FromException<OnlineAccount>(new OnlineException("connection_failed")) : Task.FromResult(_account);
+        { Logins++; return Delayed?.Task ?? Task.FromResult(new OnlineLogin(new string('b',64),DateTimeOffset.UtcNow.AddHours(1),Account)); }
+        public Task<OnlineAccount> RegisterAsync(ServerAddress s,string u,string p,CancellationToken ct) => Task.FromResult(Account);
+        public Task<OnlineAccount> MeAsync(ServerAddress s,string t,CancellationToken ct) => Offline ? Task.FromException<OnlineAccount>(new OnlineException("connection_failed")) : DelayedMe?.Task ?? Task.FromResult(Account);
         public Task LogoutAsync(ServerAddress s,string t,CancellationToken ct) => Task.CompletedTask;
     }
 }

@@ -17,7 +17,7 @@ python server/dev.py grant-admin --username <已有用户名>
 
 发布版本独立于v2 revision；title/artist/packId/revision和chartId/Digest由包内容校验计算，不能靠上传参数伪造。版本内容不可覆盖。同一包多个版本时列表选发布时间最新的可见版本；详情、下载、成绩均用不可变releaseId。
 
-归档限制：压缩128MiB、解压256MiB、最多1024成员、单文件64MiB、JSON8MiB；拒绝逃逸/重复/大小写冲突/链接/不支持扩展名/未被包引用内容。ZIP应只包含文件，不需要显式目录项。流式写入私有暂存目录、严格v2跨文件校验、内置音频容器/时长校验和shared Gameplay Digest后才发布；不执行包内代码。图片与音频在发布端调用运营者安装的`ffprobe`/`ffmpeg`完整解码检查（不随客户端分发），程序不可用或检查失败则拒绝发布；不执行SVG或包内代码。`desktop-mobile-media-1`限制静态PNG/JPEG/WebP封面8MiB、单边4096、1600万像素；单流音频1–2声道、8–96kHz、按float PCM估算不超过256MiB，保守接受PCM WAV、MP3、Vorbis、FLAC。每次工具调用最多45秒、输出有界、禁网络协议。该profile是服务端的保守兼容审核，不等同Godot所有平台逐编码器实机认证，也不等同操作系统级解码器沙箱。管理员必须自行拥有分发权，不能将client/testdata作为公共曲库。
+归档限制：压缩128MiB、解压256MiB、最多1024成员、单文件64MiB、JSON8MiB；拒绝逃逸/重复/大小写冲突/链接/不支持扩展名/未被包引用内容。ZIP应只包含文件，不需要显式目录项。流式写入私有暂存目录、严格v2跨文件校验、内置音频容器/时长校验和shared Gameplay Digest后才发布；不执行包内代码。图片与音频在发布端调用运营者安装的`ffprobe`/`ffmpeg`完整解码检查（不随客户端分发），程序不可用或检查失败则拒绝发布；不执行SVG或包内代码。`desktop-mobile-media-1`限制静态PNG/JPEG/WebP封面8MiB、单边4096、1600万像素；单流音频1–2声道、8–96kHz、按float PCM估算不超过256MiB，保守接受PCM WAV、MP3、Vorbis、FLAC。FLAC另外遵守与游戏共享的`FlacDecoderOptions.GamePlayback`：压缩输入及16-bit交错PCM各不超过64MiB，不扩大客户端预算。每次工具调用最多45秒、输出有界、禁网络协议；请求取消传递至解压、校验阶段及媒体进程，终止进行中的媒体进程树。归档文件名统一拒绝Windows非法字符，不因发布主机是Linux而放宽。该profile是服务端的保守兼容审核，不等同Godot所有平台逐编码器实机认证，也不等同操作系统级解码器沙箱。管理员必须自行拥有分发权，不能将client/testdata作为公共曲库。
 
 文件完成后、数据库事务提交才可见；提交结果不确定时保留完整文件防止误删已提交内容，可能留下未登记孤儿文件，暂不自动GC。成功发布不受暂存清理失败误报影响。存储目录须由服务独占且位于Web根外；开发脚本配置`server/.local/catalog`。
 

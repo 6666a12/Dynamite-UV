@@ -51,6 +51,7 @@ internal static class PostgresTests
                         "Parameterized input cannot execute injected statements");
                     await transaction.RollbackAsync(timeout.Token);
                 }
+                await MediaBoundaryTests.Compatibility(timeout.Token);
                 await MultiServerTests.Run(connectionString, timeout.Token);
                 await AccountTests.Run(settings.ConnectionString, id, timeout.Token);
                 await CatalogTests.Run(settings.ConnectionString, id, timeout.Token);

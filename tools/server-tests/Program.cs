@@ -9,6 +9,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+if (args.Length == 2 && args[0] == "--media-cancellation-worker")
+{
+    File.WriteAllText(args[1] + ".tmp", Environment.ProcessId.ToString());
+    File.Move(args[1] + ".tmp", args[1]);
+    await Task.Delay(TimeSpan.FromSeconds(30));
+    return 0;
+}
 if (args.Contains("--local-mock-download")) return await LocalMockDownload.Run();
 if (args.Contains("--postgres")) return await PostgresTests.Run();
 Console.WriteLine("PostgreSQL integration: not requested; run --postgres separately with an isolated database role.");
@@ -32,6 +39,7 @@ void Check(bool condition, string name)
 await ClientNetworkTests.Run(Check);
 await StoreClientTests.Run(Check);
 await UploadStateTests.Run(Check);
+await MediaBoundaryTests.Run(Check);
 var instanceId = Guid.NewGuid();
 await using var app = ServerApplication.Build([], builder =>
 {
@@ -88,6 +96,12 @@ try
     Check(status == HttpStatusCode.TooManyRequests, "Scaffold request limiter is active");
     using var liveAfterLimit = await http.GetAsync("/health/live", deadline.Token);
     Check(liveAfterLimit.StatusCode == HttpStatusCode.OK, "Liveness remains available after request limit");
+    foreach (var healthPath in new[] { "/health/ready", "/health/database" })
+    {
+        using var afterLimit = await http.GetAsync(healthPath, deadline.Token);
+        Check(afterLimit.StatusCode == HttpStatusCode.ServiceUnavailable,
+            "Database health budget is independent of exhausted application budget: " + healthPath);
+    }
 }
 finally { await app.StopAsync(CancellationToken.None); }
 await using var invalid = ServerApplication.Build([], builder =>

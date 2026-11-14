@@ -27,30 +27,35 @@ public sealed class CatalogInstaller(string root, CatalogTransport transport)
     private CatalogIdentity? _source;
     private void Set(InstallProgress state) { lock (_gate) _state = state with { Source = _source }; }
     public string PackagePath(InstalledRelease entry) => Path.Combine(root, "installed", entry.InstallationId.ToString("N"), "pack");
-    public IReadOnlyList<InstalledRelease> Installed()
+    public IReadOnlyList<InstalledRelease> Installed() => Installed(Directory.EnumerateDirectories);
+    // Enumeration itself can fail before or between entries; retain any safely read receipts.
+    internal IReadOnlyList<InstalledRelease> Installed(Func<string, IEnumerable<string>> enumerate)
     {
         var folder = Path.Combine(root, "installed");
-        if (!Directory.Exists(folder)) return [];
         var entries = new List<InstalledRelease>();
-        foreach (var directory in Directory.EnumerateDirectories(folder))
+        try
         {
-            try
+            foreach (var directory in enumerate(folder))
             {
-                if (!Guid.TryParseExact(Path.GetFileName(directory), "N", out var id) ||
-                    (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) continue;
-                var receipt = Path.Combine(directory, "receipt.json");
-                if (!File.Exists(receipt) || new FileInfo(receipt).Length > 1024 * 1024 ||
-                    (File.GetAttributes(receipt) & FileAttributes.ReparsePoint) != 0) continue;
-                var entry = JsonSerializer.Deserialize<InstalledRelease>(File.ReadAllText(receipt));
-                if (entry is null || entry.Source is null || entry.Release is null || entry.InstallationId != id || entry.Source.ServerEntryId == Guid.Empty ||
-                    entry.Source.InstanceId == Guid.Empty || !Directory.Exists(PackagePath(entry))) continue;
-                StoreContract.Validate(entry.Release);
-                _ = ServerAddress.Parse(entry.Source.Address, true);
-                V2PackageWriter.ValidateDirectoryTree(PackagePath(entry));
-                entries.Add(entry);
+                try
+                {
+                    if (!Guid.TryParseExact(Path.GetFileName(directory), "N", out var id) ||
+                        (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) continue;
+                    var receipt = Path.Combine(directory, "receipt.json");
+                    if (!File.Exists(receipt) || new FileInfo(receipt).Length > 1024 * 1024 ||
+                        (File.GetAttributes(receipt) & FileAttributes.ReparsePoint) != 0) continue;
+                    var entry = JsonSerializer.Deserialize<InstalledRelease>(File.ReadAllText(receipt));
+                    if (entry is null || entry.Source is null || entry.Release is null || entry.InstallationId != id || entry.Source.ServerEntryId == Guid.Empty ||
+                        entry.Source.InstanceId == Guid.Empty || !Directory.Exists(PackagePath(entry))) continue;
+                    StoreContract.Validate(entry.Release);
+                    _ = ServerAddress.Parse(entry.Source.Address, true);
+                    V2PackageWriter.ValidateDirectoryTree(PackagePath(entry));
+                    entries.Add(entry);
+                }
+                catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or JsonException or OnlineException or V2DiagnosticException or ArgumentException) { }
             }
-            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or JsonException or OnlineException or V2DiagnosticException or ArgumentException) { }
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return entries;
     }
     public bool Contains(CatalogIdentity source, Guid releaseId) => Installed().Any(e => e.Source == source && e.Release.Id == releaseId);

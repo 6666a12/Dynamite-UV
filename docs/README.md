@@ -17,6 +17,7 @@
 | [module-map.md](<module-map.md>) | 项目关系、源码职责、对象边界与拆分入口；不是行为合同 |
 | [runtime-architecture.md](<runtime-architecture.md>) | 运行时会话/加载、不可重排的帧顺序、适配边界 |
 | [verification.md](<verification.md>) | 最近实际检查、历史验证、测试包身份、用户验收和复验命令 |
+| [网络第一阶段 OCR 核实](network-ocr-review-verification.md) | 2026-11-14 对网络报告10条结论的源码、隔离探针核实及后续用户授权修复 |
 | [OCR 报告逐项核实](ocr-review-verification.md) | 2026-11-13 对 result.json 全部218条的源码核对、探针证据及后续用户授权的四组修复记录；不是全部条目的修复授权 |
 | [dyna-maker-uv.md](<dyna-maker-uv.md>) | 制谱器 Avalonia + Godot 主线、文件/命令接线、核心依赖与持久化边界；[editor README](<../editor/README.md>) 提供启动入口 |
 | [制谱器 UI 回归清单](<editor-ui-regression.md>) | UI 分层覆盖、真实窗口交互与未覆盖项；具体执行结果仍以 verification 为准 |

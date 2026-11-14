@@ -41,15 +41,15 @@ def run(action, local, config):
                              '--pwfile', password, '--auth=scram-sha-256', '--encoding=UTF8', '--locale=C')
             if result.returncode:
                 return result.returncode
-            with (data / 'postgresql.conf').open('a', encoding='utf-8') as stream:
-                stream.write("\n# Project-local developer cluster\nlisten_addresses = '127.0.0.1'\nport = 55432\n")
         finally:
             password.unlink(missing_ok=True)
     if not (data / 'PG_VERSION').is_file():
         raise RuntimeError('Incomplete PostgreSQL initialization; inspect the local data directory without deleting it.')
     status = execute('pg_ctl', '-D', data, 'status', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if status.returncode:
-        result = execute('pg_ctl', '-D', data, '-l', local / 'postgres.log', 'start', '-w', '-t', '60')
+        # Startup options override defaults even if initdb was interrupted before configuration.
+        result = execute('pg_ctl', '-D', data, '-l', local / 'postgres.log',
+                         '-o', "-c listen_addresses=127.0.0.1 -c port=55432", 'start', '-w', '-t', '60')
         if result.returncode:
             return result.returncode
     # Fixed database name, fixed SQL, explicit endpoint, no untrusted interpolation.

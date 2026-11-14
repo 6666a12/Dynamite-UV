@@ -80,7 +80,7 @@ public sealed class CatalogService(DatabaseConnection database, IOptions<Storage
                     await output.WriteAsync(buffer.AsMemory(0, read), ct);
                 }
             }
-            var validated = PackageInspector.Inspect(archive, stage);
+            var validated = PackageInspector.Inspect(archive, stage, ct);
             var id = Guid.NewGuid();
             string hash;
             await using (var file = File.OpenRead(archive)) hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(file, ct));

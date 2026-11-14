@@ -45,8 +45,10 @@ public static class ServerApplication
         builder.Services.AddRateLimiter(options =>
         {
             // A bounded global limiter for the scaffold, not production per-account abuse control.
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(_ =>
-                RateLimitPartition.GetFixedWindowLimiter("instance", _ => new FixedWindowRateLimiterOptions
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    http.Request.Path == "/health/ready" || http.Request.Path == "/health/database" ? "health" : "instance",
+                    _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
                     AutoReplenishment = true,

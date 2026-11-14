@@ -4,7 +4,7 @@ internal static class AccountEndpoints
 {
     internal static void MapAccounts(this RouteGroupBuilder api)
     {
-        var accounts = api.MapGroup("/accounts").AddEndpointFilter<AccountRequestFilter>();
+        var accounts = api.MapGroup("/accounts").WithMetadata(new AccountOperationDeadline()).AddEndpointFilter<AccountRequestFilter>();
         accounts.MapPost("/register", async (Credentials credentials, AccountService service, HttpContext http) =>
         {
             if (!AccountValidation.Valid(credentials)) return AccountRequestFilter.Error(400, "invalid_credentials_format");

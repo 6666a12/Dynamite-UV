@@ -7,6 +7,13 @@ public sealed record FlacDecoderOptions
 {
     public static FlacDecoderOptions Default { get; } = new();
 
+    /// <summary>Runtime FLAC contract shared by the game and publication checks.</summary>
+    public static FlacDecoderOptions GamePlayback { get; } = new()
+    {
+        MaxInputBytes = 64 * 1024 * 1024,
+        MaxPcmBytes = 64 * 1024 * 1024,
+    };
+
     /// <summary>输入 FLAC 字节数上限。</summary>
     public int MaxInputBytes { get; init; } = 128 * 1024 * 1024;
 

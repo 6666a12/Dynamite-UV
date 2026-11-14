@@ -53,6 +53,21 @@ internal static class CatalogTests
             await using (var role = database.CreateCommand("UPDATE du.accounts SET role='admin' WHERE id=$1"))
             { role.Parameters.AddWithValue(admin.Account.Id); await role.ExecuteNonQueryAsync(ct); }
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",admin.AccessToken);
+            using var inspectionCancellation = new CancellationTokenSource();
+            using (var body = new CancelAtEndStream(bytes, inspectionCancellation))
+            {
+                try
+                {
+                    await app.Services.GetRequiredService<CatalogService>().PublishAsync(admin.Account.Id, "cancelled", "Fixture", body, inspectionCancellation.Token);
+                    throw new Exception("Cancelled publication unexpectedly completed");
+                }
+                catch (OperationCanceledException)
+                {
+                    Check(!Directory.EnumerateDirectories(Path.Combine(root, ".staging")).Any(),
+                        "Cancellation before inspection removes publication staging");
+                }
+            }
+            // Success immediately after cancellation also checks release of the singleton publish slot.
             using var publish = await Publish(bytes,"v1");
             Check(publish.StatusCode == HttpStatusCode.Created,"Validated package publishes");
             var release = (await publish.Content.ReadFromJsonAsync<CatalogRelease>(ct))!;
@@ -60,6 +75,8 @@ internal static class CatalogTests
             using (var invalid = await Publish(Fixture(true),"bad")) Check(invalid.StatusCode == HttpStatusCode.BadRequest,"Archive traversal rejected");
             using (var invalidCover = await Publish(Fixture(badCover: true), "bad-cover"))
                 Check(invalidCover.StatusCode == HttpStatusCode.BadRequest, "Server rejects undecodable cover before publication");
+            using (var invalidName = await Publish(Fixture(invalidFilename: true), "bad-filename"))
+                Check(invalidName.StatusCode == HttpStatusCode.BadRequest, "Publication rejects referenced Windows-invalid filename");
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",user.AccessToken);
             using (var deniedWithdrawal = await http.PostAsJsonAsync($"/api/v1/admin/catalog/releases/{release.Id}/withdraw", new Withdrawal("not allowed"), ct))
                 Check(deniedWithdrawal.StatusCode == HttpStatusCode.Forbidden,"Normal account cannot withdraw");
@@ -141,7 +158,7 @@ internal static class CatalogTests
         }
         finally { await app.StopAsync(CancellationToken.None); if(Directory.Exists(root)) Directory.Delete(root,true); }
     }
-    private static byte[] Fixture(bool unsafePath=false, bool badCover=false, bool cover=false)
+    private static byte[] Fixture(bool unsafePath=false, bool badCover=false, bool cover=false, bool invalidFilename=false)
     {
         var repo = new DirectoryInfo(AppContext.BaseDirectory);
         while(repo is not null && !File.Exists(Path.Combine(repo.FullName,"AGENTS.md"))) repo=repo.Parent;
@@ -156,8 +173,9 @@ internal static class CatalogTests
             }
             foreach(var name in new[]{"meta.json","chart_hard.json","chart_custom.json"})
             {
-                using var output = zip.CreateEntry(name).Open();
+                using var output = zip.CreateEntry(invalidFilename && name == "chart_hard.json" ? "chart?.json" : name).Open();
                 var text = File.ReadAllText(Path.Combine(golden, name));
+                if (invalidFilename && name == "meta.json") text = text.Replace("chart_hard.json", "chart?.json");
                 if ((badCover || cover) && name == "meta.json") text = text.Replace("\"audio\": \"audio.wav\",", "\"audio\": \"audio.wav\",\n  \"cover\": \"cover.png\",");
                 output.Write(System.Text.Encoding.UTF8.GetBytes(text));
             }
@@ -193,6 +211,15 @@ internal static class CatalogTests
         using var compressed = new MemoryStream();
         using (var zlib = new ZLibStream(compressed, CompressionMode.Compress, true)) zlib.Write(new byte[] { 0, 40, 70, 90 });
         Chunk("IDAT", compressed.ToArray()); Chunk("IEND", []); return png.ToArray();
+    }
+    private sealed class CancelAtEndStream(byte[] bytes, CancellationTokenSource cancellation) : MemoryStream(bytes)
+    {
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            var count = await base.ReadAsync(buffer, ct);
+            if (count == 0) cancellation.Cancel();
+            return count;
+        }
     }
     private static void Check(bool condition,string message)
     { if(!condition) throw new InvalidOperationException(message); Console.WriteLine("PASS "+message); }

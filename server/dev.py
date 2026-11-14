@@ -17,7 +17,7 @@ local_postgres = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(local_postgres)
 
 
-def configuration(create=False):
+def configuration(create=False, backend=None):
     if not LOCAL.exists():
         if not create:
             raise RuntimeError('Run python server/dev.py up first.')
@@ -29,7 +29,8 @@ def configuration(create=False):
             subprocess.run(['icacls', str(LOCAL.parent), '/inheritance:r', '/grant:r',
                 f'*{sid}:(OI)(CI)F', '*S-1-5-18:(OI)(CI)F'], check=True, stdout=subprocess.DEVNULL)
         # No reset/regeneration on existing installations: losing this file requires recovery.
-        value = {'password': secrets.token_hex(32), 'instanceId': str(uuid.uuid4())}
+        value = {'password': secrets.token_hex(32), 'instanceId': str(uuid.uuid4()),
+                 'backend': backend or ('native' if local_postgres.available() else 'docker')}
         fd = os.open(LOCAL, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, 'w', encoding='utf-8') as stream:
             json.dump(value, stream)
@@ -40,17 +41,46 @@ def configuration(create=False):
     return value
 
 
+def lifecycle_backend(config, requested=None):
+    stored = config.get('backend')
+    if stored not in (None, 'native', 'docker'):
+        raise RuntimeError('Invalid stored database backend.')
+    if stored and requested and stored != requested:
+        raise RuntimeError('Database backend cannot be switched; use the existing installation.')
+    backend = stored or requested
+    if backend is None:
+        raise RuntimeError('Legacy configuration: specify --backend native or --backend docker to confirm the existing database owner.')
+    if backend == 'native' and not local_postgres.available():
+        raise RuntimeError('The selected native PostgreSQL binaries are unavailable; backend was not switched.')
+    if backend == 'docker' and not shutil.which('docker'):
+        raise RuntimeError('The selected Docker backend is unavailable; backend was not switched.')
+    if backend == 'docker' and (LOCAL.parent / 'pgdata').exists():
+        raise RuntimeError('Native cluster data exists; refusing to operate a different backend.')
+    if stored is None:
+        updated = dict(config, backend=backend)
+        temporary = LOCAL.with_name('database-' + uuid.uuid4().hex + '.tmp')
+        try:
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+                json.dump(updated, stream)
+            os.replace(temporary, LOCAL)
+        finally:
+            temporary.unlink(missing_ok=True)
+    return backend
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['up', 'stop', 'migrate', 'run', 'test', 'grant-admin', 'mock-download'])
+    parser.add_argument('--backend', choices=['native', 'docker'], help='Confirm the owner of a legacy database configuration (up/stop only)')
     parser.add_argument('--username', help='Existing account to promote with the local operator command')
     args = parser.parse_args()
     if args.action == 'grant-admin' and not args.username:
         parser.error('--username is required for grant-admin')
-    native = local_postgres.available()
-    if args.action in ('up', 'stop') and not native and not shutil.which('docker'):
-        parser.error('User-local PostgreSQL or Docker Compose is required.')
-    config = configuration(create=args.action == 'up')
+    if args.backend and args.action not in ('up', 'stop'):
+        parser.error('--backend applies only to up/stop')
+    config = configuration(create=args.action == 'up', backend=args.backend)
+    backend = lifecycle_backend(config, args.backend) if args.action in ('up', 'stop') else None
     environment = os.environ.copy()
     environment['POSTGRES_PASSWORD'] = config['password']
     environment['Storage__CatalogRoot'] = str(LOCAL.parent / 'catalog')
@@ -60,11 +90,11 @@ def main():
         f"Password={config['password']};SSL Mode=Disable")
     compose = ['docker', 'compose', '--project-name', 'dynamite-universe-dev', '-f', str(ROOT / 'compose.yaml')]
     if args.action == 'stop':
-        if native:
+        if backend == 'native':
             return local_postgres.run('stop', LOCAL.parent, config)
         return subprocess.run(compose + ['stop'], env=environment, check=False).returncode
     if args.action == 'up':
-        result = (local_postgres.run('up', LOCAL.parent, config) if native else
+        result = (local_postgres.run('up', LOCAL.parent, config) if backend == 'native' else
                   subprocess.run(compose + ['up', '-d', '--wait'], env=environment, check=False).returncode)
         if result:
             return result
@@ -84,6 +114,9 @@ def main():
 if __name__ == '__main__':
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, KeyError, RuntimeError):
-        print('Local database operation failed. Check Docker and server/.local/database.json; credentials were not printed.', file=sys.stderr)
+    except RuntimeError as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1)
+    except (OSError, ValueError, KeyError):
+        print('Local database operation failed. Check the selected backend and server/.local/database.json; credentials were not printed.', file=sys.stderr)
         raise SystemExit(1)

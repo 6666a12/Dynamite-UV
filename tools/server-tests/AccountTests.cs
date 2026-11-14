@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -26,7 +27,7 @@ internal static class AccountTests
         try
         {
             var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
-            using var http = new HttpClient { BaseAddress = new Uri(address), Timeout = TimeSpan.FromSeconds(10) };
+            using var http = new HttpClient { BaseAddress = new Uri(address), Timeout = TimeSpan.FromSeconds(25) };
             const string password = "test-password-' OR 1=1; --";
             async Task<HttpResponseMessage> Post(string endpoint, string user, string pass) =>
                 await http.PostAsJsonAsync("/api/v1/accounts/" + endpoint, new Credentials(user, pass), cancellation);
@@ -47,7 +48,23 @@ internal static class AccountTests
             var me = await http.GetFromJsonAsync<AccountProfile>("/api/v1/accounts/me", cancellation);
             Require(me?.Id == login.Account.Id && me.Username == "alice_123", "Bearer resolves only its own account");
             await using var source = NpgsqlDataSource.Create(connectionString);
-            await using (var stored = source.CreateCommand("SELECT password_hash FROM du.accounts WHERE id=$1"))
+            // Hold the isolated fixture's row lock: login must cancel at the overall
+            // account deadline rather than waiting for the 15s per-command timeout.
+            await using (var blocker = await source.OpenConnectionAsync(cancellation))
+            await using (var transaction = await blocker.BeginTransactionAsync(cancellation))
+            {
+                await using var rowLock = new NpgsqlCommand("SELECT id FROM du.accounts WHERE id=$1 FOR UPDATE", blocker);
+                rowLock.Parameters.AddWithValue(login.Account.Id);
+                await rowLock.ExecuteScalarAsync(cancellation);
+                var elapsed = Stopwatch.StartNew();
+                using var blockedLogin = await Post("login", "alice_123", password);
+                Require(blockedLogin.StatusCode == HttpStatusCode.ServiceUnavailable && elapsed.Elapsed.TotalSeconds < 14,
+                    "Account deadline cancels downstream locked query before command timeout");
+                await transaction.RollbackAsync(cancellation);
+            }
+            using (var afterDeadline = await Post("login", "alice_123", password))
+                Require(afterDeadline.StatusCode == HttpStatusCode.OK, "Account request succeeds after timed-out credential work releases its slot");
+            using (var stored = source.CreateCommand("SELECT password_hash FROM du.accounts WHERE id=$1"))
             {
                 stored.Parameters.AddWithValue(me!.Id);
                 var hash = (string)(await stored.ExecuteScalarAsync(cancellation))!;

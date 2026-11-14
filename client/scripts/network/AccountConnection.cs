@@ -48,7 +48,7 @@ public sealed class AccountConnection(IAccountTransport transport)
     }
     public void RejectCatalogSession(CatalogAccess access)
     {
-        lock (_gate) { if (IsCurrent(access)) { _login = null; _status = "unauthorized"; } }
+        lock (_gate) { if (IsCurrent(access)) { Invalidate(); _login = null; _status = "unauthorized"; } }
     }
     public void Select(ServerAddress address, Guid? expectedInstance)
     {
