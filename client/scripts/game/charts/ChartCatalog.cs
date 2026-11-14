@@ -27,6 +27,13 @@ public static class ChartCatalog
                     byId[pack.Id] = pack;
             }
         }
-        return byId.Values.OrderBy(pack => pack.Title).ToList();
+        var result = byId.Values.ToList();
+        foreach (var installed in OnlineSession.Installer.Installed())
+        {
+            var pack = ChartPack.Load(OnlineSession.Installer.PackagePath(installed));
+            if (pack is null || pack.Id != installed.Release.PackId) continue;
+            pack.Installation = installed; result.Add(pack);
+        }
+        return result.OrderBy(pack => pack.Title).ThenBy(pack => pack.LibraryId).ToList();
     }
 }

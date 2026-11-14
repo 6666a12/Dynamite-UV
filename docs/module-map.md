@@ -40,6 +40,10 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 
 | 组件 | 拥有的职责 | 调用方仍拥有的职责 |
 | --- | --- | --- |
+| `shared/Score/ModeScoreStore` / `ModeScoreFile` | 模式外层本机BEST、未分类历史与迁移前备份 | 调用方明确模式和保存时机；原ScoreIdentity/比较算法不变 |
+| `GameplayOnlineRun` / `network/PlayUpload` / `ResultUploadControl` | 开局来源与模式快照 / 结果身份固定、一次自动发送和手动重试 / 云状态与结果内重登UI | GameplayMain保留判定/本地成绩及冻结帧顺序；服务端保存client_reported，不重算反作弊 |
+| `network/CatalogTransport` / `CatalogInstaller` / `ui/store/` | 有界同源曲库传输 / 进程级首次安装与来源receipt事务 / 列表和详情展示 | `OnlineSession`提供已确认身份，`ChartCatalog`只纳入完成安装，`GameSession`/选曲以LibraryId隔离选择和缓存；shared归档安全检查不做重复媒体审核 |
+| `ui/online/OnlineScreen` / `OnlineServerPicker` / `OnlineWidgets` | 账号主页面状态映射与动作接线 / 服务器地址草稿和确认浮层 / Online v2视觉控件 | `network/AccountConnection`保留请求代际和单会话权威，`AccountTransport`拥有HTTP，`game/session/OnlineSession`拥有进程会话与非秘密条目持久化；UI不拥有token或修改成绩 |
 | `shared/Judge/PointerInputBuffer.cs` | 指针存活、帧首/帧末快照、原始按下时间、同帧短点、Hold 联系快照与清理 | Godot 事件读取、屏幕/镜像投影、暂停区域、判定/计分顺序 |
 | `shared/Judge/BleedHealth.cs` | BLEED 血量数值表（Standard/Hardcore）、100 上限与 0 钳制、耗尽后幂等 | 判定调用点、模式选择、耗尽后的结算/导航与 UI |
 | `shared/IO/LatestRequestLoader.cs` | 单并发后台加载、最新请求、取消排队、丢弃过期完成、异常传递、释放 | 曲库选择、缓存身份、播放器、封面/按钮更新 |
@@ -124,6 +128,10 @@ chart-editor-core 分为 `Canvas/`、`Documents/`、`Timing/` 与既有 `Command
 | `tools/chart-editor-core/Documents/` | 文档、会话、创建/打开/保存、Digest 与校验；`EditorGameplayDigest.cs` 为纯核心服务，`EditorPackageSettings.cs` 把包/差分设置与资源替换组成一次可撤销事务 |
 | `tools/chart-editor-core/Canvas/` | 投影、放置草稿、选择、命中与手势预览纯计算；舞台手势在 `editor/scripts/stage/EditorStageAuthoring.cs`，未接手势仍复用这些纯模型 |
 | `EditorCommands.cs` | `IEditorCommand` 与组合事务；具体命令位于 `Commands/`，命名空间/API 保持 |
+
+## 网络服务边界
+
+`server/`为.NET 10 ASP.NET Core独立模块化单体脚手架，不引用游戏或编辑器运行时，不替换外层C++工程。Hosting拥有HTTP/配置/限制，Protocol拥有无凭据发现，Accounts/Catalog/Records各自预留业务入口；当前Accounts已接真实注册/登录/本人鉴权/退出，Catalog已接管理员发布/下架和登录用户查询下载，Records已接账号范围幂等上传/分页；PostgreSQL连接池与显式事务迁移归Persistence。后端引用shared复用strict v2音频/格式/Digest，不引用Godot；真实数据库专项已在本机PostgreSQL18.7通过。客户端保留本地游玩/保存权威，没有增加网络调用。`tools/server-tests/`以真实回环HTTP隔离验证宿主契约；具体入口见[server README](../server/README.md)。
 
 ## 后续功能放哪里
 

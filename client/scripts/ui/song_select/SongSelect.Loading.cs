@@ -39,7 +39,7 @@ public partial class SongSelect
             return;
 
         _detailCard.ShowPreviewLoading();
-        _previewPlayer.Load(new SongPreviewKey(_detailRequest.CurrentGeneration, pack.Id, diff.ChartId,
+        _previewPlayer.Load(new SongPreviewKey(_detailRequest.CurrentGeneration, pack.LibraryId, diff.ChartId,
             loaded.ResolvedAudioPath), pack.PreviewFor(diff));
     }
 
@@ -62,7 +62,7 @@ public partial class SongSelect
         // 当前身份由页面解析（代际/包/谱的比对在详情请求对象里）。
         var chart = pack.Charts[Mathf.Clamp(_diffIdx, 0, pack.Charts.Count - 1)];
         return _detailRequest.IsCurrent(new SongDetailKey(generation, packId, chartId),
-            pack.Id, chart.ChartId);
+            pack.LibraryId, chart.ChartId);
     }
 
     private void StopPreview()
@@ -108,7 +108,7 @@ public partial class SongSelect
         // 文本淡出→换文→淡入：换文延后到淡出落零那一刻，代际快照当场比对，
         // 快速连切时只有最新一次请求能把新文本写上卡。
         _detailCard.ShowText(
-            new CardTextContent(pack.Title, pack.Artist, $"谱师 {diff.CharterDisplay}"), generation);
+            new CardTextContent(pack.Title, pack.SourceLabel.Length == 0 ? pack.Artist : pack.Artist + " · " + pack.SourceLabel, $"谱师 {diff.CharterDisplay}"), generation);
         // 封面：动画模式瞬时压到 0 再等 Complete 淡回（旧封面不留在卡上）；Off 保持旧封面显示。
         _detailCard.HideCover();
         _detailCard.SetTransportEnabled(false);
@@ -123,7 +123,7 @@ public partial class SongSelect
         _clearLabel.Text = "PREPARING";
         _bestGrade.Text = "";
 
-        CallDeferred(nameof(CompleteRefreshAll), generation, pack.Id, diff.ChartId);
+        CallDeferred(nameof(CompleteRefreshAll), generation, pack.LibraryId, diff.ChartId);
     }
 
     private void CompleteRefreshAll(int generation, string packId, string chartId)
@@ -131,7 +131,7 @@ public partial class SongSelect
         if (!_detailRequest.IsCurrentGeneration(generation) || !IsInsideTree())
             return;
         var pack = CurrentPack;
-        if (pack == null || !StringComparer.Ordinal.Equals(pack.Id, packId) ||
+        if (pack == null || !StringComparer.Ordinal.Equals(pack.LibraryId, packId) ||
             pack.Charts.Count == 0)
             return;
         _browse.ClampDifficulty(pack.Charts.Count);
@@ -146,7 +146,7 @@ public partial class SongSelect
         }
 
         _detailCard.ShowChartLoading();
-        _ = _detailRequest.Start(new SongDetailKey(generation, pack.Id, diff.ChartId),
+        _ = _detailRequest.Start(new SongDetailKey(generation, pack.LibraryId, diff.ChartId),
             () => pack.LoadChart(diff));
     }
 
@@ -165,7 +165,7 @@ public partial class SongSelect
             GD.PushWarning($"SongSelect: detail loading {packId}/{chartId} failed: {error.Message}");
         if (loaded is not null &&
             CurrentPack is { } loadedPack &&
-            StringComparer.Ordinal.Equals(loadedPack.Id, packId) &&
+            StringComparer.Ordinal.Equals(loadedPack.LibraryId, packId) &&
             loadedPack.ChartOf(chartId) is { } loadedDiff)
             GameSession.CachePreload(loadedPack, loadedDiff, loaded);
 
@@ -175,7 +175,7 @@ public partial class SongSelect
             return;
         var currentChartId = pack.Charts[Mathf.Clamp(_diffIdx, 0, pack.Charts.Count - 1)].ChartId;
         if (!_detailRequest.IsCurrent(new SongDetailKey(generation, packId, chartId),
-                pack.Id, currentChartId))
+                pack.LibraryId, currentChartId))
             return;
 
         var diff = pack.Charts[_diffIdx];

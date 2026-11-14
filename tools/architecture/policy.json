@@ -7,7 +7,9 @@
     "shared",
     "tools/chart-editor-core",
     "tools/core-tests",
-    "tools/chart-editor-tests"
+    "tools/chart-editor-tests",
+    "server",
+    "tools/server-tests"
   ],
   "pure_roots": [
     "shared",
@@ -15,6 +17,11 @@
   ],
   "default_file_limit": 1000,
   "source_boundaries": [
+    {
+      "files": ["server/**/*.cs"],
+      "forbidden": "\\b(?:Godot|GameSession|GameplayMain|StandaloneEditorMain)\\b",
+      "reason": "network service must not depend on game or editor runtime"
+    },
     {
       "files": [
         "presentation/game/GameplayNoteRenderer*.cs",
@@ -152,6 +159,12 @@
     }
   },
   "projects": {
+    "server/DynamiteUniverse.Server.csproj": {
+      "references": ["../shared/DynamiteUniverse.Shared.csproj"], "source_links": [], "packages": ["Npgsql"]
+    },
+    "tools/server-tests/ServerTests.csproj": {
+      "references": ["../../server/DynamiteUniverse.Server.csproj"], "source_links": ["../../client/scripts/network/*.cs"], "packages": []
+    },
     "shared/DynamiteUniverse.Shared.csproj": {
       "references": [],
       "source_links": [],

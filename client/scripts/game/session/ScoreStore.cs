@@ -1,6 +1,7 @@
 using Godot;
 using DynamiteUniverse.Game;
 using DynamiteUniverse.Shared.Score;
+using DynamiteUniverse.Shared.Judge;
 
 namespace DynamiteUniverse;
 
@@ -11,24 +12,25 @@ namespace DynamiteUniverse;
 public sealed class ScoreStore
 {
     private const string SavePath = "user://scores.json";
-    private readonly ScoreStoreCore _core = new();
-    private ScoreFilePersistence? _persistence;
-    private ScoreFilePersistence Persistence => _persistence ??= new(
+    private readonly ModeScoreStore _core = new();
+    private ModeScoreFile? _persistence;
+    private ModeScoreFile Persistence => _persistence ??= new(
         ProjectSettings.GlobalizePath(SavePath), _core);
 
     public static string KeyOf(string packId, string diff) => ScoreStoreCore.KeyOf(packId, diff);
     public static string GradeOf(double clearPercent) => ScoreStoreCore.GradeOf(clearPercent);
 
-    public ScoreRecord? Get(ScoreIdentity identity) => _core.Get(identity);
+    public static string CurrentMode => GameSession.Settings.GameplayMode == GameplayMode.Hardcore ? "hardcore" : "standard";
+    public ScoreRecord? Get(ScoreIdentity identity, string? mode = null) => _core.For(mode ?? CurrentMode).Get(identity);
 
     // TryUpdate 不再同步写盘：成功后由调用方 SaveDeferred，避免结算首帧被 IO 阻塞。
-    public bool TryUpdate(ScoreIdentity identity, ScoreRecord candidate) =>
-        _core.TryUpdate(identity, candidate);
+    public bool TryUpdate(ScoreIdentity identity, ScoreRecord candidate, string? mode = null) =>
+        _core.For(mode ?? CurrentMode).TryUpdate(identity, candidate);
 
-    public ScoreRecord? Get(string packId, string diff) => _core.GetLegacy(packId, diff);
+    public ScoreRecord? Get(string packId, string diff, string? mode = null) => _core.For(mode ?? CurrentMode).GetLegacy(packId, diff);
 
-    public bool TryUpdate(string packId, string diff, ScoreRecord candidate) =>
-        _core.TryUpdateLegacy(packId, diff, candidate);
+    public bool TryUpdate(string packId, string diff, ScoreRecord candidate, string? mode = null) =>
+        _core.For(mode ?? CurrentMode).TryUpdateLegacy(packId, diff, candidate);
 
     public void Load()
     {

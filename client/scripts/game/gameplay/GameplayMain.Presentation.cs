@@ -168,19 +168,20 @@ public partial class GameplayMain
 		var normalizedScore = _engine.NormalizedScore(_plan.TheoreticalMax);
 		var grade = ScoreStore.GradeOf(pct);
 		var hasIdentity = _loaded.TryGetScoreIdentity(out var identity);
-		var previous = hasIdentity ? GameSession.Scores.Get(identity)
-			: GameSession.Scores.Get(_run.PackId, _run.LegacyScoreKey);
+		var previous = hasIdentity ? GameSession.Scores.Get(identity, _onlineRun.Mode)
+			: GameSession.Scores.Get(_run.PackId, _run.LegacyScoreKey, _onlineRun.Mode);
 		var previousBest = previous?.Score;
 		var record = new ScoreRecord
 		{
 			Score = normalizedScore, Acc = pct, MaxCombo = _engine.MaxCombo, Grade = grade,
 			Perfect = _engine.CountPerfect, Great = _engine.CountGreat,
 			Good = _engine.CountGood, Miss = _engine.CountMiss,
+			Bleed = _onlineRun.Bleed, Mirror = _onlineRun.Mirror,
 		};
 		// Snapshot the previous best before saving; AUTO must never write scores.
 		var isNewRecord = !_auto && (hasIdentity
-			? GameSession.Scores.TryUpdate(identity, record)
-			: GameSession.Scores.TryUpdate(_run.PackId, _run.LegacyScoreKey, record));
+			? GameSession.Scores.TryUpdate(identity, record, _onlineRun.Mode)
+			: GameSession.Scores.TryUpdate(_run.PackId, _run.LegacyScoreKey, record, _onlineRun.Mode));
 		if (isNewRecord)
 			GameSession.Scores.SaveDeferred();
 		var outcome = ResultOutcome.Classify(record, _plan.HeadlineUnitCount, stageFailure);
@@ -194,8 +195,8 @@ public partial class GameplayMain
 			packs[(packs.IndexOf(selection.Pack) + 1) % packs.Count].Charts.Count > 0;
 		_results.Begin(new ResultScreenData(_run, record, _plan.HeadlineUnitCount,
 			previousBest, isNewRecord, _auto,
-			GameSession.Settings.GameplayMode == GameplayMode.Hardcore,
-			GameSession.Settings.BleedEffective, GameSession.Settings.MirrorEnabled, texture, outcome),
+			_onlineRun.Mode == "hardcore", _onlineRun.Bleed, _onlineRun.Mirror, texture, outcome,
+			_onlineRun.Finish(record, _engine.Score, _plan.TheoreticalMax, _auto, stageFailure, _verification is not null, _startSecond > 0)),
 			() =>
 			{
 				_stageRoot.Visible = false;

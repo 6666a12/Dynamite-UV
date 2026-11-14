@@ -3,8 +3,8 @@ using Godot;
 namespace DynamiteUniverse.Ui;
 
 /// <summary>
-/// Home v2 顶部右侧的工具入口与右下版本串。CREDITS / LOGIN 按用户决定保留但置灰：
-/// 纯 Label、不接收输入、不接任何路由，也不带登录外链箭头。版本串仍由 Main 的构建身份描述生成。
+/// Home v2 工具入口：CREDITS保持占位，LOGIN/ACCOUNT进入独立账号页。
+/// 本地游玩和商店禁用态不随账号入口改变。
 /// </summary>
 internal static class HomeUtilityRow
 {
@@ -15,8 +15,13 @@ internal static class HomeUtilityRow
         parent.AddChild(credits);
         register(credits, 6);
 
-        var login = Text("LOGIN", new Vector2(1670f, 58f), new Vector2(78f, 20f),
-            HomePalette.TechBold(2), 15, HomePalette.UtilityText, HorizontalAlignment.Right);
+        var login = new CutButton
+        {
+            Text = Game.OnlineSession.Connection.State.Account is null ? "LOGIN" : "ACCOUNT",
+            Position = new Vector2(1640f, 44f), Size = new Vector2(180f, 52f),
+            FontSize = 18, TechFont = true, LowBorder = true,
+        };
+        login.Pressed += () => TransitionDirector.Navigate(UiRoutes.Online, TransitionKind.Standard, "CONNECT", "ACCOUNT");
         parent.AddChild(login);
         register(login, 6);
 

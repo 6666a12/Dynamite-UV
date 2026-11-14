@@ -7,7 +7,7 @@ namespace DynamiteUniverse.Game;
 public sealed record ChartSelection(ChartPack Pack, ChartDiff Diff, LoadedChart? LoadedChart)
 {
     public bool Matches(ChartPack pack, ChartDiff diff) =>
-        StringComparer.Ordinal.Equals(Pack.Id, pack.Id) &&
+        StringComparer.Ordinal.Equals(Pack.LibraryId, pack.LibraryId) &&
         StringComparer.Ordinal.Equals(Diff.ChartId, diff.ChartId);
 }
 
@@ -15,6 +15,6 @@ public sealed record ChartSelection(ChartPack Pack, ChartDiff Diff, LoadedChart?
 public sealed record ChartPreload(ChartPack Pack, ChartDiff Diff, LoadedChart LoadedChart)
 {
     public bool Matches(ChartPack pack, ChartDiff diff) =>
-        StringComparer.Ordinal.Equals(Pack.Id, pack.Id) &&
+        StringComparer.Ordinal.Equals(Pack.LibraryId, pack.LibraryId) &&
         StringComparer.Ordinal.Equals(Diff.ChartId, diff.ChartId);
 }

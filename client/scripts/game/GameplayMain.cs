@@ -87,6 +87,7 @@ public partial class GameplayMain : Node2D
 	private V2IntegrationTrace? _trace;
 
 	// Current pack/chart presentation and score identity stay immutable after startup.
+	private GameplayOnlineRun _onlineRun = null!;
 	private GameplayRunContext _run = GameplayRunContext.InternalFallback;
 
 	private List<Note> _notesByTime = new();
@@ -154,6 +155,7 @@ public partial class GameplayMain : Node2D
 			return;
 		}
 
+		_onlineRun = new GameplayOnlineRun(_loaded, _verification is not null);
 		BuildStage();
 		GameplayHitParticles.Prewarm(_noteRoot);
 
@@ -231,6 +233,7 @@ public partial class GameplayMain : Node2D
 
 	public override void _ExitTree()
 	{
+		_onlineRun?.Dispose();
 		_trace?.Dispose();
 		_trace = null;
 	}

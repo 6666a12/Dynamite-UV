@@ -20,6 +20,11 @@ public static class GameSession
     public static ChartPreload? CurrentPreload => Preloads.Values.FirstOrDefault();
 
     private static bool _init;
+    private static long _installationRevision = -1;
+    public static void RefreshInstalledPacks()
+    {
+        if (_installationRevision != OnlineSession.Installer.Revision) RescanPacks();
+    }
 
     public static void EnsureInit()
     {
@@ -34,19 +39,23 @@ public static class GameSession
 
     public static void RescanPacks()
     {
+        var revision = OnlineSession.Installer.Revision;
         Packs = ChartPack.ScanAll();
-        if (CurrentSelection is { } selection && !Packs.Any(pack =>
-                StringComparer.Ordinal.Equals(pack.Id, selection.Pack.Id)))
-            ClearSelection();
-        if (Preloads.Values.Any(preload => !Packs.Any(pack =>
-                StringComparer.Ordinal.Equals(pack.Id, preload.Pack.Id))))
-            ClearPreload();
+        _installationRevision = revision;
+        ClearPreload();
+        if (CurrentSelection is { } selection)
+        {
+            var pack = Packs.FirstOrDefault(p => p.LibraryId == selection.Pack.LibraryId);
+            var diff = pack?.ChartOf(selection.Diff.ChartId);
+            if (pack is null || diff is null) ClearSelection();
+            else SetSelection(new(pack, diff, null));
+        }
     }
 
     /// <summary>Stores a successful selection-screen preload without changing the committed chart.</summary>
     public static void CachePreload(ChartPack pack, ChartDiff diff, LoadedChart loaded)
     {
-        var key = (pack.Id, diff.ChartId);
+        var key = (pack.LibraryId, diff.ChartId);
         if (Preloads.ContainsKey(key))
             PreloadOrder.Remove(key);
         Preloads[key] = new ChartPreload(pack, diff, loaded);
@@ -63,7 +72,7 @@ public static class GameSession
 
     public static LoadedChart? GetPreload(ChartPack pack, ChartDiff diff)
     {
-        var key = (pack.Id, diff.ChartId);
+        var key = (pack.LibraryId, diff.ChartId);
         // Mode changes keep the cache, but cannot reuse a different judge preset.
         if (!Preloads.TryGetValue(key, out var preload) ||
             preload.LoadedChart.Preset != V2Integration.PresetFor(diff.Difficulty))
@@ -95,7 +104,7 @@ public static class GameSession
         var selection = CurrentSelection;
         if (Packs.Count == 0 || selection is null)
             return false;
-        var i = Packs.IndexOf(selection.Pack);
+        var i = Packs.FindIndex(pack => pack.LibraryId == selection.Pack.LibraryId);
         var next = Packs[(i + 1) % Packs.Count];
         if (next.Charts.Count == 0)
             return false;

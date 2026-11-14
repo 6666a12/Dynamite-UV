@@ -27,7 +27,7 @@
 
 | 文档 | 权威边界 |
 | --- | --- |
-| [网络服务第一阶段设计](<network-services-phase1.md>) | 已确认的免费曲库、开放注册、本人记录与上传重试范围；页面设计、自部署建议和待定项，尚未实现 |
+| [网络服务第一阶段设计](<network-services-phase1.md>) | 已接通账号、免费曲库与本人记录后端开发闭环；[服务端运行/API](../server/README.md)，客户端尚未接通，生产部署未验收 |
 | [gameplay-hud-v8.md](<gameplay-hud-v8.md>) | 已接本体的 BLEED 血条、顶部统计/暂停、无框标题卡、视觉判定线与三档动效边界 |
 | [gameplay-spec.md](<gameplay-spec.md>) | 社区玩法、Legacy 兼容、空间/判定/计分；原版研究不能覆盖社区决策 |
 | [chart-format-v2.md](<chart-format-v2.md>) | 已冻结的 v2 合同，不因 UI 能力不足而降格；[Schema/golden pack](<../schemas/chart-format-v2/>) 是机器合同 |

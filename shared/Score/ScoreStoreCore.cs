@@ -101,6 +101,12 @@ public sealed class ScoreRecord
     [JsonPropertyOrder(7)]
     public int Miss { get; set; }
 
+    [JsonPropertyName("bleed")]
+    public bool? Bleed { get; set; }
+
+    [JsonPropertyName("mirror")]
+    public bool? Mirror { get; set; }
+
     [JsonPropertyName("date")]
     [JsonPropertyOrder(8)]
     public string Date { get; set; } = "";

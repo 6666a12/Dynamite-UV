@@ -17,6 +17,8 @@ public static class UiLayout
 /// <summary>Scene routes owned by the programmatic UI.</summary>
 public static class UiRoutes
 {
+    public const string Online = "res://scenes/online.tscn";
+    public const string Store = "res://scenes/store.tscn";
     public const string Main = "res://scenes/main.tscn";
     public const string SongSelect = "res://scenes/song_select.tscn";
     public const string Settings = "res://scenes/settings.tscn";

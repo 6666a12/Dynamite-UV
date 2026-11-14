@@ -103,6 +103,9 @@ public sealed class ChartPack
     public int? FormatVersion { get; init; }
     public long? Revision { get; init; }
     public required string Id { get; init; }
+    public DynamiteUniverse.Network.InstalledRelease? Installation { get; internal set; }
+    public string LibraryId => Installation is { } entry ? "online:" + entry.InstallationId.ToString("N") : "local:" + Id;
+    public string SourceLabel => Installation is { } entry ? $"{entry.ServerName} · {entry.Source.Address}" : "";
     public required string Title { get; init; }
     public required string Artist { get; init; }
     public required string DirPath { get; init; }

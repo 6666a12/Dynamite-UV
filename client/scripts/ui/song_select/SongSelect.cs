@@ -27,8 +27,9 @@ public partial class SongSelect : Node2D
     public override void _Ready()
     {
         GameSession.EnsureInit();
+        GameSession.RefreshInstalledPacks();
         _browse = new SongBrowseState(GameSession.Packs.Select(pack => new SongBrowseEntry(
-            pack.Id, pack.Title, pack.Artist, pack.Charts.Select(chart =>
+            pack.LibraryId, pack.Title, pack.Artist, pack.Charts.Select(chart =>
                 new SongBrowseChart(chart.ChartId, chart.CharterDisplay)).ToArray())).ToArray());
 
         AddChild(new NeonBackground { Size = UiLayout.DesignSize, BaseColor = MenuStyle.Background });
@@ -90,7 +91,7 @@ public partial class SongSelect : Node2D
         if (selection is null)
             return;
 
-        _browse.Restore(selection.Pack.Id, selection.Diff.ChartId);
+        _browse.Restore(selection.Pack.LibraryId, selection.Diff.ChartId);
     }
 
     private void BrowseNextDifficulty()

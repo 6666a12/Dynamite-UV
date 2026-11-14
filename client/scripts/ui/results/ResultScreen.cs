@@ -7,7 +7,8 @@ namespace DynamiteUniverse.Ui;
 
 internal sealed record ResultScreenData(GameplayRunContext Track, ScoreRecord Score,
     int TotalUnits, int? PreviousBest, bool NewRecord, bool Auto,
-    bool Hardcore, bool Bleed, bool Mirror, Texture2D? Cover, ResultOutcomeKind Outcome);
+    bool Hardcore, bool Bleed, bool Mirror, Texture2D? Cover, ResultOutcomeKind Outcome,
+    DynamiteUniverse.Network.PlayUpload? Upload = null);
 
 /// <summary>Penpot Result v2. Owns presentation and input gating, never score persistence.</summary>
 public partial class ResultScreen : Control
@@ -35,6 +36,7 @@ public partial class ResultScreen : Control
     private readonly List<(Label Label, int Final, double Start)> _judgeCounts = [];
     private readonly List<(ColorRect Bar, float X, float Width)> _judgeBars = [];
     private Control? _recordStamp;
+    private ResultUploadControl? _uploadControl;
 
     // 数据揭示的次级时窗：嵌在各组浮现时窗内开始，不改变整体节奏骨架。
     private const double ScoreRevealStart = 1.94;
@@ -83,6 +85,7 @@ public partial class ResultScreen : Control
         _judgeCounts.Clear();
         _judgeBars.Clear();
         _recordStamp = null;
+        _uploadControl = null;
         _scoreValue = null!;
         _scoreFinal = 0;
         _page = null!;
@@ -224,6 +227,11 @@ public partial class ResultScreen : Control
         Button(actions, 1452, 396, "再来一次", retry, true);
         Texture(actions, 111, 992, 26, 24, GD.Load<Texture2D>("res://assets/results/back.svg"));
         Texture(actions, 1502, 990, 28, 28, GD.Load<Texture2D>("res://assets/results/retry.svg"));
+        if (d.Upload is { } upload)
+        {
+            _uploadControl = new ResultUploadControl(upload, () => _actionsEnabled);
+            actions.AddChild(_uploadControl);
+        }
         _shutter = new ResultShutter { Name = "ResultShutter", Size = Size, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_shutter);
     }
@@ -333,7 +341,7 @@ public partial class ResultScreen : Control
             MouseFilter = MouseFilterEnum.Ignore };
         b.Pressed += () =>
         {
-            if (!_actionsEnabled || _actionInFlight || b.Disabled || TransitionDirector.IsBusy) return;
+            if (!_actionsEnabled || _actionInFlight || b.Disabled || TransitionDirector.IsBusy || _uploadControl?.HasLoginDialog == true) return;
             _actionInFlight = true;
             ApplyFrame();
             b.CommitPulse(_motion.FocusDuration);

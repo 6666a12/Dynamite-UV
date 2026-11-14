@@ -212,6 +212,13 @@ public static class Res
             return null;
         }
 
+        return LoadTextureBytes(extension, bytes);
+    }
+
+    public static Texture2D? LoadTextureBytes(string extension, byte[] bytes)
+    {
+        const string path = "bounded image buffer";
+        if (bytes.Length == 0 || (ulong)bytes.LongLength > MaxRawTextureBytes) return null;
         if (!TryReadRawImageDimensions(extension, bytes, out var headerWidth, out var headerHeight) ||
             !DimensionsWithinLimits(headerWidth, headerHeight))
         {

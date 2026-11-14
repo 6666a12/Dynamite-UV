@@ -71,6 +71,16 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertEqual(options["dotnet/include_scripts_content"], "false")
         self.assertEqual(options["dotnet/include_debug_symbols"], "false")
 
+    def test_online_account_resources_and_permissions(self) -> None:
+        exports = self.presets["preset.0"]["export_files"]
+        self.assertIn('"res://scenes/online.tscn"', exports)
+        self.assertIn('"res://scenes/store.tscn"', exports)
+        self.assertTrue((REPO_ROOT / "client/scenes/store.tscn").is_file())
+        self.assertIn('"res://assets/fonts/SpaceGrotesk-SemiBold.ttf"', exports)
+        self.assertTrue((REPO_ROOT / "client/scenes/online.tscn").is_file())
+        for index in (0, 1):
+            self.assertEqual(self.presets[f"preset.{index}.options"]["permissions/internet"], "true")
+
     def test_shared_note_visual_dependencies_stay_synchronized(self) -> None:
         for project in ("editor/DynaMakerUv.Editor.csproj", "client/DynamiteUniverse.csproj"):
             text = (REPO_ROOT / project).read_text(encoding="utf-8")

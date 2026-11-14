@@ -148,7 +148,7 @@ public partial class SongRow : Control
         DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.44f), _pack.Title,
             HorizontalAlignment.Left, Size.X * 0.55f, 30, MenuStyle.Text);
         DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.78f),
-            $"{_pack.Artist} · 谱师 {_pack.Charter}",
+            _pack.SourceLabel.Length == 0 ? $"{_pack.Artist} · 谱师 {_pack.Charter}" : $"{_pack.SourceLabel} · {_pack.Artist}",
             HorizontalAlignment.Left, Size.X * 0.55f, 18, MenuStyle.Secondary);
 
         // 右：难度徽章（从右往左排，giga 在最右）

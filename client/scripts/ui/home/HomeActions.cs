@@ -45,8 +45,14 @@ internal static class HomeActions
         parent.AddChild(play);
         register(play, 4);
 
-        var workshop = SecondaryTile("谱面工坊", "WORKSHOP  /  OFFLINE", HomeActionTile.TileStyle.Disabled,
-            new Vector2(Left, 748f));
+        var connected = DynamiteUniverse.Game.OnlineSession.Connection.State.Account is not null;
+        var workshop = SecondaryTile("谱面商店", connected ? "CHART STORE  /  ONLINE" : "CHART STORE  /  LOGIN REQUIRED",
+            connected ? HomeActionTile.TileStyle.Outline : HomeActionTile.TileStyle.Disabled, new Vector2(Left, 748f));
+        workshop.Pressed += () =>
+        {
+            if (DynamiteUniverse.Game.OnlineSession.Connection.State.Account is not null)
+                TransitionDirector.Navigate(UiRoutes.Store, TransitionKind.Standard, "OPEN CHANNEL", "CHART STORE");
+        };
         parent.AddChild(workshop);
         register(workshop, 5);
 

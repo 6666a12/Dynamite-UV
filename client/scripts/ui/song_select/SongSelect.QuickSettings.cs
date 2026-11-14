@@ -161,6 +161,7 @@ public partial class SongSelect
         // 锁定期（HARDCORE）不改写 BleedEnabled，切回 STANDARD 时恢复用户此前的选择。
         PersistSettings();
         RefreshQuickSettings();
+        BeginRefreshAll(); // Mode-specific BEST and judge-preload must refresh together.
     }
 
     /// <summary>把设置值刷到控件上；HARDCORE 下 BLEED 强制开并锁定。</summary>

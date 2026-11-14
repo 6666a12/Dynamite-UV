@@ -19,7 +19,8 @@ def main() -> int:
     for project in ("client/DynamiteUniverse.csproj", "editor/DynaMakerUv.Editor.csproj",
                     "editor/shell/DynaMakerUv.Editor.Shell.csproj"):
         commands.append(["dotnet", "build", project, "--configuration", args.configuration, *restore])
-    for project in ("tools/core-tests/CoreTests.csproj", "tools/chart-editor-tests/ChartEditorTests.csproj"):
+    for project in ("tools/core-tests/CoreTests.csproj", "tools/chart-editor-tests/ChartEditorTests.csproj",
+                    "tools/server-tests/ServerTests.csproj"):
         commands.append(["dotnet", "run", "--project", project, "--configuration", args.configuration, *restore])
     commands.append(["dotnet", "run", "--project", "editor/shell/DynaMakerUv.Editor.Shell.csproj",
                      "--configuration", args.configuration, *restore, "--", "--headless"])
