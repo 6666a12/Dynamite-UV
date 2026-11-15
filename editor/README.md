@@ -1,5 +1,7 @@
 # DynaMaker UV
 
+第一次使用可以先读[网页入门教程](../site/guide.html)；本地预览和网页部署见[网页说明](../docs/website.md)。本文主要面向构建、开发与验证。
+
 Windows 制谱器采用两个协作进程：`shell/` 是 .NET 10 / Avalonia 工作台，当前 Godot 4.7.1 Mono/.NET 9 项目提供共用游戏舞台与音频。Shell 通过 Win32 HWND 嵌入 Godot，并用 JSON-lines IPC 传递 Chart、预览控制和输入事件。
 
 不进入 Android APK；不引用 client 项目或链接 client 源码。UI 依赖使用公开 NuGet 包，不依赖 `.tmp` 研究源码。

@@ -1,0 +1,40 @@
+{
+  "assets": [
+    {
+      "path": "assets/editor-workspace.webp",
+      "sha256": "46e1fad8ca4d66bd94b6ccba4d89b9bee1e5c0d58cc91e4ca75dd882e3dcff20",
+      "origin": "Recaptured 2026-11-15 after user disabled desktop lyrics; synthetic Shell Fixture; source tmp_shots/site-guide-clean-20261115"
+    },
+    {
+      "path": "assets/editor-placement.webp",
+      "sha256": "253cdee2fa79783601bf6f337067d206d8956d79510676ca9665b916d0cb1d00",
+      "origin": "Recaptured 2026-11-15 after user disabled desktop lyrics; synthetic Shell Fixture; source tmp_shots/site-guide-clean-20261115"
+    },
+    {
+      "path": "assets/editor-hold.webp",
+      "sha256": "d8cf254ddff54664ad87ee42491e1dba9b42b69e3d2f1845077656c0cd267327",
+      "origin": "Recaptured 2026-11-15 after user disabled desktop lyrics; synthetic Shell Fixture; source tmp_shots/site-guide-clean-20261115"
+    },
+    {
+      "path": "assets/practice-120bpm.wav",
+      "sha256": "63111d00b1e194b6f91c93409604d437101fe6af5871dbff1641e8b68a0d7d95",
+      "origin": "Original synthetic practice audio, tools/site/generate_practice.py"
+    },
+    {
+      "path": "assets/fonts/SpaceGrotesk-Regular.woff2",
+      "sha256": "7a8a1718f5c74eb311a5269bb511f3c5ff462d6cbef8fa52d2ac32c164a284c9",
+      "source": "client/assets/fonts/SpaceGrotesk-Regular.woff2"
+    },
+    {
+      "path": "assets/fonts/SpaceGrotesk-Bold.woff2",
+      "sha256": "e0f106bbd065200c761af4a330fbbfa5273bf02661d62da476c902970b4013b8",
+      "source": "client/assets/fonts/SpaceGrotesk-Bold.woff2"
+    },
+    {
+      "path": "assets/licenses/SpaceGrotesk-OFL.txt",
+      "sha256": "c6dec685825f73b18c20926fddc65e8315642e12986f15db0699170940a09efc",
+      "hashNote": "License text hashed with CRLF normalized to LF; all binary assets remain byte-exact",
+      "source": "third_party/space-grotesk/OFL-1.1.txt"
+    }
+  ]
+}

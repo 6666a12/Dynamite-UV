@@ -4,6 +4,12 @@ Dynamix 风格的 **clean-room 社区音游重实现**，包含 Godot 游戏和�
 
 > 无项目级 LICENSE，原创代码与资产保留所有权利。公开可见不等于获得复制/修改/再分发授权；第三方见 [通知](<THIRD_PARTY_NOTICES.md>)。
 
+## 项目网页与制谱入门
+
+- [项目首页源码](site/index.html) · [DynaMaker UV 中文教程](site/guide.html)：从新建谱包、放置音符到路径、预览与保存，配真实工作台截图和原创练习节拍。
+- 本地预览：`python -m http.server 8765 --bind 127.0.0.1 --directory site`，然后打开 `http://127.0.0.1:8765/`。
+- [网页维护与 GitHub Pages 部署](docs/website.md)。部署工作流只发布 `site/`，不将内部文档、开发数据或本地测试软件包公开；配置完成前不视为已上线。
+
 ## 接手从这里开始
 
 1. [当前交接](<docs/handoff.md>)：当前能力、硬约束、缺口、待决策和设备验收边界。

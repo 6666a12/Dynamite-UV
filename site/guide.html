@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090e1c">
+  <meta name="description" content="DynaMaker UV 中文入门教程：新建谱包、放置音符、编辑 HOLD 与 MIXER 路径、调整 BPM、预览并保存。配有真实编辑器截图。">
+  <title>从第一颗音符开始 · DynaMaker UV 制谱教程</title>
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/site.js" defer></script>
+</head>
+<body class="guide-page">
+<a class="skip-link" href="#main">跳到教程正文</a>
+<header class="site-header"><a class="brand" href="./" aria-label="Dynamite Universe 首页"><img src="assets/mark.svg" width="32" height="32" alt=""><span>DYNAMITE<span class="brand-sub">UNIVERSE</span></span></a><nav aria-label="主导航"><a href="./">项目首页</a><a href="guide.html" aria-current="page">制谱教程</a><a class="nav-external" href="https://github.com/6666a12/Dynamite-UV">GitHub ↗</a></nav></header>
+<div class="guide-layout">
+  <aside class="guide-sidebar" aria-label="教程目录">
+    <div class="search-box" hidden><label for="guide-search">查找教程内容</label><input id="guide-search" type="search" placeholder="例如：长条、保存、BPM" autocomplete="off"><p class="search-status" role="status" aria-live="polite"></p></div>
+    <p class="sidebar-heading">DYNA MAKER UV / GUIDE</p>
+    <nav aria-label="章节"><a href="#prepare"><span>01</span>开始前的准备</a><a href="#workspace"><span>02</span>认识工作台</a><a class="subchapter" href="#panel-layout">侧栏展开、固定与恢复</a><a class="subchapter" href="#tools-panel">左侧工具怎么用</a><a href="#new-package"><span>03</span>新建第一个谱包</a><a href="#first-note"><span>04</span>放下第一颗音符</a><a href="#edit"><span>05</span>选中、移动与复制</a><a class="subchapter" href="#inspector-panel">右侧属性逐项说明</a><a class="subchapter" href="#batch-panel">多选与批量修改</a><a href="#sustain"><span>06</span>长条与路径</a><a href="#timing"><span>07</span>BPM 与速度</a><a class="subchapter" href="#timing-panel">对轨面板操作练习</a><a href="#preview"><span>08</span>边听边检查</a><a href="#save"><span>09</span>保存与差分</a><a href="#shortcuts"><span>10</span>常用快捷键</a><a href="#faq"><span>11</span>遇到问题时</a></nav>
+    <div class="sidebar-foot"><a href="./">← 返回项目首页</a><a href="https://github.com/6666a12/Dynamite-UV/issues">反馈教程或软件问题 ↗</a></div>
+  </aside>
+  <main id="main" class="guide-content">
+    <header class="guide-title"><p class="eyebrow">THE FIRST NOTE / 入门教程</p><h1>从第一颗音符开始。</h1><p class="guide-deck">不用一口气弄懂整个制谱器。先选一段音乐，放几颗音符，听一遍，再把它保存下来。这篇教程就从这里陪你走起。</p><div class="guide-meta"><span>Windows 桌面版</span><span>中文 / English 界面对照</span><span>按 2026-11-15 源码核对</span></div><p>这是 <strong>DynaMaker UV</strong> 的操作教程，不是旧版 DynaMaker 的说明书。截图来自真实工作台和合成测试谱包；示例里的曲名、谱面只用于演示。</p></header>
+
+    <section id="prepare" class="guide-section" data-keywords="安装 下载 音频 音乐 练习 wav mp3 flac ogg">
+      <p class="section-kicker">01 / GET READY</p><h2>开始前，准备两样东西</h2>
+      <ul class="checklist"><li><strong>一份完整的 Windows 制谱器包。</strong>先解压到普通文件夹，再运行 <code>DynaMakerUV.exe</code>。不要直接在压缩包里双击，也不要只拿走其中一个 exe。</li><li><strong>一段你有权使用的音频。</strong>支持 WAV、MP3、Ogg Vorbis 和 FLAC。第一次练习建议用节拍清楚、BPM 已知的短音频；M4A、AAC 和 Opus 目前不支持。</li></ul>
+      <p>还没有软件包？可以到 <a href="https://github.com/6666a12/Dynamite-UV/releases">GitHub 发行页面</a>查看。如果那里没有可下载的版本，说明尚未公开提供；开发者可以按 <a href="https://github.com/6666a12/Dynamite-UV/blob/main/editor/README.md">源码启动说明</a>运行。</p>
+      <div class="practice"><h3>没有合适的音乐？先用这段节拍</h3><p>我们准备了 16 秒、<strong>120 BPM</strong> 的合成节拍，每四拍的第一拍更高。没有人声，也不含任何原作音频。下面的小练习都可以用它。</p><a class="button secondary" href="assets/practice-120bpm.wav" download>下载练习音频 · WAV <span aria-hidden="true">↓</span></a></div>
+      <div class="callout"><p class="callout-title">先记住两个词就够了</p><p><strong>谱面包（Package）</strong>是一个文件夹，装着歌曲信息、音频和谱面。<strong>差分（Difficulty / Chart）</strong>是包里的一张谱。同一首歌的简单谱、困难谱，可以放在同一个包里。</p></div>
+    </section>
+
+    <section id="workspace" class="guide-section" data-keywords="界面 工具 属性 对轨 语言 中文 英文 恢复 布局">
+      <p class="section-kicker">02 / YOUR WORKSPACE</p><h2>先认识工作台，不急着背按钮</h2>
+      <p>打开后主要看四个地方：<strong>左边选工具，中间放音符，右边改数值，底下控制播放。</strong>界面可以切换中英文，所以下面会把重要按钮的英文一起写出来。</p>
+      <figure class="guide-figure"><a class="figure-link" href="assets/editor-workspace.webp" target="_blank" rel="noopener" aria-label="在新标签页查看工作台大图"><img src="assets/editor-workspace.webp" width="1600" height="1000" alt="工作台全貌：顶部文件和差分入口、左侧工具与对轨标签、中央实时舞台、右侧属性、底部播放与网格" loading="lazy"></a><figcaption>真实工作台截图。点击图片可看大图；示例谱包不是附带的商业歌曲。</figcaption></figure>
+      <div class="table-wrap"><table><thead><tr><th scope="col">位置</th><th scope="col">用来做什么</th></tr></thead><tbody><tr><td>文件 / FILE</td><td>新建、打开、保存，管理包信息和差分。</td></tr><tr><td>工具 / TOOLS</td><td>选择、放置、路径、平移；选择音符类型、轨道与宽度。</td></tr><tr><td>对轨 / TIMING</td><td>编辑 BPM 与 Scroll 事件。刚开始只需要设对初始 BPM。</td></tr><tr><td>中央舞台</td><td>直接放置、选择和拖动音符；播放时看实际运动。</td></tr><tr><td>属性 / PROPERTIES</td><td>精确调整选中音符的时间、位置、宽度等。</td></tr><tr><td>底部播放栏</td><td>播放、暂停、定位时间，调整网格和预览速度。</td></tr></tbody></table></div>
+      <p>面板拖乱了可以点顶部的<strong>视图 / VIEW</strong>恢复工作区。想查快捷键，按 <kbd>F1</kbd>。暂时不必碰音频分析、Review 或 Package 工作区，它们不是本教程需要的流程。</p>
+      <div id="panel-layout" class="guide-subsection" data-keywords="侧栏 面板 停靠 固定 收起 展开 钉住 浮动 dock 布局">
+      <h3>侧栏收起来了，怎么找回来？</h3>
+      <p>左边的工具和对轨、右边的属性都是可停靠面板，不是固定死的图片。先分清三个动作：<strong>换标签是换内容，收起是腾位置，浮动是把面板放进另一个窗口。</strong>这些操作不会删除音符。</p>
+      <ol class="step-list"><li><strong>切换工具 / 对轨标签</strong><p>默认左侧两个面板共享一块区域。点击这块区域边缘的 TOOLS / 工具或 TIMING / 对轨标签，就能切换。找不到 BPM 不是因为没打开谱面，可能只是还停在工具页。</p></li><li><strong>用标题栏的图钉收起面板</strong><p>点击面板标题栏的图钉按钮，面板会缩成窗口边缘的标签，给舞台让出空间。这和把面板里的“整体变换”等小节折叠起来是两回事。</p></li><li><strong>点边缘标签展开，再用图钉固定</strong><p>需要它时，点击边缘的工具、对轨或属性标签展开。想让它一直留在工作区，再点展开面板标题栏的图钉，恢复停靠。不要只把鼠标移开后消失误认为面板被删掉了。</p></li><li><strong>调宽度，不要误拖标题</strong><p>拖动面板与舞台之间的分隔线，可以给属性表单更多空间；拖面板标题或标签则是在调整停靠布局。文字挤到一块时，先拉宽面板，或在面板内部向下滚动。</p></li></ol>
+      <h3>舞台浮动和恢复</h3><p>中央舞台有 FLOAT / 浮动与 DOCK / 停靠入口，也可用 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> 浮动、<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> 归位。关闭浮动舞台窗口会把舞台送回工作台，不是关闭整份谱面。布局实在找不回来了，直接点顶部<strong>视图 / VIEW</strong>恢复工作区。</p>
+      <div class="callout"><p class="callout-title">侧栏里还有内容，只是需要滚动</p><p>把鼠标放在属性或对轨面板里再滚轮，才能往下看表单；在中央舞台上滚轮是在移动预览时间。路径曲线、流速、Scroll 事件等常在下方，不要因为第一屏没看到就以为没有。</p></div>
+      <p>布局和部分偏好会在重启后保留。教程截图与你的位置不一样时，以面板名称为准，不必把所有按钮搬到完全相同的位置。</p>
+      </div>
+      <div id="tools-panel" class="guide-subsection" data-keywords="工具 放置设置 选择 路径 平移 宽度 网格 自由">
+      <h3>左侧工具：上面选动作，下面定放置规则</h3>
+      <div class="table-wrap"><table><thead><tr><th scope="col">控件</th><th scope="col">什么时候用</th></tr></thead><tbody><tr><td>选择 / SELECT</td><td>修改已经放下的音符。单击选中、框选、拖动主体或边缘。</td></tr><tr><td>放置 / PLACE</td><td>新增音符。使用下方“放置设置”的类型、轨道、宽度。</td></tr><tr><td>路径 / PATH</td><td>为现有 HOLD / MIXER 加节点、拖节点。不是创建一根新长条。</td></tr><tr><td>平移 / PAN</td><td>改变你看到的区域和预览时间，不修改音符。按住 Shift 拖动时变为二维空间平移。</td></tr><tr><td>NOTE 类型</td><td>决定接下来放什么。这里改成 HOLD，不会把已经放好的 TAP 自动变成长条。</td></tr><tr><td>轨道</td><td>决定放置在哪一轨，也影响框选所针对的轨道。不是把当前选中的音符换轨。</td></tr><tr><td>位置模式</td><td>Grid / 网格将空间位置按步长整理；Free / 自由允许连续调整。它不负责音乐时间吸附。</td></tr><tr><td>宽度</td><td>接下来新音符的默认宽度，也会记住放置时的调宽结果。修改已有音符要去右侧属性。</td></tr></tbody></table></div>
+      <p><strong>时间网格和位置网格要分开看：</strong>底部 1/4、1/8、1/16 管“什么时候”；左侧位置模式管“放在哪里、多宽”。位置网格通常按 0.1 调中心、0.05 调宽，按住 X 临时精调到 0.01。按 Z 则是暂时绕过时间吸附，不会把位置也切成自由。</p>
+      <p>工具下方的“审核 / REVIEW”“打包 / PACKAGE”和“音频分析”不是完成作品必须经过的步骤。目前前两项尚未接入工作流，音频分析也没有真实波形；保存请用文件菜单，不要在那里寻找导出按钮。</p>
+      </div>
+    </section>
+
+    <section id="new-package" class="guide-section" data-keywords="创建 草稿 ID 音频偏移 封面 难度 艺术家 谱师">
+      <p class="section-kicker">03 / A NEW PACKAGE</p><h2>新建第一个谱面包</h2>
+      <ol class="step-list"><li><strong>打开新建窗口</strong><p>点文件 → 新建谱包（FILE → NEW PACKAGE），或按 <kbd>Ctrl</kbd> + <kbd>N</kbd>。</p></li><li><strong>填好歌曲信息，选择音频</strong><p>标题（TITLE）是显示给玩家看的曲名，曲师（ARTIST）和谱师（CHARTER）分别填写音乐作者与制谱者。音频选刚下载的练习 WAV；封面可以先留空。</p></li><li><strong>给包和差分各起一个内部名字</strong><p>第一次可以用包 ID <code>my-first-pack</code>、差分 ID <code>easy</code>。它们是识别用的标识，不是曲名。先选一个难度和等级，不用纠结最终定级。</p></li><li><strong>设置 BPM，再创建草稿</strong><p>使用练习音频时，把 INITIAL BPM 改为 <strong>120</strong>，AUDIO OFFSET 设为 <strong>0 秒</strong>，然后点创建草稿（CREATE DRAFT）。默认 BPM 是 150，所以这一步不要漏掉。</p></li></ol>
+      <div class="callout warning"><p class="callout-title">“创建草稿”还不等于保存好了</p><p>此时工作仍在内存里，音频也还依赖你刚选的文件。先放一颗 TAP，再按 <kbd>Ctrl</kbd> + <kbd>S</kbd> 完成第一次保存。不要先移动或删除源音频。</p></div>
+    </section>
+
+    <section id="first-note" class="guide-section" data-keywords="tap 单点 网格 吸附 小节 节拍 放置 宽度 轨道 左 中 右">
+      <p class="section-kicker">04 / PLACE YOUR FIRST NOTE</p><h2>先用 TAP，写一小段节奏</h2>
+      <p>先暂停播放。在工具面板里选<strong>放置 / PLACE</strong>，音符类型选 <strong>TAP</strong>，轨道选<strong>中 / CENTER</strong>。也可以直接按 <kbd>1</kbd> 进入 TAP 放置。</p>
+      <ol class="step-list"><li><strong>把网格先设为 1/4</strong><p>底部的 <code>1/n SNAP</code> 表示一小节的几分之一。常见 4/4 拍里，1/4 小节就是一拍；想放半拍时再改为 1/8。不必一开始就用很密的网格。</p></li><li><strong>把鼠标移到中轨，观察预览音符</strong><p>鼠标旁会显示预计放下的音符，以及时间、位置和宽度。用滚轮或底部时间轴找到你要编辑的段落。</p></li><li><strong>按下左键，松开放下</strong><p>需要改宽度时，按住后拖动再松开。下一颗会记住这次的宽度。放错不用怕，<kbd>Ctrl</kbd> + <kbd>Z</kbd> 可以撤销。</p></li></ol>
+      <figure class="guide-figure"><a class="figure-link" href="assets/editor-placement.webp" target="_blank" rel="noopener" aria-label="在新标签页查看音符放置大图"><img src="assets/editor-placement.webp" width="1600" height="1000" alt="真实舞台中的放置预览，鼠标位置显示将要创建的音符及吸附读数" loading="lazy"></a><figcaption>放置预览示例（图中选择的是 HOLD，使用 1/16 网格）。本节练习请仍选 TAP 和 1/4；先看预览和读数，确认位置再提交。</figcaption></figure>
+      <div class="practice"><h3>试一试：只做四拍</h3><p>在练习音频的第 2 秒附近开始，连续放四颗等宽 TAP，每拍一颗。120 BPM 下，一拍相隔 0.5 秒。按空格播放，听听它们是不是落在节拍声上。</p><p>如果你习惯精确输入：常见 4/4 拍下，从时间 <code>1</code>、<code>1+1/4</code>、<code>1+1/2</code>、<code>1+3/4</code> 开始，这里的数字是从 0 起算的小节，不是秒。选中后可在右侧 BAR TIME 中修改并应用。</p></div>
+      <p>换轨道不需要重新建谱：在工具面板改 LEFT / CENTER / RIGHT，或者按 <kbd>↑</kbd> 按“中 → 左 → 右”循环。不同类型的音符也在同一处选择。</p>
+      <div class="table-wrap"><table><thead><tr><th scope="col">类型</th><th scope="col">初学时怎样理解</th></tr></thead><tbody><tr><td>TAP / EX TAP</td><td>短音符。先用 TAP 练习节奏和空间排布，之后再尝试 EX TAP。</td></tr><tr><td>DRAG</td><td>划动类音符；可以用来连接短促、连贯的动作。</td></tr><tr><td>HOLD / MIXER</td><td>有持续时间和路径的音符，下一节会专门练习。</td></tr><tr><td>MINE / BAR LINE</td><td>特殊对象，不适合作为第一张谱的起点；仅靠它们不能代替可计分的主音符。</td></tr></tbody></table></div>
+      <p><kbd>C</kbd> / <kbd>V</kbd> 可降低 / 提高网格密度。按住 <kbd>Z</kbd> 可在放置时暂时关闭时间吸附；按住 <kbd>X</kbd> 可做更细的位置调整。刚入门先保留吸附，会更容易对齐。</p>
+    </section>
+
+    <section id="edit" class="guide-section" data-keywords="select 选择 框选 删除 复制 粘贴 多选 撤销 重做 精确 属性">
+      <p class="section-kicker">05 / EDIT WITHOUT STARTING OVER</p><h2>放错了，就选中它再改</h2>
+      <p>按 <kbd>4</kbd> 切换到<strong>选择 / SELECT</strong>。单击音符选中，拖主体可以移动，拖边缘可以改宽度。右侧属性面板适合做精确修改：改好时间、位置或宽度后，点击对应的应用按钮。</p>
+      <ul><li><strong>多选：</strong>按住 <kbd>Shift</kbd> 再点其他音符；也可以在空白处拖出选择框。</li><li><strong>框选只看当前轨道。</strong>明明圈住却没选到侧轨音符时，先检查工具面板选的是哪条轨。</li><li><strong>删除：</strong>选好后按 <kbd>Delete</kbd> 或 <kbd>Backspace</kbd>。删错可以撤销。</li><li><strong>复制一段：</strong>选中 → <kbd>Ctrl</kbd> + <kbd>C</kbd> → 把播放头移到目标位置 → <kbd>Ctrl</kbd> + <kbd>V</kbd>。粘贴以吸附后的播放头为锚点，完整长条路径也会一起复制。</li></ul>
+      <div class="callout"><p class="callout-title">复制粘贴不是“贴到鼠标的位置”</p><p>先移动底部播放头，再粘贴。这个剪贴板用于工作台内部音符，不是把外部文字、图片或 JSON 粘进谱面。</p></div>
+      <p>要撤销用 <kbd>Ctrl</kbd> + <kbd>Z</kbd>，要重做用 <kbd>Ctrl</kbd> + <kbd>Y</kbd>。练习时大胆改，但在大范围修改之前另存一份会更安心。</p>
+      <div id="inspector-panel" class="guide-subsection" data-keywords="属性 检查器 inspector 精确 几何 定位 风险 单选">
+      <h3>右侧属性：先选对象，再改数值，最后应用</h3>
+      <p>右侧标题会显示当前音符的 ID、轨道或节点信息。开始输入前看一眼标题，确认你改的是刚选中的那颗；选择长条的头部和中间节点，能改的字段不完全一样。没有选中对象时，控件可能不可用。</p>
+      <div class="table-wrap"><table><thead><tr><th scope="col">字段 / 按钮</th><th scope="col">怎么理解和使用</th></tr></thead><tbody><tr><td>定位 Note / 节点</td><td>在下拉列表里按 ID 和时间寻找对象，屏幕外的音符也能找到。选中目标后再编辑，不必不断滚动猜位置。</td></tr><tr><td>小节时间 / BAR TIME</td><td>音符或当前节点的时间，不是秒。例如 <code>2+1/4</code> 是第 2 小节起点再往后 1/4 小节。</td></tr><tr><td>位置 / POSITION</td><td>音符的中心坐标，不是左边缘，也不是屏幕像素。换到侧轨后，仍按该轨道的谱面坐标理解。</td></tr><tr><td>宽度 / WIDTH</td><td>音符总宽度，需要大于 0。它与位置配合决定两侧边缘；变宽不等于把中心往旁边移。</td></tr><tr><td>应用精确几何</td><td>提交上面的小节时间、位置和宽度。只输入文字而没应用，不代表谱面已经改变。</td></tr><tr><td>NOTE 类型 + 轨道</td><td>修改现有音符的类型、所在轨道，使用单独的“应用类型 / 轨道”按钮。不要用“应用精确几何”提交换轨。</td></tr></tbody></table></div>
+      <div class="practice"><h3>练习：把一颗 TAP 精确放到下一拍</h3><p>用 SELECT 点中一颗 TAP，右侧“小节时间”填 <code>2+1/4</code>，“位置”填 <code>2.5</code>，“宽度”填 <code>1</code>，点击“应用精确几何”。重新选中它，确认数值仍是你填的值，再按 Ctrl+Z，观察一次撤销恢复整组修改。</p><p>如果要换成左轨，改“轨道”后点“应用类型 / 轨道”。这一步和改时间是两个操作，分别可以撤销。不同类型之间并非都能随意转换；遇到提示先撤回这一步，不要强改文件。</p></div>
+      <h3>“移动选择”和流速藏在展开栏里</h3><p>在属性面板向下滚动，展开“移动选择 · 一个吸附步长 / 0.1 位置”。时间左右按钮把选中的音符前后移动一个当前网格步长；位置左右按钮按 0.1 移动。长条整体移动时会带上完整路径。</p><p>同一区域的“流速倍率”默认 1.0，改后点“应用流速”，影响选中音符的谱面视觉速度；不是底部只影响你自己观看的 Q/E 预览流速。</p>
+      <h3>黄色警告是提醒，不是自动修复</h3><p>定位列表或属性里可能显示越界、不可见、不可达等空间风险。它们提醒你回看位置、宽度与路径，不会强行把音符推回去，也不保证没有警告就一定好打。分析不覆盖所有设备边缘、遮挡或时序问题；保存成功也不能代替实际检查。</p>
+      </div>
+      <div id="batch-panel" class="guide-subsection" data-keywords="多选 整体变换 统一属性 偏移 起点 宽度 轨道 重置">
+      <h3>选中一组时，右侧会变成批量编辑</h3>
+      <p>按住 Shift 选几颗音符后，先检查选中数量。属性面板会显示“整体变换”和“统一属性”。这里不是把单颗属性重复执行几次，而是一次处理整组；HOLD / MIXER 的路径也会跟着走。</p>
+      <ol class="step-list"><li><strong>整体往后挪一拍：用时间偏移</strong><p>常见 4/4 拍中选择“时间偏移”，填 <code>1/4</code>，点击“应用变换”。填 <code>-1/4</code> 则前移一拍。组内原有的节奏间隔保留，不会重新把每颗吸到网格。</p></li><li><strong>让整段从指定位置开始：用选区起点移至</strong><p>切到“选区起点移至”，填 <code>8</code>，应用后最早的那颗移到时间 8，其余音符按原间距跟随。这不是把所有音符堆到时间 8。</p></li><li><strong>统一宽度：分清设为与增加／减少</strong><p>“设为 1”会让所有目标等宽；“增加／减少 0.1”是在各自原宽度上加 0.1。选区有长条时，再检查“仅头部”还是“整个路径”。整个路径设为同一宽度会抹掉原来的宽度变化。</p></li><li><strong>只改你打算改的属性</strong><p>轨道或类型显示“多个值／不修改”时，可以保留它。只想改宽度，就不要顺手选轨道。确认“应用几项属性”的按钮后再点；“重置输入”是清掉尚未提交的输入，不是撤销已经提交的操作。</p></li></ol>
+      <p>批量换轨保留谱面坐标，<strong>不会自动镜像</strong>。批量改类型目前限 TAP、DRAG、EX TAP 之间兼容的转换；选区里有长条或其他对象时不要当作通用转换器。下面“选中对象（点击定位）”列表可用于找回组内对象。</p>
+      <div class="callout"><p class="callout-title">应用、撤销、保存，是三件不同的事</p><p>应用把输入写进当前谱面；Ctrl+Z 撤销已经应用的修改；Ctrl+S 才把当前谱面保存到磁盘。看到标题出现 *，说明还有尚未保存的修改。</p></div>
+      </div>
+    </section>
+
+    <section id="sustain" class="guide-section" data-keywords="长条 hold mixer path 路径 节点 曲线 转折 尾点 两阶段">
+      <p class="section-kicker">06 / GIVE THE NOTE A PATH</p><h2>长条不是一拖到底，而是分两步</h2>
+      <p>选 HOLD（<kbd>3</kbd>）或 MIXER（<kbd>6</kbd>）后，记住这个顺序：<strong>先放头，再点尾。</strong></p>
+      <ol class="step-list"><li><strong>确定起点和宽度</strong><p>在起点按下左键，必要时拖动调整宽度，再松开。这时还没完成，制谱器正在等你确定尾部。</p></li><li><strong>移动到结束时间，再点一次</strong><p>把鼠标移到更晚的时间，第二次按下左键，才会提交完整的 HOLD 或 MIXER。中途不想放了，用右键取消；舞台有焦点时也可以按 Esc。</p></li><li><strong>需要转折，再用路径工具</strong><p>切换到路径 / PATH，在已有长条的连接体上双击插入节点，再拖动节点调整路径。不要把创建长条和编辑弯曲路径混成一次手势。</p></li></ol>
+      <figure class="guide-figure"><a class="figure-link" href="assets/editor-hold.webp" target="_blank" rel="noopener" aria-label="在新标签页查看长条尾部预览大图"><img src="assets/editor-hold.webp" width="1600" height="1000" alt="HOLD 创建的第二阶段：头部已经确定，长条连接体跟随鼠标预览结束时间" loading="lazy"></a><figcaption>长条尾点预览：第一次松开后还在创建中，再点击一次才完成。</figcaption></figure>
+      <h3>先做折线，再试曲线</h3><p>选中路径节点后，右侧可以改它的精确时间、位置和宽度。PATH CURVE / NEXT NODE 控制<strong>从这个节点到下一个节点</strong>的过渡。先用 Linear 理解路径，之后再试 Quad、Cubic、Sine 或 Smooth。</p><p>曲线绘制出的细分点不是你创建的真实节点，不需要逐个编辑。HOLD 中间节点还支持节点判定设置；刚入门保留默认值即可。</p>
+      <ol class="step-list"><li><strong>确定要改哪一段</strong><p>假设长条有“头 → 中间节点 → 尾”三点，要改头到中间这一段，选头；要改中间到尾这一段，选中间节点。选尾通常没有下一段可改。</p></li><li><strong>到右侧下方选择曲线，再应用</strong><p>在属性面板向下滚到“路径曲线 / 下一节点”。线性是匀速过渡；缓入是开始慢一些，缓出是接近终点时慢一些，缓入缓出是两端慢、中间快。选择后点“应用曲线”，再播放比较，不要只盯着下拉框是否切换。</p></li><li><strong>区分形状节点与判定节点</strong><p>对 HOLD 的中间节点，“HOLD 节点判定”决定这个节点是否参与判定；勾选后还要点“应用节点判定”。尾节点始终参与判定，不能靠取消勾选删除尾判。想删节点应选择节点后删除，而不是把曲线改成保持。</p></li></ol>
+      <div class="practice"><h3>试一试：一根两拍长条</h3><p>先做一根持续两拍的 HOLD，播放确认起止时间。接着用 PATH 在中间加一个节点，让路径稍微偏向一侧。每次只改一点，比较前后效果，比一口气加满节点更容易理解。</p></div>
+    </section>
+
+    <section id="timing" class="guide-section" data-keywords="速度 bpm scroll 对轨 变速 偏移 时间 分数 音乐 倍率">
+      <p class="section-kicker">07 / TIMING, NOT GUESSWORK</p><h2>BPM、落速和播放倍率，不是一回事</h2>
+      <p>如果只是“看起来太快”，先别改 BPM。下面几个参数听起来相似，作用却不同。</p>
+      <div class="table-wrap"><table><thead><tr><th scope="col">参数</th><th scope="col">实际改变什么</th><th scope="col">写进谱面？</th></tr></thead><tbody><tr><td>BPM</td><td>小节时间怎样对应音乐的秒数；决定节拍网格。</td><td>是</td></tr><tr><td>SCROLL 事件</td><td>谱面全局的视觉移动速度，不挪动音乐中的命中时刻。</td><td>是</td></tr><tr><td>音符 SCROLL SPEED MULTIPLIER</td><td>单个或一组选中音符的视觉速度倍率。</td><td>是</td></tr><tr><td>Q / E · 预览流速</td><td>只让当前预览中的音符移动得更慢 / 更快。</td><td>否</td></tr><tr><td>W / S · 音乐倍率</td><td>提高 / 降低音乐播放速度，预览时钟一起变化。</td><td>否</td></tr></tbody></table></div>
+      <h3>改初始 BPM</h3><p>在对轨 / TIMING 面板的 BPM EVENTS 中选中时间 0 的事件，改 BPM 数值，再点 APPLY。初始 BPM 事件不能移走或删除，但可以改值。使用练习音频时保持 120。</p>
+      <h3>歌曲真的变拍速了，再添加 BPM 事件</h3><p>在 BAR TIME 填变化发生的小节时间，填新的 BPM，点 ADD。时间支持整数、分数和混合写法，例如 <code>8</code>、<code>1/4</code>、<code>8+1/4</code>。不要把它们当成秒数输入。</p>
+      <h3>想做视觉变速，编辑 SCROLL</h3><p>在 SCROLL EVENTS 添加事件。需要渐变时，先有后一个事件，再选前一个设置 CURVE TO NEXT。最后一个事件没有“到下一事件”的曲线，因为它后面还没有目标。</p>
+      <div id="timing-panel" class="guide-subsection" data-keywords="对轨 事件 新增 应用 删除 bpm scroll 曲线">
+      <h3>对轨侧栏：新增、修改、删除分别怎么做</h3>
+      <p>切到左侧 TIMING / 对轨标签后，上半部分是 BPM，下半部分是 SCROLL。两组各有自己的事件列表、时间输入和三个按钮。侧栏太矮时往下滚，别把上面 BPM 的“应用”当成下面 Scroll 的“应用”。</p>
+      <ol class="step-list"><li><strong>修改现有事件：先选列表，再应用</strong><p>点事件列表中的一行，时间和数值会填入输入框。改好数值后点这一组的“应用”。只在框里写了新数值、不按应用，列表里的事件还没变。</p></li><li><strong>新增事件：填新时间，再新增</strong><p>输入一个不同的目标时间和数值，再点“新增”。不要想改现有事件却点新增，否则可能遇到同一时间已有事件的提示。时间留空会使用当前播放头；初学时建议明确填写，避免加到了意料之外的位置。</p></li><li><strong>删除事件：选中你要删的那一行</strong><p>核对列表里的时间再点“删除”。删错按 Ctrl+Z。时间 0 的 BPM 是基准，只能改值，不能移动或删除；不要把基准事件当作多余项目清掉。</p></li></ol>
+      <div class="practice"><h3>做一次可撤销的 BPM 练习</h3><p>在练习谱里把时间填为 <code>4</code>、BPM 填为 <code>150</code>，点 BPM 区域的“新增”。确认列表多了一行时间 4 的事件，再选它、把 BPM 改成 <code>100</code>并“应用”，最后选这行“删除”。这样你就分别走了一遍三个按钮。</p><p>练习音频始终是 120 BPM，上面的 150 / 100 只是练习操作，不是正确的对轨结果。练完请恢复为初始 120 BPM、没有额外变速事件，再继续写谱。</p></div>
+      <h3>Scroll 渐变：先有终点，才有“到下一事件”</h3><p>例如想从时间 2 的倍率 1 渐变到时间 4 的倍率 2：先分别建立时间 2、值 1 和时间 4、值 2 的 Scroll 事件，再选时间 2 这一行，把“到下一事件的曲线”设为 Linear / 线性并应用。播放这段，看到的是音符视觉速度逐渐变化，音乐 BPM 没有因此改变。</p>
+      <p>曲线属于<strong>前一个事件到下一个事件</strong>的区间。选最后一个事件时曲线项不可编辑，是因为它没有下一个目标，不是面板坏了。BPM 要大于 0；Scroll 要大于 0 且不超过 64。输入不合规时看侧栏下方的错误提示，修正后再应用。</p>
+      <p>时间 0 的 Scroll 也不能挪动；存在后续 Scroll 时不能删掉这个基准。学习时保留它，先用新增的事件练习增删即可。</p>
+      </div>
+      <div class="callout"><p class="callout-title">听起来不齐，先分清是哪种不齐</p><p>如果整首都差不多早一点或晚一点，检查包 / 差分设置中的 AUDIO OFFSET（单位秒）；如果开头对、越往后越偏，优先核对 BPM。不要用 Scroll 或预览落速去补偿节拍误差。</p></div>
+    </section>
+
+    <section id="preview" class="guide-section" data-keywords="播放 暂停 试听 检查 seek 音量 特效 pan 平移">
+      <p class="section-kicker">08 / LISTEN, WATCH, ADJUST</p><h2>写一小段，就听一小段</h2>
+      <p>按 <kbd>Space</kbd> 播放 / 暂停。用底部时间轴定位，或者用 <kbd>A</kbd> / <kbd>D</kbd> 后退 / 前进一秒。想微调位置，按住 <kbd>Shift</kbd> 再按 A / D，每次移动 0.01 秒。</p>
+      <p>复杂段落可以按 <kbd>S</kbd> 降低音乐倍率，慢慢检查；<kbd>W</kbd> 提高倍率。检查完记得恢复到 <strong>1.0×</strong>，再按原速听一遍。<kbd>R</kbd> 可以回到开头。</p>
+      <ul class="checklist"><li>音符到线的时间，是否和你想表现的鼓点、旋律或音色对上？</li><li>左右轨道的安排是否清楚？有没有无意堆叠、遮住重要信息？</li><li>长条的头、转折和尾是否自然？有没有不小心多放的节点？</li><li>恢复原速后，这段仍然像你原本想表达的节奏吗？</li></ul>
+      <p>舞台空白处右键可以调整<strong>预览音量和特效档位</strong>。PAN / 平移工具可横向拖动视图、纵向拖动时间；它不是在移动音符。</p>
+      <div class="callout warning"><p class="callout-title">预览顺畅，不代表玩家一定打得舒服</p><p>编辑器的自动预览适合看时序和视觉，不代替实际游玩。先少量放置、反复听，再逐步加密，会比铺满音符后一次性返工轻松。</p></div>
+    </section>
+
+    <section id="save" class="guide-section" data-keywords="保存 另存为 打开 导出 文件夹 meta 差分 备份 空谱 资源">
+      <p class="section-kicker">09 / KEEP YOUR WORK</p><h2>保存的是整个谱包，不是一个 JSON</h2>
+      <ol class="step-list"><li><strong>第一次保存：Ctrl + S</strong><p>选一个专门存放这首歌的目标目录，建议使用新的空文件夹。不要直接选桌面、下载目录或软件安装目录。包里需要至少有一颗 TAP 这样的主判定音符；空草稿可能无法保存。</p></li><li><strong>看一眼保存结果</strong><p>没有报错，并且标题里的未保存标记 <code>*</code> 消失，才表示当前修改已保存。保存过程中如果又做了新修改，可能还需要再按一次保存。</p></li><li><strong>备份和分享时，带走整个文件夹</strong><p>不要只复制 <code>meta.json</code> 或某一个谱面文件。音频、包信息和差分是配套的；缺少其中一部分，换一台机器就可能打不开。</p></li><li><strong>再次打开：Ctrl + O</strong><p>选择谱面包所在的目录，不是选择 WAV、JSON 或 ZIP。需要另存一份副本时，用 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd>。</p></li></ol>
+      <div class="two-col"><div class="mini-card"><h3>想从零做另一个难度</h3><p>点 + DIFFICULTY 或文件 → ADD DIFFICULTY。新增的是空差分，初始 BPM 为 150；别忘了核对它是否符合你的歌曲。</p></div><div class="mini-card"><h3>想在现有谱上做改编</h3><p>用文件里的 COPY CURRENT DIFFICULTY 复制当前差分，再修改。顶部 CHART 下拉框用于切换差分，包 / 差分设置用于调整元数据。</p></div></div>
+      <div class="callout warning"><p class="callout-title">这版先走目录包流程</p><p>目前教程不提供 ZIP、XML、DY 导入导出步骤，因为这些入口尚未接通。保存失败时先看错误提示，不要为了绕过提示手改文件。替换音频或封面前建议另存备份，跨保存的资源历史恢复仍有限制。</p></div>
+    </section>
+
+    <section id="shortcuts" class="guide-section" data-keywords="快捷键 键盘 hotkey f1 ctrl 数字">
+      <p class="section-kicker">10 / A SMALL CHEAT SHEET</p><h2>够你开始用的快捷键</h2>
+      <p>不用全背。先记住空格、4、Ctrl+S 和 Ctrl+Z；完整列表随时按 <kbd>F1</kbd> 查看。正在文本框里输入时，大部分单键快捷键会让位给文字编辑。</p>
+      <div class="table-wrap"><table><thead><tr><th scope="col">按键</th><th scope="col">操作</th></tr></thead><tbody><tr><td><kbd>Ctrl</kbd> + <kbd>N</kbd> / <kbd>O</kbd> / <kbd>S</kbd></td><td>新建 / 打开 / 保存</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></td><td>另存为</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd></td><td>撤销 / 重做</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>V</kbd></td><td>复制 / 粘贴选中的音符</td></tr><tr><td><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd></td><td>TAP / DRAG / HOLD 放置</td></tr><tr><td><kbd>4</kbd></td><td>SELECT 选择工具</td></tr><tr><td><kbd>5</kbd> / <kbd>6</kbd> / <kbd>7</kbd></td><td>EX TAP / MIXER / MINE 放置</td></tr><tr><td><kbd>↑</kbd></td><td>切换轨道：中 → 左 → 右</td></tr><tr><td><kbd>C</kbd> / <kbd>V</kbd></td><td>降低 / 提高时间网格密度；加 Shift 则分母逐一变化</td></tr><tr><td>按住 <kbd>Z</kbd> / <kbd>X</kbd></td><td>放置时自由时间 / 更细的位置调整</td></tr><tr><td><kbd>Space</kbd> / <kbd>R</kbd></td><td>播放暂停 / 回到开头</td></tr><tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td>后退 / 前进 1 秒；加 Shift 为 0.01 秒</td></tr><tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>降低 / 提高预览流速</td></tr><tr><td><kbd>W</kbd> / <kbd>S</kbd></td><td>提高 / 降低音乐倍率</td></tr><tr><td><kbd>Delete</kbd> 或 <kbd>Backspace</kbd></td><td>删除选中的音符或节点</td></tr><tr><td><kbd>F1</kbd></td><td>打开 / 关闭快捷键指南</td></tr></tbody></table></div>
+    </section>
+
+    <section id="faq" class="guide-section" data-keywords="问题 保存失败 没反应 听不到 看不到 偏移 导入 支持 故障">
+      <p class="section-kicker">11 / WHEN SOMETHING FEELS OFF</p><h2>遇到问题时，先看看这里</h2>
+      <div class="faq-list">
+        <details><summary>新建后保存失败，是不是软件坏了？</summary><p>先确认音频仍在原位置、格式受支持，并且每张需要保存的差分已有主判定音符。空草稿可以编辑，但不代表能作为完整谱包写出。按错误提示逐项处理，内存修改不会因为保存失败就自动消失。</p></details>
+        <details><summary>为什么点一下之后，长条还跟着鼠标？</summary><p>这是尾点阶段，属于正常操作。第一次松开确定了头部，移动到结束时间后再点击一次就完成。右键可以取消，不必退出软件。</p></details>
+        <details><summary>按数字、空格没有反应？</summary><p>先看光标是不是还在文本框、数值框或下拉框里。结束输入后再操作；也可以使用可见的工具和播放按钮。保存快捷键 Ctrl+S 在文本输入时仍然有效。</p></details>
+        <details><summary>有音符，但舞台上看不到？</summary><p>先把播放头移动到音符附近，检查是否跑到了其他轨道，或把视图平移到了远处。已判定音符、不同预览流速和当前时间都会影响画面，别急着反复放置造成重复。</p></details>
+        <details><summary>可以直接打开以前的 XML、DY 或一个 ZIP 吗？</summary><p>当前 UI 的打开流程面向 strict v2 目录包。旧格式和 ZIP 导入导出尚未接通，换扩展名也不会变成兼容格式。</p></details>
+        <details><summary>怎么看不到真实波形、Storyboard 或磁吸按钮？</summary><p>这些不属于当前可用教程流程。真实波形未接入，Storyboard 暂未实现，对象磁吸已隐藏并停用。时间网格吸附仍然可以正常使用。</p></details>
+        <details><summary>保存之后还能随意撤销更换过的音频吗？</summary><p>不要把撤销当作媒体备份。跨保存恢复旧媒体资源仍有边界；重要替换前先另存一份完整谱包，保留原资源。</p></details>
+        <details><summary>问题还是解决不了，反馈时需要带什么？</summary><p>记下软件版本、正在做的操作、完整错误提示，以及能否稳定复现。可以附截图；分享谱包前请确认音频和封面有分享授权，并留意文件路径里是否含私人信息。到 <a href="https://github.com/6666a12/Dynamite-UV/issues">GitHub Issues</a>提交即可。</p></details>
+      </div>
+    </section>
+    <div class="finish-card"><p class="eyebrow">YOUR NEXT FOUR BARS</p><h2>现在，试着做完四小节。</h2><p>先用 TAP 把主节奏写清楚，加一根你喜欢的长条，按原速听一遍，然后保存。第一张谱不需要复杂——能表达出你听见的东西，就是一个很好的开始。</p><a class="text-link" href="#first-note">回到放置练习 ↑</a></div>
+    <a class="back-top" href="#main">↑ 回到教程顶部</a>
+  </main>
+</div>
+<footer class="site-footer wrap"><a class="footer-brand" href="./">DYNAMITE <span>UNIVERSE</span></a><p>教程与软件同步演进；界面以当前版本为准。</p><div><a href="https://github.com/6666a12/Dynamite-UV">项目仓库</a><a href="assets/licenses/SpaceGrotesk-OFL.txt">字体许可</a></div></footer>
+</body>
+</html>

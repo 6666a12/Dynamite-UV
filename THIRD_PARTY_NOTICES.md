@@ -23,7 +23,9 @@ not licensed under the OFL.
 
 - Files: `client/assets/fonts/SpaceGrotesk-Regular.woff2`,
   `client/assets/fonts/SpaceGrotesk-Bold.woff2` and matching files under
-  `docs/ui-mock/fonts/`; `client/assets/fonts/SpaceGrotesk-SemiBold.ttf` (600 weight, Google Fonts CSS delivery)
+  `docs/ui-mock/fonts/`; `client/assets/fonts/SpaceGrotesk-SemiBold.ttf` (600 weight, Google Fonts CSS delivery).
+  The project website also redistributes unmodified Regular/Bold copies under
+  `site/assets/fonts/`, with `site/assets/licenses/SpaceGrotesk-OFL.txt`.
 - Copyright: Copyright 2018 The Space Grotesk Project Authors
   (<https://github.com/floriankarsten/space-grotesk>)
 - License: SIL Open Font License, Version 1.1
