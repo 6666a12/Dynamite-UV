@@ -12,6 +12,14 @@ import wave
 
 ROOT = Path(__file__).resolve().parents[2]
 SITE = ROOT / 'site'
+# List every public route explicitly; an extra HTML file still fails the payload check.
+EDITIONS = {'zh-CN': Path(), 'en': Path('en')}
+ROUTES = ('index.html', 'guide.html')
+GUIDE_ANCHORS = {
+    'prepare', 'workspace', 'panel-layout', 'tools-panel', 'new-package',
+    'first-note', 'edit', 'inspector-panel', 'batch-panel', 'sustain',
+    'timing', 'timing-panel', 'preview', 'save', 'shortcuts', 'faq',
+}
 
 
 class Page(HTMLParser):
@@ -21,7 +29,10 @@ class Page(HTMLParser):
         self.ids: set[str] = set()
         self.links: list[str] = []
         self.errors: list[str] = []
-        self.has_lang = False
+        self.lang = ''
+        self.alternates: list[tuple[str, str]] = []
+        self.language_links: list[tuple[str, str]] = []
+        self.navigation: list[str] = []
         self.has_viewport = False
         self.feed(path.read_text(encoding='utf-8'))
 
@@ -33,7 +44,13 @@ class Page(HTMLParser):
                 self.errors.append(f'duplicate id: {identity}')
             self.ids.add(identity)
         if tag == 'html':
-            self.has_lang = values.get('lang') == 'zh-CN'
+            self.lang = values.get('lang', '')
+        if tag == 'link' and 'alternate' in (values.get('rel') or '').split():
+            self.alternates.append((values.get('hreflang', ''), values.get('href', '')))
+        if tag == 'a' and 'data-language-link' in values:
+            self.language_links.append((values.get('hreflang', ''), values.get('href', '')))
+        elif tag == 'a' and values.get('href'):
+            self.navigation.append(values['href'])
         if tag == 'meta' and values.get('name') == 'viewport':
             self.has_viewport = True
         if tag == 'img' and (not values.get('alt') and values.get('alt') != ''):
@@ -56,10 +73,51 @@ def asset_bytes(path: Path) -> bytes:
     return data.replace(b'\r\n', b'\n') if path.suffix == '.txt' else data
 
 
+def local_target(source: Path, url_path: str) -> Path:
+    target = (source.parent / unquote(url_path)).resolve() if url_path else source.resolve()
+    return target / 'index.html' if target.is_dir() else target
+
+
+def edition_errors(pages: dict[Path, Page]) -> list[str]:
+    errors = []
+    for lang, directory in EDITIONS.items():
+        for route in ROUTES:
+            path = (SITE / directory / route).resolve()
+            if (page := pages.get(path)) is None:
+                continue  # Already reported by the payload check.
+            name = path.relative_to(SITE).as_posix()
+            peers = {(locale, (SITE / folder / route).resolve()) for locale, folder in EDITIONS.items()}
+
+            def destinations(links: list[tuple[str, str]]) -> list[tuple[str, Path]]:
+                return sorted((locale, local_target(path, urlsplit(link).path)) for locale, link in links)
+
+            if page.lang != lang or not page.has_viewport:
+                errors.append(f'{name}: expected lang={lang} and viewport')
+            if destinations(page.alternates) != sorted(peers):
+                errors.append(f'{name}: wrong hreflang alternates')
+            if destinations(page.language_links) != sorted(pair for pair in peers if pair[0] != lang):
+                errors.append(f'{name}: incorrect language switch')
+            urls = map(urlsplit, page.navigation)
+            internal = {local_target(path, url.path) for url in urls if not url.netloc and not url.scheme}
+            for target in internal:
+                if target in pages and pages[target].lang != lang:
+                    errors.append(f'{name}: navigation leaves the selected language: {target.name}')
+            sibling = 'guide.html' if route == 'index.html' else 'index.html'
+            if (path.parent / sibling) not in internal:
+                errors.append(f'{name}: no link to {sibling} in this language')
+            if route == 'guide.html' and (missing := GUIDE_ANCHORS - page.ids):
+                errors.append(f'{name}: missing guide sections: {sorted(missing)}')
+            for _, peer in peers:
+                if peer in pages and (missing := page.ids - pages[peer].ids):
+                    errors.append(f'{name}: anchors missing from alternate: {sorted(missing)}')
+    return errors
+
+
 def check() -> list[str]:
     errors: list[str] = []
     manifest = json.loads((ROOT / 'tools/site/assets.json').read_text(encoding='utf-8'))
-    expected = {'index.html', 'guide.html', 'assets/site.css', 'assets/site.js', 'assets/mark.svg'}
+    expected = {(directory / route).as_posix() for directory in EDITIONS.values() for route in ROUTES}
+    expected.update(('assets/site.css', 'assets/site.js', 'assets/mark.svg'))
     expected.update(asset['path'] for asset in manifest['assets'])
     actual = {path.relative_to(SITE).as_posix() for path in SITE.rglob('*') if path.is_file()}
     if expected != actual:
@@ -79,11 +137,10 @@ def check() -> list[str]:
             original = ROOT / source
             if not original.is_file() or asset_bytes(original) != asset_bytes(path):
                 errors.append(f'licensed asset differs from source: {source}')
-    pages = {path.resolve(): Page(path) for path in SITE.glob('*.html')}
+    pages = {path.resolve(): Page(path) for path in SITE.rglob('*.html')}
     for path, page in pages.items():
-        errors.extend(f'{path.name}: {error}' for error in page.errors)
-        if not page.has_lang or not page.has_viewport:
-            errors.append(f'{path.name}: missing language or viewport')
+        errors.extend(f'{path.relative_to(SITE)}: {error}' for error in page.errors)
+    errors.extend(edition_errors(pages))
     references = [(page.path, url) for page in pages.values() for url in page.links]
     css = SITE / 'assets/site.css'
     references.extend((css, match) for match in re.findall(r'url\([\'"]?([^\)\'\"]+)', css.read_text(encoding='utf-8')))
@@ -98,16 +155,11 @@ def check() -> list[str]:
         if url.path.startswith('/'):
             errors.append(f'root-relative URL breaks project Pages: {reference}')
             continue
-        target = (source.parent / unquote(url.path)).resolve() if url.path else source.resolve()
-        if target.is_dir():
-            target /= 'index.html'
+        target = local_target(source, url.path)
         if not target.is_relative_to(SITE.resolve()) or not target.is_file():
             errors.append(f'{source.name}: missing/outside target {reference}')
         elif url.fragment and (target not in pages or unquote(url.fragment) not in pages[target].ids):
             errors.append(f'{source.name}: missing fragment {reference}')
-    guide = pages.get((SITE / 'guide.html').resolve())
-    if guide is None or len(guide.ids) < 12:
-        errors.append('guide is missing chapters')
     audio = SITE / 'assets/practice-120bpm.wav'
     if audio.is_file():
         with wave.open(str(audio)) as wav:

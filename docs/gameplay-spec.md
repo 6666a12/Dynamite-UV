@@ -51,9 +51,7 @@ chart_<diff>.json
 <optional cover file>
 ```
 
-`meta.json` 提供 `id/title/artist/charter/audio/cover/charts[]`。这是当前 legacy 包入口；编辑器和 Internal
-Testdata 构建先扫描 `res://testdata/packs`，再扫描 `user://charts`，后者可用相同 id 覆盖
-开发包；Public 和未分类导出只扫描 `user://charts`。
+`meta.json` 提供 `id/title/artist/charter/audio/cover/charts[]`，是 legacy 包入口。游戏在 Godot 编辑器或 Internal 环境先扫描 `res://testdata/packs`，再扫描 `user://charts`；同 id 的手工包覆盖开发包。Public 与未分类导出不扫描内部目录。商店安装另按已完成安装的凭据纳入曲库，不按手工目录的 id 覆盖规则合并，见[运行时加载边界](runtime-architecture.md#3-谱面加载与格式边界)。
 
 ### 1.4 与正式 v2 的边界
 
@@ -182,8 +180,7 @@ Perfect，落在输入窗内但超出 Good 窗（早侧或晚侧）立即按输�
 | Great / Good | +0.05 | 不回血 |
 | Mine | 不参与 | 不参与 |
 
-血量钳制在 `[0, 100]`；降到 0 即暂停谱面音乐并强制结算。**当前耗尽复用普通结算作为占位**，
-专用耗尽/失败结算后续扩展（待扩展），因此不改分数、不新增失败标识，既有保存规则照旧。
+血量钳制在 `[0, 100]`；降到 0 的当帧暂停音乐，立即显示 `STAGE FAILURE` 字标，随后复用普通结算页，不等待曲终。专用失败页与结果音效未实现；失败局不上传。见[结果前奏](result-outcomes.md#2-bleed-耗尽已实现)。
 自然完成结算仍保留既有音乐尾奏，不套用耗尽的暂停行为。
 Bleed 血条及 HUD v8 已接入本体，显示/动效边界见 [游戏 HUD](<gameplay-hud-v8.md>)。Mine 走 `_engine.ApplyMine`，不经 `ApplyUnit`，不参与 BLEED 扣血。
 Hold 中途断触/头 Miss 的批量结算在 shared 规则内部落判定，客户端在两处批量结果上同样各计一次。
@@ -202,7 +199,7 @@ Hold 中途断触/头 Miss 的批量结算在 shared 规则内部落判定，客
 所有窗口都从当前难度的 JudgeSettings 实例读取，客户端不再硬编码扫描窗或接触窗。
 判定预设统一由客户端在加载时按「难度 + 游玩模式」解析（`V2Integration.PresetFor`），
 v2 包/转换产物里的 `entry.JudgePreset` 只反映语义难度、不含运行时模式；legacy→v2 转换时
-Hardcore 按 Hard、Tutorial 按 Casual 归档。成绩身份没有独立运行模式字段；legacy 转换可能间接改变语义预设与 Digest，这不构成完整模式隔离。另需核查预加载后切模式是否复用旧 Preset（2026-10-26 静态疑点，尚未运行复现），见 [当前交接](<handoff.md#4-仍需处理>)。
+Hardcore 按 Hard、Tutorial 按 Casual 归档。切换模式后，缓存读取与游玩入口都会核对当前 Preset，不匹配就重新加载。判定预设与成绩分区是两回事：本机 BEST 在内容身份之外按运行模式分区，不靠改变 Digest 区分模式（见 §10）。
 
 Hold 的断触宽限为：
 
@@ -455,7 +452,7 @@ headless 模式改用系统计时器。暂停会记录当前位置并停止流�
 `+userOffset`——所以玩家打得晚要靠**减小**偏移补偿，校准向导的建议值因此是「当前 − 中位数」。
 校准页读取时钟时用同一公式但不叠加 userOffset（那是被测量本身）。
 
-成绩写 `user://scores.json`：strict v2/成功转换路径使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy-direct 保留 `packId:diff`。Auto 不写成绩；当前没有独立 Standard/Hardcore 运行模式维度，不能称分模式隔离已完成。
+本机 BEST 写 `user://scores.json`，外层按 Standard/Hardcore 分区。区内 strict v2/成功转换仍使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy-direct 仍使用 `packId:diff`。迁移前备份原文件，旧记录留在未分类历史，不推测模式或账号。Auto 不写成绩；BLEED/Mirror 不另拆 BEST。联网结算上传的是符合条件的本局记录，不是同步本机 BEST，见[交接：网络服务](handoff.md#24-网络服务)。
 Music/Hit/UI 音量总线已接，但完整 Hit/UI 资产链路仍未完成。
 
 ## 11. 仍未确认的边界

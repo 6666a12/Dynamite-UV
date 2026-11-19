@@ -9,11 +9,7 @@
 - Shell 使用 Win32 HWND 嵌入 Godot 窗口，通过 JSON-lines stdin/stdout IPC 发送严格 Chart JSON、播放/seek/倍率命令，并接收选择、时钟和舞台按键。
 - Godot 项目引用 [shared](<../shared/>)、[presentation](<../presentation/>) 和 [ChartEditor.Core](<../tools/chart-editor-core/>)；Shell 引用 shared 与 ChartEditor.Core。两端都不引用 client，Shell 也不依赖 `.tmp` 中的 UI 源码。
 
-```text
-editor/shell ──► ChartEditor.Core ──► shared
-     │  IPC / HWND
-editor Godot ──► presentation ──────► shared
-```
+项目直接引用与进程通信分开列在[模块地图](module-map.md#工作区与工程关系)；Shell 和 Godot 舞台之间没有程序集引用。
 
 ## 1.1 Windows 测试基线与运行时
 
@@ -25,7 +21,7 @@ editor Godot ──► presentation ──────► shared
 - 构建脚本在独立空项目挂载最终舞台PCK，检查两种音符shader及共享字体能实际加载；这些由C#字符串动态引用的资源必须显式列入导出preset，源码中存在不等于已经打包。该检查不替代GPU画面验收。
 - 候选包不含自动更新、不含签名，`distributionStatus` 明确为本地候选；NuGet 依赖中仍有若干包只有 SPDX/license 元数据而没有随包 notice 文件，完成依赖归属复核并补齐后才能公开分发。
 - 2026-11-12 用户确认当前带卸载入口的包作为现有测试基线，暂时固定 `--profile windows-x64-test-v1`（[配置](../tools/editor-release/test-profile.json)、[构建说明](../tools/editor-release/README.md)）；包名/hash统一见[当前测试基线](verification.md#当前-windows-编辑器测试包基线)。参数漂移必须显式复核；不是免除许可证/干净机器等发布检查。便携包附Uninstall.cmd，确认后仅删除清单内hash未变的程序文件，保留谱包/额外文件/修改文件和用户偏好，不创建系统安装项，遵守PowerShell执行策略。
-- 实验精简参数：`tools/editor-release/build.py --trimmed-fallback` 保留普通 `shell/` 供系统.NET使用，另发布 `shell-bundled/` 自包含裁剪应用作离线兜底；它不是可供任意应用使用的通用.NET安装。`--trimmed-stage` 保留GodotSharp/项目程序集和原生托管入口，仅裁剪可达运行时依赖。两项均非默认，裁剪警告和实际覆盖以verification为准；不得用一次启动成功替代保存、布局、音频和原生舞台验证。
+- 实验精简参数：`tools/editor-release/build.py --trimmed-fallback` 保留普通 `shell/` 供系统.NET使用，另发布 `shell-bundled/` 自包含裁剪应用作离线兜底；它不是可供任意应用使用的通用.NET安装。`--trimmed-stage` 保留GodotSharp/项目程序集和原生托管入口，仅裁剪可达运行时依赖。不指定 profile 时两项均需显式启用；固定测试配置 `windows-x64-test-v1` 已启用两项。裁剪警告和实际覆盖以 verification 为准；不得用一次启动成功替代保存、布局、音频和原生舞台验证。
 
 ## 2. 已接线的文档与 UI 能力
 
@@ -91,11 +87,11 @@ editor Godot ──► presentation ──────► shared
 - 默认 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis 结构与时长；FLAC 输入限 64 MiB，逐帧验证子帧边界和 CRC-8/CRC-16，WAV chunk 不得越过 RIFF 声明边界；Opus/M4A/AAC 明确拒绝。
 - 同目录保存可能在磁盘发布成功后因清理失败而抛错，不能把异常一概解释为完全回滚。
 - Shell 用户数据保存在 `%LOCALAPPDATA%/DynaMakerUV/`，`preferences.json` 与 `layout.json` 独立版本化，不依赖源码/安装目录可写、不恢复旧 Godot 设置。偏好保存语言、时间网格、位置模式、滚轮方向、当前放置宽度、预览音量/特效、Shell 动效；不保存播放状态、音乐倍率、选择或剪贴板，不改谱面 dirty。偏好500ms合并写入，关闭再刷盘；异常/不支持版本回退默认，写回前保留原文件 recovery 副本。
-- 布局关闭时保存 Dock 树/比例/活动页/隐藏与自动隐藏工具/浮窗位置尺寸，启动只在控件挂接前恢复；沿用原面板实例，不序列化 HWND/控件/进程。浮窗限制到现有显示器工作区，缺屏回主屏；VIEW 恢复舞台和工具并重置基础比例。主窗口关闭采用 OwnerWindowOnly，在 Dock 销毁浮窗前保存；单独关闭浮动舞台仍只归位不退出。真实 HWND、多屏/DPI 和导出包仍需实测。
+- 布局关闭时保存 Dock 树/比例/活动页/隐藏与自动隐藏工具/浮窗位置尺寸，启动只在控件挂接前恢复；沿用原面板实例，不序列化 HWND/控件/进程。浮窗限制到现有显示器工作区，缺屏回主屏；VIEW 恢复舞台和工具并重置基础比例。主窗口关闭采用 OwnerWindowOnly，在 Dock 销毁浮窗前保存；单独关闭浮动舞台仍只归位不退出。已有真实嵌入窗口及部分导出候选包的专项记录；完整手动 Dock 拖放、多屏/DPI 和最终测试包覆盖范围仍以[验证记录](verification.md)为准。
 
 ## 6. 尚未完成
 
-- 多选Inspector已接入精确整体变换、宽度/轨道与非路径类型批量设置；用户此前无异议，当前整体包已成为测试基线，不将其整体重列为待验收。基础复制粘贴、范围框选、Shift追加及既有批量操作已接入。
+- 多选Inspector已接入精确整体变换、宽度/轨道与非路径类型批量设置；用户此前无异议。11 月 12 日确认的是当时的 Windows 测试包；不把此后的源码修复视为已随该包发布或已获用户验收。基础复制粘贴、范围框选、Shift追加及既有批量操作已接入。
 - 偏好持久化、Dock布局恢复和基础复制粘贴已有自动回归及相应用户反馈；设备/DPI/完整手动Dock等专项不因整体基线确认而自动通过，具体证据见verification。
 - 资源替换跨保存的历史媒体Undo/Redo版本恢复未完善；独立原生Auto对象测试退出清理异常尚未修复。首次保存尾分隔符、保存中编辑dirty、文本框保存快捷键和当前资源外部依赖问题已修复，不再列为未修任务。
 - 对象磁吸按用户决定隐藏并强制停用，暂不修算法；旧ObjectSnap偏好字段兼容保留但不启用功能，正常保存偏好时写为false。原有自动回归不证明用户报告的精度问题已解决。破坏性类型转换、时间缩放/反转和图案镜像仍不做。

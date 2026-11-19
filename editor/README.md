@@ -17,7 +17,7 @@ Windows 制谱器采用两个协作进程：`shell/` 是 .NET 10 / Avalonia 工�
 - TIMING 面板支持 BPM/Scroll 事件增删改、精确 BarTime、Scroll 曲线与撤销。
 - 七类 Note 的真实 hover ghost、目标 BarTime/位置/宽度、跨轨导引和同位置/同宽提示；点击放置、拖动调宽、宽度记忆，Z 自由时间、X 位置精调；Hold/Mixer 两段式尾点创建。
 - Hold/Mixer 路径双击插点、拖动头/节点、出向曲线及 Hold 节点判定编辑。
-- 播放/暂停、时间轴 seek、真实 Note 刻度；WAV/MP3/Ogg Vorbis/FLAC 音频预览。同差分编辑走带 revision 的增量更新，保留播放、播放头和选择，音频路径不变时不重读音频。
+- 播放/暂停、时间轴 seek、真实 Note 刻度；WAV/MP3/Ogg Vorbis/FLAC 音频预览。同差分且音频路径不变时，Shell 发送带 revision 的完整 Chart 快照（`update`），舞台保留播放状态、播放头和选择并复用音频；不是逐个 Note 传差量。
 - `Q / E` 调整玩家预览流速（0.1–2.0，与游戏落速倍率一致），`W / S` 调整音乐倍率（0.2–2.0）。两者不写谱面。
 - 播放 Auto 预览复用游戏音符、残影、命中及 Hold/Mixer 持续视觉；seek/编辑静默重建，暂停冻结。空白舞台右键面板提供放置面、Note 类型、SELECT/PATH、预览音量与特效档位，不写游戏设置或谱面。
 - 中英文即时切换、Dock 浮动/还原、Suki 动效档位；`F1` 查看完整快捷键。

@@ -33,15 +33,12 @@ main.tscn ── PLAY ──> song_select.tscn ── START ──> gameplay.tsc
 
 - 场景文件是轻量入口；`Main`、`SongSelect`、`SettingsScreen` 和 `GameplayMain` 在运行时创建
   控件。
-- `GameSession` 是唯一跨场景会话 façade：初始化 settings/scores/catalog，保存已提交的谱面
-  选择，并维护与选择匹配的预加载 `LoadedChart`。
-- `SongSelect` 的本地索引只表示浏览状态；只有 START 才提交跨场景选择。预加载只能缓存当前
-  浏览的 pack/chart，不能隐式改变已提交选择。
+- `GameSession` 管本地设置、成绩、曲库、已提交的谱面选择与预加载；`OnlineSession` 单独管理服务器条目、进程内账号会话和安装服务。首页账号入口无需先登录；商店入口要求已登录，首次安装后可定位到选曲页。
+- `SongSelect` 的浏览状态不等于已提交选择；START 才把当前选择交给游玩。预加载按 `(LibraryId, chartId)` 缓存，复用前核对当前预设，不把浏览中的另一首歌隐式设为已选。
 
 ## 3. 谱面加载与格式边界
 
-`ChartCatalog` 扫描目录并维持发布策略：Editor/Internal 先扫描 `res://testdata/packs` 再扫描
-`user://charts`，Public 只扫描 `user://charts`；同 id 的用户包覆盖开发包。
+`ChartCatalog` 分两步合成曲库。先枚举手工目录：游戏在 Godot 编辑器/Internal 下先读 `res://testdata/packs` 再读 `user://charts`，同 id 的用户包覆盖开发包；Public 与未分类导出只枚举后者。再从安装器读取已完成安装的凭据，核对谱包 id 后追加到列表。商店包使用独立 `LibraryId`，可与同 id 的手工包或其他来源的商店包并存，不改变 Public 的 testdata 禁令。
 
 `ChartLoadService` 是加载模式边界：
 
@@ -100,11 +97,10 @@ Mixer 的 `MixerRuntime` / `MixerContactGeometry` / `MixerTimeline` 位于 share
   `ShowResults` 之后游玩场景不再推进帧逻辑；随后现有 Result v2 用两扇不透明屏风合拢才隐藏舞台，
   屏风背后先铺不透明结算背景，再拉开、播放评级帧、浮现各组信息。封面只在顶部小图中显示，
   缺图使用 clean-room placeholder。Reduced/Off 同样先接管不透明背景，不能让游玩层透出。
-  `ResultScreen` 只展示数据（含与字标同源的 AP/FC 徽章），`ResultRevealTimeline` 管理屏风时序/加载等待/跳过，
+  `ResultScreen` 展示数据（含与字标同源的 AP/FC 徽章）和本局上传状态/重试入口，不计算成绩；`ResultRevealTimeline` 管理屏风时序/加载等待/跳过，
   `ResultPreludeTimeline` 管理前奏时序，`ResultOutcome` 是唯一分类器，
   `GameplayMain.ShowResults` 继续拥有成绩快照与保存职责，并且只执行一次。
-- AUTO 演示绝不写成绩。v2 使用 `(packId, chartId, rulesetId, gameplayDigest)`；legacy 仍使用
-  历史 `packId:diff` 兼容键。两者不能合并或删除。
+- 本机 BEST 先按 Standard/Hardcore 分区；区内 strict v2/成功转换以 `(packId, chartId, rulesetId, gameplayDigest)` 为键，legacy-direct 保留 `packId:diff`。旧成绩备份后保留为未分类历史；AUTO 不写本地成绩也不上传。联网时由 `GameplayOnlineRun` 捕获开局来源，结算上传不改变本地保存、判定或帧顺序。
 - 玩法坐标固定为 1920×1080。不能引入自适应游玩布局，且改布局数值前必须先更新相应测量依据。
 - Public APK 绝不扫描、加载或打包 `client/testdata/`，也不得包含任何非 clean-room 素材或谱面。
 
@@ -146,7 +142,7 @@ editor 使用 ChartEditor.Core 和 Presentation 程序集，已移除所有 clie
 
 Godot 页面分部文件仍共享宿主状态，不能以单个入口变短认定整个类已解耦。
 `tools/architecture/check.py` 同时检查依赖方向、显式源码链接、文件长度和主要分部类总量；
-`tools/verify.py` 串起该检查、两端构建、两套 C# 回归、发布测试和 diff 检查。
+[统一非图形回归](verification.md#非图形复验命令)在此基础上构建游戏与两套编辑器宿主，运行核心、编辑器、网络、Shell 无窗口及发布工具回归，最后检查 diff；真实数据库和窗口专项另行执行。
 
 第二轮中 GameplayMain 把渲染与特效生命周期交给 `GameplayNoteRenderer` / `GameplayEffects`，
 `SustainRuntime` 仅保存判定状态；渲染只读取 `SustainVisualSnapshot` 值和判定结果。

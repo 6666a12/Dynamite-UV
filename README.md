@@ -1,12 +1,12 @@
 # Dynamite Universe
 
-Dynamix 风格的 **clean-room 社区音游重实现**，包含 Godot 游戏和独立 Windows 制谱器。公开包不得包含原版素材/谱面；内部官方测试数据仅限受控开发/Internal。
+Dynamix 风格的 **clean-room 社区音游重实现**。游戏可离线游玩；独立 Windows 制谱器 DynaMaker UV 用于制作谱面，联网账号、曲库与成绩服务由仓内的独立后端提供。公开包不得包含原版素材/谱面；内部测试数据仅限受控开发/Internal。
 
 > 无项目级 LICENSE，原创代码与资产保留所有权利。公开可见不等于获得复制/修改/再分发授权；第三方见 [通知](<THIRD_PARTY_NOTICES.md>)。
 
 ## 项目网页与制谱入门
 
-- [项目首页源码](site/index.html) · [DynaMaker UV 中文教程](site/guide.html)：从新建谱包、放置音符到路径、预览与保存，配真实工作台截图和原创练习节拍。
+- 项目首页：[中文](site/index.html) / [English](site/en/index.html)。DynaMaker UV 制谱教程：[中文](site/guide.html) / [English](site/en/guide.html)。两种语言都可以跟着同一段练习节拍，从放第一颗音符做到保存和重新打开谱包。
 - 本地预览：`python -m http.server 8765 --bind 127.0.0.1 --directory site`，然后打开 `http://127.0.0.1:8765/`。
 - [网页维护与 GitHub Pages 部署](docs/website.md)。部署工作流只发布 `site/`，不将内部文档、开发数据或本地测试软件包公开；配置完成前不视为已上线。
 
@@ -17,18 +17,20 @@ Dynamix 风格的 **clean-room 社区音游重实现**，包含 Godot 游戏和�
 3. [验证状态与操作](<docs/verification.md>)：本轮实际检查、历史构建/测试/产物/用户反馈分开记录。
 4. [专题索引](<docs/README.md>)：玩法/v2 合同、设计施工、发布安全；[归档](<docs/archive/README.md>) 只用于历史追溯。
 
-## 当前状态（2026-11-12 整理）
+## 当前状态
 
-- **游戏**：主菜单 → 选曲 → 游玩 → 结算闭环；三轨输入、Hold/Mixer、设置/校准、本地成绩、搜索/试听、Mirror/Auto、结算八评级与配色 v2 已接入；[HUD v8](docs/gameplay-hud-v8.md) 已接真实血量/统计/暂停并获用户观感确认。
-- **制谱器**：独立 Avalonia + Godot Windows 工作台，可创建/打开 strict v2 目录包、直接编辑 Note 与路径、编辑 BPM/Scroll、undo/redo、SAVE/SAVE AS。真实波形、ZIP/XML/DY 导出和 Storyboard 未完成；[详细能力](<docs/dyna-maker-uv.md>) 是编辑器状态入口。
-- **编辑器测试包**：用户已确认现有精简Windows x64包作为测试基线，配置固定为 `windows-x64-test-v1`，包含系统.NET优先/包内兜底与便携卸载入口。[包身份与验证边界](docs/verification.md#当前-windows-编辑器测试包基线)统一维护；测试基线不等于正式公开发行批准。
-- **缺口与限制**：BLEED 已有真实扣血/回血与耗尽结算，专用耗尽结算待扩展，血条 UI 已接入；筛选排序占位，Hit/UI 音效不完整，服务器未接入，模式成绩未完整隔离。预加载已按当前模式的 Preset 检查复用，用户已确认模式切换基本通过；这与成绩模式隔离是两个问题。
-- **工程**：已分离纯规则、编辑核心、公共 Godot 视觉与两端适配；仍有大类，不宣称所有职责已解耦。当前实现以工作区源码为准，接手先运行 `git status --short --branch`；历史提交或旧 APK 不代表全部当前功能。
-- **验证**：构建、自动回归、真实窗口操作及未覆盖范围统一见 [验证记录](<docs/verification.md>)；品牌扫描现已限定不进入本地嵌套 worktree，最近完整验证结果以该页执行记录为准；用户确认与未测设备/性能边界分别记录。
+| 模块 | 已可使用 | 边界 |
+| --- | --- | --- |
+| [游戏](docs/handoff.md#21-游戏) | 首页 → 选曲/试听 → 三轨游玩 → 结算；支持 Hold/Mixer、校准、Mirror/Auto、BLEED 血条。Standard 与 Hardcore 分开保存本机最佳成绩。 | 选曲筛选/排序仍是占位，Hit/UI 与结果音效不完整；BLEED 失败仍复用普通结算页。低端性能未验收，专项暂缓。 |
+| [Windows 制谱器](docs/dyna-maker-uv.md) | Avalonia 工作台嵌入 Godot 舞台；可新建、打开、保存 strict v2 目录谱包，编辑 Note、路径及 BPM/Scroll，并播放预览。 | `windows-x64-test-v1` 是已确认的[测试包基线](docs/verification.md#当前-windows-编辑器测试包基线)，不是公开发行批准。ZIP/XML/DY 未接入；真实波形、Storyboard 不列当前目标。 |
+| [网络服务](server/README.md) | 游戏可注册/登录、从谱面商店首次下载安装、上传符合条件的本局成绩；管理员可发布/下架谱包。离线游玩不要求账号。 | 属于开发阶段，生产部署未验收；暂无更新/删除已安装谱包、排行榜、段位或多人联机。 |
+| [项目网站](docs/website.md) | 中英文首页和制谱教程共用工作台截图与练习音频。 | Pages 工作流只发布网页；本地检查不证明网站已经上线，也不代表游戏或制谱器已公开发行。 |
+
+[交接 §4](docs/handoff.md#4-仍需处理) 区分真实缺口、暂缓项和未覆盖的设备场景，不是排期。构建、真实窗口操作、用户反馈与产物身份分别查[验证记录](docs/verification.md)。
 
 ## 技术与目录
 
-Godot **4.7.1 Mono** / C# / `net9.0`。游玩固定 1920×1080、`canvas_items` 等比黑边，不采用自适应游玩布局。
+游戏与编辑器原生舞台使用 Godot **4.7.1 Mono** / C# / .NET 9；Windows 工作台外壳和 ASP.NET Core 服务端使用 .NET 10。游玩固定 1920×1080、`canvas_items` 等比黑边，不采用自适应游玩布局。
 
 | 目录 | 职责 |
 | --- | --- |
@@ -37,13 +39,13 @@ Godot **4.7.1 Mono** / C# / `net9.0`。游玩固定 1920×1080、`canvas_items` 
 | [presentation](<presentation/>) | 公共 Godot 字体、基础 UI、音符外观和舞台，不读取应用会话 |
 | [shared](<shared/>) | Godot-free 格式、精确时间、判定、计分和安全包读写 |
 | [chart-editor-core](<tools/chart-editor-core/>) | 文档、命令、会话、画布投影和草稿模型 |
-| [core-tests](<tools/core-tests/>) / [chart-editor-tests](<tools/chart-editor-tests/>) | 断言式核心与编辑器回归 |
+| [server](server/) | 独立账号、曲库和成绩 API；[接口合同](server/API.md) |
+| [site](site/) | 可独立部署的静态首页和制谱教程，无游戏运行时依赖 |
+| [core-tests](tools/core-tests/) / [chart-editor-tests](tools/chart-editor-tests/) / [server-tests](tools/server-tests/) | 规则、编辑器和网络回归；真实数据库另跑专项 |
 | [tools](<tools/>) | 验证、结构门禁、发布、美术及研究工具，不进入 APK |
 | [release](<release/>) / [schemas](<schemas/chart-format-v2/>) | 内容/签名/身份策略、资产来源和 v2 机器合同 |
 | [design](<design/>) | 忽略的本地美术源与预览，不随克隆取得，需单独备份 |
 | [docs](<docs/README.md>) | 当前说明、有效规格与历史归档 |
-
-本仓库无服务端；外层 `server/` 只是 C++/Boost 起步骨架，不代表正式技术选型。游戏“谱面工坊”仍禁用，预留未来服务器谱面库，不是本地编辑器入口。
 
 ## 构建与验证
 
@@ -54,11 +56,11 @@ python -B tools/verify.py
 # 依赖已还原时可加 --no-restore
 ```
 
-统一入口依次运行结构门禁、客户端/编辑器构建、两套 C# 回归、发布测试与 diff 检查；分项命令和 Godot 启动/截图流程统一见 [验证状态与操作](<docs/verification.md>)。
+[统一脚本](tools/verify.py)运行结构检查、游戏及制谱器构建、核心/编辑器/网络回归、Shell 无窗口回归、发布工具测试与差异检查。真实 PostgreSQL、Godot 窗口与导出验包不在默认流程内；分项操作见[验证说明](docs/verification.md#非图形复验命令)。
 普通修改后不代替用户启动游戏目测；确需运行时使用 Mono 版并先结束残留 Godot。
 
 ## 发布边界
 
-玩家谱面在 `user://charts/`，设置和成绩在 Godot `user://`。
+手工导入的谱面放在 `user://charts/`；商店谱面由安装器独立登记，不要求玩家手动搬运。本机设置和成绩在 Godot `user://`。
 整个 `client/testdata/` 仅用于开发/Internal；Public APK 必须从 clean worktree 导出并通过最终验包，不能直接从带内部数据和导入缓存的开发目录分发。
 研究材料、原版 APK、参考内容、设计源工程、工具环境和签名材料都不进入发行内容。详见 [发布流程](<docs/releasing.md>)。

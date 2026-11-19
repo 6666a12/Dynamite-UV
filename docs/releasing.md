@@ -16,12 +16,9 @@ Release、网盘、应用商店或公开聊天群**。
 
 - 整个 `client/testdata/` 是内部开发区。里面可以临时保存官方测试谱、音频和曲绘，但这些
   文件被 Git 忽略，且不得进入 Public APK。
-- Internal APK 含官方测试数据是当前制谱器完成前的预期行为，不是缺陷。
+- Internal APK 按该测试配置要求包含内部测试数据；制谱器的开发进度不改变其受控使用范围。
 - Public APK 对 `testdata` 的源文件和 Godot `.godot/imported` 派生产物均零容忍。
-- DynaMaker UV 是独立的 `editor/` Godot Windows 项目，不是 Android 游戏工程的一部分。
-  Public preset 保留对历史 `client` 编辑器路径的排除，并用资源白名单阻止任何非游戏资源；
-  Internal preset 同样不包含 DynaMaker UV。编辑器导出只使用 `editor/export_presets.cfg`
-  的 `DynaMaker UV Windows` preset。
+- DynaMaker UV 是独立 Windows 制谱器（Avalonia Shell + Godot 原生舞台），Public 与 Internal APK 均不包含它。Public preset 保留对历史 `client` 编辑器路径的排除，并使用游戏资源白名单。`editor/export_presets.cfg` 的 `DynaMaker UV Windows` preset 只导出原生舞台；完整桌面测试包的组装与发布边界见 [Windows 打包说明](../tools/editor-release/README.md)。
 - 游戏和编辑器都依赖 `DynamiteUniverse.Presentation.dll`；Android 必需程序集清单已包含它，
   editor 另依赖 `ChartEditor.Core.dll`。共享视觉 DLL 不代表可以把 editor 项目或源码打入游戏。
 - 社区曲绘由谱师随谱面包提供。公开客户端不内置 AI 生成曲绘。

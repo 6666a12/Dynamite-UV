@@ -255,11 +255,11 @@ Result v2 六板后缀为 `01 Shutter Close 300ms`、`02 Shutter Hold 800ms`、`
 
 - Penpot 板已在 SELECT DESTINATION 下增加第二行「段位模式 / RANK MODE / OFFLINE」与
   「联机大厅 / ONLINE LOBBY / OFFLINE」，并修正主按钮文字被不透明底板遮盖的层级。
-  客户端只有游玩、设置接真实导航；谱面工坊、段位模式、联机大厅和 CREDITS / LOGIN 均为禁用展示。
+  客户端的「游玩」「设置」直接导航；LOGIN / ACCOUNT 进入账号页，登录后「谱面商店」可用（不是本地制谱器入口）。段位模式、联机大厅和 CREDITS 仍不可用。
 - 不实现模型右下的 DETONATION ORRERY / CORE ONLINE、左上 COMMUNITY RHYTHM SYSTEM / DU-01、
   左下 DU / COMMUNITY EDITION 三组注释小字；右下版本串继续使用 `Main.BuildDescription()`。
 - 参考环已接入。稿内模型背景的径向环境辉光与 Utility / separators 两个刻度线未复制；
-  LOGIN 去掉 `↗`，避免禁用入口仍暗示外链。
+  LOGIN 不带 `↗`，现为游戏内导航而非外链。
 - Mk VI 使用当前立体折梁模型与近/远双层 canvas 弥散光，默认 `u_glow=1.6`。
   本机设计源、Blender 重建、独立 Godot 预览和渲染器差异见
   [Mk VI 设计源与预览说明](<../design/home-orrery-v6/README.md>)；独立预览不证明客户端或 Android 效果。

@@ -1,5 +1,19 @@
 // Progressive enhancement: all content and navigation work without JavaScript.
 (() => {
+  // Both editions use the same chapter IDs. Keep real links for keyboard,
+  // middle-click and no-JS readers; only add the current fragment here.
+  const languageLink = document.querySelector('[data-language-link]');
+  if (languageLink) {
+    const syncFragment = () => { languageLink.hash = window.location.hash; };
+    syncFragment();
+    window.addEventListener('hashchange', syncFragment);
+  }
+
+  const english = document.documentElement.lang === 'en';
+  const matchStatus = count => {
+    if (!count) return english ? 'No matches. Try a shorter search.' : '没找到，试试更短的关键词。';
+    return english ? `${count} ${count === 1 ? 'match' : 'matches'} in the contents.` : `目录里有 ${count} 项匹配。`;
+  };
   const search = document.querySelector('#guide-search');
   if (!search) return;
   const box = document.querySelector('.search-box');
@@ -18,9 +32,7 @@
       link.hidden = !match;
       if (match) matches++;
     });
-    status.textContent = terms.length
-      ? matches ? `${matches} 个章节匹配，请从下方目录跳转。` : '没有匹配章节，试试更短的关键词。'
-      : '';
+    status.textContent = terms.length ? matchStatus(matches) : '';
   });
 
   if ('IntersectionObserver' in window) {

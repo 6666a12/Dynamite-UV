@@ -55,6 +55,11 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+**2026-11-19 · 中英文网站（本地，待用户审稿）。** 对照现稿、上次提交的教程、工作台菜单与快捷键、v2 规则和原有三张截图，逐页复读中英文首页及教程。每种语言均有 11 个主节和 5 个子节入口；复核包含按钮、目录搜索反馈、图注、替代文字和 FAQ。两版使用同一段 120 BPM 练习音频，练习从小节 1 的四颗 TAP 开始，到复制、画长条、改对轨及保存重开。
+
+- 站点离线检查、7 项网页回归、JavaScript 语法和改动的空白检查通过。回归检查发布白名单、双语互链和原章节锚点，也检查两版是否仍链接三张操作图和练习音频。
+- Edge 无头浏览器在项目子路径加载四页，360、768、1366 px 下均无整页横向溢出，图片可解码。测试覆盖双向语言切换（含章节锚点）、两版目录搜索的命中/无结果/清空、FAQ、WAV、禁用脚本后阅读与切换，以及打印时隐藏目录。另用本地文件地址从中文首页切到英文首页并进入英文教程。没有运行游戏或制谱器，也没有提交、推送或部署；浏览器检查不代替用户审稿或软件实机验收。
+
 2026-11-15 Pages CI 换行修复：读取公开 Actions run `43691007480`，build 的 `Check curated website` 失败，configure-pages/upload/deploy 尚未执行。主机缺少gh，改用只读GitHub REST查询job及annotations。通过git对象字节在隔离临时目录复现 `asset hash differs: assets/licenses/SpaceGrotesk-OFL.txt`：原manifest按Windows CRLF计算，而Git提交为LF。修复仅对许可证txt归一CRLF→LF，更新canonical hash；二进制仍逐字节比较，新增换行兼容/内容变更/二进制不归一回归。Git LF载荷加修复后的manifest检查通过，本机4项网页测试及diff检查通过；未推送、未重新触发远程workflow，后续Pages配置/部署尚未验证。
 
 2026-11-15 网页第二轮修订：用户指出首轮截图混入网易云桌面歌词，关闭歌词后要求重拍；旧截图不再用于网页。重跑真实编辑器 `--no-build -- --smoke tmp_shots/site-guide-clean-20261115`，退出0，使用隔离合成谱包及偏好，替换全部三张WebP并更新资产hash。三张新图经本机OCR检查未识别出先前歌词，图片工具仍不能提供直接目视画面，不将此写成人工视觉验收。教程补充侧栏标签/收起/展开/固定/浮动/恢复、工具设置、单选属性提交、多选变换与统一属性、对轨事件增删改实操及路径节点说明；增加5个小节目录入口。网页3项unittest、站点检查及五种宽度Edge交互回归通过（搜索/导航/图片/无JS/打印/减少动态/键盘），无业务代码改动；未执行部署、提交、推送或全项目构建。用户明确暂不部署。
@@ -251,18 +256,19 @@ python -B tools/verify.py
 统一脚本串起以下步骤，任何非零退出即停止：
 
 ```powershell
-python -B tools/architecture/check.py --report
+python -B tools/architecture/check.py
 dotnet build client/DynamiteUniverse.csproj
 dotnet build editor/DynaMakerUv.Editor.csproj
 dotnet build editor/shell/DynaMakerUv.Editor.Shell.csproj
 dotnet run --project tools/core-tests/CoreTests.csproj
 dotnet run --project tools/chart-editor-tests/ChartEditorTests.csproj
+dotnet run --project tools/server-tests/ServerTests.csproj
 dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --headless
 python -B -m unittest discover -s tools/release/tests -p "test_*.py"
 git diff --check
 ```
 
-- 两套 C# 回归是断言式控制台程序，应使用 `dotnet run`，不能仅跑 `dotnet test` 后认定执行过。
+- 核心、编辑器与网络回归均使用 `dotnet run`，不能仅跑 `dotnet test` 后认定执行过。默认网络回归启动隔离的本机回环 HTTP 服务，不连接实际 PostgreSQL；真实数据库专项与环境要求见[服务端运行说明](../server/README.md)。统一脚本不启动 Godot 窗口，也不导出发行包。
 - 构建要求 0 error；遇环境 warning/离线 restore 必须写明条件和实际结果，失败不能跳过后继续宣称通过。
 - 核心默认只用版本化 clean-room fixture。官方开发语料需显式传参，且不能代替公开门禁：
 
@@ -323,4 +329,6 @@ headless SongClock 使用系统计时器/固定验证时钟，不代替窗口音
 ## 文档维护检查
 
 文档移动后检查所有活跃文档与新归档的相对链接/锚点；旧不可变快照的链接以原位置解释，不能为“修链接”重写历史正文。
+
+**2026-11-18 文档核对**：按当前源码和项目引用同步入口、专题与操作说明。已检查改动文档的本地链接和锚点、`git diff --check`；比对确认上方历史执行记录与 v2 规范正文未改，分项复验命令与统一脚本默认顺序一致（仅比对，未执行该脚本）。另跑站点离线载荷检查及 4 项网页测试，均通过。未启动游戏、编辑器或服务端，未连接数据库、出包、检查远端部署或取得新的设备验收。
 2026-11-09 整理范围见 [本次整理说明](archive/reports/2026-11-09-documentation-cleanup.md)；更早的字节快照与哈希仍见 [2026-10-26 归档说明](archive/2026-10-26-cleanup/README.md)。

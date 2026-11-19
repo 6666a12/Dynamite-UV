@@ -1,6 +1,6 @@
 # 第一阶段后端接口（开发预览）
 
-当前实现账号、管理员发布、登录用户曲库下载、本人成绩记录。游戏端已接账号、首版商店/首次安装及结算上传。不是生产发布批准。
+游戏已接账号、登录后的曲库首次安装与按资格上传结算成绩。下文描述服务端开发接口，不代表游戏已提供本人历史记录列表，也不代表生产部署通过。账号字段和路由见[账号约定](Accounts/README.md#当前约定)，本机运行及管理工具见[操作说明](README.md)，实测范围见[验证记录](../docs/verification.md#最近验证记录)。
 
 ## 管理员与发布
 
@@ -10,7 +10,9 @@
 python server/dev.py grant-admin --username <已有用户名>
 ```
 
-没有默认管理员；不自动把首个注册者提升权限。授予权限与发布/下架均写`du.admin_audit`。本批没有创建真实管理员或上架真实素材。
+没有默认管理员；不自动把首个注册者提升权限。授予权限与发布/下架均写`du.admin_audit`。管理员工具的预检、列表、发布和下架操作见[命令行说明](README.md#管理员命令行)。
+
+- GET `/api/v1/admin/catalog/releases?offset=0`：管理员 Bearer；按发布时间和 ID 倒序列出所有版本（含下架），每页最多 50，offset 范围 0–10000。
 
 - POST `/api/v1/admin/catalog/releases?version=v1`：管理员Bearer；`Content-Type: application/zip`；`X-Content-Rights`记录谱面/音频/曲绘作者和授权依据（当前接受HTTP头可表达的文本，详细来源系统留后续）；正文为ZIP，成功201，重用同packId/version为409。
 - POST `/api/v1/admin/catalog/releases/{releaseId}/withdraw`：管理员Bearer，JSON `{"reason":"原因"}`；成功204。下架保留历史文件/审计，不物理删除。
@@ -35,17 +37,19 @@ python server/dev.py grant-admin --username <已有用户名>
 
 ## 本人成绩
 
-- POST `/api/v1/me/plays/`：Bearer；JSON字段见`Records/RecordService.cs`的`PlaySubmission`。
-- GET `/api/v1/me/plays/?offset=0`：仅本人，每页最多50，offset上限10000；不接受accountId选择他人。
+- POST `/api/v1/me/plays/`：旧版兼容入口；Bearer，JSON 字段见 [PlaySubmission](Records/RecordService.cs)。当前游戏使用下述 v2 路由。
+- GET `/api/v1/me/plays/?offset=0`：旧版兼容查询；仅本人，每页最多 50，offset 上限 10000；不接受 accountId 选择他人。
 
-必须带playId/releaseId/chartId/digest/rulesetId/mode/mirror/auto/completed/score/perfect/great/good/miss/maxCombo。开发首版保守接受已完成、非Auto、已发布版本的standard/hardcore结果；拒绝中断/失败/未知手工包；客户端调试游玩资格仍须接线时限制。身份由Bearer决定，不从JSON信任账号字段。客户端必须固定该局账号/服务器和playId再重试，不把结果改投另一身份。
+旧版请求带 playId/releaseId/chartId/digest/rulesetId/mode/mirror/auto/completed/score/perfect/great/good/miss/maxCombo。新记录要求已完成、非 Auto、有效的已发布差分和 standard/hardcore 模式。v1 请求无验证/seek/debug 标记，不应把 v2 的字段校验写成 v1 的保证。两个入口都按 Bearer 确定账号；游戏固定本局服务器、账号和 playId，不能改投另一身份。
 
 首次201；同账号同playId完全相同内容200；不同内容409。并发重试只留一条。下架后已保存结果仍可幂等重试，但新结果422。查询返回`verification=client_reported`：只有身份/基础范围/引用检查，**没有重放、判定总量与服务端重算分数认证，也不是反作弊**。不提供排行榜或BEST摘要，模式单独存储、不修改本地成绩身份。
 
 - GET/POST `/api/v1/me/plays/v2`：个人记录合同2，游戏端使用。POST字段为shared `PlayReport`，在v1字段基础上增加contractVersion=2、bleed、rawScore、theoreticalMax、clear、finishReason、startedAt、verificationRun、usedSeek、debugRun；正常完成、非Auto/验证/seek/debug才接受，检查原始分数、未舍入CLEAR与百万整数分一致性，但不据此声称反作弊。GET保留原始完整payload，旧记录不补造新字段。数据库仍使用现有jsonb，不改旧迁移；v1入口继续兼容旧调用方。
 
+提交拒绝码：资格/字段不符为 `400 play_not_eligible`，同账号同 playId 内容冲突为 `409 play_id_conflict`，未知/下架发布或差分为 `422 release_unavailable`，Digest/ruleset 不符为 `422 content_mismatch`。只有符合资格且身份不变的结果可在当前结果页手动重试；网络重试不生成新 playId，离页后无后台补传。
+
 ## 运维及未完成项
 
 `python server/dev.py up`迁移；`run`启动；`test`跑独立数据库+HTTP闭环。数据库迁移/实例验证成功时发现能力均为true，`/health/ready`表示数据库业务schema可用，不保证所有磁盘文件完整或对外生产就绪。
 
-尚需：生产低权限角色/可信反代TLS、针对IP与账号的限流、下载并发/带宽与存储总配额、备份恢复、过期会话/孤儿文件维护、更多设备上的商店/安装验收与网络上传接线。现有全实例限流只是开发护栏。所有源码/素材许可限制保持不变。
+开发版尚缺生产低权限角色、可信反代 TLS、按 IP/账号限流、下载并发/带宽与存储总配额、备份恢复和过期会话/孤儿文件维护。全实例限流只是开发护栏。游戏端下载和结算上传已有接线；更多设备上的商店、安装和结果交互验收是另一项工作，不能用接口回归代替。所有源码/素材许可限制保持不变。
