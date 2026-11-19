@@ -14,6 +14,18 @@
       <Border Height="1" Background="{DynamicResource Line}" />
 
       <StackPanel Spacing="5">
+        <TextBlock Classes="eyebrow" Text="{local:Tr Timing.OffsetTitle}" />
+        <TextBlock x:Name="OffsetReadout" Classes="cyan" />
+        <TextBlock Classes="caption" Text="{local:Tr Timing.OffsetScope}" TextWrapping="Wrap" />
+        <TextBlock Classes="eyebrow" Text="{local:Tr Timing.OffsetValue}" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+          <TextBox x:Name="OffsetMsInput" PlaceholderText="+0" />
+          <Button x:Name="OffsetApplyButton" Grid.Column="1" Content="{local:Tr Timing.OffsetApply}" Click="ApplyOffset" />
+        </Grid>
+        <TextBlock Classes="caption" Text="{local:Tr Timing.OffsetStepHint}" TextWrapping="Wrap" />
+      </StackPanel>
+      <Border Height="1" Background="{DynamicResource Line}" />
+      <StackPanel Spacing="5">
         <TextBlock Classes="eyebrow" Text="{local:Tr Timing.BpmSection}" />
         <ListBox x:Name="BpmList" MaxHeight="150" SelectionChanged="BpmSelectionChanged" />
         <TextBlock Classes="eyebrow" Text="{local:Tr Timing.TimeLabel}" />

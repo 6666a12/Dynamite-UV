@@ -23,9 +23,11 @@ public sealed class WorkbenchFactory : Factory
     private Tool? _analysis;
     private bool _stageRestoreQueued;
     public bool IsShuttingDown { get; set; }
+    internal bool ModalActive { get; set; }
 
     public override bool OnWindowClosing(IDockWindow? window)
     {
+        if (ModalActive && !IsShuttingDown) return false; // Do not queue re-docking behind an open form.
         if (!IsShuttingDown && window?.Layout is { } layout && ContainsStage(layout))
         {
             // Do not destroy the floating HWND while it still owns Godot. Move the same
@@ -90,6 +92,7 @@ public sealed class WorkbenchFactory : Factory
     private readonly DocumentDock _stageDock;
     private readonly IRootDock _root;
     public override IRootDock CreateLayout() => _root;
+    internal IEnumerable<Window> FloatingWindows() => _root.Windows?.Select(item => item.Host).OfType<Window>() ?? [];
 
     internal WorkbenchLayoutSnapshot CaptureLayout() => WorkbenchLayoutSnapshot.Capture(_root);
     internal void RestoreLayoutBeforeAttach(WorkbenchLayoutSnapshot snapshot)

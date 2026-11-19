@@ -28,7 +28,7 @@ public sealed partial class StageView : UserControl
     public void SetPlaying(bool playing) =>
         this.FindControl<Ursa.Controls.IconButton>("PlayButton")!.Content = WorkbenchLocalizer.Shared[playing ? "Transport.Pause" : "Transport.Play"];
 
-    public void SetLoading(string value) => this.FindControl<TextBlock>("LoadingText")!.Text = value;
+    internal void SetStatus(string value) => this.FindControl<TextBlock>("StageStatusText")!.Text = value;
 
     private void PlayClicked(object? sender, RoutedEventArgs e) => PlayRequested?.Invoke();
     private void FloatClicked(object? sender, RoutedEventArgs e) => FloatRequested?.Invoke();

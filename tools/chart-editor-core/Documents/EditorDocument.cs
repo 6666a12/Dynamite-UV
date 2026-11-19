@@ -122,7 +122,12 @@ public sealed class EditableChart
     public required string File { get; set; }
     public string? Audio { get; set; }
     public V2Preview? Preview { get; set; }
-    public required double AudioOffsetSec { get; set; }
+    internal ChartOffsetPosition OffsetPosition { get; set; }
+    public required double AudioOffsetSec
+    {
+        get => OffsetPosition.Seconds;
+        set => OffsetPosition = ChartOffsetPosition.FromSeconds(value);
+    }
     public List<EditableBpm> Bpms { get; } = [];
     public List<EditableScroll> ScrollSpeeds { get; } = [];
     public List<EditableNote> Notes { get; } = [];
@@ -134,7 +139,7 @@ public sealed class EditableChart
             Key = Key,
             Id = Id, Difficulty = Difficulty, DifficultyKey = DifficultyKey, Level = Level,
             Unrated = Unrated, File = File, Audio = Audio, Preview = Preview,
-            AudioOffsetSec = AudioOffsetSec,
+            AudioOffsetSec = AudioOffsetSec, OffsetPosition = OffsetPosition,
         };
         clone.Charters.AddRange(Charters);
         clone.Bpms.AddRange(Bpms.Select(item => new EditableBpm { Key = item.Key, Time = item.Time, Bpm = item.Bpm }));
@@ -158,6 +163,7 @@ public sealed class EditorDocument
     // Lazily rebuilt note/node ID cache. Every mutation entry point (Execute/Undo/Redo and
     // InsertChart/RemoveChart) invalidates it; never mutate note/node IDs outside those paths.
     private HashSet<string>? _allIds;
+    private ChartOffsetNudge? _activeOffsetNudge;
 
     public string? PackageDirectory { get; private set; }
     public required string PackId { get; set; }
@@ -181,8 +187,8 @@ public sealed class EditorDocument
         _pendingResourceReplacements.Select(item => new V2ExternalResourceMapping(item.Value, item.Key)).ToArray();
 
     public EditableChart SelectedChart => Charts.Single(chart => chart.Id == SelectedChartId);
-    public bool CanUndo => _undo.Count > 0;
-    public bool CanRedo => _redo.Count > 0;
+    public bool CanUndo => _undo.Count > 0 || _activeOffsetNudge?.HasChange == true;
+    public bool CanRedo => _redo.Count > 0 && _activeOffsetNudge?.HasChange != true;
 
     public static EditorDocument FromPackage(string? packageDirectory, V2Pack pack,
         IReadOnlyDictionary<string, V2Chart> charts)
@@ -242,8 +248,29 @@ public sealed class EditorDocument
     {
         if (!Charts.Any(chart => chart.Id == id))
             throw new KeyNotFoundException($"Chart '{id}' is not open.");
+        if (id != SelectedChartId) EndChartOffsetNudge();
         SelectedChartId = id;
         Selection = EditorSelection.None;
+    }
+
+    public ChartOffsetNudge BeginChartOffsetNudge()
+    {
+        EndChartOffsetNudge();
+        return _activeOffsetNudge = new ChartOffsetNudge(this, SelectedChart);
+    }
+
+    internal void OffsetStepApplied()
+    {
+        ChangeVersion++;
+        UpdateDirtyState();
+    }
+
+    public void EndChartOffsetNudge()
+    {
+        if (_activeOffsetNudge is not { } nudge) return;
+        _activeOffsetNudge = null;
+        if (nudge.Finish() is { } command) RecordCommand(command, nudge.ChartId);
+        UpdateDirtyState();
     }
 
     /// <summary>Normalizes legacy serialized IDs to stable keys at the document boundary.</summary>
@@ -350,6 +377,7 @@ public sealed class EditorDocument
     public void Execute(IEditorCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
+        EndChartOffsetNudge();
         var chartId = SelectedChartId;
         try
         {
@@ -360,16 +388,22 @@ public sealed class EditorDocument
             _allIds = null;
         }
         ChangeVersion++;
+        RecordCommand(command, chartId);
+        UpdateDirtyState();
+    }
+
+    private void RecordCommand(IEditorCommand command, string chartId)
+    {
         _undo.Push(new EditorHistoryEntry(command, chartId));
         if (_redo.Count > 0 && _savedHistoryPosition > _historyPosition)
             _savedHistoryPosition = -1;
         _redo.Clear();
         _historyPosition++;
-        UpdateDirtyState();
     }
 
     public void Undo()
     {
+        EndChartOffsetNudge();
         if (_undo.Count == 0)
             return;
         var entry = _undo.Pop();
@@ -391,6 +425,7 @@ public sealed class EditorDocument
 
     public void Redo()
     {
+        EndChartOffsetNudge();
         if (_redo.Count == 0)
             return;
         var entry = _redo.Pop();
@@ -424,6 +459,7 @@ public sealed class EditorDocument
 
     public void MarkSaved(string packageDirectory)
     {
+        EndChartOffsetNudge();
         ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
         PackageDirectory = Path.GetFullPath(packageDirectory);
         IsUnpersisted = false;
@@ -432,7 +468,7 @@ public sealed class EditorDocument
     }
 
     private void UpdateDirtyState() =>
-        HasUnsavedChanges = IsUnpersisted || _historyPosition != _savedHistoryPosition;
+        HasUnsavedChanges = IsUnpersisted || _historyPosition != _savedHistoryPosition || _activeOffsetNudge?.HasChange == true;
 
     internal EditableNote RequireNote(string id) => SelectedChart.Notes.Single(note => note.Id == id);
     internal EditablePathNode RequirePathNode(string noteId, string nodeId) =>

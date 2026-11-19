@@ -107,7 +107,7 @@ internal static class WorkspaceVerification
 
     private static void VerifyDockButton(MainWindow window, Action<string, bool> check)
     {
-        var dock = window.FindControl<Dock.Avalonia.Controls.DockControl>("Dock")!;
+        var dock = (Dock.Avalonia.Controls.DockControl)window.FindControl<Border>("ProjectDockHost")!.Child!;
         var layout = dock.Layout;
         var factory = window.LayoutFactory;
         var originals = new[] { "stage", "tools", "timing", "properties" }

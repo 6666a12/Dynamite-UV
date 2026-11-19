@@ -22,7 +22,8 @@ public partial class EditorPreviewController : Control
     private double _bar;
     private double _playerSpeed = 1.0;
     private double _playbackRate = 1.0;
-    private double _tickAccumulator;
+    private long _clockRequest;
+    private bool _panClockMoved;
     private string? _audioPath;
     private long _revision = -1;
     private int _audioLoads;
@@ -44,19 +45,7 @@ public partial class EditorPreviewController : Control
         _stage.NotePicked += OnNotePicked;
         _stage.NotesBoxSelected += ids =>
         {
-            _selection.Clear();
-            _selection.UnionWith(ids);
-            if (_adapted is null) return;
-            var parents = _selection.OrderBy(id => id).Select(id =>
-            {
-                var note = _adapted.RuntimeChart.AllNotes.Single(item => item.Id == id);
-                return note.V2Metadata?.ParentSourceId ?? _adapted.SourceIdsByRuntimeId[id];
-            }).Distinct().ToArray();
-            _selection.Clear();
-            _selection.UnionWith(parents.Select(id => _adapted.RuntimeIdsBySourceId[id]));
-            _stage.SetSelection(_selection);
-            var primary = parents.FirstOrDefault() ?? "";
-            _ipc.SendSelection(parents, primary, primary, parents);
+            if (_adapted is not null) PublishSelection(StageSelection.Box(_adapted, _selection, ids));
         };
         _stage.NotePressed += OnNotePressed;
         _stage.PathNotePicked += OnPathNotePicked;
@@ -68,13 +57,7 @@ public partial class EditorPreviewController : Control
         _stage.PanStarted += OnPanStarted;
         _stage.PanTimeDelta += OnPanTimeDelta;
         _stage.PanEnded += OnPanEnded;
-        _stage.WheelSteps += steps =>
-        {
-            if (_adapted is null || _stage.HasActiveDrag) return;
-            var speed = VisualScrollMath.SpeedPixelsPerSecond(GameplayStageGeometry.BaseFallSpeedPx,
-                _adapted.Metadata.ScrollMap.RuntimeSpeedAt(_bar), _playerSpeed);
-            if (speed > 0) Seek(_adapted.Metadata.BpmTimeline.RuntimeBarAt(_second + steps * 100d / speed), scrub: true);
-        };
+        _stage.WheelSteps += ScrubWheel;
         _audio = new AudioStreamPlayer { Name = "PreviewAudio" };
         AddChild(_audio);
         _menu = new EditorContextMenu();
@@ -114,13 +97,15 @@ public partial class EditorPreviewController : Control
             if (_audio.Stream is { } stream && _second >= stream.GetLength())
             {
                 _second = stream.GetLength();
-                SetPlaying(false);
+                SetPlaying(false); // Final position and pause are one boundary sample.
+                return;
             }
         }
-        _tickAccumulator += delta;
-        if (_tickAccumulator < .25) return;
-        _tickAccumulator %= .25;
-        SendTick();
+        if ((_playing && !_panAudioSuspended) || _panClockMoved)
+        {
+            _panClockMoved = false;
+            _ipc.SendTick(_second, _bar, _playing, _playerSpeed, _playbackRate, _revision, _clockRequest, frame: true);
+        }
     }
 
     public override void _Notification(int what)
@@ -128,16 +113,20 @@ public partial class EditorPreviewController : Control
         if (what == NotificationWMCloseRequest) GetTree().Quit();
     }
 
+    private bool _workbenchBlocked;
+
     public override void _Input(InputEvent input)
     {
+        if (_workbenchBlocked) { GetViewport().SetInputAsHandled(); return; }
         // Godot's --wid WM_MOUSEACTIVATE handler already sets keyboard focus to the child.
         // Window.GrabFocus would call SetForegroundWindow(child), divorcing activation from
         // the Avalonia top-level and breaking subsequent taskbar restore/Z-order.
         if (_menu.IsOpen)
         {
-            var point = GetGlobalTransformWithCanvas().AffineInverse() * GetGlobalMousePosition();
+            // Use this event's position, not the later polled cursor (especially at a clamped edge).
+            var point = input is InputEventMouse mouse ? _menu.GetGlobalTransformWithCanvas().AffineInverse() * mouse.Position : Vector2.Zero;
             if (_menu.FilterInput(input, point)) GetViewport().SetInputAsHandled();
-            return; // Controls receive GUI input; stage and Shell shortcuts do not.
+            return; // Opening, hover, and keyboard navigation never reach chart authoring.
         }
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } && _stage.HasActiveDrag)
         {
@@ -149,8 +138,12 @@ public partial class EditorPreviewController : Control
             _stage.HandlePointerInput(input, viewportCoordinates: true);
         if (input is InputEventMouseMotion && _stage.HasActiveDrag)
             _stage.HandlePointerInput(input, viewportCoordinates: true);
-        if (input is InputEventKey { Pressed: true, Echo: false } key)
-            _ipc.SendKey(key.Keycode, key.CtrlPressed, key.ShiftPressed, key.AltPressed);
+        if (input is InputEventKey key && (key.Keycode is Key.O or Key.P || (key.Pressed && !key.Echo)))
+        {
+            // Letter nudges need key-up and OS repeat; a held Ctrl+O must never reopen the picker.
+            if (key.Echo && (key.CtrlPressed || key.AltPressed || key.MetaPressed)) return;
+            _ipc.SendKey(key.Keycode, key.CtrlPressed, key.ShiftPressed, key.AltPressed, key.Pressed, key.Echo);
+        }
     }
 
     public override void _ExitTree() => _ipc.Dispose();
@@ -159,13 +152,29 @@ public partial class EditorPreviewController : Control
     {
         switch (command)
         {
+            case "workbenchModal":
+                _workbenchBlocked = root.GetProperty("blocked").GetBoolean();
+                _ipc.WorkbenchEpoch = root.GetProperty("epoch").GetInt64();
+                if (_workbenchBlocked) { _menu.Close(); _stage.CancelGesture(); SetPlaying(false); }
+                break;
             case "load": Load(root, false); break;
             case "update": Load(root, true); break;
-            case "play": SetPlaying(root.GetProperty("playing").GetBoolean()); break;
-            case "seek": Seek(root.GetProperty("bar").GetDouble()); break;
+            case "play": AcceptClockRequest(root); SetPlaying(root.GetProperty("playing").GetBoolean()); break;
+            case "seek": AcceptClockRequest(root); Seek(root.GetProperty("bar").GetDouble()); break;
+            case "timelineWheel":
+                if (!_workbenchBlocked && !_menu.IsOpen && root.GetProperty("revision").GetInt64() == _revision)
+                    ScrubWheel(root.GetProperty("steps").GetDouble() * (_stage.WheelReversed ? -1 : 1));
+                break;
+            case "setSelection":
+                if (_adapted is not null && root.GetProperty("revision").GetInt64() == _revision)
+                    ApplySelection(root, _adapted); // Highlight only; do not reload, echo, or seek.
+                break;
             case "playerSpeed": SetPlayerSpeed(root.GetProperty("multiplier").GetDouble()); break;
             case "playbackRate": SetPlaybackRate(root.GetProperty("multiplier").GetDouble()); break;
             case "objectSnap": _stage.SetObjectSnap(root.GetProperty("enabled").GetBoolean()); break;
+            case "barGuides":
+                _stage.SetBarGuides(root.GetProperty("left").GetInt32(), root.GetProperty("center").GetInt32(), root.GetProperty("right").GetInt32());
+                break;
             case "wheelDirection": _stage.WheelReversed = root.GetProperty("reversed").GetBoolean(); break;
             case "previewPreferences":
                 var volume = root.GetProperty("volume").GetDouble();
@@ -212,9 +221,9 @@ public partial class EditorPreviewController : Control
             _effects = level;
             _stage.SetEffectLevel(level);
             _stage.SuspendPlayback(_panAudioSuspended);
+            _menu.Sync(_tool, _type, _track, _effects.ToString());
         }
         _ipc.SendContextAction(kind, value);
-        _menu.Sync(_tool, _type, _track, _effects.ToString());
     }
 
     private void Load(System.Text.Json.JsonElement root, bool incremental)
@@ -256,6 +265,8 @@ public partial class EditorPreviewController : Control
         ApplySelection(root, adapted);
         if (!incremental && root.TryGetProperty("bar", out var bar)) Seek(bar.GetDouble());
         _revision = revision;
+        if (!incremental) _ipc.LoadRevision = revision;
+        _ipc.SendTimelineDuration(revision, _audio.Stream?.GetLength() ?? 0);
         SendInput($"{(incremental ? "updated" : "loaded")} chart={chart.ChartId} notes={adapted.RuntimeChart.AllNotes.Count()} audio={_audio.Stream is not null} revision={revision} playing={_playing} selection={_selection.Count}{AudioTelemetry()}");
         SendTick();
     }
@@ -266,9 +277,8 @@ public partial class EditorPreviewController : Control
         if (root.TryGetProperty("selection", out var selection) &&
             selection.ValueKind == System.Text.Json.JsonValueKind.Array)
         {
-            var runtimeBySource = adapted.SourceIdsByRuntimeId.ToDictionary(item => item.Value, item => item.Key);
             foreach (var source in selection.EnumerateArray().Select(item => item.GetString()))
-                if (source is not null && runtimeBySource.TryGetValue(source, out var runtime)) _selection.Add(runtime);
+                if (source is not null && adapted.RuntimeIdsBySourceId.TryGetValue(source, out var runtime)) _selection.Add(runtime);
         }
         _stage.SetSelection(_selection);
     }
@@ -306,6 +316,14 @@ public partial class EditorPreviewController : Control
             RestartAudio();
         }
         SendTick();
+    }
+
+    private void ScrubWheel(double steps)
+    {
+        if (_adapted is null || _stage.HasActiveDrag || !double.IsFinite(steps) || steps == 0) return;
+        var speed = VisualScrollMath.SpeedPixelsPerSecond(GameplayStageGeometry.BaseFallSpeedPx,
+            _adapted.Metadata.ScrollMap.RuntimeSpeedAt(_bar), _playerSpeed);
+        if (speed > 0) Seek(_adapted.Metadata.BpmTimeline.RuntimeBarAt(_second + steps * 100d / speed), scrub: true);
     }
 
     private void SetPlayerSpeed(double multiplier)
@@ -357,6 +375,7 @@ public partial class EditorPreviewController : Control
         _bar = metadata.BpmTimeline.RuntimeBarAt(second);
         _stage.CurrentBar = _bar;
         _stage.SuspendPlayback(_panAudioSuspended);
+        _panClockMoved = true;
     }
 
     private void OnPanEnded()
@@ -393,36 +412,28 @@ public partial class EditorPreviewController : Control
 
     private void SelectNote(int id, bool additive, bool path)
     {
-        if (additive)
-        {
-            if (!_selection.Remove(id)) _selection.Add(id);
-        }
-        else
-        {
-            _selection.Clear();
-            _selection.Add(id);
-        }
-        if (_selection.Count == 0) _selection.Add(id);
+        if (_adapted is not null) PublishSelection(StageSelection.Pick(_adapted, _selection, id, additive, path));
+    }
+
+    private void PublishSelection(StageSelection choice)
+    {
         _stage.SetSelection(_selection);
-        if (_adapted is null) return;
-        var sourceIds = _selection.Select(runtime => _adapted.SourceIdsByRuntimeId[runtime]).ToArray();
-        var noteIds = _selection.Select(runtime =>
-        {
-            var selected = _adapted.RuntimeChart.AllNotes.Single(item => item.Id == runtime);
-            return selected.V2Metadata?.ParentSourceId ?? _adapted.SourceIdsByRuntimeId[runtime];
-        }).Distinct().ToArray();
-        var primary = _adapted.SourceIdsByRuntimeId[id];
-        var note = _adapted.RuntimeChart.AllNotes.Single(item => item.Id == id);
-        _ipc.SendSelection(sourceIds, primary, note.V2Metadata?.ParentSourceId ?? primary, noteIds,
-            path && note.V2Metadata?.IsPathNode == true ? primary : null);
+        _ipc.SendSelection(choice.Sources, choice.Primary, choice.Parent, choice.Parents, choice.Node);
     }
 
     private void SendInput(string detail) => _ipc.SendInput(detail);
 
+    private void AcceptClockRequest(System.Text.Json.JsonElement command)
+    {
+        if (command.TryGetProperty("clockRequest", out var request))
+            _clockRequest = Math.Max(_clockRequest, request.GetInt64());
+    }
+
     private void SendTick()
     {
+        _panClockMoved = false;
         if (_adapted is not null) _bar = _adapted.Metadata.BpmTimeline.RuntimeBarAt(_second);
-        _ipc.SendTick(_second, _bar, _playing, _playerSpeed, _playbackRate);
+        _ipc.SendTick(_second, _bar, _playing, _playerSpeed, _playbackRate, _revision, _clockRequest, frame: false);
     }
 
     private async void Capture(string path)

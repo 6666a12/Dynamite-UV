@@ -91,7 +91,9 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `TrackHandoffPresentation` / `TrackHandoffState` | relay UI、front/fx、相位推进与独立放电尾巴 | Signal Lock、路由、ready timeout、输入锁和转场完成时机 |
 | `SongListViewport` / `SongListScrollState` | 列表触摸/滚轮输入、滚动读写、惯性与选择意图 | Browse、展开/收起、搜索、详情试听和页面导航 |
 | `GameSettingsCodec` | 设置快照、JSON、旧字段迁移和配色恢复 | 唯一运行态、user://、原子写入、警告和 AudioServer |
-| `EditorCreateRequest` / `EditorCreatePreflight` | New/Add 的纯请求组装、前置校验和 Add 的固定默认时间线 | 新 UI 的控件与文本解析、文件可用性查询、session、错误显示和页流 |
+| `EditorCreateRequest` / `EditorDifficultyCreation` / `EditorMediaSlots` | 新包请求 / 新差分的独立对轨快照与音频预检 / 媒体引用与写入路径分配 | `EditorDocumentSession` 只在文档与参考差分仍有效时提交；writer 保留严格发布校验 |
+| `ProjectWorkspaceSession` / `WorkbenchLayoutSession` | 当前窗口从起始页进入制谱工作区，首次启动/显式重试舞台；进入项目时挂接和恢复 Dock | 文件选择、会话采纳/撤销仍属 Shell 与 EditorDocumentSession；IPC/进程由 GodotStageService 负责。没有挂接 Dock 就不写布局 |
+| `WorkbenchModalHost` / `DifficultyCreationFlow` | 主窗内表单的生命周期、焦点、浮动工作台和原生输入边界 / 将差分表单接到会话 | 表单负责输入与可取消的预检；主窗口只装配宿主并在提交后刷新。其他表单可复用宿主，无须依赖差分模型 |
 
 未落盘草稿新增难度时必须保留外部音频/封面映射；会话成功保存后才 MarkSaved。磁盘发布后的清理错误不保证回滚，不能把异常等同于“完全没写盘”。
 
@@ -130,7 +132,11 @@ Godot 场景绑定继续使用原入口文件及类名。以下分部文件用�
 | `ui/transitions/TransitionOverlay.cs` | Signal Lock 与 Track Handoff 转发；relay/front/fx 在 `ui/transitions/TrackHandoffPresentation.cs`，纯相位在 `ui/transitions/TrackHandoffState.cs` |
 | [账号页](../client/scripts/ui/online/OnlineScreen.cs) / [商店](../client/scripts/ui/store/StoreScreen.cs) | 页面接线、分页/详情与安装状态展示；会话由 `game/session/OnlineSession` 持有，传输、安装与上传实现见下节 |
 | [editor/scripts/StandaloneEditorMain.cs](../editor/scripts/StandaloneEditorMain.cs) / [stage](../editor/scripts/stage/) | 原生舞台装配；预览、IPC、音频与 SELECT/PLACE/PATH/PAN 手势分别由独立对象负责 |
-| `editor/shell/ShellChartEditor.cs` | 把舞台、Inspector 和 Timing 请求转换为原子文档命令；`TimingView` 只构造 BPM/Scroll 命令，窗口不堆编辑规则 |
+| `editor/shell/ShellChartEditor.cs` | 把舞台、Inspector 和 Timing 的 BPM/Scroll 请求转换为原子文档命令，窗口不堆编辑规则 |
+| `WorkbenchTimingKeys` / `TimingView` / `ChartOffsetNudge` | Shell 统一路由两端的按下、重复和释放；Timing 展示当前差分的毫秒值，文档拥有偏移手势和撤销边界。舞台复用录音时间与增量更新，不自行修改差分 |
+| `WorkbenchTimeline` / `TimelineRhythmData` / `TimelineTrackLayout` / `TimelineView` | 当前差分录音时长与小节换算；按轨投影真实起音、长条及判定刻痕；布局索引、可见区几何；Avalonia 绘制及冻结拖动。控件只请求导航，预览时钟仍由 Godot 持有。 |
+| `StageFrameDispatch` / `WorkbenchPreviewClock` | 有序投递原生输入与播放边界，同一段待显示帧只保留最后一帧；显示舞台确认的秒数/小节，并区分暂停和主动向后跳转。两者都不启动计时器或控制音频资源。 |
+| `EditorBarGuideGrid` / `EditorBarGuides` | 在已有 BPM/Scroll 映射上采样固定分度，再在编辑态按轨裁剪、分层绘制和标注。各轨显示档位由 Shell 会话保存，既不生成 Note，也不改变吸附 |
 | `tools/chart-editor-core/Documents/` | 文档、会话、创建/打开/保存、Digest 与校验；`EditorGameplayDigest.cs` 为纯核心服务，`EditorPackageSettings.cs` 把包/差分设置与资源替换组成一次可撤销事务 |
 | `tools/chart-editor-core/Canvas/` | 包含现行舞台用的 `EditorStagePlacement`、`StagePlacementDraft` 等纯计算，也保留旧画布的投影、命中和手势模型。当前手势是否接通以 `editor/scripts/stage/EditorStageAuthoring.cs` 与 Shell 命令入口为准 |
 | `EditorCommands.cs` | `IEditorCommand` 与组合事务；具体命令位于 `Commands/`，命名空间/API 保持 |

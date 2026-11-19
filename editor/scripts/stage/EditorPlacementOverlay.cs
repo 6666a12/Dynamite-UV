@@ -41,6 +41,14 @@ public partial class EditorPlacementOverlay : Control
 
     private readonly Node2D _ghostRoot;
     private readonly Control _guideLayer;
+    private Rect2 _visibleStage;
+
+    internal void SetVisibleStage(Rect2 bounds)
+    {
+        if (_visibleStage == bounds) return;
+        _visibleStage = bounds;
+        _guideLayer.QueueRedraw();
+    }
 
     private EditorPlacementVisual? _placement;
     private V2RuntimeChartMetadata? _metadata;
@@ -206,11 +214,6 @@ public partial class EditorPlacementOverlay : Control
         var risks = EditorSpatialAnalysis.Point((EditorTrack)value.Track, v2Type, value.Center, value.Width);
         if (risks != EditorSpatialRisk.None)
             DrawLabel(new Vector2(600, 90), $"[!] {risks}", new Color("ffb454"), true);
-        // Recommended authoring limits, not input/clipping boundaries.
-        _guideLayer.DrawLine(new Vector2(GameplayStageGeometry.CenterX0, 100),
-            new Vector2(GameplayStageGeometry.CenterX0, GameplayStageGeometry.CenterLineY), new Color(1, 1, 1, .15f));
-        _guideLayer.DrawLine(new Vector2(GameplayStageGeometry.CenterToStageX(5), 100),
-            new Vector2(GameplayStageGeometry.CenterToStageX(5), GameplayStageGeometry.CenterLineY), new Color(1, 1, 1, .15f));
         var longType = IsLongType(v2Type);
         var baseColor = NoteVisualSpec.BaseColor(v2Type);
         var guideColor = new Color(baseColor, GuideAlpha);
@@ -271,22 +274,19 @@ public partial class EditorPlacementOverlay : Control
 
     private void DrawTrackTimeLine(Track track, float remaining, Color color, float width)
     {
-        switch (track)
-        {
-            case Shared.Chart.Track.Center:
-                var y = GameplayStageGeometry.CenterLineY - remaining;
-                _guideLayer.DrawLine(new Vector2(GameplayStageGeometry.CenterX0, y),
-                    new Vector2(GameplayStageGeometry.CenterX0 + 5f * GameplayStageGeometry.CenterUnitPx, y),
-                    color, width, true);
-                break;
-            default:
-                var sideX = track == Shared.Chart.Track.Left
-                    ? GameplayStageGeometry.LeftLineX + remaining * GameplayStageGeometry.SideDistanceScale
-                    : GameplayStageGeometry.RightLineX - remaining * GameplayStageGeometry.SideDistanceScale;
-                _guideLayer.DrawLine(new Vector2(sideX, GameplayStageGeometry.SideY0 - 5f * GameplayStageGeometry.SideUnitPx),
-                    new Vector2(sideX, GameplayStageGeometry.SideY0), color, width, true);
-                break;
-        }
+        if (TimeGuideSpan(track, remaining) is { } line)
+            _guideLayer.DrawLine(line.From, line.To, color, width, true);
+    }
+
+    internal (Vector2 From, Vector2 To)? TimeGuideSpan(Track track, float remaining)
+    {
+        if (!_visibleStage.HasArea()) return null;
+        var point = GameplayStageGeometry.PositionAt(track, 0, remaining);
+        var min = _visibleStage.Position;
+        var max = _visibleStage.End;
+        if (track == Track.Center)
+            return point.Y >= min.Y && point.Y < max.Y ? (new Vector2(min.X, point.Y), new Vector2(max.X, point.Y)) : null;
+        return point.X >= min.X && point.X < max.X ? (new Vector2(point.X, min.Y), new Vector2(point.X, max.Y)) : null;
     }
 
     private void DrawPositionGuide(Track track, double center, Vector2 notePoint, Color color)

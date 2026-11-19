@@ -18,7 +18,7 @@
     <Border Grid.Row="1" Background="Black" ClipToBounds="True">
       <Panel>
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-          <TextBlock Text="{local:Tr Stage.Starting}" Classes="cyan" FontSize="15" HorizontalAlignment="Center" />
+          <TextBlock x:Name="StageStatusText" Text="{local:Tr Stage.Starting}" Classes="cyan" FontSize="15" HorizontalAlignment="Center" />
           <TextBlock x:Name="LoadingText" Text="{local:Tr Stage.NativeHost}" Classes="caption" HorizontalAlignment="Center" />
         </StackPanel>
         <local:NativeStageHost x:Name="StageHost" />

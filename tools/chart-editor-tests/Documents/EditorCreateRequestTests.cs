@@ -24,11 +24,8 @@ internal static class EditorCreateRequestTests
             var package = new EditorCreatePackageSummary(["hard"],
                 [new EditorCreateChartSummary(V2Difficulty.Custom, "Élite")]);
             var addForm = form with { ChartId = "chart-02", DifficultyIndex = 2, CustomKey = "", Level = 10, Unrated = false };
-            var add = EditorCreateRequest.Build(EditorCreateMode.AddDifficulty, addForm, 24).Chart!;
-            Check(add.File == "charts/chart-02.json" && add.Audio is null && add.Preview is null &&
-                  add.AudioOffsetSec == 0 && add.Charters.SequenceEqual(["Charter"]) &&
-                  add.Bpms.Count == 1 && add.Bpms[0].Time == ExactBarTime.Zero && add.Bpms[0].Bpm == 150,
-                "add difficulty request keeps fixed timing and in-package resource semantics");
+            ExpectException<InvalidOperationException>(() => EditorCreateRequest.Build(EditorCreateMode.AddDifficulty, addForm, 24),
+                "context-free add no longer fabricates a fixed 150 BPM difficulty");
             Check(EditorCreatePreflight.Validate(EditorCreateMode.AddDifficulty, addForm, package, false, false) is null,
                 "add difficulty preflight does not require external package resources");
             Check(EditorCreatePreflight.Validate(EditorCreateMode.AddDifficulty,

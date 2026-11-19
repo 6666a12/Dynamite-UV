@@ -5,10 +5,30 @@ namespace DynamiteUniverse.Editor.Shell;
 /// <summary>Loads before live Dock attachment and saves before native-stage teardown.</summary>
 internal sealed class WorkbenchLayoutSession(WorkbenchUserStore store, WorkbenchFactory factory, Action<string> report)
 {
-    public void Load(Window window)
+    public bool IsAttached { get; private set; }
+
+    public void Attach(Window owner)
+    {
+        if (IsAttached) return;
+        Load(owner);
+        // Dock initializes its window hosts on attachment. Populate it *before* it joins
+        // the live visual tree, just as we would for a window constructed with a document.
+        owner.FindControl<Border>("ProjectDockHost")!.Child = new Dock.Avalonia.Controls.DockControl
+        {
+            Name = "Dock", Factory = factory, Layout = factory.CreateLayout(),
+            InitializeFactory = true, InitializeLayout = true,
+        };
+        IsAttached = true;
+    }
+
+    private void Load(Window window)
     {
         var snapshot = store.Load<WorkbenchLayoutSnapshot>(WorkbenchLayoutSnapshot.FileName);
-        if (snapshot is null) return;
+        if (snapshot is null)
+        {
+            if (store.Warning is { } warning) report(warning);
+            return;
+        }
         try
         {
             snapshot.Validate();
@@ -36,11 +56,13 @@ internal sealed class WorkbenchLayoutSession(WorkbenchUserStore store, Workbench
 
     public void Save()
     {
+        if (!IsAttached) return; // Closing the start page must not replace last session’s layout.
         try
         {
             var snapshot = factory.CaptureLayout();
             snapshot.Validate();
-            if (!store.Save(WorkbenchLayoutSnapshot.FileName, snapshot)) report(store.Warning!);        }
+            if (!store.Save(WorkbenchLayoutSnapshot.FileName, snapshot)) report(store.Warning!);
+        }
         catch (InvalidDataException ex) { report("Layout not saved: " + ex.Message); }
     }
 }

@@ -12,8 +12,7 @@ internal static class PackageDesktopVerification
         Action<string> report, Func<string, Task> capture)
     {
         var expected = EditorPackageRepository.Open(source);
-        await window.OpenPackageForVerification(source);
-        await Task.Delay(800);
+        // DesktopVerification opens this package before waiting for the first native embedding.
         var document = window.CurrentDocument ?? throw new InvalidOperationException(window.StatusMessage);
         AssertSnapshots(expected, document);
         foreach (var chart in document.Charts)

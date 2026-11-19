@@ -45,14 +45,7 @@ public static class EditorCreateRequest
                 form.Artist, id, difficulty, key, level, unrated, charter, form.Bpm, form.OffsetSec,
                 gridDivisor, form.AudioPath, form.CoverPath), null);
 
-        var chart = new EditableChart
-        {
-            Id = id, Difficulty = difficulty, DifficultyKey = key, Level = level, Unrated = unrated,
-            File = $"charts/{id}.json", Audio = null, Preview = null, AudioOffsetSec = 0,
-        };
-        chart.Charters.Add(charter);
-        chart.Bpms.Add(new EditableBpm { Time = ExactBarTime.Zero, Bpm = 150 });
-        return new EditorCreateResult(null, chart);
+        throw new InvalidOperationException("Adding a difficulty needs its reference chart and recording. Use EditorDocumentSession.PrepareDifficultyAsync.");
     }
 }
 
@@ -66,7 +59,7 @@ public static class EditorCreatePreflight
         if (form.DifficultyIndex == (int)V2Difficulty.Custom)
         {
             if (form.CustomKey.Length == 0) return "CUSTOM 难度必须填写 difficulty key。";
-            if (form.CustomKey.Length > 24) return "difficulty key 最多 24 个字符。";
+            if ((mode == EditorCreateMode.AddDifficulty ? form.CustomKey.EnumerateRunes().Count() : form.CustomKey.Length) > 24) return "difficulty key 最多 24 个字符。";
         }
         if (!form.Unrated && form.Level is null) return "等级必须是 1–99，或勾选 UNRATED。";
         if (form.Charter.Length == 0) return "请填写 Charter。";

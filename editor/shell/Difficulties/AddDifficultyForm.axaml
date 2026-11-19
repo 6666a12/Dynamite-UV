@@ -1,0 +1,93 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DynamiteUniverse.Editor.Shell"
+             x:Class="DynamiteUniverse.Editor.Shell.AddDifficultyForm"
+             MaxWidth="720" MaxHeight="760" KeyboardNavigation.TabNavigation="Cycle">
+  <Border Classes="panel" Padding="18" Background="{DynamicResource Surface}">
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="section" Text="{local:Tr File.AddChart}" FontSize="20" />
+        <TextBlock x:Name="ReferenceInfo" Classes="caption" TextWrapping="Wrap" />
+      </StackPanel>
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="Fields" Spacing="12" Margin="0,0,10,4">
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{local:Tr Create.ChartId}" />
+              <TextBox x:Name="ChartIdValue" AutomationProperties.Name="{local:Tr Create.ChartId}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Text="{local:Tr Create.Charter}" />
+              <TextBox x:Name="CharterValue" AutomationProperties.Name="{local:Tr Create.Charter}" />
+            </StackPanel>
+          </Grid>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{local:Tr Create.Difficulty}" />
+              <ComboBox x:Name="DifficultyChoice" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Tr Create.Difficulty}" SelectionChanged="DifficultyChanged">
+                <ComboBoxItem Content="CASUAL" /><ComboBoxItem Content="NORMAL" /><ComboBoxItem Content="HARD" />
+                <ComboBoxItem Content="MEGA" /><ComboBoxItem Content="GIGA" /><ComboBoxItem Content="TECH" /><ComboBoxItem Content="CUSTOM" />
+              </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Text="{local:Tr Create.Level}" />
+              <NumericUpDown x:Name="LevelValue" AutomationProperties.Name="{local:Tr Create.Level}" Minimum="1" Maximum="99" Increment="1" FormatString="0" />
+              <CheckBox x:Name="UnratedValue" Content="{local:Tr Create.Unrated}" IsCheckedChanged="DifficultyChanged" />
+            </StackPanel>
+          </Grid>
+          <StackPanel x:Name="CustomKeyField" Spacing="4" IsVisible="False">
+            <TextBlock Text="{local:Tr Create.CustomKey}" /><TextBox x:Name="CustomKeyValue" AutomationProperties.Name="{local:Tr Create.CustomKey}" />
+          </StackPanel>
+          <Border Height="1" Background="{DynamicResource Line}" />
+          <StackPanel Spacing="4">
+            <TextBlock Classes="section" Text="{local:Tr AddForm.Audio}" />
+            <ComboBox x:Name="AudioChoice" Classes="localized" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Tr AddForm.Audio}" SelectionChanged="AudioChanged">
+              <ComboBoxItem Content="{local:Tr AddForm.CurrentAudio}" />
+              <ComboBoxItem x:Name="PackAudioOption" Content="{local:Tr AddForm.PackAudio}" />
+              <ComboBoxItem Content="{local:Tr AddForm.ExternalAudio}" />
+            </ComboBox>
+            <Grid x:Name="FileField" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="False">
+              <TextBox x:Name="AudioPathValue" AutomationProperties.Name="{local:Tr AddForm.AudioPath}" PlaceholderText="{local:Tr AddForm.AudioPath}" TextChanged="ExternalChanged" />
+              <Button Grid.Column="1" Content="{local:Tr Create.Browse}" Click="BrowseAudio" />
+            </Grid>
+            <TextBlock x:Name="AudioInfo" Classes="caption" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Classes="section" Text="{local:Tr AddForm.Timing}" />
+            <ComboBox x:Name="TimingChoice" Classes="localized" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Tr AddForm.Timing}" SelectionChanged="TimingChanged">
+              <ComboBoxItem Content="{local:Tr AddForm.ChooseTiming}" />
+              <ComboBoxItem Content="{local:Tr AddForm.CopyTiming}" />
+              <ComboBoxItem Content="{local:Tr AddForm.NewTiming}" />
+            </ComboBox>
+            <Grid x:Name="NewTimingFields" ColumnDefinitions="*,*" ColumnSpacing="12" IsVisible="False">
+              <StackPanel Spacing="4"><TextBlock Text="{local:Tr Create.Bpm}" /><TextBox x:Name="BpmValue" Text="150" AutomationProperties.Name="{local:Tr Create.Bpm}" /></StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="{local:Tr Create.Offset}" /><TextBox x:Name="OffsetValue" Text="0" AutomationProperties.Name="{local:Tr Create.Offset}" /></StackPanel>
+            </Grid>
+            <CheckBox x:Name="CopyScroll" Content="{local:Tr AddForm.CopyScroll}" />
+            <TextBlock Classes="caption" Text="{local:Tr AddForm.EmptyNotes}" TextWrapping="Wrap" />
+          </StackPanel>
+          <Border Height="1" Background="{DynamicResource Line}" />
+          <StackPanel Spacing="4">
+            <TextBlock Classes="section" Text="{local:Tr AddForm.Preview}" />
+            <CheckBox x:Name="PreviewOverride" Content="{local:Tr AddForm.SetPreview}" IsCheckedChanged="PreviewChanged" />
+            <Grid x:Name="PreviewFields" ColumnDefinitions="*,*" ColumnSpacing="12" IsVisible="False">
+              <StackPanel Spacing="4"><TextBlock Text="{local:Tr AddForm.PreviewStart}" /><TextBox x:Name="PreviewStart" AutomationProperties.Name="{local:Tr AddForm.PreviewStart}" TextChanged="PreviewChanged" /></StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="{local:Tr AddForm.PreviewLength}" /><TextBox x:Name="PreviewLength" AutomationProperties.Name="{local:Tr AddForm.PreviewLength}" TextChanged="PreviewChanged" /></StackPanel>
+            </Grid>
+            <TextBlock x:Name="PreviewInfo" Classes="caption" TextWrapping="Wrap" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+      <StackPanel Grid.Row="2" Spacing="8">
+        <ScrollViewer MaxHeight="82" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <TextBlock x:Name="Feedback" Classes="pink" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
+        </ScrollViewer>
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="{local:Tr AddForm.Keys}" />
+          <Button x:Name="CancelButton" Grid.Column="1" Content="{local:Tr Create.Cancel}" Click="CancelClicked" />
+          <Button x:Name="AddButton" Grid.Column="2" Content="{local:Tr Create.Add}" Classes="accent" Click="ConfirmClicked" />
+        </Grid>
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

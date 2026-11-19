@@ -32,6 +32,24 @@ internal static class DesktopVerification
         {
             try
             {
+                if (window.CurrentDocument is not null || window.StageProcessId != 0 || window.Ready ||
+                    window.FindControl<Control>("StartPage")?.IsEffectivelyVisible != true)
+                    throw new InvalidOperationException("Smoke must start on the project page without a Godot process");
+                lines.Add("PASS start page has no Godot process");
+                var persistencePack = Environment.GetEnvironmentVariable("DYNA_VERIFY_PERSISTENCE_PACK");
+                var source = string.IsNullOrEmpty(persistencePack) ? Path.Combine(outDir, "fixture-source") : persistencePack;
+                if (string.IsNullOrEmpty(persistencePack))
+                {
+                    if (Directory.Exists(source)) Directory.Delete(source, true);
+                    Verification.CreatePackage(source);
+                }
+                var switchOnly = Environment.GetEnvironmentVariable("DYNA_VERIFY_CHART_SWITCH_ONLY") == "1";
+                if (switchOnly || emptyDraftOnly)
+                    await window.CreatePackageForVerification(new EditorCreateForm(switchOnly ? "switch-test" : "empty-draft",
+                        switchOnly ? "Empty Chart Switch" : "Empty Draft", "Community", Path.Combine(outDir, "fixture.wav"),
+                        "main", 2, "", 12, false, "Verification", switchOnly ? 120 : 150, 0, null));
+                else await window.OpenPackageForVerification(source);
+                if (window.CurrentDocument is null) throw new InvalidOperationException("Smoke project was not adopted: " + window.StatusMessage);
                 for (var i = 0; i < 1250 && !window.Ready; i++)
                 {
                     if (HasVisibleTopLevelWindow(window.StageProcessId))
@@ -55,17 +73,14 @@ internal static class DesktopVerification
                     result = 0;
                     return;
                 }
-                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_PERSISTENCE_PACK") is { Length: > 0 } persistencePack)
+                if (!string.IsNullOrEmpty(persistencePack))
                 {
                     await PackageDesktopVerification.Run(window, persistencePack, outDir, lines.Add,
                         name => Capture(window, outDir, name));
                     result = 0;
                     return;
                 }
-                var source = Path.Combine(outDir, "fixture-source");
-                if (Directory.Exists(source)) Directory.Delete(source, true);
-                Verification.CreatePackage(source);
-                if (Environment.GetEnvironmentVariable("DYNA_VERIFY_CHART_SWITCH_ONLY") == "1")
+                if (switchOnly)
                 {
                     await VerifyEmptyChartSwitch(window, outDir, lines.Add);
                     result = 0;
@@ -75,9 +90,6 @@ internal static class DesktopVerification
                 {
                     var draft = Path.Combine(outDir, "empty-draft");
                     if (Directory.Exists(draft)) Directory.Delete(draft, true);
-                    await window.CreatePackageForVerification(new EditorCreateForm("empty-draft", "Empty Draft",
-                        "Community", Path.Combine(outDir, "fixture.wav"), "main", 2, "", 12, false,
-                        "Verification", 150, 0, null));
                     await Task.Delay(700);
                     lines.Add("empty draft " + window.LastStageInput);
                     if (!window.LastStageInput.Contains("loaded chart=main notes=0 audio=True"))
@@ -100,7 +112,6 @@ internal static class DesktopVerification
                     result = 0;
                     return;
                 }
-                await window.OpenPackageForVerification(source);
                 window.SeekForVerification(2); // Fixture coordinates target bar 2; D now moves seconds, not bars.
                 await Task.Delay(700);
                 lines.Add("stage " + window.LastStageInput);
@@ -108,6 +119,9 @@ internal static class DesktopVerification
                     throw new InvalidOperationException("The real chart and audio were not loaded by Godot");
                 if (Environment.GetEnvironmentVariable("DYNA_VERIFY_CONTEXT_ONLY") == "1")
                 {
+                    var initialTrack = window.PlacementTrackForVerification;
+                    var initialTool = window.CurrentTool;
+                    if (initialTrack == EditorTrack.Left) throw new InvalidOperationException("Hover fixture must start on a different track");
                     await Task.Run(() =>
                     {
                         SetCursorPos(800, 450);
@@ -118,27 +132,33 @@ internal static class DesktopVerification
                         mouse_event(16, 0, 0, 0, 0);
                     });
                     await Task.Delay(700);
-                    lines.Add("context " + window.LastStageInput);
+                    var detail = window.LastStageInput;
+                    if (!detail.StartsWith("context button=", StringComparison.Ordinal) || window.PlacementTrackForVerification != initialTrack || window.CurrentTool != initialTool)
+                        throw new InvalidOperationException("Menu did not open without changing tools: " + detail);
+                    lines.Add("context " + detail);
                     await Capture(window, outDir, "context-en.png");
                     WorkbenchLocalizer.Shared.SetLanguage("zh-CN");
                     await Task.Delay(500);
                     await Capture(window, outDir, "context-zh.png");
                     window.Stage.Host.FocusNative();
-                    var coords = window.LastStageInput["context button=".Length..].Split(',')
+                    var coords = detail["context button=".Length..].Split(',')
                         .Select(s => double.Parse(s, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
-                    var click = window.Stage.Host.PointToScreen(new Point(
-                        coords[0] * window.Stage.Host.Bounds.Width, coords[1] * window.Stage.Host.Bounds.Height));
-                    await ClickNative(window, click.X, click.Y);
-                    await Task.Delay(400);
-                    if (window.PlacementTrackForVerification != EditorTrack.Left)
-                        throw new InvalidOperationException("Context side request did not synchronize Tools");
+                    var host = window.Stage.Host;
+                    var scale = Math.Min(host.Bounds.Width / 1920d, host.Bounds.Height / 1080d);
+                    var left = host.PointToScreen(new Point((host.Bounds.Width - 1920 * scale) / 2 + coords[0] * 1920 * scale,
+                        (host.Bounds.Height - 1080 * scale) / 2 + coords[1] * 1080 * scale));
+                    await HoverNative(window, left.X, left.Y); // Move only; no mouse button down/up.
+                    for (var i = 0; i < 40 && window.PlacementTrackForVerification != EditorTrack.Left; i++) await Task.Delay(50);
+                    if (window.PlacementTrackForVerification != EditorTrack.Left || window.CurrentTool != initialTool)
+                        throw new InvalidOperationException("Unpressed pointer motion did not switch the side alone");
+                    await ClickNative(window, left.X, left.Y); // Explicit selection anchors keyboard navigation.
                     await PressKey(0x09); await PressKey(0x09); await PressKey(0x09);
                     await PressKey(0x0D); // First Note button: Tap.
                     await Task.Delay(400);
                     if (window.CurrentTool != "PLACE" || window.PlacementTypeForVerification != V2NoteType.Tap)
                         throw new InvalidOperationException("Context Note request did not enter placement");
                     await PressKey(0x1B);
-                    lines.Add("PASS real context menu open / language / side and Note sync / Escape");
+                    lines.Add("PASS real context menu open without side change / language / unpressed side hover / Tab+Enter Note / Escape");
                     result = 0;
                     return;
                 }
@@ -390,10 +410,9 @@ internal static class DesktopVerification
                         window.StageServiceForVerification.ProcessId != processBeforeClose ||
                         !ReferenceEquals(window.CurrentDocument, documentBeforeClose) || floating.IsVisible)
                         throw new InvalidOperationException($"Floating close did not restore the same live stage: {restoredStage}");
-                    var ticksBeforeClose = window.TickCount;
-                    await Task.Delay(400);
-                    if (window.TickCount <= ticksBeforeClose)
-                        throw new InvalidOperationException("Stage IPC stopped after floating close");
+                    // A paused stage no longer emits redundant clock frames. Ping the actual
+                    // transport instead of treating silence as a dead IPC connection.
+                    await window.StageServiceForVerification.AudioSnapshotAsync();
                 }
                 lines.Add("PASS floating window close restores the same live stage twice without losing the document");
                 window.FindControl<ComboBox>("LanguageChoice")!.SelectedIndex = 1;
@@ -430,7 +449,6 @@ internal static class DesktopVerification
     {
         var form = new EditorCreateForm("switch-test", "Empty Chart Switch", "Community",
             Path.Combine(outDir, "fixture.wav"), "main", 2, "", 12, false, "Verification", 120, 0, null);
-        await window.CreatePackageForVerification(form);
         await window.AddChartForVerification(form with { ChartId = "extra", DifficultyIndex = 3 });
         var baseline = await window.StageServiceForVerification.AudioSnapshotAsync();
         var choice = window.FindControl<ComboBox>("ChartChoice")!;

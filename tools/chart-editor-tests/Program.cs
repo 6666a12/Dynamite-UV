@@ -19,6 +19,8 @@ internal static class Program
                 PackageLifecycleTests.Run(args[1]);
                 return 0;
             }
+            EditorDifficultyWorkflowTests.Run();
+            if (args.SequenceEqual(["--difficulty-workflow"])) return 0;
             StepPathTests.Run();
             PackageLifecycleTests.Run();
             EditorBatchEditTests.Run();
@@ -37,6 +39,7 @@ internal static class Program
             EditorPathTests.TestPathProjection();
             EditorPathTests.TestPathNodeInsertion();
             EditorCommandTests.TestScrollEditingCommands();
+            ChartOffsetNudgeTests.Run();
             EditorDocumentTests.TestUndoFollowsOwningChart();
             EditorDocumentTests.TestChartLifecycleCommands();
             EditorCommandTests.TestBpmCollisionIsRejected();

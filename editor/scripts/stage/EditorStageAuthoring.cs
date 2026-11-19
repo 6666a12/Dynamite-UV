@@ -170,11 +170,17 @@ public sealed class EditorStageAuthoring
         {
             var hitId = HitNote(point, notes, metadata, currentTime, playerSpeed);
             if (hitId < 0) return false;
-            var shift = Input.IsKeyPressed(Key.Shift);
-            var alreadySelected = selection?.Contains(hitId) == true;
-            // Shift-press on an already-selected note keeps the toggle-off click behaviour.
-            if (shift && alreadySelected) return false;
+            var shift = click.ShiftPressed || Input.IsKeyPressed(Key.Shift);
             var hitNote = notes.Single(item => item.Id == hitId);
+            var parentId = hitNote.V2Metadata!.ParentSourceId;
+            // Additive selection edits complete notes, including a hit on an authored node.
+            // A removed note must not start a drag on the just-deselected object.
+            if (shift && notes.Any(n => selection?.Contains(n.Id) == true && n.V2Metadata?.ParentSourceId == parentId))
+            {
+                NotePressed?.Invoke(hitId, true);
+                return true;
+            }
+            var alreadySelected = selection?.Contains(hitId) == true;
             if (!shift && hitNote.V2Metadata?.IsPathNode == true)
             {
                 BeginPathDrag(hitNote, point, metadata, currentTime, playerSpeed);

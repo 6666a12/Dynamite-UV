@@ -40,21 +40,22 @@ public static class EditorPackageSettings
         var clearAudio = request.ClearChartAudio && chart.Audio is not null;
         var clearPreview = request.ClearChartPreview && chart.Preview is not null;
 
+        var reserved = new List<string>();
         if (request.PackAudioSource is { } packAudio)
-            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, false,
-                document.Audio is { } packAudioPath
-                    ? ReplaceResourceExtension(packAudioPath, packAudio)
-                    : "audio" + Path.GetExtension(packAudio).ToLowerInvariant(),
-                packAudio));
+        {
+            var slot = EditorMediaSlots.AudioDestination(document, null, packAudio);
+            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, false, slot, packAudio));
+            reserved.Add(slot);
+        }
         if (request.PackCoverSource is { } packCover)
-            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, true,
-                document.Cover ?? $"cover{Path.GetExtension(packCover).ToLowerInvariant()}", packCover));
+        {
+            var slot = document.Cover ?? $"cover{Path.GetExtension(packCover).ToLowerInvariant()}";
+            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, true, slot, packCover));
+            reserved.Add(slot);
+        }
         if (!request.ClearChartAudio && request.ChartAudioSource is { } chartAudio)
             commands.Add(new ReplaceChartResourceCommand(originalChartId, false, false,
-                chart.Audio is { } chartAudioPath
-                    ? ReplaceResourceExtension(chartAudioPath, chartAudio)
-                    : $"audio/{originalChartId}{Path.GetExtension(chartAudio).ToLowerInvariant()}",
-                chartAudio));
+                EditorMediaSlots.AudioDestination(document, chart, chartAudio, reserved: reserved), chartAudio));
 
         if (clearAudio || clearPreview)
             commands.Add(new ClearChartOverridesCommand(originalChartId, clearAudio, clearPreview));
@@ -82,19 +83,4 @@ public static class EditorPackageSettings
         return true;
     }
 
-    /// <summary>
-    /// A replacement keeps the authored package-relative slot, but the staged extension must follow
-    /// the external source: the writer's audio probe selects its parser from the package-relative
-    /// extension, so staging OGG bytes at a .wav path would pass the preview yet fail the next save.
-    /// </summary>
-    private static string ReplaceResourceExtension(string packageRelativePath, string externalSourcePath)
-    {
-        var extension = Path.GetExtension(externalSourcePath).ToLowerInvariant();
-        if (string.Equals(Path.GetExtension(packageRelativePath), extension, StringComparison.OrdinalIgnoreCase))
-            return packageRelativePath;
-        var normalized = packageRelativePath.Replace('\\', '/');
-        var slash = normalized.LastIndexOf('/');
-        var directory = slash < 0 ? "" : normalized[..(slash + 1)];
-        return directory + Path.GetFileNameWithoutExtension(normalized) + extension;
-    }
 }

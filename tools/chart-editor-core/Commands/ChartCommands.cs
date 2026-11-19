@@ -34,7 +34,8 @@ public sealed class AddChartCommand(EditableChart chart, int? index = null) : IE
 }
 
 /// <summary>Copies an existing chart so a new difficulty starts from valid authored data.</summary>
-public sealed class CopyChartCommand(string sourceChartId, string chartId, string file, int? index = null) : IEditorCommand
+public sealed class CopyChartCommand(string sourceChartId, string chartId, string file, int? index = null,
+    string? difficultyKey = null) : IEditorCommand
 {
     private readonly int? _requestedIndex = index;
     private EditableChart? _copy;
@@ -51,6 +52,8 @@ public sealed class CopyChartCommand(string sourceChartId, string chartId, strin
             _copy = source.Clone();
             _copy.Id = chartId;
             _copy.File = file;
+            if (_copy.Difficulty == V2Difficulty.Custom)
+                _copy.DifficultyKey = difficultyKey ?? EditorDifficultyNames.NextCustomKey(document, source.DifficultyKey!);
         }
         _index = _index == 0 && _requestedIndex is null ? document.Charts.Count : _index;
         if (_requestedIndex is not null) _index = _requestedIndex.Value;

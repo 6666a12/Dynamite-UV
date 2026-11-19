@@ -23,7 +23,7 @@ internal static class WorkspaceDesktopVerification
         var factory = window.LayoutFactory;
         var root = factory.CreateLayout();
         var child = window.Stage.Host.Diagnostics().Child;
-        var dockControl = window.FindControl<Dock.Avalonia.Controls.DockControl>("Dock")!;
+        var dockControl = (Dock.Avalonia.Controls.DockControl)window.FindControl<Border>("ProjectDockHost")!.Child!;
         var layout = dockControl.Layout;
         var originals = new[] { "stage", "tools", "timing", "properties" }
             .Select(id => factory.Find(d => d.Id == id).Single()).ToArray();

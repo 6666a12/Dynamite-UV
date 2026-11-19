@@ -10,6 +10,8 @@ public partial class EditorStagePreview : Control
 {
     private readonly GameplayStageRenderer _renderer;
     private readonly EditorPlacementOverlay _placementOverlay;
+    private readonly EditorBarGuides _barGuides = new();
+    public void SetBarGuides(int left, int center, int right) => _barGuides.SetLevels(left, center, right);
     private readonly Node2D _playbackRoot;
     private readonly EditorAutoPreview _autoPreview;
     private readonly Node2D _hudRoot;
@@ -102,6 +104,8 @@ public partial class EditorStagePreview : Control
             Position = new Vector2(0f, 40f),
             ShowControlNodes = true,
         };
+        _barGuides.Position = _renderer.Position;
+        _stageRoot.AddChild(_barGuides);
         _stageRoot.AddChild(_renderer);
         _renderer.BuildCommunityStageChrome(40f, gameplayHud: true);
         _renderer.SetNotes(_notes);
@@ -138,7 +142,7 @@ public partial class EditorStagePreview : Control
         CancelGesture();
         _gamePreview = enabled;
         _hud?.SetGamePreview(enabled);
-        _selectionOverlay.Visible = _placementOverlay.Visible = !enabled;
+        _barGuides.Visible = _selectionOverlay.Visible = _placementOverlay.Visible = !enabled;
         if (enabled && _adapted is not null)
         {
             _autoPreview.Reset(_adapted, _currentTime, _playerSpeed);
@@ -281,6 +285,7 @@ public partial class EditorStagePreview : Control
 
     private void RefreshPlacementPreview()
     {
+        _barGuides.SetClock(_metadata, _currentTime, _playerSpeed);
         _placementOverlay.SetPlacement(_authoring.PlacementPreview, _metadata, _currentTime, _playerSpeed, _notes);
         if (_marquee.Active) UpdateMarquee(_marquee.Pointer);
     }
@@ -301,6 +306,10 @@ public partial class EditorStagePreview : Control
         _hudRoot.Scale = Vector2.One * scale;
         _stageRoot.Position = _stageRect.Position + (_gamePreview ? Vector2.Zero : new Vector2(_panOffsetX * scale, _panOffsetY * scale));
         _stageRoot.Scale = Vector2.One * scale;
+        var visibleStage = new Rect2(-new Vector2(_panOffsetX, _panOffsetY) - _renderer.Position,
+            new Vector2(GameplayStageGeometry.DesignWidth, GameplayStageGeometry.DesignHeight));
+        _barGuides.SetViewport(visibleStage);
+        _placementOverlay.SetVisibleStage(visibleStage);
         _selectionOverlay.Size = Size;
         _selectionOverlay.QueueRedraw();
     }

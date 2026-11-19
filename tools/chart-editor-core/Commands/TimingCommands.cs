@@ -216,7 +216,7 @@ public sealed class DeleteScrollCommand(ExactBarTime time) : IEditorCommand
 
 public sealed class EditChartOffsetCommand(double audioOffsetSec) : IEditorCommand
 {
-    private double _oldOffset;
+    private ChartOffsetPosition _oldOffset;
     private bool _captured;
 
     public void Execute(EditorDocument document)
@@ -225,7 +225,7 @@ public sealed class EditChartOffsetCommand(double audioOffsetSec) : IEditorComma
             throw new InvalidOperationException("Chart audio offset must be finite.");
         if (!_captured)
         {
-            _oldOffset = document.SelectedChart.AudioOffsetSec;
+            _oldOffset = document.SelectedChart.OffsetPosition;
             _captured = true;
         }
         document.SelectedChart.AudioOffsetSec = audioOffsetSec;
@@ -235,6 +235,6 @@ public sealed class EditChartOffsetCommand(double audioOffsetSec) : IEditorComma
     {
         if (!_captured)
             throw new InvalidOperationException("Chart offset command has not executed.");
-        document.SelectedChart.AudioOffsetSec = _oldOffset;
+        document.SelectedChart.OffsetPosition = _oldOffset;
     }
 }

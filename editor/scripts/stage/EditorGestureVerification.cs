@@ -11,6 +11,7 @@ internal static class EditorGestureVerification
 {
     public static void Run()
     {
+        VerifyTimeGuideSpans();
         EditorMagnetVerification.Run();
         var chart = new V2Chart
         {
@@ -18,6 +19,7 @@ internal static class EditorGestureVerification
             Bpms = [new V2BpmEvent(ExactBarTime.Zero, 120)], ScrollSpeeds = [],
             NotesLeft = [], NotesCenter = [], NotesRight = [],
         };
+        StageSelectionVerification.Run(chart);
         var empty = V2RuntimeAdapter.Adapt(chart, requireMainJudgement: false);
         using (var stage = new EditorStagePreview())
         {
@@ -174,6 +176,31 @@ internal static class EditorGestureVerification
                 "only authored handles visible, all curve links retained");
             renderer.Free();
         }
+    }
+
+    private static void VerifyTimeGuideSpans()
+    {
+        var overlay = new EditorPlacementOverlay();
+        try
+        {
+            foreach (var bounds in new[] { new Rect2(0, -40, 1920, 1080), new Rect2(-180, 110, 1920, 1080) })
+            {
+                overlay.SetVisibleStage(bounds);
+                foreach (var track in new[] { Track.Center, Track.Left, Track.Right })
+                {
+                    const float remaining = 240f;
+                    var point = GameplayStageGeometry.PositionAt(track, 2.5, remaining);
+                    var line = overlay.TimeGuideSpan(track, remaining) ?? throw new InvalidOperationException("Missing visible time guide");
+                    var horizontal = track == Track.Center;
+                    Check(line.From == (horizontal ? new Vector2(bounds.Position.X, point.Y) : new Vector2(point.X, bounds.Position.Y)) &&
+                        line.To == (horizontal ? new Vector2(bounds.End.X, point.Y) : new Vector2(point.X, bounds.End.Y)),
+                        $"{track}: guide spans both viewport edges through the projected note time");
+                    Check(overlay.TimeGuideSpan(track, 10000f) is null, "offscreen guide does not stick to viewport edge");
+                }
+            }
+            GD.Print("PASS Godot full-span placement time guides: center/left/right, normal and panned viewport");
+        }
+        finally { overlay.Free(); }
     }
 
     private static Vector2 Point(EditorTrack track, double bar, double center = 2.5)

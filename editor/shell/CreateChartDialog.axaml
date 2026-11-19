@@ -8,8 +8,8 @@
         FontFamily="{DynamicResource OfficialFont}">
   <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="18">
     <StackPanel Spacing="5">
-      <TextBlock x:Name="DialogTitle" Classes="section" FontSize="20" />
-      <TextBlock x:Name="DialogSubtitle" Classes="caption" TextWrapping="Wrap" />
+      <TextBlock Text="{local:Tr Create.NewTitle}" Classes="section" FontSize="20" />
+      <TextBlock Text="{local:Tr Create.NewSubtitle}" Classes="caption" TextWrapping="Wrap" />
     </StackPanel>
     <ScrollViewer Grid.Row="1" MaxHeight="650">
       <StackPanel Spacing="16">
@@ -63,7 +63,7 @@
                 <ComboBoxItem Content="HARD" />
                 <ComboBoxItem Content="MEGA" />
                 <ComboBoxItem Content="GIGA" />
-                <ComboBoxItem Content="TERA" />
+                <ComboBoxItem Content="TECH" />
                 <ComboBoxItem Content="CUSTOM" />
               </ComboBox>
             </StackPanel>
@@ -79,10 +79,6 @@
             </StackPanel>
             <CheckBox x:Name="UnratedValue" Grid.Column="1" Content="{local:Tr Create.Unrated}" VerticalAlignment="Bottom" Margin="0,0,0,8" />
           </Grid>
-          <StackPanel x:Name="AddCharterField" Spacing="5" IsVisible="False">
-            <TextBlock Classes="eyebrow" Text="{local:Tr Create.Charter}" />
-            <TextBox x:Name="AddCharterValue" Text="Community" />
-          </StackPanel>
           <Grid x:Name="TimingFields" ColumnDefinitions="*,*" ColumnSpacing="12">
             <StackPanel Spacing="5">
               <TextBlock Classes="eyebrow" Text="{local:Tr Create.Bpm}" />
@@ -100,7 +96,7 @@
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
       <TextBlock x:Name="SaveHint" Classes="caption" VerticalAlignment="Center" Text="{local:Tr Create.SaveHint}" TextWrapping="Wrap" Margin="0,0,16,0" />
       <Button Grid.Column="1" Content="{local:Tr Create.Cancel}" Classes="ghost" Click="Cancel" />
-      <Button x:Name="ConfirmButton" Grid.Column="2" Classes="accent" Click="Confirm" />
+      <Button x:Name="ConfirmButton" Content="{local:Tr Create.Create}" Grid.Column="2" Classes="accent" Click="Confirm" />
     </Grid>
   </Grid>
 </Window>

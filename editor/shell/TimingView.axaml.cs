@@ -8,10 +8,8 @@ using DynamiteUniverse.Shared.Chart.V2;
 namespace DynamiteUniverse.Editor.Shell;
 
 /// <summary>
-/// Compact BPM and Scroll event editor for the selected chart. The view never executes commands
-/// and never owns saving; it only raises <see cref="CommandRequested"/> with core
-/// <see cref="IEditorCommand"/> instances and reports invalid input through
-/// <see cref="ErrorRequested"/> plus an inline status line.
+/// Timing editor for the selected difficulty. BPM/Scroll requests go to the workbench;
+/// live offset gestures use a chart-owned undo token. Neither route owns saving.
 /// </summary>
 public sealed partial class TimingView : UserControl
 {
@@ -27,6 +25,7 @@ public sealed partial class TimingView : UserControl
     private decimal? _displayedScroll;
 
     public event Action<IEditorCommand>? CommandRequested;
+    public event Action<EditorSelection>? RowSelectionChanged;
     public event Action<string>? ErrorRequested;
 
     public TimingView()
@@ -39,7 +38,11 @@ public sealed partial class TimingView : UserControl
     /// <summary>Swaps the document shown by the panel; call again after every executed command.</summary>
     public void SetDocument(EditorDocument? document)
     {
+        var switched = !ReferenceEquals(_document, document) || _offsetChartId != document?.SelectedChartId;
+        if (switched) EndOffsetNudge();
         _document = document;
+        _offsetChartId = document?.SelectedChartId;
+        UpdateOffset(switched);
         UpdateView();
     }
 
@@ -55,9 +58,49 @@ public sealed partial class TimingView : UserControl
     private ListBox ScrollListBox => this.FindControl<ListBox>("ScrollList")!;
     private TextBlock ErrorBlock => this.FindControl<TextBlock>("TimingError")!;
 
+    private string? _offsetChartId, _offsetShown;
+    private ChartOffsetNudge? _offsetNudge;
+    public event Action? OffsetPreviewChanged;
+
+    public void EndOffsetNudge() { _offsetNudge?.End(); _offsetNudge = null; }
+    public bool NudgeOffset(int direction, bool fine)
+    {
+        if (_document is null || direction is not (1 or -1)) return false;
+        _offsetNudge ??= _document.BeginChartOffsetNudge();
+        try { if (!_offsetNudge.Step(direction * (fine ? .001 : .010))) return false; }
+        catch (Exception ex) when (ex is ArithmeticException or ArgumentException or InvalidOperationException)
+        { EndOffsetNudge(); ShowError(ex.Message); return false; }
+        UpdateOffset(false); ClearError(); OffsetPreviewChanged?.Invoke(); return true;
+    }
+
+    private void UpdateOffset(bool replaceDraft)
+    {
+        var field = this.FindControl<TextBox>("OffsetMsInput")!;
+        var chart = Chart;
+        var display = chart is null ? "" : ChartOffsetUnits.FormatMilliseconds(chart.AudioOffsetSec, signed: true);
+        this.FindControl<TextBlock>("OffsetReadout")!.Text = chart is null ? "—" : _text.Format("Timing.OffsetStatus", chart.Id, display);
+        if (replaceDraft || field.Text == _offsetShown || _offsetShown == null) field.Text = display;
+        _offsetShown = display;
+        field.IsEnabled = this.FindControl<Button>("OffsetApplyButton")!.IsEnabled = chart is not null;
+    }
+
+    private void ApplyOffset(object? sender, RoutedEventArgs e)
+    {
+        if (_document is null) return;
+        EndOffsetNudge();
+        var input = this.FindControl<TextBox>("OffsetMsInput")!.Text?.Trim();
+        if (input == _offsetShown) return; // Do not round-trip a previously loaded binary64 value.
+        if (!ChartOffsetUnits.TryParseMilliseconds(input, out var seconds))
+        { ShowError(_text["Timing.Error.InvalidOffset"]); return; }
+        var changed = seconds != _document.SelectedChart.AudioOffsetSec;
+        if (changed) _document.Execute(new EditChartOffsetCommand(seconds));
+        UpdateOffset(true); ClearError(); if (changed) OffsetPreviewChanged?.Invoke();
+    }
+
     private void OnLanguageChanged()
     {
         UpdatePlayheadCaption();
+        UpdateOffset(false);
         ClearError();
     }
 
@@ -181,11 +224,12 @@ public sealed partial class TimingView : UserControl
             _loadedBpm = bpm.Bpm;
             _displayedBpm = DisplayValue(bpm.Bpm);
             this.FindControl<NumericUpDown>("BpmValueInput")!.Value = _displayedBpm;
-            _document?.Select(new EditorSelection(EditorSelectionKind.Bpm, ExactBarTimeText.Format(time)));
+            if (_document?.Selection is not { Kind: EditorSelectionKind.Bpm, Id: var current } || current != ExactBarTimeText.Format(time))
+                RowSelectionChanged?.Invoke(new EditorSelection(EditorSelectionKind.Bpm, ExactBarTimeText.Format(time)));
         }
         else if (_document?.Selection is { Kind: EditorSelectionKind.Bpm })
         {
-            _document.Select(EditorSelection.None);
+            RowSelectionChanged?.Invoke(EditorSelection.None);
         }
         ClearOtherTimingSelection(ScrollListBox);
         UpdateEnabledState();
@@ -204,15 +248,25 @@ public sealed partial class TimingView : UserControl
             var curve = scroll.CurveToNext;
             this.FindControl<ComboBox>("ScrollCurveChoice")!.SelectedIndex =
                 curve is null ? 0 : Array.IndexOf(ScrollCurves, curve.Value) + 1;
-            _document?.Select(new EditorSelection(EditorSelectionKind.Scroll, ExactBarTimeText.Format(time)));
+            if (_document?.Selection is not { Kind: EditorSelectionKind.Scroll, Id: var current } || current != ExactBarTimeText.Format(time))
+                RowSelectionChanged?.Invoke(new EditorSelection(EditorSelectionKind.Scroll, ExactBarTimeText.Format(time)));
         }
         else if (_document?.Selection is { Kind: EditorSelectionKind.Scroll })
         {
-            _document.Select(EditorSelection.None);
+            RowSelectionChanged?.Invoke(EditorSelection.None);
         }
         ClearOtherTimingSelection(BpmListBox);
         UpdateEnabledState();
         ClearError();
+    }
+
+    internal void ClearRowSelection()
+    {
+        if (BpmListBox.SelectedItem is null && ScrollListBox.SelectedItem is null) return;
+        _updating = true;
+        try { BpmListBox.SelectedItem = ScrollListBox.SelectedItem = null; }
+        finally { _updating = false; }
+        UpdateEnabledState();
     }
 
     /// <summary>The two timing lists share one selection; keep the document mirror exclusive too.</summary>

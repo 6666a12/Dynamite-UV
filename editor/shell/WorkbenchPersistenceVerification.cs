@@ -9,7 +9,7 @@ namespace DynamiteUniverse.Editor.Shell;
 
 internal static class WorkbenchPersistenceVerification
 {
-    internal static void Run(string directory, Action<string, bool> check)
+    internal static async Task Run(string directory, string source, Action<string, bool> check)
     {
         Directory.CreateDirectory(directory);
         var store = new WorkbenchUserStore(directory);
@@ -34,8 +34,8 @@ internal static class WorkbenchPersistenceVerification
         Dispatcher.UIThread.RunJobs();
         check("Preferences restored before interaction", window.SnapDenominator == 5 && window.WheelReversed &&
             window.FindControl<ComboBox>("LanguageChoice")!.SelectedIndex == 1);
-        var layout = window.LayoutFactory.CreateLayout();
-        var original = window.Stage;
+        await window.OpenPackageForVerification(source);
+        Dispatcher.UIThread.RunJobs();
         window.LayoutFactory.FloatStage();
         Dispatcher.UIThread.RunJobs();
         var snapshot = window.LayoutFactory.CaptureLayout();
@@ -43,10 +43,23 @@ internal static class WorkbenchPersistenceVerification
         check("Floating layout captures separate window", snapshot.Windows.Count == 1);
         window.Close();
         Dispatcher.UIThread.RunJobs();
+        var layoutFile = Path.Combine(directory, WorkbenchLayoutSnapshot.FileName);
+        var savedBytes = File.ReadAllBytes(layoutFile);
+        var launches = 0;
+        var untouched = new MainWindow(directory, () => launches++);
+        untouched.Show();
+        Dispatcher.UIThread.RunJobs();
+        check("Saved floating stage stays detached on the start page", launches == 0 &&
+            !untouched.LayoutFactory.FloatingWindows().Any() && TopLevel.GetTopLevel(untouched.Stage) is null);
+        untouched.Close();
+        Dispatcher.UIThread.RunJobs();
+        check("Closing the start page preserves the saved floating layout", launches == 0 &&
+            File.ReadAllBytes(layoutFile).SequenceEqual(savedBytes));
         var reopened = new MainWindow(directory);
         reopened.Show();
+        await reopened.OpenPackageForVerification(source);
         Dispatcher.UIThread.RunJobs();
-        check("Floating layout restores", !ReferenceEquals(TopLevel.GetTopLevel(reopened.Stage), reopened));
+        check("Floating layout restores", TopLevel.GetTopLevel(reopened.Stage) is Window { IsVisible: true } floating && !ReferenceEquals(floating, reopened));
         var root = reopened.LayoutFactory.CreateLayout();
         reopened.LayoutFactory.RestoreWorkspace();
         Dispatcher.UIThread.RunJobs();
@@ -56,6 +69,7 @@ internal static class WorkbenchPersistenceVerification
         Dispatcher.UIThread.RunJobs();
         var pinnedWindow = new MainWindow(directory);
         pinnedWindow.Show();
+        await pinnedWindow.OpenPackageForVerification(source);
         Dispatcher.UIThread.RunJobs();
         var pinnedRoot = pinnedWindow.LayoutFactory.CreateLayout();
         IDockable Find(IDockable node, string id) => node.Id == id ? node :
@@ -69,15 +83,16 @@ internal static class WorkbenchPersistenceVerification
         Dispatcher.UIThread.RunJobs();
         var pinnedReload = new MainWindow(directory);
         pinnedReload.Show();
+        await pinnedReload.OpenPackageForVerification(source);
         Dispatcher.UIThread.RunJobs();
         check("Pinned tool layout survives restart", pinnedReload.LayoutFactory.CreateLayout().LeftPinnedDockables?.Any(d => d.Id == "tools") == true);
         pinnedReload.Close();
         Dispatcher.UIThread.RunJobs();
-        OrdinaryDockRecovery(Path.Combine(directory, "ordinary-dock"), check);
+        await OrdinaryDockRecovery(Path.Combine(directory, "ordinary-dock"), source, check);
         WorkbenchLocalizer.Shared.SetLanguage("en");
     }
 
-    private static void OrdinaryDockRecovery(string directory, Action<string, bool> check)
+    private static async Task OrdinaryDockRecovery(string directory, string source, Action<string, bool> check)
     {
         var window = new MainWindow(directory);
         var factory = window.LayoutFactory;
@@ -88,6 +103,7 @@ internal static class WorkbenchPersistenceVerification
         try
         {
             window.Show();
+            await window.OpenPackageForVerification(source);
             Dispatcher.UIThread.RunJobs();
             var root = factory.CreateLayout();
             var stage = Find(root, "stage");

@@ -46,10 +46,20 @@ internal static class Verification
         try
         {
             await SaveInteractionVerification.Run(Path.Combine(root, "save-interactions"), Check);
+            await AddDifficultyFormVerification.Run(Path.Combine(root, "difficulty-form"), Check);
+            await WorkbenchModalVerification.Run(Path.Combine(root, "modal-host"), Check);
+            PreviewClockVerification.Run(Check);
+            await WorkbenchTimingKeysVerification.Run(Path.Combine(root, "timing-keys"), Check);
+            await TimelineRhythmVerification.Run(Path.Combine(root, "rhythm-timeline"), Check);
             StageLaunchVerification.Run(Path.Combine(root, "launch"), Check);
             await ReplacementGuardVerification.Run(Path.Combine(root, "replacement"), Check);
+            CreatePackage(source);
+            await ProjectStartVerification.Run(Path.Combine(root, "start-page"), source, Check);
             window.Show();
+            await window.OpenPackageForVerification(source);
             Dispatcher.UIThread.RunJobs();
+            Check("Shell opens a strict v2 package", window.CurrentDocument?.Title == "Shell Fixture" &&
+                window.CurrentDocument.SelectedChart.Notes.Count == 1);
             Check("Game preview UI entry is absent and starts disabled", !window.Stage.GamePreviewEnabled &&
                 window.Stage.FindControl<CheckBox>("GamePreviewToggle") is null);
             Check("Real Dock layout", window.GetVisualDescendants().OfType<DockControl>()
@@ -72,7 +82,7 @@ internal static class Verification
                     ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window));
             }
             WorkspaceVerification.Run(window, Check);
-            WorkbenchPersistenceVerification.Run(Path.Combine(root, "persistence"), Check);
+            await WorkbenchPersistenceVerification.Run(Path.Combine(root, "persistence"), source, Check);
             Check("Q/E changes preview speed", window.ShortcutForVerification(Key.E) && window.PlayerSpeed == 1.1);
             Check("W/S changes playback rate", window.ShortcutForVerification(Key.W) &&
                 window.PlaybackRate == 1.1 && window.ShortcutForVerification(Key.S) && window.PlaybackRate == 1.0);
@@ -101,10 +111,6 @@ internal static class Verification
             window.ShortcutForVerification(Key.B);
             Check("F1 opens and Escape closes help", window.ShortcutForVerification(Key.F1) &&
                 window.ShortcutsVisible && window.ShortcutForVerification(Key.Escape) && !window.ShortcutsVisible);
-            CreatePackage(source);
-            await window.OpenPackageForVerification(source);
-            Check("Shell opens a strict v2 package", window.CurrentDocument?.Title == "Shell Fixture" &&
-                window.CurrentDocument.SelectedChart.Notes.Count == 1);
             window.SelectNoteForVerification(window.CurrentDocument!.SelectedChart.Notes[0].Id);
             Check("Ctrl+C copies selected notes", window.ShortcutForVerification(Key.C, KeyModifiers.Control));
             window.SeekForVerification(2);
@@ -327,7 +333,7 @@ internal static class Verification
 
             var newForm = new EditorCreateForm("new-pack", "New Package", "Community Artist",
                 Path.Combine(root, "fixture.wav"), "main", 2, "", 12, false, "Community", 120, 0, null);
-            var createDialog = new CreateChartDialog(EditorCreateMode.NewPackage, null, 16);
+            var createDialog = new CreateChartDialog(null, 16);
             createDialog.Show();
             createDialog.SetFormForVerification(newForm);
             Check("New package form builds a typed draft request",
@@ -426,6 +432,7 @@ internal static class Verification
             window.ShortcutForVerification(Key.Z, KeyModifiers.Control);
 
             var tapId = window.CurrentDocument!.SelectedChart.Notes.Single(note => note.Type == V2NoteType.Tap).Id;
+            SelectionContextVerification.Run(window, tapId, holdId, nodeId, Check);
             window.SelectNotesForVerification(tapId, holdId);
             window.ApplySpeedForVerification(1.6);
             Check("Multi-selection applies one speed command batch", window.CurrentDocument.SelectedChart.Notes

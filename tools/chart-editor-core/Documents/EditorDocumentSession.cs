@@ -61,6 +61,13 @@ public sealed class EditorDocumentSession
         document.Execute(new AddChartCommand(chart));
     }
 
+    public Task<PreparedDifficulty> PrepareDifficultyAsync(AddDifficultyRequest request,
+        IV2PackageAudioProbe? probe = null, CancellationToken cancellationToken = default) =>
+        EditorDifficultyCreation.PrepareAsync(Document ?? throw new InvalidOperationException("没有打开的包 / No open package."),
+            Draft, request, probe, cancellationToken);
+
+    public void AddDifficulty(PreparedDifficulty prepared) => prepared.Apply(Document);
+
     public EditorSaveResult Save(string destinationDirectory)
     {
         var save = PrepareSave(destinationDirectory);
@@ -78,21 +85,22 @@ public sealed class EditorDocumentSession
         PrepareSave(string destinationDirectory)
     {
         var document = Document ?? throw new InvalidOperationException("没有可保存的文档。");
+        document.EndChartOffsetNudge();
         var version = document.ChangeVersion;
-        var resources = document.PendingResourceReplacements;
+        var pack = document.BuildPackSnapshot();
+        var resources = EditorMediaSlots.ReferencedMappings(pack, document.PendingResourceReplacements);
         Func<V2PackageWriteResult> write;
         EditorSaveKind kind;
         if (document.IsUnpersisted)
         {
             var draft = Draft ?? throw new InvalidOperationException("内存草稿缺少外部资源，无法创建包。");
-            var request = draft.BuildPackageCreateRequest(destinationDirectory, allowEmptyDestination: true);
-            // Resource changes applied to the draft (audio/cover replacements, chart audio
-            // overrides) stage their sources as pending replacements. The first save must publish
-            // them instead of the draft's original external resources, otherwise the new package
-            // silently keeps the pre-settings media.
-            var pending = document.PendingResourceReplacements;
-            if (pending.Count > 0)
-                request = request with { ExternalResources = MergeFirstSaveResources(document, request.ExternalResources, pending) };
+            var request = new V2PackageCreateRequest
+            {
+                DestinationDirectory = destinationDirectory, Pack = pack, Charts = document.BuildAllChartSnapshots(),
+                AudioProbe = draft.AudioProbe, AllowEmptyDestination = true,
+                ExternalResources = EditorMediaSlots.ReferencedMappings(pack, draft.ExternalResources.Select(pair =>
+                    new V2ExternalResourceMapping(pair.Value, pair.Key)).Concat(resources)),
+            };
             write = () => V2PackageWriter.Create(request);
             kind = EditorSaveKind.Created;
         }
@@ -102,7 +110,7 @@ public sealed class EditorDocumentSession
             {
                 SourceDirectory = document.PackageDirectory!,
                 DestinationDirectory = destinationDirectory,
-                Pack = document.BuildPackSnapshot(),
+                Pack = pack,
                 Charts = document.BuildAllChartSnapshots(),
                 ExternalResources = resources,
                 AllowEmptyDestination = true,
@@ -117,24 +125,6 @@ public sealed class EditorDocumentSession
             if (ReferenceEquals(Document, document)) Draft = null;
             return new(kind, result.DestinationDirectory, document.Charts.Count);
         });
-    }
-
-    /// <summary>Pending resources override original draft media; unreferenced mappings are omitted.</summary>
-    private static IReadOnlyList<V2ExternalResourceMapping> MergeFirstSaveResources(
-        EditorDocument document, IReadOnlyList<V2ExternalResourceMapping> original,
-        IReadOnlyList<V2ExternalResourceMapping> pending)
-    {
-        var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (document.Audio is { } audio) referenced.Add(audio);
-        if (document.Cover is { } cover) referenced.Add(cover);
-        foreach (var chart in document.Charts)
-            if (chart.Audio is { } chartAudio) referenced.Add(chartAudio);
-        return original
-            .Where(mapping => referenced.Contains(mapping.PackageRelativePath))
-            .Where(mapping => pending.All(item =>
-                !string.Equals(item.PackageRelativePath, mapping.PackageRelativePath, StringComparison.OrdinalIgnoreCase)))
-            .Concat(pending)
-            .ToArray();
     }
 
     public string? ResolveDigestAudio()

@@ -101,8 +101,8 @@ public sealed class GodotStageService : IDisposable
     public void Update(string chartJson, string title, string artist, string? audioPath,
         long revision, IReadOnlyList<string> selection, string difficulty = "", int? level = null) =>
         Send(new { command = "update", chart = chartJson, title, artist, audioPath, revision, selection, difficulty, level });
-    public void TogglePlayback(bool playing) => Send(new { command = "play", playing });
-    public void Seek(double bar) => Send(new { command = "seek", bar });
+    public bool TogglePlayback(bool playing, long clockRequest = 0) => TrySend(new { command = "play", playing, clockRequest });
+    public bool Seek(double bar, long clockRequest = 0) => TrySend(new { command = "seek", bar, clockRequest });
     public void SetPlayerSpeed(double multiplier) => Send(new { command = "playerSpeed", multiplier });
     public void SetPlaybackRate(double multiplier) => Send(new { command = "playbackRate", multiplier });
     public void SetAuthoring(string tool, string type, string track, double width, int grid, bool positionSnap = true) =>

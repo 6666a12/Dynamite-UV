@@ -10,14 +10,16 @@ Windows 制谱器采用两个协作进程：`shell/` 是 .NET 10 / Avalonia 工�
 
 ## 当前可用
 
-- strict v2 本地目录包新建/打开、保存、另存为；添加/切换/复制/删除/重排差分、dirty 状态和失败提示。
+启动后先看到项目起始页。点「打开谱面包」（Ctrl+O）选谱包目录，或点「新建谱面包」（Ctrl+N）创建草稿。进入项目才恢复面板并启动舞台；停在起始页不会启动 Godot。
+
+- strict v2 本地目录包新建/打开、保存、另存为；添加/切换/复制/删除/重排差分。新版「+ 差分」在主窗口内填写，默认用当前录音、完整 BPM 表和偏移建一张空谱；也可换录音并重新对轨。用法见[教程第 9 节](../site/guide.html#save)。要试本轮改动请从源码启动，已确认的旧测试包不会自动更新。
 - 包与差分设置可编辑元数据、音频偏移、试听区间和音频/封面替换；整组设置只产生一个撤销步骤。
 - Godot 内 Note 点击/Shift 多选，SELECT 空白处左键框选当前轨道的位置/时间范围（按住可随音乐跨屏，已判定音符仍可选；Shift 追加、右键/Esc 取消）；支持拖动移动、边缘调宽、Hold/Mixer 整体移动和多选整组拖动；PAN 调整预览时间与横向视图。
 - Inspector 支持单选 Note 的精确时间、位置、宽度、轨道和类型编辑；多选可批量调速、步进和删除。
-- TIMING 面板支持 BPM/Scroll 事件增删改、精确 BarTime、Scroll 曲线与撤销。
+- TIMING 面板顶部可直接输入当前差分的音频偏移（毫秒）；O / P 晚 / 早 10 ms，按 Shift 为 1 ms。方向键 ← / ↓ / → 独立切换三面辅助小节线。面板也支持 BPM/Scroll 事件增删改、精确 BarTime、Scroll 曲线与撤销。
 - 七类 Note 的真实 hover ghost、目标 BarTime/位置/宽度、跨轨导引和同位置/同宽提示；点击放置、拖动调宽、宽度记忆，Z 自由时间、X 位置精调；Hold/Mixer 两段式尾点创建。
 - Hold/Mixer 路径双击插点、拖动头/节点、出向曲线及 Hold 节点判定编辑。
-- 播放/暂停、时间轴 seek、真实 Note 刻度；WAV/MP3/Ogg Vorbis/FLAC 音频预览。同差分且音频路径不变时，Shell 发送带 revision 的完整 Chart 快照（`update`），舞台保留播放状态、播放头和选择并复用音频；不是逐个 Note 传差量。
+- 播放/暂停、全曲定位和当前放置面的八小节节奏窗；WAV/MP3/Ogg Vorbis/FLAC 音频预览。同差分且音频路径不变时，Shell 发送带 revision 的完整 Chart 快照（`update`），舞台保留播放状态、播放头和选择并复用音频；不是逐个 Note 传差量。
 - `Q / E` 调整玩家预览流速（0.1–2.0，与游戏落速倍率一致），`W / S` 调整音乐倍率（0.2–2.0）。两者不写谱面。
 - 播放 Auto 预览复用游戏音符、残影、命中及 Hold/Mixer 持续视觉；seek/编辑静默重建，暂停冻结。空白舞台右键面板提供放置面、Note 类型、SELECT/PATH、预览音量与特效档位，不写游戏设置或谱面。
 - 中英文即时切换、Dock 浮动/还原、Suki 动效档位；`F1` 查看完整快捷键。
@@ -34,17 +36,12 @@ Windows 制谱器采用两个协作进程：`shell/` 是 .NET 10 / Avalonia 工�
 
 ## 构建与启动
 
-从 **community 根目录**执行：
+先保存工作并正常关闭现有制谱器，确认其 Godot 子进程已退出，再从 **community 根目录**执行。下面用 PowerShell 7 的 `&&`：两端 Debug 构建都成功才启动，不会在 DLL 被占用时继续运行旧版本。只构建 Release 不会更新这个入口。
 
 ```powershell
-dotnet build editor/DynaMakerUv.Editor.csproj
-dotnet build editor/shell/DynaMakerUv.Editor.Shell.csproj
-
-# 无匹配进程时 taskkill 会提示未找到
-taskkill /F /IM Godot_v4.7.1-stable_mono_win64_console.exe
-taskkill /F /IM Godot_v4.7.1-stable_mono_win64.exe
-
-dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj --no-build
+dotnet build editor/DynaMakerUv.Editor.csproj -c Debug &&
+  dotnet build editor/shell/DynaMakerUv.Editor.Shell.csproj -c Debug &&
+  dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -c Debug --no-build
 ```
 
 Shell 默认使用外层 `godot/` 的 Godot 4.7.1 Mono；可用环境变量 `DYNAMAKER_GODOT` 指定引擎可执行文件。直接用 Godot 启动 `editor` 仅用于原生舞台调试，不会显示 Avalonia 工作台。

@@ -16,6 +16,9 @@ public sealed class EditorStageIpc : IDisposable
     private volatile bool _stopping;
 
     public bool Ended { get; private set; }
+    // Every event carries the interaction boundary at which it was produced. The Shell can
+    // discard stale authoring input even if its dispatcher delivers it after a sheet closed.
+    public long WorkbenchEpoch { get; set; }
 
     public void Start()
     {
@@ -53,9 +56,18 @@ public sealed class EditorStageIpc : IDisposable
         writer.WriteNumber("height", size.Y);
     });
 
-    public void SendTick(double second, double bar, bool playing, double playerSpeed, double playbackRate) =>
-        Emit("tick", writer =>
+    public void SendTimelineDuration(long revision, double seconds) => Emit("timelineDuration", writer =>
+    {
+        writer.WriteNumber("revision", revision);
+        writer.WriteNumber("seconds", seconds);
+    });
+
+    public void SendTick(double second, double bar, bool playing, double playerSpeed, double playbackRate,
+        long revision, long clockRequest, bool frame) => Emit("tick", writer =>
         {
+            writer.WriteNumber("revision", revision);
+            writer.WriteNumber("clockRequest", clockRequest);
+            writer.WriteBoolean("frame", frame);
             writer.WriteNumber("second", second);
             writer.WriteNumber("bar", bar);
             writer.WriteBoolean("playing", playing);
@@ -126,9 +138,13 @@ public sealed class EditorStageIpc : IDisposable
         writer.WriteNumber("widthStep", request.WidthStep);
     });
 
-    public void SendKey(Key key, bool ctrl, bool shift, bool alt) => Emit("key", writer =>
+    public long LoadRevision { get; set; } = -1;
+    public void SendKey(Key key, bool ctrl, bool shift, bool alt, bool pressed = true, bool echo = false) => Emit("key", writer =>
     {
         writer.WriteString("key", key.ToString());
+        writer.WriteBoolean("pressed", pressed);
+        writer.WriteBoolean("echo", echo);
+        writer.WriteNumber("loadRevision", LoadRevision);
         writer.WriteBoolean("ctrl", ctrl);
         writer.WriteBoolean("shift", shift);
         writer.WriteBoolean("alt", alt);
@@ -190,6 +206,7 @@ public sealed class EditorStageIpc : IDisposable
         {
             writer.WriteStartObject();
             writer.WriteString("event", name);
+            writer.WriteNumber("workbenchEpoch", WorkbenchEpoch);
             body(writer);
             writer.WriteEndObject();
         }

@@ -27,8 +27,11 @@ public sealed class NativeStageHost : Control
 
     public event Action? GeometryChanged;
 
-    public void SetGodotHandle(nint value)
+    public void SetGodotHandle(nint value, nint mainWindow = 0)
     {
+        // A saved layout may first display the stage in a floating window. That temporary
+        // HWND cannot be the safe parking parent when Dock later closes the floating host.
+        _fallbackParent = value == 0 ? 0 : mainWindow;
         if (_child == value) return;
         if (_child != 0) Win32.ShowWindow(_child, Win32.SwHide);
         _child = value;
@@ -41,6 +44,7 @@ public sealed class NativeStageHost : Control
     {
         if (_occluded == value) return;
         _occluded = value;
+        if (value && _child != 0) { Win32.ShowWindow(_child, Win32.SwHide); _lastPlacement = null; }
         QueueSync();
     }
 

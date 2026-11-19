@@ -55,6 +55,41 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+**2026-11-20 · 制谱器逐帧预览时钟。** 默认 Debug 舞台和工作台已重建；`python -B tools/verify.py --configuration Debug --no-restore` 通过。Shell 回归验证 600 个连续待显示帧只占一个回调、暂停/按键/恢复顺序、同一显示样本更新底栏与 TIMING、旧请求/旧修订不回写、连续点按及向后 seek。手动专项 `python -B tools/chart-editor-tests/native_clock_ipc_smoke.py --godot <console.exe>` 已在真实 Godot 4.7.1 Mono 无窗口运行，以临时 WAV 和变 BPM 谱测试：引擎限 60 FPS，两次观察各 1.11 秒，0.5× 收到约 60.5 帧/秒、1.5× 约 60.1 帧/秒。暂停确认的秒数与小节和上一条播放帧完全一致；暂停后停点不漂移，暂停/播放中后跳、自然曲尾冻结与音频只加载一次也通过。未代替用户做可见窗口流畅度验收。日志 `.tmp/native-frame-clock.log`、`.tmp/frame-clock-full.log`。
+
+**2026-11-20 · 同拍三种音符的节奏窗。** 在临时谱通过 Shell 的 `place` 路由逐颗加入同一轨、同一时刻的 Hold、Drag、Tap：旧版第三次放置后已有两颗的绘制行均变化，播放线又叠在标记之上；未复现程序退出。改为可复用的固定行，播放线画在音符后面，不改文档坐标和匹配规则。Release Shell `--headless` 通过，包含上述前后布局断言以及六种可绘制类型任选三种（20 组）在同一位置放置、实际控件渲染与撤销；结构和差异空白检查通过。未覆盖真实桌面合成异常。日志 `.tmp/three-note-chord-before.log`、`.tmp/three-note-chord-final.log`。
+
+**2026-11-20 · 底部节奏窗首版。** 实际运行 `python -B tools/verify.py --configuration Release --no-restore`，完整非图形回归通过；双语站点检查通过。14 个新增 Shell 断言覆盖全曲起音统计、三面过滤、同拍错行、长音跨窗、Hold 判定节点、带 BPM/offset 的音频末尾、过期时长丢弃、跟随边界、真实控件点击／拖动／滚轮及切面不改时间。截图 `.tmp/timeline-rhythm-v1.png` 是 Avalonia 控件对合成谱面的无窗口绘制。源码 Godot 舞台 Debug 已重建；用户仍在使用旧 Debug Shell，未终止其进程或启动第二个可见舞台。可试用入口是 Release 工作台，已直接运行其 `--headless` 验证。没有改变时钟刷新率或暂停行为，本轮未做物理滚轮和真实桌面观感验收。日志 `.tmp/rhythm-overview-full-release.log`、`.tmp/rhythm-final-entry.log`。
+
+**2026-11-20 · 放置导引线。** 默认 Debug 舞台已重建（0 警告、0 错误）。实际运行 Godot 4.7.1 Mono 的 `--headless --verify-gestures` 和 `--headless --verify-bar-guides` 对应专项，均退出 0。三轨放置时间线在普通与平移后的舞台局部可视区都贯穿两端，保持音符投影坐标；屏外投影不会贴到边缘，超出推荐范围仍可放置。删除固定推荐范围竖线不涉及小节线、时钟或滚轮窗；未启动可见工作台做目测。日志：`.tmp/full-span-placement-gestures.log`、`.tmp/full-span-placement-bar-guides.log`。
+
+**2026-11-20 · 差分偏移精度。** 修复前，从零分别敲三次 O、三次 P 可重复得到 `-3.469446951953614E-15 ms`。修复后，工作台用每个差分的原始偏移及整数毫秒步数计算目标值；独立按键抵消后，文档的 binary64 位值为正零，两处读数为 0，保存重开仍为正零。作者原有的小数和极小偏移不按阈值清除；旧谱的尾差可手输 `0` 后应用、保存。覆盖精确毫秒读写、原始偏移的撤销/重做和实际 TIMING 控件。完整 Release 非图形验证通过；默认 Debug 舞台与 Shell 已重建，直接运行 Debug Shell 无窗口回归通过。日志：`.tmp/offset-tail-repro.log`、`.tmp/chart-offset-precision-final.log`、`.tmp/offset-precision-debug-shell.log`。
+
+**2026-11-20 · 默认 Debug 启动入口复验。** 上一轮 Release 验证没有更新用户当时运行的 Debug 工作台：重建前，Debug Shell 程序集仍是 11/19 22:26 的版本，Shell 目录内的 Core 仍是 17:57 的版本。用户关闭制谱器后，在默认 Debug 路径重建 Godot 舞台和 Shell，确认两端 Core 与本轮目标文件的 SHA-256 相同。直接运行该 Shell 可执行文件 `--headless` 通过；实际 Godot `--headless --path editor -- --verify-bar-guides` 输出 PASS。另用临时谱包、无窗口 Shell 和实际 Godot 子进程，经 Godot 输入系统注入 ↓、O、Shift+P、Ctrl+Z，验证原生 key 消息进入工作台、正面辅助线开关不改谱、偏移 `0 → +10 → +9 → +10 ms`、舞台增量更新、播放中音频加载/重启计数均不增。未对用户谱包或旧便携包作修改，未测试物理键盘焦点或作视觉验收。日志：`.tmp/bar-guides-native-final.log`、`.tmp/bar-offset-debug-shell.log`、`.tmp/bar-offset-wire-debug.log`。
+
+**2026-11-20 · 三面辅助小节线与 O/P 对轨（源码）。** 实际执行 `python -B tools/verify.py --configuration Release --no-restore`：`VERIFICATION PASS`；使用独立配置，未结束用户运行中的 Debug 工作台。新增测试通过真实 Avalonia 输入和模拟舞台键消息覆盖三轨独立档位、不写谱、O/P 粗细步长、文本焦点与换谱隔离、复制差分后独立微调、长按一次撤销、毫秒输入、保存重开。另单独执行已编译舞台程序集的采样对照：变 BPM、负 offset、阶跃/曲线变速后刻度重新进屏、极慢速度的绘制预算通过；双语站点检查通过。运行中已有 Godot 制谱器，未另起引擎：`--verify-bar-guides` 的实际原生绘制、可读性和连续播放中的听感仍待验收，未打包。日志：`.tmp/bar-guides-offset-final.log`。
+
+**2026-11-19 · 右键菜单易读性与弹出位置。** 逻辑尺寸由 400 × 432 改为 352 × 496，音符正文字号由 16 调到 21，采用加重字形和更亮的未选文字。删除向上 75 单位的固定偏移；有足够空间时，可见底板的一角与指针重合，靠边时按轴翻转。直接对已编译的舞台程序集运行定位专项，正常方向、三种翻转、恰好贴边以及受限视口的 242 个位置通过；`python -B tools/verify.py --no-restore` 退出 0，日志 `.tmp/menu-corner-legibility-verify.log`。当时已有制谱器进程，未关闭它，也未另启动 Godot 重跑完整原生鼠标专项。不同 DPI 的最终字重和可读性仍待实际窗口复看。
+
+**2026-11-19 · 游戏式低边框舞台右键菜单（源码工作区）。** 在紧凑菜单的基础上改为游戏 HUD 风格：暗色切角底板、无完整外框、单侧亮线、亮度层级状态、Note 类型色条和细音量线，字体进一步缩小并留出行间距。`dotnet build --no-restore editor/DynaMakerUv.Editor.csproj` 0 警告/错误；Godot `--headless --quit-after 300 --path editor -- --verify-context` 退出 0；完整 `python -B tools/verify.py --no-restore` 输出 `VERIFICATION PASS`，71 项发布工具测试通过。视觉实机、停靠/浮动和 DPI 占屏仍需用户验收，未更新旧截图或重打包。日志：`.tmp/context-game-hud-style.log`、`.tmp/context-game-hud-full-verify.log`。
+
+**2026-11-19 · 紧凑舞台右键菜单（源码工作区）。** `dotnet build --no-restore editor/DynaMakerUv.Editor.csproj` 0 警告/错误；Godot 4.7.1 `--headless --quit-after 300 --path editor -- --verify-context` 退出 0。无窗口菜单回归覆盖 400 逻辑宽度、四角约束、开窗不预选、停留/轻微抖动不改变状态、无按键横移切三轨、横移调 0–100% 音量、点击工具/特效、Tab/Shift+Tab、Esc/外点和未完成手势优先取消。完整 `python -B tools/verify.py --no-restore` 也退出 0（71 项发布工具测试）。真实可见 HWND、停靠/浮动和 DPI 占屏手感仍需用户验收；未更新旧工作台截图、未重打测试包。日志：`.tmp/compact-context-native-final.log`、`.tmp/compact-context-full-verify.log`。
+
+**2026-11-19 · 无项目起始页与按需启动舞台（源码工作区）。** `python -B tools/verify.py --no-restore` 退出 0，包含结构门禁（398 个源码文件）、三端构建、核心与服务端回归、326 项工作台无窗口断言、71 项发布工具测试和空白检查。双语教程另过 `tools/site/check.py`。完整日志：`.tmp/project-start-final.log`。
+
+- 从真实 Avalonia 按钮和 Ctrl+N/O 进入，系统目录选择器和启动进程用可控回调替代。验证无项目时不启动舞台、不挂 Dock；取消、新建字段无效、打开坏包时保持原状态；打开有效包或新建零音符草稿时请求启动一次。模拟启动失败、`ready` 和播放中 `exited` 消息，验证保留文档、提交首次全量快照、清除播放状态和显式重试。
+- 最初把布局赋给已挂接的 Dock 时，既有浮动舞台回归失败；改为先配置再挂接后通过。另核对已保存浮窗不在起始页出现、退出起始页前后布局文件字节相同、开包后能恢复浮窗。桌面 smoke 入口已适配新顺序但本轮未运行：没有启动可见窗口或 Godot，没有实测冷启动耗时、系统目录选择器或 HWND 首帧效果，也没有重新打包。
+
+**2026-11-19 · 工作台内新增差分及 A1–A4 修复（当前工作区，非发行包）。** 最终 `python -B tools/verify.py --no-restore` 输出 `VERIFICATION PASS`，退出 0：结构门禁、游戏/舞台/Shell 构建（均 0 error）、核心/编辑器/网络回归、Shell Headless 与 71 项发布工具测试通过。制谱核心 703 个 PASS，其中 `--difficulty-workflow` 有 42 项。Shell 构建保留 3 条既有属性弃用提示及 1 条 AVLN3001：新增表单需要注入当前会话，不能从资源 URI 无参创建；工作台实际走构造注入。日志：`.tmp/difficulty-workbench-verify-final.log`。
+
+- 真实表单 + Avalonia Headless 验证主窗口内添加和一步撤销、外部短音频与试听修正、取消/两次确认/迟到预检。真实头部按钮打开时，分别试过背景点击与快捷键、Tab/Esc、浮动舞台关闭、主窗口关闭、跨模态世代延迟的编辑事件；编辑选区和 TIMING 用例覆盖属性应用、复制、删除与撤销。另以临时目录实际保存重开、比较媒体内容，核对同源共享、副本换音频、取消或删除后不再导入，以及额外文件保留。
+- 单独运行 Godot 4.7.1 `--headless --quit-after 300 --path editor -- --verify-gestures` 退出 0，原生对象覆盖 Shift 移除主项、最后一项和真实路径节点。默认环境缺 `System.Runtime 9`，改用本机已有的隔离 .NET 10 运行时并设 `DOTNET_ROLL_FORWARD=LatestMajor` 后通过；被测程序集仍为当前源码构建。未打开可见制谱窗口，未验真实 HWND 焦点/遮挡、多屏 DPI 或系统文件选择器，也没有重打或公开发布 Windows 包。当前操作见[第 9 节教程](../site/guide.html#save)。
+
+**2026-11-19 · 差分建谱与编辑一致性审查（`be6bda9`，未改产品）。** 当前工作区运行 `dotnet run --no-restore --project tools/chart-editor-tests` 与 `dotnet run --no-restore --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --headless`，均退出 0（661 条核心 PASS、270 条 Shell PASS）。这两个数字是既有回归输出，不是新发现的问题数；其中已有测试明确锁定新增差分固定 150 BPM、偏移 0 的旧行为。具体复现、源码和建议见[制谱器审查](editor-difficulty-workflow-review.md)。
+
+- 独立临时探针分别使用真实设置表单、文档命令、writer/重开、Avalonia Headless 选择/快捷键及合成舞台消息。音频使用合成 WAV，封面为自造 PNG/JPEG；封面复验调用商店使用的媒体验证函数及本机 FFmpeg，未部署服务。保存拒绝、原谱音频字节改变、未引用音频落盘和选区误操作分别核验，不能用“保存成功”替代这些断言。
+- 本机证据在忽略的 `.tmp/editor-audit-baseline-20261119/`、`.tmp/editor-audit-create-review/`、`.tmp/chart-package-review-20261119/`、`.tmp/chart-workbench-audit-20261119/`。创建探针初次 `--no-restore` 因新临时工程没有 assets 而未执行，还原后复跑退出 0。没有启动 Godot 或实际桌面制谱窗口；没有做听感、硬件输入、多屏、真机或已发布测试包验收，也没有运行全仓 verify。
+
 **2026-11-19 · 中英文网站（本地，待用户审稿）。** 对照现稿、上次提交的教程、工作台菜单与快捷键、v2 规则和原有三张截图，逐页复读中英文首页及教程。每种语言均有 11 个主节和 5 个子节入口；复核包含按钮、目录搜索反馈、图注、替代文字和 FAQ。两版使用同一段 120 BPM 练习音频，练习从小节 1 的四颗 TAP 开始，到复制、画长条、改对轨及保存重开。
 
 - 站点离线检查、7 项网页回归、JavaScript 语法和改动的空白检查通过。回归检查发布白名单、双语互链和原章节锚点，也检查两版是否仍链接三张操作图和练习音频。
