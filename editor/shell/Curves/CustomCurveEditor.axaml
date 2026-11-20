@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DynamiteUniverse.Editor.Shell" x:Class="DynamiteUniverse.Editor.Shell.CustomCurveEditor">
+  <StackPanel Spacing="5">
+    <StackPanel x:Name="FormulaFields" Spacing="5" IsVisible="False">
+      <TextBlock Classes="eyebrow" Text="{local:Tr Curve.Formula}" />
+      <TextBox x:Name="ExpressionInput" PlaceholderText="t*t*(3-2*t)" />
+      <TextBlock Classes="caption" Text="{local:Tr Curve.Hint}" TextWrapping="Wrap" />
+      <Border Classes="panel" Padding="5" Background="{DynamicResource Bg}">
+        <local:CurvePlot x:Name="PreviewPlot" Height="75" />
+      </Border>
+      <TextBlock x:Name="FormulaNotice" Classes="pink" FontSize="11" TextWrapping="Wrap" />
+    </StackPanel>
+    <Button x:Name="DiscardFormula" Content="{local:Tr Curve.Discard}" Classes="ghost" HorizontalAlignment="Left" IsVisible="False" />
+  </StackPanel>
+</UserControl>

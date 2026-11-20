@@ -97,19 +97,21 @@
       <StackPanel Spacing="5">
         <TextBlock Classes="eyebrow" Text="{local:Tr Inspector.PathCurve}" />
         <ComboBox Classes="localized" x:Name="CurveChoice" SelectedIndex="0" HorizontalAlignment="Stretch">
-          <ComboBoxItem Content="{local:Tr Inspector.Linear}" />
-          <ComboBoxItem Content="{local:Tr Inspector.Hold}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseInQuad}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseOutQuad}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseInOutQuad}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseInCubic}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseOutCubic}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseInOutCubic}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseInSine}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseOutSine}" />
-          <ComboBoxItem Content="{local:Tr Inspector.EaseInOutSine}" />
-          <ComboBoxItem Content="{local:Tr Inspector.Smooth}" />
+          <ComboBoxItem Tag="Linear" Content="{local:Tr Inspector.Linear}" />
+          <ComboBoxItem Tag="Hold" Content="{local:Tr Inspector.Hold}" />
+          <ComboBoxItem Tag="EaseInQuad" Content="{local:Tr Inspector.EaseInQuad}" />
+          <ComboBoxItem Tag="EaseOutQuad" Content="{local:Tr Inspector.EaseOutQuad}" />
+          <ComboBoxItem Tag="EaseInOutQuad" Content="{local:Tr Inspector.EaseInOutQuad}" />
+          <ComboBoxItem Tag="EaseInCubic" Content="{local:Tr Inspector.EaseInCubic}" />
+          <ComboBoxItem Tag="EaseOutCubic" Content="{local:Tr Inspector.EaseOutCubic}" />
+          <ComboBoxItem Tag="EaseInOutCubic" Content="{local:Tr Inspector.EaseInOutCubic}" />
+          <ComboBoxItem Tag="EaseInSine" Content="{local:Tr Inspector.EaseInSine}" />
+          <ComboBoxItem Tag="EaseOutSine" Content="{local:Tr Inspector.EaseOutSine}" />
+          <ComboBoxItem Tag="EaseInOutSine" Content="{local:Tr Inspector.EaseInOutSine}" />
+          <ComboBoxItem Tag="Smooth" Content="{local:Tr Inspector.Smooth}" />
+          <ComboBoxItem Tag="Custom" Content="{local:Tr Curve.Custom}" />
         </ComboBox>
+        <local:CustomCurveEditor x:Name="PathFormula" />
         <Button x:Name="ApplyCurveButton" Content="{local:Tr Inspector.ApplyCurve}" Classes="active" Click="ApplyCurve" />
       </StackPanel>
       <StackPanel x:Name="HoldJudgePanel" Spacing="5">

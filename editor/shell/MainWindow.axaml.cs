@@ -30,6 +30,7 @@ public sealed partial class MainWindow : Window
     private readonly WorkbenchFactory _factory;
     private readonly IWorkbenchLocalizer _text = WorkbenchLocalizer.Shared;
     private readonly ShellChartEditor _editing;
+    private readonly CurveSaveGuard _curves;
     private readonly WorkbenchPreviewClock _clock;
     private bool _ioBusy;
     private bool _closePending;
@@ -88,6 +89,7 @@ public sealed partial class MainWindow : Window
                 _stageView.Host.SetOccluded(blocked || ShortcutsVisible);
                 _service.Send(new { command = "workbenchModal", blocked, epoch });
             });
+        _curves = new(_inspector.Formula, _timing.Formula, this.FindControl<Button>("DiscardFormulaDrafts")!, _modal, _text, Report);
         _difficulty = new(_session, _modal, () => { RefreshDocument(); Report(_text.Format("Message.ChartAdded", CurrentDocument!.SelectedChartId)); });
         _layoutSession = new WorkbenchLayoutSession(_userStore, _factory, Report);
         _workspace = new(this, _layoutSession, _stageView, launchStage ?? (() =>
@@ -129,7 +131,7 @@ public sealed partial class MainWindow : Window
             SeekBar((nodeId is null ? note.Time : note.Nodes.Single(n => n.Id == nodeId).Time).ToDouble(), snap: false);
             SendDocument();
         };
-        _inspector.CurveChanged += (id, nodeId, curve) => _editing.ApplyCurve(CurrentDocument, id, nodeId, curve);
+        _inspector.CurveChangeRequested = (id, nodeId, curve, expr) => _editing.ApplyCurve(CurrentDocument, id, nodeId, curve, expr);
         _inspector.HoldJudgeChanged += (id, nodeId, judge) => _editing.ApplyHoldJudge(CurrentDocument, id, nodeId, judge);
         _inspector.NudgeRequested += (time, position) => _editing.NudgeSelection(
             CurrentDocument, SelectedNoteId, _selectedNoteIds, _snapDenominator, time, position);
@@ -153,7 +155,7 @@ public sealed partial class MainWindow : Window
             _selection.Show(document, _inspector);
             _service.Send(new { command = "setSelection", revision = _stageRevision, selection = _selection.StageIds(document) });
         };
-        _timing.CommandRequested += command => _editing.ApplyTiming(CurrentDocument, command);
+        _timing.CommandRequested = command => _editing.ApplyTiming(CurrentDocument, command);
         _timing.ErrorRequested += Report;
         var stageDispatch = new StageFrameDispatch(action => Dispatcher.UIThread.Post(action), StageEvent);
         _service.MessageReceived += stageDispatch.Receive;
@@ -187,7 +189,7 @@ public sealed partial class MainWindow : Window
     {
         if (_modal.IsOpen) { e.Cancel = true; _modal.Close(); return; }
         if (_ioBusy || _closePending) { e.Cancel = true; return; }
-        if (!_closeApproved && CurrentDocument?.HasUnsavedChanges == true)
+        if (!_closeApproved && (CurrentDocument?.HasUnsavedChanges == true || _curves.HasDraft))
         {
             e.Cancel = true;
             CloseDecisionForVerification = ConfirmClose();
@@ -206,6 +208,7 @@ public sealed partial class MainWindow : Window
         _closePending = true;
         var document = CurrentDocument;
         var version = document?.ChangeVersion;
+        var draftRevision = _curves.Revision;
         var close = false;
         try
         {
@@ -216,10 +219,10 @@ public sealed partial class MainWindow : Window
             if (choice == UnsavedCloseChoice.Save)
             {
                 await SavePackage(false);
-                close = ReferenceEquals(document, CurrentDocument) && document?.HasUnsavedChanges != true;
+                close = ReferenceEquals(document, CurrentDocument) && document?.HasUnsavedChanges != true && !_curves.HasDraft;
             }
             else if (choice == UnsavedCloseChoice.Discard)
-                close = document?.ChangeVersion == version;
+                close = document?.ChangeVersion == version && _curves.Revision == draftRevision;
         }
         catch (Exception ex) { Report(_text.Format("Message.FileError", ex.Message)); }
         finally { _closePending = false; }
@@ -303,7 +306,7 @@ public sealed partial class MainWindow : Window
 
     private async Task CreatePackage(EditorCreateForm? form = null)
     {
-        if (_ioBusy) return;
+        if (_ioBusy || _curves.BlockPending()) return;
         if (CurrentDocument?.HasUnsavedChanges == true)
         {
             Report(_text["Message.SaveBeforeOpen"]);
@@ -323,8 +326,9 @@ public sealed partial class MainWindow : Window
             else result = EditorCreateRequest.Build(EditorCreateMode.NewPackage, form, _snapDenominator);
             if (result?.DraftRequest is null || !ReferenceEquals(previous, CurrentDocument) ||
                 previous?.ChangeVersion != version) return;
+            if (_curves.BlockPending()) return;
             if (CurrentDocument?.HasUnsavedChanges == true) { Report(_text["Message.SaveBeforeOpen"]); return; }
-            await _session.CreateDraftAsync(result.DraftRequest);
+            await _curves.ReplaceDocument(() => _session.CreateDraftAsync(result.DraftRequest));
             _clock.ShowPosition(0, 0);
             RefreshDocument();
             Report(_text.Format("Message.Created", CurrentDocument!.Title));
@@ -504,7 +508,7 @@ public sealed partial class MainWindow : Window
 
     private async Task OpenPackage(string? path = null)
     {
-        if (_ioBusy) return;
+        if (_ioBusy || _curves.BlockPending()) return;
         if (CurrentDocument?.HasUnsavedChanges == true)
         {
             Report(_text["Message.SaveBeforeOpen"]);
@@ -518,8 +522,9 @@ public sealed partial class MainWindow : Window
             var directory = path ?? await (PickOpenFolderForVerification?.Invoke() ?? PickFolder("File.Open"));
             if (directory is null || !ReferenceEquals(previous, CurrentDocument) ||
                 previous?.ChangeVersion != version) return;
+            if (_curves.BlockPending()) return;
             if (CurrentDocument?.HasUnsavedChanges == true) { Report(_text["Message.SaveBeforeOpen"]); return; }
-            await _session.OpenAsync(directory);
+            await _curves.ReplaceDocument(() => _session.OpenAsync(directory));
             RefreshDocument();
             Report(_text.Format("Message.Opened", CurrentDocument!.Title));
             _workspace.Enter();
@@ -530,16 +535,16 @@ public sealed partial class MainWindow : Window
 
     private async Task SavePackage(bool saveAs, string? destination = null)
     {
-        if (_ioBusy || CurrentDocument is not { } document) return;
+        if (_ioBusy || CurrentDocument is not { } document || _curves.BlockPending()) return;
         _timingKeys.ResetHeld();
         _ioBusy = true;
         try
         {
             var directory = destination ?? (saveAs || document.IsUnpersisted ? await PickFolder("File.SaveAs") : document.PackageDirectory);
-            if (directory is null) return;
+            if (directory is null || _curves.BlockPending() || !await _curves.ConfirmVersion(document) || _curves.BlockPending()) return;
             var result = await _session.SaveAsync(directory);
             RefreshDocument(false);
-            Report(document.HasUnsavedChanges
+            Report(document.HasUnsavedChanges || _curves.HasDraft
                 ? _text.Format("Message.SavedWithNewEdits", result.DestinationDirectory)
                 : _text.Format("Message.Saved", result.DestinationDirectory));
         }
@@ -620,12 +625,12 @@ public sealed partial class MainWindow : Window
         var revision = ++_stageRevision;
         if (LastStageUpdateIncremental)
             _service.Update(chart, document.Title, document.Artist, audioPath, revision, selection,
-                document.SelectedChart.Difficulty.ToString(), document.SelectedChart.Level);
+                document.SelectedChart.Difficulty.ToString(), document.SelectedChart.Level, document.SelectedChart.Key.ToString());
         else
         {
             _timingKeys.ResetHeld(); _stageLoadRevision = revision;
             _service.Load(chart, document.Title, document.Artist, audioPath, _clock.Bar, revision, selection,
-                document.SelectedChart.Difficulty.ToString(), document.SelectedChart.Level);
+                document.SelectedChart.Difficulty.ToString(), document.SelectedChart.Level, document.SelectedChart.Key.ToString());
         }
         _loadedDocument = document;
         _loadedChartId = document.SelectedChartId;

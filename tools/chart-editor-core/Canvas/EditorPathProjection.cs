@@ -5,7 +5,7 @@ namespace DynamiteUniverse.ChartEditor.Core;
 /// <summary>路径上的一个控制点（头或 node），坐标是谱面**中心**坐标（<c>center</c>，不是左缘）。
 /// 画布的 authoring 投影存左缘，喂进这里之前由调用方换算。</summary>
 public readonly record struct EditorPathPoint(
-    ExactBarTime Time, double Center, double Width, V2PathCurve? CurveToNext);
+    ExactBarTime Time, double Center, double Width, V2PathCurve? CurveToNext, string? CustomExpr = null);
 
 /// <summary>Hold/Mixer 路径在谱面坐标下的快照：头 + 控制节点（可以为空，空时只有头一个点）。</summary>
 public sealed record EditorPathShape(EditorPathPoint Head, IReadOnlyList<EditorPathPoint> Nodes);
@@ -31,19 +31,20 @@ public static class EditorPathProjection
     {
         ArgumentNullException.ThrowIfNull(note);
         return new EditorPathShape(
-            new EditorPathPoint(note.Time, note.Center, note.Width, note.CurveToNext),
+            new EditorPathPoint(note.Time, note.Center, note.Width, note.CurveToNext, note.CustomExpr),
             note.Nodes.Select(node => new EditorPathPoint(node.Time, node.Center, node.Width,
-                node.CurveToNext)).ToArray());
+                node.CurveToNext, node.CustomExpr)).ToArray());
     }
 
     /// <summary>路径在 <paramref name="time"/> 处求值出的 center/width（超出两端则取端点值）。
     /// 双击插入路径节点用这一处采样，因此插入点几何与路径求值结果逐位相同、形状零跳变。</summary>
-    public static (double Center, double Width) Sample(EditorPathShape shape, ExactBarTime time)
+    public static (double Center, double Width) Sample(EditorPathShape shape, ExactBarTime time, CustomCurveCache? curveCache = null)
     {
         ArgumentNullException.ThrowIfNull(shape);
         if (shape.Nodes.Count == 0)
             return (shape.Head.Center, shape.Head.Width);
-        var sample = new V2PathEvaluator(ToPathNote(shape)).Evaluate(time);
+        var path = ToPathNote(shape);
+        var sample = (curveCache?.EvaluatePath(path) ?? new V2PathEvaluator(path)).Evaluate(time);
         return (sample.Center, sample.Width);
     }
 
@@ -80,12 +81,13 @@ public static class EditorPathProjection
             else if (curve != V2PathCurve.Linear && current.Time > previous.Time)
             {
                 evaluator ??= new V2PathEvaluator(ToPathNote(shape));
-                var subdivisions = RequiredSubdivisions(evaluator, previous.Time, current.Time,
-                    positionScalePx, widthScalePx);
+                var knots = evaluator.CustomFor(index - 1)?.Knots;
+                var subdivisions = knots is null ? RequiredSubdivisions(evaluator, previous.Time, current.Time,
+                    positionScalePx, widthScalePx) : knots.Count - 1;
                 for (var step = 1; step < subdivisions; step++)
                 {
                     var time = previous.Time + (current.Time - previous.Time) *
-                        ExactBarTime.FromFraction(step, subdivisions);
+                        (knots is null ? ExactBarTime.FromFraction(step, subdivisions) : ExactBarTime.FromDouble(knots[step]));
                     var sample = evaluator.Evaluate(time);
                     result.Add(new EditorPathSample(time, sample.Center, sample.Width, false));
                 }
@@ -139,14 +141,14 @@ public static class EditorPathProjection
             Time = shape.Head.Time,
             Center = shape.Head.Center,
             Width = shape.Head.Width,
-            CurveToNext = shape.Head.CurveToNext,
+            CurveToNext = shape.Head.CurveToNext, CustomExpr = shape.Head.CustomExpr,
             Nodes = nodes.Select((node, index) => new V2PathNode
             {
                 Id = $"path-node-{index + 1}",
                 Time = node.Time,
                 Center = node.Center,
                 Width = node.Width,
-                CurveToNext = node.CurveToNext,
+                CurveToNext = node.CurveToNext, CustomExpr = node.CustomExpr,
             }).ToArray(),
         };
     }

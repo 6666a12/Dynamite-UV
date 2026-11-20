@@ -60,6 +60,10 @@ public static class Program
             V2ChartTests.TestV2ExactBarTimeAndLegacyConversion();
             V2ChartTests.TestV2GeometryJudgementAndSync();
             V2ChartTests.TestV2CurvesMixerAndDigest();
+            ExactRoundingTests.Run();
+            CustomCurvePrecisionTests.Run();
+            CustomCurveRuntimeTests.Run();
+            CustomCurveFormatTests.Run();
             SustainJudgementTests.TestD4CFrozenGrace();
             SustainJudgementTests.TestHoldReleaseFreezesGrace();
             ScoreIdentityTests.TestScoreStoreMigrationAndIdentity();

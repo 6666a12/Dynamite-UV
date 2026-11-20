@@ -140,19 +140,26 @@ public readonly struct ExactBarTime : IComparable<ExactBarTime>, IEquatable<Exac
         var sign = improper.Sign;
         var numerator = BigInteger.Abs(improper);
         var denominator = Denominator;
-        var maxBits = Math.Max(numerator.GetBitLength(), denominator.GetBitLength());
-        if (maxBits > 1022)
-        {
-            var shift = checked((int)(maxBits - 1022));
-            numerator >>= shift;
-            denominator >>= shift;
-            if (numerator.IsZero)
-                return sign < 0 ? -0.0 : 0.0;
-            if (denominator.IsZero)
-                return sign < 0 ? double.NegativeInfinity : double.PositiveInfinity;
-        }
+        var nBits = numerator.GetBitLength();
+        var dBits = denominator.GetBitLength();
+        if (nBits <= 53 && dBits <= 53)
+            return (double)improper / (double)denominator; // Both operands are exactly representable.
 
-        var result = (double)numerator / (double)denominator;
+        // Round the quotient only once. Converting two large BigIntegers separately can move a
+        // value across a midpoint; shifting both by the same amount can erase a subnormal numerator.
+        var exponent = nBits - dBits;
+        if (exponent > 1024) return sign < 0 ? double.NegativeInfinity : double.PositiveInfinity;
+        if (exponent < -1075) return sign < 0 ? -0.0 : 0.0;
+        if (exponent >= 0 ? numerator < (denominator << (int)exponent)
+                          : (numerator << (int)-exponent) < denominator) exponent--;
+        if (exponent > 1023) return sign < 0 ? double.NegativeInfinity : double.PositiveInfinity;
+        int unit = Math.Max(-1074, (int)exponent - 52);
+        if (unit < 0) numerator <<= -unit; else denominator <<= unit;
+        var significand = BigInteger.DivRem(numerator, denominator, out var remainder);
+        int half = (remainder << 1).CompareTo(denominator);
+        if (half > 0 || half == 0 && !significand.IsEven) significand++;
+        // significand is at most 2^53 (the extra bit can arise on rounding up).
+        var result = Math.ScaleB((double)significand, unit);
         return sign < 0 ? -result : result;
     }
 

@@ -37,7 +37,7 @@
 - 显式 v2 严格解码/跨文件校验/Digest，失败拒绝；普通 legacy 优先转 v2，不适用才保留 legacy-direct。手工目录：开发/Internal 先读 `res://testdata/packs` 再读 `user://charts`，同 id 用户包覆盖；Public/未分类导出只读后者。商店另按已完成的安装登记纳入曲库，不覆盖手工包。
 - **res:// 必须走 Godot 虚拟文件系统，不可引入 System.IO**：导出后原资源可能在 PCK/导入 remap 中。此分支 Digest 按空音频字节计算；user:// /绝对路径的真实文件分支含音频字节，两者不可混同。见 [加载适配](<../client/scripts/game/charts/V2Integration.cs>)。
 - legacy `Position` 是左缘；v2 是 `center + width`。画布预览中的 Center 仍沿用左缘语义，提交文档命令时才转换；精确 BarTime 不经显示秒值往返。
-- v2 父 Note 可用 `scrollSpeedMultiplier` 在全局 Scroll 与玩家落速之上逐 Note 调整视觉倍率，缺省为 1；Hold/Mixer 全路径共用父倍率，命中秒与判定不变，非默认值进入 Digest。Scroll/路径曲线已扩至 Quad、Cubic、Sine 常用族，`smooth` 仍为路径专用 PCHIP。
+- v2 父 Note 可用 `scrollSpeedMultiplier` 在全局 Scroll 与玩家落速之上逐 Note 调整视觉倍率，缺省为 1；Hold/Mixer 全路径共用父倍率，命中秒与判定不变，非默认值进入 Digest。Scroll/路径曲线已扩至 Quad、Cubic、Sine 常用族，`smooth` 仍为路径专用 PCHIP。[v2.1](chart-format-v2.1.md) 在 Scroll 和持续音符的出向段上支持 `custom` + `customExpr`；严格校验的折线同时供制谱器和游戏使用，未升级的 2.0 差分保留原成绩身份。
 - 客户端直接播放 WAV/MP3/Ogg Vorbis；原生 FLAC 由 shared 托管解码为 16-bit PCM 后包装为 WAV 流。编辑器默认写包 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis 的结构与时长校验；FLAC 输入限 64 MiB，逐帧解析子帧并验证 CRC-8/CRC-16，WAV chunk 不得越过 RIFF 声明边界；Opus/M4A/AAC 明确拒绝。
 - 普通判定按固定 150BPM 换算；Standard 依难度选预设，Hardcore 使用 Hard 窗 ×0.5；Hold 首次断触冻结宽限 deadline，Mixer 则为实际音乐时间的 1/8 chart bar 宽限。当前 Mixer 无额外尾判。
 - 输入批次锁是精确 double 同刻锁，任何普通输入结算均可武装，Mine 不检查也不武装；触点可复用、跨轨投影可重叠。未知 id 的 Move 忽略，失焦清触点。短 Hold 保留头的晚判窗口，以带时间戳的联系快照处理同帧短点/换指。
@@ -93,7 +93,7 @@
 
 ### 待决策、暂缓与静态疑点
 
-- Hold 无输入移动路径断触采样、同帧跨 deadline 的批量结算顺序：**静态疑点，临时探针没有成功运行，用户暂缓**。不能写成已复现 Bug，也不能用短 Hold 手感基本通过消除此疑点。
+- 先前暂缓的 Hold 无输入移动路径采样已针对**含自定义段的 Hold**复现并修复；其帧内穿越与宽限截止前的中间判定见[复验记录](verification.md#6047-fixes)。legacy、2.0 以及没有自定义段的 Hold 保留原接触采样，不把这次结果外推到它们。
 - Mixer 原版有命中率尾判，社区当前没有；是否增加是玩法决策，不是默认补做事项。
 - 制谱器：对象磁吸因坐标偏差已隐藏并强制停用（忽略旧开启偏好），不列手感验收；真实波形不在当前目标内，BPM 导入仅为候选。首稳版前不做公开插件 API，只保留内部扩展。
 - Internal 当前验证过的流程使用 `--export-debug`，历史 Release 配置探针曾改善低端卡顿。政策 `debuggable=true` 是 APK manifest 约束，不单独证明 .NET 编译/JIT 配置；替代配置需基准和政策核查，见 [发布说明](<releasing.md>)。

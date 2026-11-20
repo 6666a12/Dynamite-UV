@@ -100,15 +100,10 @@ public partial class GameplayMain
 				lost, deadline - lost, deadline);
 			var settlementTime = SustainJudgementRules.HoldSettlementTime(
 				state.Path.EndTime, loss);
-			if (SustainJudgementRules.ShouldBreakHold(
-				activeUntil, state.Path.EndTime, loss))
+			if (activeUntil >= settlementTime)
 			{
-				BreakHold(state, lost);
-			}
-			else if (settlementTime == state.Path.EndTime &&
-				activeUntil >= settlementTime)
-			{
-				SettleReleasedHold(state, lost);
+				state.Broken = SustainJudgementRules.ShouldBreakHold(activeUntil, state.Path.EndTime, loss);
+				SettleReleasedHold(state, lost, settlementTime);
 			}
 		}
 	}
@@ -126,21 +121,14 @@ public partial class GameplayMain
 		}
 	}
 
-	private void BreakHold(SustainRuntime state, double releaseTime)
-	{
-		if (state.Broken || state.EndResolved)
-			return;
-		state.Broken = true;
-		SettleReleasedHold(state, releaseTime);
-	}
-
-	private void SettleReleasedHold(SustainRuntime state, double releaseTime)
+	private void SettleReleasedHold(SustainRuntime state, double releaseTime, double settlementTime)
 	{
 		if (state.EndResolved)
 			return;
 		SustainJudgementRules.Settlement? tail = null;
 		foreach (var settlement in SustainJudgementRules.SettleReleasedHold(
-			_plan.Units, state.Path.HeadId, releaseTime, _engine))
+			_plan.Units, state.Path.HeadId, releaseTime, _engine,
+			state.Path.ReplaysHoldGeometry ? settlementTime : null))
 		{
 			// 批量结算在 shared 内部直接落 engine，这里补齐 BLEED 血量。
 			_bleed?.Apply(settlement.Grade);

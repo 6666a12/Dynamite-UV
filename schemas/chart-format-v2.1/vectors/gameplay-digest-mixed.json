@@ -1,0 +1,18 @@
+{
+  "package": "examples/mixed-pack",
+  "packId": "example.curve-study",
+  "algorithm": "gameplay-v1",
+  "audioSha256": "78f82cd49af869013e8ec414a15d71f5f4f2ec8d006b6a0c50527c91eaa7a85f",
+  "charts": [
+    {
+      "chartId": "baseline",
+      "rulesetId": "dynamite-uv-ruleset-2.0",
+      "gameplayDigest": "ab53c89b85c47f2a9534008d8d74b176b1b9393fbf91c837d5d35b779ddea344"
+    },
+    {
+      "chartId": "rebound",
+      "rulesetId": "dynamite-uv-ruleset-2.1",
+      "gameplayDigest": "03dcce45dd219ee72b150cd204237401e953f44cfaf97c8279976ce767d4a1ac"
+    }
+  ]
+}

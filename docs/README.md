@@ -34,6 +34,7 @@
 | [gameplay-hud-v8.md](<gameplay-hud-v8.md>) | 已接本体的 BLEED 血条、顶部统计/暂停、无框标题卡、视觉判定线与三档动效边界 |
 | [gameplay-spec.md](<gameplay-spec.md>) | 社区玩法、Legacy 兼容、空间/判定/计分；原版研究不能覆盖社区决策 |
 | [chart-format-v2.md](<chart-format-v2.md>) | 已冻结的 v2 合同，不因 UI 能力不足而降格；[Schema/golden pack](<../schemas/chart-format-v2/>) 是机器合同 |
+| [chart-format-v2.1.md](<chart-format-v2.1.md>) | v2.1 出向自定义曲线、公式和精度、保存条件及与 v2.0 的兼容边界 |
 | [mixer-receiver.md](<mixer-receiver.md>) | Mixer 放置/保持/宽限、时间重放和专项设备边界 |
 | [pixel-calibration.md](<pixel-calibration.md>) / [video-geometry-analysis.md](<video-geometry-analysis.md>) | 当前坐标与测量依据；改布局前必读，不因日期旧而归档 |
 | [original-judgement-analysis.md](<original-judgement-analysis.md>) | 原版证据、UNKNOWN 和有意差异，不是社区产品实现清单 |

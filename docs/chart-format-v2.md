@@ -1068,6 +1068,5 @@ y(1.5) = 0.9125
 
 - 对未知 `format` 或不支持的 `formatVersion` 必须 fail closed。
 - 添加可忽略展示字段也必须通过新规范明确；v2 文件不能依赖消费者忽略未知字段。
-- 改变本文中判定、路径或 Digest 语义时必须分配新的 `rulesetId`；若同时改变 JSON 合同，
-  还必须提升 `formatVersion`。
+- 改变判定、路径或 Digest 语义时必须分配新的 `rulesetId`。改变 JSON 合同也须明示版本，不能扩大已经发布的 Schema。[v2.1](chart-format-v2.1.md) 采用整数主、次版本：仍写 `formatVersion: 2`，另写 `formatMinor: 1`。本文和既有 v2 Schema 保持 2.0 语义，不接受该新字段。
 - `dynamite-uv-pack`、`dynamite-uv-chart` 与版本 `2` 的字面值永久保留。

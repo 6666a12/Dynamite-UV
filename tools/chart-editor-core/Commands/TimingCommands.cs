@@ -93,8 +93,8 @@ public sealed class AddScrollCommand : IEditorCommand
     private readonly EditableScroll _scroll;
     private int _index;
 
-    public AddScrollCommand(ExactBarTime time, double value, V2ScrollCurve? curveToNext = null)
-        : this(new EditableScroll { Time = time, Value = value, CurveToNext = curveToNext })
+    public AddScrollCommand(ExactBarTime time, double value, V2ScrollCurve? curveToNext = null, string? customExpr = null)
+        : this(new EditableScroll { Time = time, Value = value, CurveToNext = curveToNext, CustomExpr = customExpr })
     {
     }
 
@@ -111,7 +111,7 @@ public sealed class AddScrollCommand : IEditorCommand
             throw new InvalidOperationException($"Scroll event already exists at {_scroll.Time}.");
         var proposed = timeline.Select(item => item.Clone()).Append(_scroll.Clone())
             .OrderBy(item => item.Time).ToList();
-        EditorCommandRules.ValidateScrollTimeline(proposed);
+        EditorCommandRules.ValidateScrollTimeline(proposed, document.SelectedChart.CurveCache);
         _index = proposed.FindIndex(item => item.Time == _scroll.Time);
         timeline.Insert(_index, _scroll.Clone());
         document.Select(new EditorSelection(EditorSelectionKind.Scroll,
@@ -133,7 +133,7 @@ public sealed class EditScrollCommand(
     ExactBarTime originalTime,
     ExactBarTime newTime,
     double newValue,
-    V2ScrollCurve? newCurveToNext) : IEditorCommand
+    V2ScrollCurve? newCurveToNext, string? customExpr = null) : IEditorCommand
 {
     private EditableScroll? _before;
 
@@ -147,14 +147,14 @@ public sealed class EditScrollCommand(
             throw new InvalidOperationException($"Scroll event already exists at {newTime}.");
 
         var proposed = timeline.Select(item => item.Time == originalTime
-                ? new EditableScroll { Time = newTime, Value = newValue, CurveToNext = newCurveToNext }
+                ? new EditableScroll { Time = newTime, Value = newValue, CurveToNext = newCurveToNext, CustomExpr = customExpr }
                 : item.Clone())
             .OrderBy(item => item.Time).ToList();
-        EditorCommandRules.ValidateScrollTimeline(proposed);
+        EditorCommandRules.ValidateScrollTimeline(proposed, document.SelectedChart.CurveCache);
         _before ??= scroll.Clone();
         scroll.Time = newTime;
         scroll.Value = newValue;
-        scroll.CurveToNext = newCurveToNext;
+        (scroll.CurveToNext, scroll.CustomExpr) = (newCurveToNext, customExpr);
         timeline.Sort((left, right) => left.Time.CompareTo(right.Time));
         document.Select(new EditorSelection(EditorSelectionKind.Scroll,
             ExactBarTimeText.Format(newTime)));
@@ -168,7 +168,7 @@ public sealed class EditScrollCommand(
         var scroll = document.RequireScroll(newTime);
         scroll.Time = _before.Time;
         scroll.Value = _before.Value;
-        scroll.CurveToNext = _before.CurveToNext;
+        (scroll.CurveToNext, scroll.CustomExpr) = (_before.CurveToNext, _before.CustomExpr);
         timeline.Sort((left, right) => left.Time.CompareTo(right.Time));
         document.Select(new EditorSelection(EditorSelectionKind.Scroll,
             ExactBarTimeText.Format(_before.Time)));
@@ -179,7 +179,7 @@ public sealed class DeleteScrollCommand(ExactBarTime time) : IEditorCommand
 {
     private EditableScroll? _deleted;
     private int _index;
-    private V2ScrollCurve? _promotedTailCurve;
+    private (V2ScrollCurve? Curve, string? Expr) _promotedTailCurve;
     private bool _changedPromotedTail;
 
     public void Execute(EditorDocument document)
@@ -190,12 +190,17 @@ public sealed class DeleteScrollCommand(ExactBarTime time) : IEditorCommand
             throw new KeyNotFoundException($"Scroll event at '{time}' was not found.");
         if (_index == 0 && timeline.Count > 1)
             throw new InvalidOperationException("Bar 0 Scroll cannot be deleted while later Scroll events remain.");
+        // A former neighbour may become the target of an overshooting outgoing segment.
+        // Validate that new range before touching either event or the undo history.
+        if (_index > 0 && _index + 1 < timeline.Count && timeline[_index - 1].CurveToNext == V2ScrollCurve.Custom)
+            EditorCommandRules.ValidateScrollTimeline(timeline.Where((_, i) => i != _index).ToArray(), document.SelectedChart.CurveCache);
         _deleted ??= timeline[_index].Clone();
         _changedPromotedTail = _index == timeline.Count - 1 && _index > 0;
         if (_changedPromotedTail)
         {
-            _promotedTailCurve = timeline[_index - 1].CurveToNext;
-            timeline[_index - 1].CurveToNext = null;
+            var tail = timeline[_index - 1];
+            _promotedTailCurve = (tail.CurveToNext, tail.CustomExpr);
+            (tail.CurveToNext, tail.CustomExpr) = (null, null);
         }
         timeline.RemoveAt(_index);
         document.Select(EditorSelection.None);
@@ -208,7 +213,7 @@ public sealed class DeleteScrollCommand(ExactBarTime time) : IEditorCommand
         var timeline = document.SelectedChart.ScrollSpeeds;
         timeline.Insert(_index, _deleted.Clone());
         if (_changedPromotedTail)
-            timeline[_index - 1].CurveToNext = _promotedTailCurve;
+            (timeline[_index - 1].CurveToNext, timeline[_index - 1].CustomExpr) = _promotedTailCurve;
         document.Select(new EditorSelection(EditorSelectionKind.Scroll,
             ExactBarTimeText.Format(_deleted.Time)));
     }

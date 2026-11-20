@@ -335,7 +335,8 @@ internal static class EditorGeometryTests
         foreach (var curve in Enum.GetValues<V2ScrollCurve>())
         {
             rampMetadata = rampMetadata with { ScrollMap = new V2ScrollMap([
-                new V2ScrollEvent { Time = ExactBarTime.Zero, Value = 1, CurveToNext = curve },
+                new V2ScrollEvent { Time = ExactBarTime.Zero, Value = 1, CurveToNext = curve,
+                    CustomExpr = curve == V2ScrollCurve.Custom ? "t^1.5" : null },
                 new V2ScrollEvent { Time = ExactBarTime.One, Value = 10 },
             ]) };
             var distance = VisualScrollMath.DistancePixels(rampSecond, 0,

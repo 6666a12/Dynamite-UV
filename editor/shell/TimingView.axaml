@@ -57,25 +57,27 @@
           <StackPanel Grid.Column="1" Spacing="5">
             <TextBlock Classes="eyebrow" Text="{local:Tr Timing.CurveLabel}" />
             <ComboBox Classes="localized" x:Name="ScrollCurveChoice" SelectedIndex="1" HorizontalAlignment="Stretch">
-              <ComboBoxItem Content="{local:Tr Timing.CurveNone}" />
-              <ComboBoxItem Content="{local:Tr Inspector.Linear}" />
-              <ComboBoxItem Content="{local:Tr Inspector.Hold}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseInQuad}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseOutQuad}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseInOutQuad}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseInCubic}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseOutCubic}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseInOutCubic}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseInSine}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseOutSine}" />
-              <ComboBoxItem Content="{local:Tr Inspector.EaseInOutSine}" />
+              <ComboBoxItem Tag="None" Content="{local:Tr Timing.CurveNone}" />
+              <ComboBoxItem Tag="Linear" Content="{local:Tr Inspector.Linear}" />
+              <ComboBoxItem Tag="Hold" Content="{local:Tr Inspector.Hold}" />
+              <ComboBoxItem Tag="EaseInQuad" Content="{local:Tr Inspector.EaseInQuad}" />
+              <ComboBoxItem Tag="EaseOutQuad" Content="{local:Tr Inspector.EaseOutQuad}" />
+              <ComboBoxItem Tag="EaseInOutQuad" Content="{local:Tr Inspector.EaseInOutQuad}" />
+              <ComboBoxItem Tag="EaseInCubic" Content="{local:Tr Inspector.EaseInCubic}" />
+              <ComboBoxItem Tag="EaseOutCubic" Content="{local:Tr Inspector.EaseOutCubic}" />
+              <ComboBoxItem Tag="EaseInOutCubic" Content="{local:Tr Inspector.EaseInOutCubic}" />
+              <ComboBoxItem Tag="EaseInSine" Content="{local:Tr Inspector.EaseInSine}" />
+              <ComboBoxItem Tag="EaseOutSine" Content="{local:Tr Inspector.EaseOutSine}" />
+              <ComboBoxItem Tag="EaseInOutSine" Content="{local:Tr Inspector.EaseInOutSine}" />
+              <ComboBoxItem Tag="Custom" Content="{local:Tr Curve.Custom}" />
             </ComboBox>
           </StackPanel>
         </Grid>
+        <local:CustomCurveEditor x:Name="ScrollFormula" />
         <TextBlock x:Name="ScrollBaseLocked" Classes="pink" FontSize="11" Text="{local:Tr Timing.BaseLocked}"
                    TextWrapping="Wrap" IsVisible="False" />
         <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-          <Button x:Name="AddScrollButton" Content="{local:Tr Timing.Add}" Click="AddScroll" />
+          <Button x:Name="AddScrollButton" Content="{local:Tr Timing.Add}" Click="AddScroll" ToolTip.Tip="{local:Tr Timing.AddScrollHint}" />
           <Button x:Name="ApplyScrollButton" Grid.Column="1" Content="{local:Tr Timing.Apply}" Classes="active" Click="ApplyScroll" />
           <Button x:Name="DeleteScrollButton" Grid.Column="2" Content="{local:Tr Timing.Delete}" Click="DeleteScroll" />
         </Grid>

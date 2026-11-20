@@ -25,6 +25,7 @@ public static class V2JsonEncoder
             writer.WriteStartObject();
             writer.WriteString("format", V2Format.PackFormat);
             writer.WriteNumber("formatVersion", V2Format.FormatVersion);
+            if (pack.FormatMinor != 0) writer.WriteNumber("formatMinor", pack.FormatMinor);
             writer.WriteString("id", pack.Id);
             writer.WriteNumber("revision", pack.Revision);
             writer.WriteString("title", pack.Title);
@@ -57,6 +58,7 @@ public static class V2JsonEncoder
             writer.WriteStartObject();
             writer.WriteString("format", V2Format.ChartFormat);
             writer.WriteNumber("formatVersion", V2Format.FormatVersion);
+            if (chart.FormatMinor != 0) writer.WriteNumber("formatMinor", chart.FormatMinor);
             writer.WriteString("chartId", chart.ChartId);
             writer.WriteNumber("audioOffsetSec", CanonicalZero(chart.AudioOffsetSec));
             writer.WritePropertyName("timing");
@@ -86,7 +88,7 @@ public static class V2JsonEncoder
                     WriteTime(writer, scroll.Time);
                     writer.WriteNumber("value", CanonicalZero(scroll.Value));
                     if (index + 1 < chart.ScrollSpeeds.Count)
-                        writer.WriteString("curveToNext", ScrollCurveName(scroll.CurveToNext ?? V2ScrollCurve.Linear));
+                        WriteCurve(writer, V2GameplayDigest.ScrollCurveName(scroll.CurveToNext ?? V2ScrollCurve.Linear), scroll.CustomExpr);
                     writer.WriteEndObject();
                 }
                 writer.WriteEndArray();
@@ -170,7 +172,7 @@ public static class V2JsonEncoder
         {
             if (path.Nodes.Count == 0)
                 throw new InvalidOperationException($"Path note '{path.Id}' requires nodes.");
-            writer.WriteString("curveToNext", PathCurveName(path.CurveToNext ?? V2PathCurve.Linear));
+            WriteCurve(writer, V2GameplayDigest.PathCurveName(path.CurveToNext ?? V2PathCurve.Linear), path.CustomExpr);
             writer.WritePropertyName("nodes");
             writer.WriteStartArray();
             for (var index = 0; index < path.Nodes.Count; index++)
@@ -189,7 +191,7 @@ public static class V2JsonEncoder
         writer.WriteNumber("center", CanonicalZero(node.Center));
         writer.WriteNumber("width", CanonicalZero(node.Width));
         if (!isTail)
-            writer.WriteString("curveToNext", PathCurveName(node.CurveToNext ?? V2PathCurve.Linear));
+            WriteCurve(writer, V2GameplayDigest.PathCurveName(node.CurveToNext ?? V2PathCurve.Linear), node.CustomExpr);
         if (type == V2NoteType.Hold)
         {
             if (node.Judge is null)
@@ -197,6 +199,12 @@ public static class V2JsonEncoder
             writer.WriteBoolean("judge", isTail ? true : node.Judge.Value);
         }
         writer.WriteEndObject();
+    }
+
+    private static void WriteCurve(Utf8JsonWriter writer, string name, string? expression)
+    {
+        writer.WriteString("curveToNext", name);
+        if (expression is not null) writer.WriteString("customExpr", expression);
     }
 
     private static void WriteTime(Utf8JsonWriter writer, ExactBarTime time)
@@ -222,38 +230,5 @@ public static class V2JsonEncoder
         V2Difficulty.Tech => "tech",
         V2Difficulty.Custom => "custom",
         _ => throw new ArgumentOutOfRangeException(nameof(difficulty)),
-    };
-
-    private static string PathCurveName(V2PathCurve curve) => curve switch
-    {
-        V2PathCurve.Linear => "linear",
-        V2PathCurve.Hold => "hold",
-        V2PathCurve.EaseInQuad => "easeInQuad",
-        V2PathCurve.EaseOutQuad => "easeOutQuad",
-        V2PathCurve.EaseInOutQuad => "easeInOutQuad",
-        V2PathCurve.EaseInCubic => "easeInCubic",
-        V2PathCurve.EaseOutCubic => "easeOutCubic",
-        V2PathCurve.EaseInOutCubic => "easeInOutCubic",
-        V2PathCurve.EaseInSine => "easeInSine",
-        V2PathCurve.EaseOutSine => "easeOutSine",
-        V2PathCurve.EaseInOutSine => "easeInOutSine",
-        V2PathCurve.Smooth => "smooth",
-        _ => throw new ArgumentOutOfRangeException(nameof(curve)),
-    };
-
-    private static string ScrollCurveName(V2ScrollCurve curve) => curve switch
-    {
-        V2ScrollCurve.Linear => "linear",
-        V2ScrollCurve.Hold => "hold",
-        V2ScrollCurve.EaseInQuad => "easeInQuad",
-        V2ScrollCurve.EaseOutQuad => "easeOutQuad",
-        V2ScrollCurve.EaseInOutQuad => "easeInOutQuad",
-        V2ScrollCurve.EaseInCubic => "easeInCubic",
-        V2ScrollCurve.EaseOutCubic => "easeOutCubic",
-        V2ScrollCurve.EaseInOutCubic => "easeInOutCubic",
-        V2ScrollCurve.EaseInSine => "easeInSine",
-        V2ScrollCurve.EaseOutSine => "easeOutSine",
-        V2ScrollCurve.EaseInOutSine => "easeInOutSine",
-        _ => throw new ArgumentOutOfRangeException(nameof(curve)),
     };
 }

@@ -10,8 +10,9 @@ namespace CoreTests;
 /// </summary>
 internal static class V2CurveTests
 {
-	private static readonly V2PathCurve[] PathCurves = Enum.GetValues<V2PathCurve>();
-	private static readonly V2ScrollCurve[] ScrollCurves = Enum.GetValues<V2ScrollCurve>();
+	// The frozen v2.0 set has closed-form definitions; v2.1 custom curves carry a separate expression.
+	private static readonly V2PathCurve[] PathCurves = Enum.GetValues<V2PathCurve>().Where(c => c != V2PathCurve.Custom).ToArray();
+	private static readonly V2ScrollCurve[] ScrollCurves = Enum.GetValues<V2ScrollCurve>().Where(c => c != V2ScrollCurve.Custom).ToArray();
 
 	/// <summary>入口：由已注册的 <c>V2ChartTests.TestV2CurvesMixerAndDigest</c> 调用，
 	/// 因此不需要改动共享的 <c>Program.cs</c>。</summary>

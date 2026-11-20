@@ -31,11 +31,7 @@ internal sealed class EditorBarGuideGrid
         _minTree = new double[_leaves * 2];
         Array.Fill(_minTree, double.PositiveInfinity);
         for (var i = 0; i < _starts.Length; ++i)
-        {
-            // All legal v2 easing families interpolate between their endpoints; Step is left-constant.
-            _minTree[_leaves + i] = events.Count == 0 ? 1d : i + 1 == events.Count || events[i].CurveToNext == V2ScrollCurve.Hold
-                ? events[i].Value : Math.Min(events[i].Value, events[i + 1].Value);
-        }
+            _minTree[_leaves + i] = map.ScrollMap.MinimumSpeedFor(i);
         for (var i = _leaves - 1; i > 0; --i) _minTree[i] = Math.Min(_minTree[i * 2], _minTree[i * 2 + 1]);
     }
 

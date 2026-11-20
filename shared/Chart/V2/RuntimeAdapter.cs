@@ -92,9 +92,9 @@ public static class V2RuntimeAdapter
     public static V2RuntimeAdapterResult Adapt(
         V2Chart chart, string? title = null, int difficulty = 0, bool requireMainJudgement = true)
     {
-        V2SemanticValidator.ValidateChart(chart, requireMainJudgement: requireMainJudgement);
+        var validated = V2SemanticValidator.ValidateChartCurves(chart, "chart.json", requireMainJudgement);
         var timeline = new V2BpmTimeline(chart.Bpms, chart.AudioOffsetSec);
-        var scroll = new V2ScrollMap(chart.ScrollSpeeds);
+        var scroll = new V2ScrollMap(chart.ScrollSpeeds, validated.Resolve);
         var sourceIdsByRuntimeId = new Dictionary<int, string>();
         var runtimeIdsBySourceId = new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -116,11 +116,11 @@ public static class V2RuntimeAdapter
         var paths = new Dictionary<int, V2PathEvaluator>();
         var nextRuntimeId = allIds.Length + 1;
         var notesLeft = FlattenTrack(chart.NotesLeft, Track.Left, timeline,
-            runtimeIdsBySourceId, sourceIdsByRuntimeId, paths, ref nextRuntimeId);
+            runtimeIdsBySourceId, sourceIdsByRuntimeId, paths, validated.Resolve, ref nextRuntimeId);
         var notesCenter = FlattenTrack(chart.NotesCenter, Track.Center, timeline,
-            runtimeIdsBySourceId, sourceIdsByRuntimeId, paths, ref nextRuntimeId);
+            runtimeIdsBySourceId, sourceIdsByRuntimeId, paths, validated.Resolve, ref nextRuntimeId);
         var notesRight = FlattenTrack(chart.NotesRight, Track.Right, timeline,
-            runtimeIdsBySourceId, sourceIdsByRuntimeId, paths, ref nextRuntimeId);
+            runtimeIdsBySourceId, sourceIdsByRuntimeId, paths, validated.Resolve, ref nextRuntimeId);
         var accents = V2SyncAccentDeriver.DeriveRuntimeIds(chart, runtimeIdsBySourceId);
         var metadata = new V2RuntimeChartMetadata
         {
@@ -163,7 +163,7 @@ public static class V2RuntimeAdapter
     private static IReadOnlyList<Note> FlattenTrack(IReadOnlyList<V2Note> source,
         Track track, V2BpmTimeline timeline, IReadOnlyDictionary<string, int> ids,
         Dictionary<int, string> sourceIdsByRuntimeId,
-        Dictionary<int, V2PathEvaluator> paths, ref int nextRuntimeId)
+        Dictionary<int, V2PathEvaluator> paths, Func<string, CustomCurve> compile, ref int nextRuntimeId)
     {
         var result = new List<Note>();
         foreach (var note in source)
@@ -178,8 +178,9 @@ public static class V2RuntimeAdapter
                 continue;
             }
 
-            paths.Add(headId, new V2PathEvaluator(path));
-            var flattenedPoints = FlattenPathPoints(path, track, ids, sourceIdsByRuntimeId,
+            var evaluator = new V2PathEvaluator(path, compile);
+            paths.Add(headId, evaluator);
+            var flattenedPoints = FlattenPathPoints(path, evaluator, timeline, track, ids, sourceIdsByRuntimeId,
                 ref nextRuntimeId);
             var nextId = flattenedPoints[0].RuntimeId;
             result.Add(RuntimeNote(path.Id, path.Id, headId, nextId,
@@ -210,11 +211,10 @@ public static class V2RuntimeAdapter
         int RuntimeId, string SourceId, ExactBarTime Time, double Center, double Width,
         V2PathCurve? CurveToNext, bool? HoldJudge, bool IsShapeSample = false);
 
-    private static IReadOnlyList<FlattenedPathPoint> FlattenPathPoints(V2PathNote path,
+    private static IReadOnlyList<FlattenedPathPoint> FlattenPathPoints(V2PathNote path, V2PathEvaluator evaluator, V2BpmTimeline timeline,
         Track track, IReadOnlyDictionary<string, int> ids,
         Dictionary<int, string> sourceIdsByRuntimeId, ref int nextRuntimeId)
     {
-        var evaluator = new V2PathEvaluator(path);
         var result = new List<FlattenedPathPoint>();
         var leftTime = path.Time;
         for (var nodeIndex = 0; nodeIndex < path.Nodes.Count; nodeIndex++)
@@ -239,15 +239,16 @@ public static class V2RuntimeAdapter
             }
             else if (curve != V2PathCurve.Linear)
             {
-                var subdivisions = RequiredSubdivisions(
-                    evaluator, leftTime, node.Time, track);
-                for (var step = 1; step < subdivisions; step++)
+                var times = evaluator.CustomFor(nodeIndex) is { } custom
+                    ? CustomShapeTimes(leftTime, node.Time, custom, timeline)
+                    : UniformShapeTimes(leftTime, node.Time, RequiredSubdivisions(evaluator, leftTime, node.Time, track));
+                var step = 0;
+                foreach (var time in times)
                 {
-                    var fraction = ExactBarTime.FromFraction(step, subdivisions);
-                    var time = leftTime + (node.Time - leftTime) * fraction;
+                    step++;
                     var sample = evaluator.Evaluate(time);
                     var runtimeId = checked(nextRuntimeId++);
-                    var sourceId = $"{path.Id}.__shape.{nodeIndex}.{step}";
+                    var sourceId = curve == V2PathCurve.Custom ? $"{path.Id}.__shape.{nodeIndex}:{step}" : $"{path.Id}.__shape.{nodeIndex}.{step}";
                     sourceIdsByRuntimeId.Add(runtimeId, sourceId);
                     result.Add(new FlattenedPathPoint(runtimeId, sourceId, time,
                         sample.Center, sample.Width, V2PathCurve.Linear,
@@ -259,6 +260,38 @@ public static class V2RuntimeAdapter
             leftTime = node.Time;
         }
         return result;
+    }
+
+    private static IEnumerable<ExactBarTime> UniformShapeTimes(ExactBarTime start, ExactBarTime end, int count)
+    {
+        for (var i = 1; i < count; i++)
+            yield return start + (end - start) * ExactBarTime.FromFraction(i, count);
+    }
+
+    // A line in bar space ceases to be straight in audio-second space at a tempo change. Merge
+    // both ordered lists, retaining one hidden vertex at a coincident tempo/polyline junction.
+    private static IEnumerable<ExactBarTime> CustomShapeTimes(ExactBarTime start, ExactBarTime end,
+        CustomCurve curve, V2BpmTimeline timeline)
+    {
+        var span = end - start;
+        using var changes = timeline.ChangesInside(start, end).GetEnumerator();
+        var hasChange = changes.MoveNext();
+        for (var i = 1; i < curve.Knots.Count - 1; i++)
+        {
+            var knot = start + span * ExactBarTime.FromDouble(curve.Knots[i]);
+            while (hasChange && changes.Current < knot)
+            {
+                yield return changes.Current;
+                hasChange = changes.MoveNext();
+            }
+            if (hasChange && changes.Current == knot) hasChange = changes.MoveNext();
+            yield return knot;
+        }
+        while (hasChange)
+        {
+            yield return changes.Current;
+            hasChange = changes.MoveNext();
+        }
     }
 
     private static int RequiredSubdivisions(V2PathEvaluator evaluator,

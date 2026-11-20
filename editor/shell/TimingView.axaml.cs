@@ -13,7 +13,7 @@ namespace DynamiteUniverse.Editor.Shell;
 /// </summary>
 public sealed partial class TimingView : UserControl
 {
-    private static readonly V2ScrollCurve[] ScrollCurves = Enum.GetValues<V2ScrollCurve>();
+    internal CustomCurveEditor Formula => this.FindControl<CustomCurveEditor>("ScrollFormula")!;
 
     private readonly IWorkbenchLocalizer _text = WorkbenchLocalizer.Shared;
     private EditorDocument? _document;
@@ -24,13 +24,14 @@ public sealed partial class TimingView : UserControl
     private double? _loadedScroll;
     private decimal? _displayedScroll;
 
-    public event Action<IEditorCommand>? CommandRequested;
+    public Func<IEditorCommand, string?>? CommandRequested { get; set; }
     public event Action<EditorSelection>? RowSelectionChanged;
     public event Action<string>? ErrorRequested;
 
     public TimingView()
     {
         AvaloniaXamlLoader.Load(this);
+        Formula.AttachChoice(this.FindControl<ComboBox>("ScrollCurveChoice")!);
         _text.LanguageChanged += OnLanguageChanged;
         UpdateView();
     }
@@ -207,6 +208,9 @@ public sealed partial class TimingView : UserControl
         var scrollTail = hasDocument && scrollSelected && Chart!.ScrollSpeeds.Count > 0 &&
             Chart.ScrollSpeeds.Max(item => item.Time) == scrollTime!.Value;
         this.FindControl<ComboBox>("ScrollCurveChoice")!.IsEnabled = hasDocument && scrollSelected && !scrollTail;
+        var current = scrollSelected ? Chart?.ScrollSpeeds.FirstOrDefault(s => s.Time == scrollTime!.Value) : null;
+        Formula.ShowTarget(_document, scrollTail ? null : current?.Key, current is null ? null : "Scroll " + ExactBarTimeText.Format(current.Time),
+            current?.CurveToNext?.ToString() ?? "None", current?.CustomExpr);
     }
 
     private ExactBarTime? SelectedBpmTime =>
@@ -245,9 +249,6 @@ public sealed partial class TimingView : UserControl
             _loadedScroll = scroll.Value;
             _displayedScroll = DisplayValue(scroll.Value);
             this.FindControl<NumericUpDown>("ScrollValueInput")!.Value = _displayedScroll;
-            var curve = scroll.CurveToNext;
-            this.FindControl<ComboBox>("ScrollCurveChoice")!.SelectedIndex =
-                curve is null ? 0 : Array.IndexOf(ScrollCurves, curve.Value) + 1;
             if (_document?.Selection is not { Kind: EditorSelectionKind.Scroll, Id: var current } || current != ExactBarTimeText.Format(time))
                 RowSelectionChanged?.Invoke(new EditorSelection(EditorSelectionKind.Scroll, ExactBarTimeText.Format(time)));
         }
@@ -301,16 +302,16 @@ public sealed partial class TimingView : UserControl
     private void AddScroll(object? sender, RoutedEventArgs e)
     {
         if (!RequireDocument() || !TryReadTime(this.FindControl<TextBox>("ScrollTimeValue")!, out var time)) return;
-        if (!TryReadScrollValue(out var value)) return;
-        Raise(new AddScrollCommand(time, value, ReadScrollCurve(time)));
+        if (!TryReadScrollValue(out var value) || !TryReadCurve(time, out var curve) || !Formula.TryReadInput(out var expr)) return;
+        if (Raise(new AddScrollCommand(time, value, curve, expr)) is { } error) ShowError(error);
     }
 
     private void ApplyScroll(object? sender, RoutedEventArgs e)
     {
         if (!RequireDocument() || SelectedScrollTime is not { } original) return;
         if (!TryReadTime(this.FindControl<TextBox>("ScrollTimeValue")!, out var time)) return;
-        if (!TryReadScrollValue(out var value, preserveLoaded: true)) return;
-        Raise(new EditScrollCommand(original, time, value, ReadScrollCurve(time)));
+        if (!TryReadScrollValue(out var value, preserveLoaded: true) || !TryReadCurve(time, out var curve)) return;
+        Formula.Submit(expr => Raise(new EditScrollCommand(original, time, value, curve, expr)));
     }
 
     private void DeleteScroll(object? sender, RoutedEventArgs e)
@@ -364,22 +365,22 @@ public sealed partial class TimingView : UserControl
         return false;
     }
 
-    private V2ScrollCurve? ReadScrollCurve(ExactBarTime time)
+    private bool TryReadCurve(ExactBarTime time, out V2ScrollCurve? curve)
     {
-        if (Chart is null) return null;
-        return Chart.ScrollSpeeds.Any(item => item.Time > time) ? ReadScrollCurve() : null;
+        var tag = (this.FindControl<ComboBox>("ScrollCurveChoice")!.SelectedItem as ComboBoxItem)?.Tag as string;
+        curve = Enum.TryParse<V2ScrollCurve>(tag, out var selected) ? selected : null;
+        if (Chart?.ScrollSpeeds.Any(item => item.Time > time) != true)
+        {
+            if (curve == V2ScrollCurve.Custom) { ShowError(_text["Curve.Tail"]); return false; }
+            curve = null;
+        }
+        return true;
     }
 
-    private V2ScrollCurve? ReadScrollCurve()
-    {
-        var index = this.FindControl<ComboBox>("ScrollCurveChoice")!.SelectedIndex;
-        return index <= 0 ? null : ScrollCurves[index - 1];
-    }
-
-    private void Raise(IEditorCommand command)
+    private string? Raise(IEditorCommand command)
     {
         ClearError();
-        CommandRequested?.Invoke(command);
+        return CommandRequested is null ? _text["Timing.Error.NoDocument"] : CommandRequested(command);
     }
 
     private void ShowError(string message)

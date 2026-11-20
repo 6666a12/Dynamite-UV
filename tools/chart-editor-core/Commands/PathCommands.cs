@@ -57,7 +57,7 @@ public sealed class AddPathNodeCommand(string noteId, EditablePathNode node) : I
 
         var candidate = note.Clone();
         candidate.Nodes.Insert(_index, EditorCommandRules.CloneNode(added));
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
         note.Nodes.Insert(_index, added);
         document.Select(new EditorSelection(EditorSelectionKind.PathNode, added.Id));
     }
@@ -101,7 +101,7 @@ public sealed class EditPathNodeCommand(
         candidate.Nodes[index].Time = time;
         candidate.Nodes[index].Center = center;
         candidate.Nodes[index].Width = width;
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
         if (!_captured)
         {
             _oldTime = node.Time;
@@ -131,7 +131,7 @@ public sealed class DeletePathNodeCommand(string noteId, string nodeId) : IEdito
 {
     private EditablePathNode? _deleted;
     private int _index;
-    private V2PathCurve? _promotedTailCurve;
+    private (V2PathCurve? Curve, string? Expr) _promotedTailCurve;
     private bool? _promotedTailJudge;
     private bool _changedPromotedTail;
 
@@ -148,21 +148,21 @@ public sealed class DeletePathNodeCommand(string noteId, string nodeId) : IEdito
         var candidate = note.Clone();
         if (_index == candidate.Nodes.Count - 1)
         {
-            candidate.Nodes[^2].CurveToNext = null;
+            (candidate.Nodes[^2].CurveToNext, candidate.Nodes[^2].CustomExpr) = (null, null);
             if (candidate.Type == V2NoteType.Hold)
                 candidate.Nodes[^2].Judge = true;
         }
         candidate.Nodes.RemoveAt(_index);
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
 
         _changedPromotedTail = _index == note.Nodes.Count - 1;
         if (_changedPromotedTail)
         {
             var promoted = note.Nodes[^2];
-            _promotedTailCurve = promoted.CurveToNext;
+            _promotedTailCurve = (promoted.CurveToNext, promoted.CustomExpr);
             if (note.Type == V2NoteType.Hold)
                 _promotedTailJudge = promoted.Judge;
-            promoted.CurveToNext = null;
+            (promoted.CurveToNext, promoted.CustomExpr) = (null, null);
             if (note.Type == V2NoteType.Hold)
                 promoted.Judge = true;
         }
@@ -179,87 +179,60 @@ public sealed class DeletePathNodeCommand(string noteId, string nodeId) : IEdito
         if (_changedPromotedTail)
         {
             var restoredPrevious = note.Nodes[_index - 1];
-            restoredPrevious.CurveToNext = _promotedTailCurve;
+            (restoredPrevious.CurveToNext, restoredPrevious.CustomExpr) = _promotedTailCurve;
             restoredPrevious.Judge = _promotedTailJudge;
         }
         document.Select(new EditorSelection(EditorSelectionKind.PathNode, nodeId));
     }
 }
 
-public sealed class SetPathCurveCommand : IEditorCommand
+public sealed class SetPathCurveCommand(string noteId, string? nodeId, V2PathCurve? curveToNext,
+    string? customExpr = null) : IEditorCommand
 {
-    private readonly string _noteId;
-    private readonly string? _nodeId;
-    private readonly V2PathCurve? _curveToNext;
-    private V2PathCurve? _oldCurve;
+    private (V2PathCurve? Curve, string? Expr) _before;
     private bool _captured;
 
-    public SetPathCurveCommand(string noteId, V2PathCurve? curveToNext)
-        : this(noteId, null, curveToNext)
-    {
-    }
-
-    public SetPathCurveCommand(string noteId, string? nodeId, V2PathCurve? curveToNext)
-    {
-        _noteId = noteId;
-        _nodeId = nodeId;
-        _curveToNext = curveToNext;
-    }
+    public SetPathCurveCommand(string noteId, V2PathCurve? curveToNext) : this(noteId, null, curveToNext) { }
+    public SetPathCurveCommand(string noteId, V2PathCurve curveToNext, string? customExpr)
+        : this(noteId, null, curveToNext, customExpr) { }
 
     public void Execute(EditorDocument document)
     {
-        if (_curveToNext is not null && !Enum.IsDefined(_curveToNext.Value))
-            throw new InvalidOperationException($"Unknown path curve '{_curveToNext}'.");
-        var note = EditorCommandRules.RequirePathNote(document, _noteId);
-        if (_nodeId is null)
-        {
-            var candidate = note.Clone();
-            candidate.CurveToNext = _curveToNext;
-            EditorCommandRules.ValidateNote(candidate);
-            if (!_captured)
-            {
-                _oldCurve = note.CurveToNext;
-                _captured = true;
-            }
-            note.CurveToNext = _curveToNext;
-            document.Select(new EditorSelection(EditorSelectionKind.Note, _noteId));
-            return;
-        }
-
-        var index = note.Nodes.FindIndex(node => node.Id == _nodeId);
-        if (index < 0)
-            throw new KeyNotFoundException($"Path node '{_nodeId}' was not found in note '{_noteId}'.");
-        if (index == note.Nodes.Count - 1)
-            throw new InvalidOperationException("Tail path node has no outgoing curve.");
-        var node = note.Nodes[index];
-        var nodeCandidate = note.Clone();
-        nodeCandidate.Nodes[index].CurveToNext = _curveToNext;
-        EditorCommandRules.ValidateNote(nodeCandidate);
-        if (!_captured)
-        {
-            _oldCurve = node.CurveToNext;
-            _captured = true;
-        }
-        node.CurveToNext = _curveToNext;
-        document.Select(new EditorSelection(EditorSelectionKind.PathNode, _nodeId));
+        var note = EditorCommandRules.RequirePathNote(document, noteId);
+        var candidate = note.Clone();
+        Replace(candidate, (curveToNext, customExpr));
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
+        var previous = Replace(note, (curveToNext, customExpr));
+        if (!_captured) { _before = previous; _captured = true; }
+        Select(document);
     }
 
     public void Undo(EditorDocument document)
     {
-        if (!_captured)
-            throw new InvalidOperationException("Set path curve command has not executed.");
-        var note = EditorCommandRules.RequirePathNote(document, _noteId);
-        if (_nodeId is null)
-        {
-            note.CurveToNext = _oldCurve;
-            document.Select(new EditorSelection(EditorSelectionKind.Note, _noteId));
-        }
-        else
-        {
-            document.RequirePathNode(_noteId, _nodeId).CurveToNext = _oldCurve;
-            document.Select(new EditorSelection(EditorSelectionKind.PathNode, _nodeId));
-        }
+        if (!_captured) throw new InvalidOperationException("Set path curve command has not executed.");
+        Replace(document.RequireNote(noteId), _before);
+        Select(document);
     }
+
+    private (V2PathCurve?, string?) Replace(EditableNote note, (V2PathCurve?, string?) value)
+    {
+        if (nodeId is null)
+        {
+            var previous = (note.CurveToNext, note.CustomExpr);
+            (note.CurveToNext, note.CustomExpr) = value;
+            return previous;
+        }
+        var index = note.Nodes.FindIndex(p => p.Id == nodeId);
+        if (index < 0) throw new KeyNotFoundException($"Path node '{nodeId}' was not found in note '{noteId}'.");
+        if (index == note.Nodes.Count - 1) throw new InvalidOperationException("Tail path node has no outgoing curve.");
+        var point = note.Nodes[index];
+        var old = (point.CurveToNext, point.CustomExpr);
+        (point.CurveToNext, point.CustomExpr) = value;
+        return old;
+    }
+
+    private void Select(EditorDocument document) => document.Select(nodeId is null
+        ? new(EditorSelectionKind.Note, noteId) : new(EditorSelectionKind.PathNode, nodeId));
 }
 
 public sealed class SetHoldJudgeCommand(string noteId, string nodeId, bool judge) : IEditorCommand
@@ -280,7 +253,7 @@ public sealed class SetHoldJudgeCommand(string noteId, string nodeId, bool judge
         var node = note.Nodes[index];
         var candidate = note.Clone();
         candidate.Nodes[index].Judge = judge;
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
         if (!_captured)
         {
             _oldJudge = node.Judge;
@@ -324,7 +297,7 @@ public sealed class EditPathTerminalCommand(
         candidate.Nodes[^1].Time = time;
         candidate.Nodes[^1].Center = center;
         candidate.Nodes[^1].Width = width;
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
         if (!_captured)
         {
             _oldTime = terminal.Time;

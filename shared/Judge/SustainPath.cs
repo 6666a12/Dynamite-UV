@@ -20,6 +20,8 @@ public sealed class SustainPath
     /// <summary>Exact v2 BPM map used to translate runtime seconds back to path BarTime.</summary>
     public DynamiteUniverse.Shared.Chart.V2.V2BpmTimeline? V2BpmTimeline { get; init; }
 
+    // Legacy, 2.0, and built-in-only Holds keep their established event/frame scoring contract.
+    public bool ReplaysHoldGeometry => Kind == SustainKind.Hold && V2BpmTimeline is not null && V2Evaluator?.HasCustomSegments == true;
     public Note Head => Nodes[0];
     public Note End => Nodes[^1];
     public double StartTime => Head.Second;

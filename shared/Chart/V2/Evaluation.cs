@@ -88,6 +88,13 @@ public sealed class V2BpmTimeline
             (exactSecond - segment.StartSecond) * segment.ExactBpm / new BigInteger(240);
     }
 
+    /// <summary>Tempo boundaries strictly inside a rendered piece, in exact bar order.</summary>
+    internal IEnumerable<ExactBarTime> ChangesInside(ExactBarTime start, ExactBarTime end)
+    {
+        for (var i = FindBarSegment(start) + 1; i < _segments.Length && _segments[i].Time < end; i++)
+            yield return _segments[i].Time;
+    }
+
     public double BpmAt(ExactBarTime time) => _segments[FindBarSegment(time)].Bpm;
 
     public double BpmAtSeconds(double second)
@@ -178,7 +185,9 @@ public static class V2Curves
         V2PathCurve.EaseInSine => 1.0 - Math.Cos(u * Math.PI / 2.0),
         V2PathCurve.EaseOutSine => Math.Sin(u * Math.PI / 2.0),
         V2PathCurve.EaseInOutSine => -(Math.Cos(Math.PI * u) - 1.0) / 2.0,
-        _ => throw new ArgumentException("Smooth paths require the PCHIP evaluator.", nameof(curve)),
+        V2PathCurve.Smooth => throw new ArgumentException("Smooth paths require the PCHIP evaluator.", nameof(curve)),
+        V2PathCurve.Custom => throw new ArgumentException("Custom paths require a compiled expression.", nameof(curve)),
+        _ => throw new ArgumentOutOfRangeException(nameof(curve)),
     };
 
     public static double Progress(V2ScrollCurve curve, double u) => curve switch
@@ -214,14 +223,38 @@ public sealed class V2ScrollMap
     private readonly IReadOnlyList<V2ScrollEvent> _events;
     private readonly double[] _runtimeTimes;
 
-    public V2ScrollMap(IReadOnlyList<V2ScrollEvent>? events)
+    private readonly CustomCurveInterval?[] _custom;
+    private HashSet<double>? _roundedCustomEndpoints;
+
+    public V2ScrollMap(IReadOnlyList<V2ScrollEvent>? events) : this(events, CustomCurve.Compile) { }
+
+    internal V2ScrollMap(IReadOnlyList<V2ScrollEvent>? events, Func<string, CustomCurve> compile)
     {
         _events = events is null || events.Count == 0 ? [Implicit] : events;
         _runtimeTimes = _events.Select(item => item.Time.ToDouble()).ToArray();
+        _custom = new CustomCurveInterval?[_events.Count];
+        for (var i = 0; i + 1 < _events.Count; i++)
+            if (_events[i].CurveToNext == V2ScrollCurve.Custom)
+            {
+                _custom[i] = new(_events[i].Time, _events[i + 1].Time, compile(_events[i].CustomExpr!));
+                CustomCurveInterval.MarkRounded(_events[i].Time, ref _roundedCustomEndpoints);
+                CustomCurveInterval.MarkRounded(_events[i + 1].Time, ref _roundedCustomEndpoints);
+            }
+    }
+
+    /// <summary>True segment minimum, including Custom progress excursions beyond both endpoints.</summary>
+    public double MinimumSpeedFor(int interval)
+    {
+        var left = _events[interval];
+        if (interval + 1 == _events.Count || left.CurveToNext == V2ScrollCurve.Hold) return left.Value;
+        var right = _events[interval + 1].Value;
+        return _custom[interval] is { } custom ? CustomCurveGeometry.Range(left.Value, right, custom.Curve).Minimum
+            : Math.Min(left.Value, right);
     }
 
     public double RuntimeSpeedAt(double time)
     {
+        if (_roundedCustomEndpoints?.Contains(time) == true) return SpeedAt(ExactBarTime.FromDouble(time));
         if (time <= _runtimeTimes[0])
             return _events[0].Value;
         if (time >= _runtimeTimes[^1])
@@ -242,6 +275,8 @@ public sealed class V2ScrollMap
 
         var left = _events[lo];
         var right = _events[hi];
+        if (_custom[lo] is { } custom)
+            return CustomCurveGeometry.Interpolate(left.Value, right.Value, custom.Curve.Evaluate(custom.Normalized(time)));
         var u = (time - _runtimeTimes[lo]) /
             (_runtimeTimes[hi] - _runtimeTimes[lo]);
         var p = V2Curves.Progress(left.CurveToNext ?? V2ScrollCurve.Linear, u);
@@ -271,6 +306,8 @@ public sealed class V2ScrollMap
         var left = _events[lo];
         var right = _events[hi];
         var u = ((time - left.Time) / (right.Time - left.Time)).ToDouble();
+        if (_custom[lo] is { } custom)
+            return CustomCurveGeometry.Interpolate(left.Value, right.Value, custom.Curve.Evaluate(u));
         var p = V2Curves.Progress(left.CurveToNext ?? V2ScrollCurve.Linear, u);
         return left.Value + (right.Value - left.Value) * p;
     }
@@ -296,13 +333,17 @@ public sealed class V2PathEvaluator
 {
     private readonly Point[] _points;
     private readonly V2PathCurve[] _curves;
+    private readonly CustomCurveInterval?[] _custom;
+    private HashSet<double>? _roundedCustomEndpoints;
     private readonly double[] _runtimeTimes;
     private readonly double[][] _centerSlopes;
     private readonly double[][] _widthSlopes;
 
     private readonly record struct Point(ExactBarTime Time, double Center, double Width);
 
-    public V2PathEvaluator(V2PathNote note)
+    public V2PathEvaluator(V2PathNote note) : this(note, CustomCurve.Compile) { }
+
+    internal V2PathEvaluator(V2PathNote note, Func<string, CustomCurve> compile)
     {
         ArgumentNullException.ThrowIfNull(note);
         _points = new Point[note.Nodes.Count + 1];
@@ -318,6 +359,16 @@ public sealed class V2PathEvaluator
         }
 
         _runtimeTimes = _points.Select(point => point.Time.ToDouble()).ToArray();
+        _custom = new CustomCurveInterval?[_curves.Length];
+        for (var i = 0; i < _curves.Length; i++)
+            if (_curves[i] == V2PathCurve.Custom)
+            {
+                HasCustomSegments = true;
+                _custom[i] = new(_points[i].Time, _points[i + 1].Time,
+                    compile((i == 0 ? note.CustomExpr : note.Nodes[i - 1].CustomExpr)!));
+                CustomCurveInterval.MarkRounded(_points[i].Time, ref _roundedCustomEndpoints);
+                CustomCurveInterval.MarkRounded(_points[i + 1].Time, ref _roundedCustomEndpoints);
+            }
 
         _centerSlopes = new double[_curves.Length][];
         _widthSlopes = new double[_curves.Length][];
@@ -335,6 +386,13 @@ public sealed class V2PathEvaluator
         }
     }
 
+    public bool HasCustomSegments { get; }
+    public CustomCurve? CustomFor(int interval) => _custom[interval]?.Curve;
+
+    private V2PathSample CustomSample(int i, double progress) => new(
+        CustomCurveGeometry.Interpolate(_points[i].Center, _points[i + 1].Center, progress),
+        CustomCurveGeometry.Interpolate(_points[i].Width, _points[i + 1].Width, progress));
+
     public ExactBarTime StartTime => _points[0].Time;
     public ExactBarTime EndTime => _points[^1].Time;
 
@@ -350,6 +408,7 @@ public sealed class V2PathEvaluator
             return Sample(_points[interval + 1]);
         var u = ((time - _points[interval].Time) /
                  (_points[interval + 1].Time - _points[interval].Time)).ToDouble();
+        if (_custom[interval] is { } custom) return CustomSample(interval, custom.Curve.Evaluate(u));
         if (_curves[interval] != V2PathCurve.Smooth)
         {
             var p = V2Curves.Progress(_curves[interval], u);
@@ -372,12 +431,15 @@ public sealed class V2PathEvaluator
 
     public V2PathSample EvaluateRuntime(double time)
     {
+        if (_roundedCustomEndpoints?.Contains(time) == true) return Evaluate(ExactBarTime.FromDouble(time));
         if (time <= _runtimeTimes[0])
             return Sample(_points[0]);
         if (time >= _runtimeTimes[^1])
             return Sample(_points[^1]);
 
         var interval = FindRuntimeInterval(time);
+        if (_custom[interval] is { } custom)
+            return CustomSample(interval, custom.Curve.Evaluate(custom.Normalized(time)));
         var u = (time - _runtimeTimes[interval]) /
             (_runtimeTimes[interval + 1] - _runtimeTimes[interval]);
         if (_curves[interval] != V2PathCurve.Smooth)
@@ -407,9 +469,10 @@ public sealed class V2PathEvaluator
     /// Exact partition for a stationary receiver against center ± width/2. Polynomial curves are
     /// solved by splitting at derivative roots before bisection; monotone transcendental easings
     /// use guarded bisection on the monotone progress piece. Hold jumps and ease-in-out midpoints
-    /// are explicit, so even a brief exit/reentry inside one render frame is found.
+    /// are explicit, so even a brief exit/reentry inside one render frame is found. receiverHalfWidth
+    /// expands every edge for Hold; contactTolerance retains the custom Mixer polyline's numeric rim.
     /// </summary>
-    public void AddReceiverBoundaries(double from, double to, double receiver, List<double> output)
+    public void AddReceiverBoundaries(double from, double to, double receiver, List<double> output, double contactTolerance = 0, double receiverHalfWidth = 0)
     {
         for (var i = Math.Max(0, FindRuntimeInterval(from)); i < _curves.Length; i++)
         {
@@ -419,10 +482,16 @@ public sealed class V2PathEvaluator
             if (end <= from) continue;
             AddTime(start);
             AddTime(end);
+            if (_custom[i] is { } custom)
+            {
+                custom.AddCrossings(from, to, receiver, Sample(_points[i]), Sample(_points[i + 1]), output, contactTolerance + receiverHalfWidth);
+                continue;
+            }
             foreach (var sign in new[] { -0.5, 0.5 })
             {
-                var y0 = _points[i].Center + sign * _points[i].Width - receiver;
-                var y1 = _points[i + 1].Center + sign * _points[i + 1].Width - receiver;
+                var expansion = sign < 0 ? -receiverHalfWidth : receiverHalfWidth;
+                var y0 = (_points[i].Center + sign * _points[i].Width + expansion) - receiver;
+                var y1 = (_points[i + 1].Center + sign * _points[i + 1].Width + expansion) - receiver;
                 var d = y1 - y0;
                 switch (_curves[i])
                 {
@@ -463,7 +532,7 @@ public sealed class V2PathEvaluator
                 {
                     var p = V2Curves.Progress(curve, u);
                     return Lerp(_points[i].Center, _points[i + 1].Center, p) + edgeSign *
-                        Lerp(_points[i].Width, _points[i + 1].Width, p) - receiver;
+                        Lerp(_points[i].Width, _points[i + 1].Width, p) + (edgeSign < 0 ? -receiverHalfWidth : receiverHalfWidth) - receiver;
                 }
 
                 var a = 0.0;
@@ -539,6 +608,18 @@ public sealed class V2PathEvaluator
 
         for (var interval = 0; interval < _curves.Length; interval++)
         {
+            if (_custom[interval] is { } custom)
+            {
+                foreach (var progress in new[] { custom.Curve.Minimum, custom.Curve.Maximum })
+                {
+                    var p = CustomSample(interval, progress);
+                    if (p.Width > 0 && double.IsFinite(p.Width) && double.IsFinite(p.Center) &&
+                        double.IsFinite(p.Left) && double.IsFinite(p.Right)) continue;
+                    failingInterval = interval;
+                    reason = FormattableString.Invariant($"custom curve produces invalid geometry (center {p.Center:R}, width {p.Width:R}, progress {progress:R})");
+                    return false;
+                }
+            }
             if (_curves[interval] != V2PathCurve.Smooth)
                 continue;
             var (runStart, _) = SmoothRun(interval);

@@ -61,7 +61,7 @@ public static class EditorSpatialAnalysis
         return risk;
     }
 
-    public static EditorSpatialReport Analyze(EditableNote note)
+    public static EditorSpatialReport Analyze(EditableNote note, CustomCurveCache? curveCache = null)
     {
         var risk = Point(note.Track, note.Type, note.Center, note.Width);
         var count = 1;
@@ -77,21 +77,25 @@ public static class EditorSpatialAnalysis
         var path = new V2PathNote
         {
             Id = note.Id, Type = note.Type, Time = note.Time, Center = note.Center, Width = note.Width,
-            CurveToNext = note.CurveToNext,
+            CurveToNext = note.CurveToNext, CustomExpr = note.CustomExpr,
             Nodes = note.Nodes.Select(n => new V2PathNode { Id = n.Id, Time = n.Time,
-                Center = n.Center, Width = n.Width, CurveToNext = n.CurveToNext, Judge = n.Judge,
+                Center = n.Center, Width = n.Width, CurveToNext = n.CurveToNext, CustomExpr = n.CustomExpr, Judge = n.Judge,
                 JudgeWasExplicit = n.Judge.HasValue }).ToArray(),
         };
         try
         {
-            var evaluator = new V2PathEvaluator(path);
+            var evaluator = curveCache?.EvaluatePath(path) ?? new V2PathEvaluator(path);
             var start = shape.Head.Time;
             var budget = 4096;
-            foreach (var node in shape.Nodes)
+            for (var j = 0; j < shape.Nodes.Count; j++)
             {
-                for (var i = 1; i < 32 && budget > 0; i++, budget--)
+                var node = shape.Nodes[j];
+                var knots = evaluator.CustomFor(j)?.Knots;
+                var steps = knots?.Count - 1 ?? 32;
+                for (var i = 1; i < steps && budget > 0; i++, budget--)
                 {
-                    var sample = evaluator.Evaluate(start + (node.Time - start) * ExactBarTime.FromFraction(i, 32));
+                    var fraction = knots is null ? ExactBarTime.FromFraction(i, steps) : ExactBarTime.FromDouble(knots[i]);
+                    var sample = evaluator.Evaluate(start + (node.Time - start) * fraction);
                     risk |= Point(note.Track, note.Type, sample.Center, sample.Width);
                     count++;
                 }
@@ -99,7 +103,7 @@ public static class EditorSpatialAnalysis
                 if (budget == 0) break;
             }
         }
-        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or InvalidOperationException)
+        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or InvalidOperationException or FormatException)
         {
             risk |= EditorSpatialRisk.NumericRange;
         }

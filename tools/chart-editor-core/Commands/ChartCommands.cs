@@ -50,6 +50,8 @@ public sealed class CopyChartCommand(string sourceChartId, string chartId, strin
             var source = document.Charts.SingleOrDefault(item => item.Id == sourceChartId)
                 ?? throw new KeyNotFoundException($"Chart '{sourceChartId}' is not open.");
             _copy = source.Clone();
+            // This is a new difficulty, not a history snapshot. Allocate once, never on redo.
+            _copy.Key = EditorEntityKey.New();
             _copy.Id = chartId;
             _copy.File = file;
             if (_copy.Difficulty == V2Difficulty.Custom)

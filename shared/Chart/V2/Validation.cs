@@ -9,6 +9,7 @@ public static class V2SemanticValidator
     public static void ValidatePack(V2Pack pack, string sourceName = "meta.json")
     {
         ArgumentNullException.ThrowIfNull(pack);
+        ValidateMinor(pack.FormatMinor, sourceName);
         if (pack.Revision < 1 || pack.Revision > (long)ExactBarTime.MaxSafeInteger)
             throw Error(sourceName, "/revision", "revision must be a JSON-safe integer >= 1");
         ValidateDisplayText(pack.Title, sourceName, "/title", 256);
@@ -77,9 +78,13 @@ public static class V2SemanticValidator
     }
 
     public static void ValidateChart(V2Chart chart, string sourceName = "chart.json",
-        bool requireMainJudgement = true)
+        bool requireMainJudgement = true) => ValidateChartCurves(chart, sourceName, requireMainJudgement);
+
+    internal static CustomCurveValidation ValidateChartCurves(V2Chart chart, string sourceName,
+        bool requireMainJudgement)
     {
         ArgumentNullException.ThrowIfNull(chart);
+        ValidateMinor(chart.FormatMinor, sourceName);
         ValidateId(chart.ChartId, sourceName, "/chartId");
         RequireFinite(chart.AudioOffsetSec, sourceName, "/audioOffsetSec", "audioOffsetSec");
 
@@ -98,33 +103,70 @@ public static class V2SemanticValidator
                     "BPM event times must be strictly increasing");
         }
 
-        if (chart.ScrollSpeeds is null)
+        var custom = new CustomCurveValidation(chart.FormatMinor, sourceName, chart.Bpms,
+            chart.FormatMinor == 0 ? null : CustomCurveCache.For(chart));
+        ValidateScrollTimeline(chart.ScrollSpeeds, sourceName, custom);
+
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        BigInteger judgementCount = BigInteger.Zero;
+        ValidateTrack(chart.NotesLeft, "/notesLeft", sourceName, ids, custom, ref judgementCount);
+        ValidateTrack(chart.NotesCenter, "/notesCenter", sourceName, ids, custom, ref judgementCount);
+        ValidateTrack(chart.NotesRight, "/notesRight", sourceName, ids, custom, ref judgementCount);
+        if (requireMainJudgement && judgementCount.IsZero)
+            throw Error(sourceName, "/", "chart must contain at least one main judgement unit");
+        custom.Publish(); // Only complete, valid source sets may replace the previous one.
+        return custom;
+    }
+
+    /// <summary>Preflight one editor candidate before constructing its evaluator. A single new
+    /// path is already subject to the source/geometry limits; full validation still charges
+    /// all paths, Scroll uses and tempo boundaries together.</summary>
+    public static V2PathEvaluator ValidatePathCurves(V2PathNote path, CustomCurveCache cache)
+    {
+        var curves = new CustomCurveValidation(V2Format.CustomCurvesMinor, "editor path", [], cache);
+        curves.Path(path, "/path");
+        return new V2PathEvaluator(path, curves.Resolve);
+    }
+
+    /// <summary>Validates the timing panel's proposed scroll edit with the same rules as a full chart.</summary>
+    public static void ValidateScrollTimeline(IReadOnlyList<V2ScrollEvent> scrolls, int formatMinor,
+        string sourceName = "chart.json", CustomCurveCache? curveCache = null)
+    {
+        ValidateMinor(formatMinor, sourceName);
+        ValidateScrollTimeline(scrolls, sourceName, new CustomCurveValidation(formatMinor, sourceName, [], curveCache));
+    }
+
+    private static void ValidateScrollTimeline(IReadOnlyList<V2ScrollEvent> scrolls, string sourceName,
+        CustomCurveValidation custom)
+    {
+        if (scrolls is null)
             throw Error(sourceName, "/scrollSpeeds", "scrollSpeeds cannot be null");
-        if (chart.ScrollSpeeds.Count > 0 && chart.ScrollSpeeds[0].Time != ExactBarTime.Zero)
+        if (scrolls.Count > 0 && scrolls[0].Time != ExactBarTime.Zero)
             throw Error(sourceName, "/scrollSpeeds/0/time",
                 "first nonempty scroll event must be at BarTime 0");
-        for (var i = 0; i < chart.ScrollSpeeds.Count; i++)
+        for (var i = 0; i < scrolls.Count; i++)
         {
-            var scroll = chart.ScrollSpeeds[i];
+            var scroll = scrolls[i];
             ValidateBarTime(scroll.Time, sourceName, $"/scrollSpeeds/{i}/time");
             if (!double.IsFinite(scroll.Value) || scroll.Value <= 0.0 || scroll.Value > 64.0)
                 throw Error(sourceName, $"/scrollSpeeds/{i}/value",
                     "scroll value must be finite and in (0,64]");
-            if (i > 0 && scroll.Time <= chart.ScrollSpeeds[i - 1].Time)
+            if (i > 0 && scroll.Time <= scrolls[i - 1].Time)
                 throw Error(sourceName, $"/scrollSpeeds/{i}/time",
                     "scroll event times must be strictly increasing");
-            if (i == chart.ScrollSpeeds.Count - 1 && scroll.CurveToNext is not null)
+            if (scroll.CurveToNext is { } curve && !Enum.IsDefined(curve))
+                throw Error(sourceName, $"/scrollSpeeds/{i}/curveToNext", "unknown scroll curve");
+            if (i == scrolls.Count - 1 && scroll.CurveToNext is not null)
                 throw Error(sourceName, $"/scrollSpeeds/{i}/curveToNext",
                     "tail scroll event must omit curveToNext");
+            custom.Scroll(scroll, i + 1 < scrolls.Count ? scrolls[i + 1] : null, $"/scrollSpeeds/{i}");
         }
+    }
 
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        BigInteger judgementCount = BigInteger.Zero;
-        ValidateTrack(chart.NotesLeft, "/notesLeft", sourceName, ids, ref judgementCount);
-        ValidateTrack(chart.NotesCenter, "/notesCenter", sourceName, ids, ref judgementCount);
-        ValidateTrack(chart.NotesRight, "/notesRight", sourceName, ids, ref judgementCount);
-        if (requireMainJudgement && judgementCount.IsZero)
-            throw Error(sourceName, "/", "chart must contain at least one main judgement unit");
+    private static void ValidateMinor(int minor, string sourceName)
+    {
+        if (minor is not (0 or V2Format.CustomCurvesMinor))
+            throw Error(sourceName, "/formatMinor", $"unsupported format minor {minor}");
     }
 
     /// <summary>Returns the exact main-judgement count without allocating runtime units.</summary>
@@ -146,7 +188,7 @@ public static class V2SemanticValidator
     }
 
     private static void ValidateTrack(IReadOnlyList<V2Note>? notes, string pointer,
-        string sourceName, HashSet<string> ids, ref BigInteger judgementCount)
+        string sourceName, HashSet<string> ids, CustomCurveValidation custom, ref BigInteger judgementCount)
     {
         if (notes is null)
             throw Error(sourceName, pointer, "note array cannot be null");
@@ -180,6 +222,8 @@ public static class V2SemanticValidator
                 throw Error(sourceName, notePointer + "/nodes",
                     "Hold and Mixer require at least one path node");
 
+            if (path.CurveToNext is { } headCurve && !Enum.IsDefined(headCurve))
+                throw Error(sourceName, notePointer + "/curveToNext", "unknown path curve");
             var previousTime = path.Time;
             for (var nodeIndex = 0; nodeIndex < path.Nodes.Count; nodeIndex++)
             {
@@ -195,6 +239,8 @@ public static class V2SemanticValidator
                         "path node time must be strictly later than the previous point");
                 previousTime = node.Time;
                 ValidatePoint(node.Center, node.Width, sourceName, nodePointer);
+                if (node.CurveToNext is { } nodeCurve && !Enum.IsDefined(nodeCurve))
+                    throw Error(sourceName, nodePointer + "/curveToNext", "unknown path curve");
                 if (nodeIndex == path.Nodes.Count - 1 && node.CurveToNext is not null)
                     throw Error(sourceName, nodePointer + "/curveToNext",
                         "tail path node must omit curveToNext");
@@ -218,13 +264,15 @@ public static class V2SemanticValidator
                 throw Error(sourceName, $"{notePointer}/nodes/{path.Nodes.Count - 1}/judge",
                     "Hold tail must explicitly set judge:true");
 
-            var evaluator = new V2PathEvaluator(path);
+            custom.Path(path, notePointer);
+            var evaluator = new V2PathEvaluator(path, custom.Resolve);
             if (!evaluator.IsFiniteAndPositive(out var failingInterval, out var reason))
-                throw Error(sourceName, failingInterval < 0
-                    ? notePointer
-                    : failingInterval == 0
-                        ? notePointer + "/curveToNext"
-                        : $"{notePointer}/nodes/{failingInterval - 1}/curveToNext", reason);
+            {
+                var point = failingInterval <= 0 ? notePointer : $"{notePointer}/nodes/{failingInterval - 1}";
+                var curve = failingInterval <= 0 ? path.CurveToNext : path.Nodes[failingInterval - 1].CurveToNext;
+                throw Error(sourceName, failingInterval < 0 ? point : point +
+                    (curve == V2PathCurve.Custom ? "/customExpr" : "/curveToNext"), reason);
+            }
 
             judgementCount += path.Type == V2NoteType.Hold
                 ? BigInteger.One
@@ -349,6 +397,13 @@ public static class V2PackageValidator
         }
     }
 
+    internal static void RequireSupportedChartMinor(V2Pack pack, V2Chart chart, string sourceName)
+    {
+        if (chart.FormatMinor > pack.FormatMinor)
+            throw new V2DiagnosticException(sourceName, "/formatMinor",
+                $"chart v2.{chart.FormatMinor} requires pack formatMinor:{chart.FormatMinor} or newer");
+    }
+
     /// <summary>Deep-validates one declared chart, including semantic and resolved-audio checks.</summary>
     public static V2ResolvedChart ValidateEntry(
         V2Pack pack, V2ChartEntry entry, V2PackageValidationHooks hooks,
@@ -362,6 +417,7 @@ public static class V2PackageValidator
         var chart = hooks.LoadChart(entry) ??
             throw new V2DiagnosticException(sourceName, pointer + "/file",
                 "chart loader returned null");
+        RequireSupportedChartMinor(pack, chart, entry.File);
         V2SemanticValidator.ValidateChart(chart, entry.File);
         if (!string.Equals(chart.ChartId, entry.Id, StringComparison.Ordinal))
             throw new V2DiagnosticException(entry.File, "/chartId",

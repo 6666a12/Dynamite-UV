@@ -35,10 +35,13 @@ public sealed class EditorNoteClipboard
                 node.Key = EditorEntityKey.New();
                 node.Time += delta;
             }
-            EditorCommandRules.ValidateNote(note);
             copies.Add(note);
         }
-        document.Execute(new CompositeEditorCommand(copies.Select(n => (IEditorCommand)new AddNoteCommand(n)).ToArray()));
+        // Each AddNote validates its candidate inside the same bounded compile transaction as
+        // the final chart check. Composite rollback restores the notes; preserve selection too.
+        var selection = document.Selection;
+        try { document.Execute(new CompositeEditorCommand(copies.Select(n => (IEditorCommand)new AddNoteCommand(n)).ToArray())); }
+        catch { document.Select(selection); throw; }
         return copies.Select(n => n.Id).ToArray();
     }
 }

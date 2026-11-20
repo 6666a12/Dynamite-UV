@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
+using DynamiteUniverse.Shared.Chart.V2;
 
 namespace DynamiteUniverse.Network;
 
@@ -26,7 +27,8 @@ public sealed class CatalogTransport : IDisposable
         StoreContract.Validate(details.Release);
         if (details.Release.Id != id || details.Charts is not { Length: > 0 and <= 128 } ||
             details.Charts.Any(c => c is null || string.IsNullOrEmpty(c.ChartId) || !StoreContract.Hash(c.Digest) ||
-                c.RulesetId != "dynamite-uv-ruleset-2.0")) throw new OnlineException("invalid_response");
+                (c.RulesetId != V2Format.RulesetId && c.RulesetId != V2Format.RulesetIdFor(V2Format.CustomCurvesMinor))))
+            throw new OnlineException("invalid_response");
         return details;
     }
     private async Task<T> JsonAsync<T>(CatalogAccess access, string route, CancellationToken ct)

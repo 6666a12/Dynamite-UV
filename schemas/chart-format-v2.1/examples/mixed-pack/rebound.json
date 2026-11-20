@@ -1,0 +1,107 @@
+{
+  "format": "dynamite-uv-chart",
+  "formatVersion": 2,
+  "formatMinor": 1,
+  "chartId": "rebound",
+  "audioOffsetSec": 0,
+  "timing": {
+    "bpms": [
+      {
+        "time": {
+          "bar": 0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "bpm": 240
+      }
+    ]
+  },
+  "scrollSpeeds": [
+    {
+      "time": {
+        "bar": 0,
+        "numerator": 0,
+        "denominator": 1
+      },
+      "value": 1,
+      "curveToNext": "custom",
+      "customExpr": "1 - (1 - t)^1.5 * cos(3*pi*t)"
+    },
+    {
+      "time": {
+        "bar": 1,
+        "numerator": 0,
+        "denominator": 1
+      },
+      "value": 1.25
+    }
+  ],
+  "notesLeft": [
+    {
+      "id": "ribbon",
+      "type": "mixer",
+      "time": {
+        "bar": 0,
+        "numerator": 0,
+        "denominator": 1
+      },
+      "center": 1,
+      "width": 1,
+      "curveToNext": "custom",
+      "customExpr": "1 - (1 - t)^1.5 * cos(3*pi*t)",
+      "nodes": [
+        {
+          "id": "turn",
+          "time": {
+            "bar": 1,
+            "numerator": 0,
+            "denominator": 1
+          },
+          "center": 3,
+          "width": 0.75,
+          "curveToNext": "custom",
+          "customExpr": "t^1.5"
+        },
+        {
+          "id": "end",
+          "time": {
+            "bar": 1,
+            "numerator": 1,
+            "denominator": 2
+          },
+          "center": 2,
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "notesCenter": [
+    {
+      "id": "hold",
+      "type": "hold",
+      "time": {
+        "bar": 0,
+        "numerator": 1,
+        "denominator": 4
+      },
+      "center": 2.5,
+      "width": 1,
+      "curveToNext": "custom",
+      "customExpr": "t*t*(3-2*t)",
+      "nodes": [
+        {
+          "id": "release",
+          "time": {
+            "bar": 1,
+            "numerator": 1,
+            "denominator": 4
+          },
+          "center": 3,
+          "width": 1.25,
+          "judge": true
+        }
+      ]
+    }
+  ],
+  "notesRight": []
+}

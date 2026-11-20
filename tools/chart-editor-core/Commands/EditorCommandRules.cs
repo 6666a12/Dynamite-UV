@@ -22,7 +22,7 @@ internal static class EditorCommandRules
         return note;
     }
 
-    public static void ValidateNote(EditableNote note)
+    public static void ValidateNote(EditableNote note, CustomCurveCache cache)
     {
         if (!Enum.IsDefined(note.Type))
             throw new InvalidOperationException($"Unknown v2 note type '{note.Type}'.");
@@ -35,13 +35,14 @@ internal static class EditorCommandRules
             throw new InvalidOperationException($"Unknown path curve '{note.CurveToNext}'.");
         if (note.Type is not (V2NoteType.Hold or V2NoteType.Mixer))
         {
-            if (note.Nodes.Count != 0 || note.CurveToNext is not null)
+            if (note.Nodes.Count != 0 || note.CurveToNext is not null || note.CustomExpr is not null)
                 throw new InvalidOperationException("Only Hold and Mixer may contain path data.");
             return;
         }
         if (note.Nodes.Count == 0)
             throw new InvalidOperationException("Hold and Mixer require at least one path node.");
 
+        ValidateExpressionPair(note.CurveToNext == V2PathCurve.Custom, note.CustomExpr);
         var previous = note.Time;
         for (var index = 0; index < note.Nodes.Count; index++)
         {
@@ -56,6 +57,7 @@ internal static class EditorCommandRules
                 throw new InvalidOperationException("Tail path node must omit curveToNext.");
             if (node.CurveToNext is not null && !Enum.IsDefined(node.CurveToNext.Value))
                 throw new InvalidOperationException($"Unknown path curve '{node.CurveToNext}'.");
+            ValidateExpressionPair(node.CurveToNext == V2PathCurve.Custom, node.CustomExpr);
             if (note.Type == V2NoteType.Hold && node.Judge is null)
                 throw new InvalidOperationException("Hold path nodes must resolve judge to true or false.");
             if (note.Type == V2NoteType.Mixer && node.Judge is not null)
@@ -64,49 +66,29 @@ internal static class EditorCommandRules
         if (note.Type == V2NoteType.Hold && note.Nodes[^1].Judge != true)
             throw new InvalidOperationException("Hold tail must keep judge:true.");
 
-        var path = new V2PathNote
-        {
-            Id = note.Id,
-            Type = note.Type,
-            Time = note.Time,
-            Center = note.Center,
-            Width = note.Width,
-            ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
-            CurveToNext = note.CurveToNext,
-            Nodes = note.Nodes.Select((node, index) => new V2PathNode
-            {
-                Id = node.Id,
-                Time = node.Time,
-                Center = node.Center,
-                Width = node.Width,
-                CurveToNext = node.CurveToNext,
-                Judge = note.Type == V2NoteType.Hold ? node.Judge : null,
-                JudgeWasExplicit = note.Type == V2NoteType.Hold &&
-                    (node.Judge is not null || index + 1 == note.Nodes.Count),
-            }).ToArray(),
-        };
-        var evaluator = new V2PathEvaluator(path);
+        var path = (V2PathNote)EditorDocument.ToSnapshot(note);
+        var evaluator = V2SemanticValidator.ValidatePathCurves(path, cache);
         if (!evaluator.IsFiniteAndPositive(out _, out var reason))
             throw new InvalidOperationException(reason);
     }
 
-    public static void ValidateScrollTimeline(IReadOnlyList<EditableScroll> timeline)
+    public static void ValidateScrollTimeline(IReadOnlyList<EditableScroll> timeline, CustomCurveCache cache)
     {
-        if (timeline.Count > 0 && timeline[0].Time != ExactBarTime.Zero)
-            throw new InvalidOperationException("First nonempty Scroll event must be at bar 0.");
-        for (var index = 0; index < timeline.Count; index++)
+        // The actual interpolated speed must remain in range, even when only a neighbouring
+        // event changes. Use the strict reader's rule before mutating the live timeline.
+        var snapshot = timeline.Select(scroll => scroll.ToSnapshot()).ToArray();
+        try
         {
-            var scroll = timeline[index];
-            ValidateTime(scroll.Time, "Scroll time");
-            if (!double.IsFinite(scroll.Value) || scroll.Value <= 0 || scroll.Value > 64)
-                throw new InvalidOperationException("Scroll value must be finite and in (0,64].");
-            if (index > 0 && scroll.Time <= timeline[index - 1].Time)
-                throw new InvalidOperationException("Scroll event times must be strictly increasing.");
-            if (scroll.CurveToNext is not null && !Enum.IsDefined(scroll.CurveToNext.Value))
-                throw new InvalidOperationException($"Unknown Scroll curve '{scroll.CurveToNext}'.");
-            if (index == timeline.Count - 1 && scroll.CurveToNext is not null)
-                throw new InvalidOperationException("Tail Scroll event must omit curveToNext.");
+            V2SemanticValidator.ValidateScrollTimeline(snapshot,
+                snapshot.Any(s => s.CurveToNext == V2ScrollCurve.Custom) ? 1 : 0, curveCache: cache);
         }
+        catch (V2DiagnosticException e) { throw new InvalidOperationException(e.Message, e); }
+    }
+
+    private static void ValidateExpressionPair(bool custom, string? expr)
+    {
+        if (custom ? string.IsNullOrWhiteSpace(expr) : expr is not null)
+            throw new InvalidOperationException(custom ? "Custom curve requires customExpr." : "Only a custom curve may specify customExpr.");
     }
 
     public static void ValidateTime(ExactBarTime time, string label)
@@ -121,16 +103,7 @@ internal static class EditorCommandRules
             throw new InvalidOperationException($"{label} center/width is invalid.");
     }
 
-    public static EditablePathNode CloneNode(EditablePathNode node) => new()
-    {
-        Key = node.Key,
-        Id = node.Id,
-        Time = node.Time,
-        Center = node.Center,
-        Width = node.Width,
-        CurveToNext = node.CurveToNext,
-        Judge = node.Judge,
-    };
+    public static EditablePathNode CloneNode(EditablePathNode node) => node.Clone();
 
     public static void ValidateId(string id, string label)
     {

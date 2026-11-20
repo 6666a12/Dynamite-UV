@@ -1,0 +1,30 @@
+{
+  "format": "dynamite-uv-pack",
+  "formatVersion": 2,
+  "formatMinor": 1,
+  "id": "example.curve-study",
+  "revision": 1,
+  "title": "Curve Study",
+  "artist": "Dynamite Universe Contributors",
+  "audio": "silence.wav",
+  "charts": [
+    {
+      "id": "baseline",
+      "difficulty": "normal",
+      "unrated": true,
+      "charters": [
+        "Example Charter"
+      ],
+      "file": "baseline.json"
+    },
+    {
+      "id": "rebound",
+      "difficulty": "hard",
+      "unrated": true,
+      "charters": [
+        "Example Charter"
+      ],
+      "file": "rebound.json"
+    }
+  ]
+}

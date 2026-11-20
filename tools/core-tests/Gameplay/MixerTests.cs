@@ -92,7 +92,7 @@ public static class MixerTests
             var source = new V2PathNote
             {
                 Id = "m", Type = V2NoteType.Mixer, Time = ExactBarTime.Zero, Center = 0, Width = 1,
-                CurveToNext = curve,
+                CurveToNext = curve, CustomExpr = curve == V2PathCurve.Custom ? "t^1.5" : null,
                 Nodes = [new V2PathNode { Id = "n", Time = ExactBarTime.FromDouble(1), Center = 2, Width = 1 }],
             };
             var bpm = new V2BpmTimeline([new V2BpmEvent(ExactBarTime.Zero, 150)], 0);

@@ -26,6 +26,18 @@ internal static class StoreClientTests
             var release = new StoreRelease(Guid.NewGuid(), "pack", "1", "Title", "Artist", 1, 3,
                 Convert.ToHexString(SHA256.HashData(new byte[] { 1, 2, 3 })), "fixture", DateTimeOffset.UtcNow,
                 new(StoreContract.Profile, [new("chart", "hard", null, 1, false, ["Author"], 120, 120)], null));
+            foreach (var minor in new[] { "2.0", "2.1", "2.2" })
+            {
+                var details = new StoreDetails(release, [new("chart", new string('f', 64), "dynamite-uv-ruleset-" + minor)]);
+                var bytes = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(details);
+                using var catalog = new CatalogTransport(new Reply(HttpStatusCode.OK, bytes, "application/json"));
+                try
+                {
+                    var parsed = await catalog.DetailsAsync(access, release.Id, default);
+                    check(minor != "2.2" && parsed.Charts[0] == details.Charts[0], "Catalog reads chart ruleset " + minor);
+                }
+                catch (OnlineException ex) { check(minor == "2.2" && ex.Code == "invalid_response", "Catalog refuses unknown ruleset " + minor); }
+            }
             using var redirect = new CatalogTransport(new Reply(HttpStatusCode.Redirect, []));
             try { await redirect.ListAsync(access, "", 0, default); check(false, "Redirect rejected"); }
             catch (OnlineException ex) { check(ex.Code == "redirect_refused", "Catalog refuses credential redirects"); }
@@ -76,13 +88,13 @@ internal static class StoreClientTests
             throw new InvalidOperationException("Cancelled wait should not return");
         }
     }
-    private sealed class Reply(HttpStatusCode status, byte[] bytes) : HttpMessageHandler
+    private sealed class Reply(HttpStatusCode status, byte[] bytes, string mediaType = "application/zip") : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var response = new HttpResponseMessage(status) { Content = new ByteArrayContent(bytes) };
-            response.Content.Headers.ContentType = new("application/zip");
+            response.Content.Headers.ContentType = new(mediaType);
             return Task.FromResult(response);
         }
     }

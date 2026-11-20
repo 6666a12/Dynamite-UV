@@ -147,6 +147,7 @@ public static class V2PackageWriter
             if (!ids.Add(entry.Id) || !string.Equals(chart.ChartId, entry.Id, StringComparison.Ordinal))
                 throw new V2DiagnosticException(entry.File, "/chartId",
                     $"write request chartId must equal declared entry ID '{entry.Id}'");
+            V2PackageValidator.RequireSupportedChartMinor(pack, chart, entry.File);
             V2SemanticValidator.ValidateChart(chart, entry.File);
         }
         if (charts.Keys.Any(id => !ids.Contains(id)))
@@ -198,7 +199,7 @@ public static class V2PackageWriter
         }, meta);
 
         if (!string.Equals(pack.Id, expectedPack.Id, StringComparison.Ordinal) ||
-            pack.Revision != expectedPack.Revision)
+            pack.Revision != expectedPack.Revision || pack.FormatMinor != expectedPack.FormatMinor)
             throw new V2DiagnosticException(meta, "/", "staged package differs from requested package identity");
 
         var digests = new Dictionary<string, V2GameplayDigestResult>(StringComparer.Ordinal);

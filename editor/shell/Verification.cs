@@ -46,6 +46,7 @@ internal static class Verification
         try
         {
             await SaveInteractionVerification.Run(Path.Combine(root, "save-interactions"), Check);
+            await CustomCurveVerification.Run(Path.Combine(root, "custom-curves"), Check);
             await AddDifficultyFormVerification.Run(Path.Combine(root, "difficulty-form"), Check);
             await WorkbenchModalVerification.Run(Path.Combine(root, "modal-host"), Check);
             PreviewClockVerification.Run(Check);

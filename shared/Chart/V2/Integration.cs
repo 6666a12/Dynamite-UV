@@ -333,12 +333,13 @@ public static class V2Integration
     private static V2LoadedPackageChart BuildLoaded(V2Pack pack, V2ChartEntry entry,
         V2Chart chart, ReadOnlySpan<byte> audioBytes, string resolvedAudioPath)
     {
+        V2PackageValidator.RequireSupportedChartMinor(pack, chart, entry.File);
         var digest = V2GameplayDigest.Compute(chart, entry, audioBytes);
         var adapted = V2RuntimeAdapter.Adapt(chart, pack.Title, DifficultyNumber(entry.Difficulty));
         return new V2LoadedPackageChart
         {
             RuntimeChart = adapted.RuntimeChart,
-            RulesetId = V2Format.RulesetId,
+            RulesetId = digest.RulesetId,
             GameplayDigest = digest.Sha256,
             Preset = entry.JudgePreset,
             SyncAccentRuntimeIds = adapted.SyncAccentRuntimeIds,

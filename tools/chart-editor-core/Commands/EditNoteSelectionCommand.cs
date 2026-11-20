@@ -56,7 +56,7 @@ public sealed class EditNoteSelectionCommand : IEditorCommand
                 }
                 if (_edit.Track is { } targetTrack) note.Track = targetTrack;
                 if (_edit.Type is { } targetType) note.Type = targetType;
-                EditorCommandRules.ValidateNote(note);
+                EditorCommandRules.ValidateNote(note, document.SelectedChart.CurveCache);
             }
             _before = before;
             _after = after;

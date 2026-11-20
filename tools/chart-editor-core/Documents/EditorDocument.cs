@@ -45,13 +45,12 @@ public sealed class EditableScroll
     public required ExactBarTime Time { get; set; }
     public required double Value { get; set; }
     public V2ScrollCurve? CurveToNext { get; set; }
+    public string? CustomExpr { get; set; }
 
-    public EditableScroll Clone() => new()
+    public EditableScroll Clone() => (EditableScroll)MemberwiseClone();
+    internal V2ScrollEvent ToSnapshot() => new()
     {
-        Key = Key,
-        Time = Time,
-        Value = Value,
-        CurveToNext = CurveToNext,
+        Time = Time, Value = Value, CurveToNext = CurveToNext, CustomExpr = CustomExpr,
     };
 }
 
@@ -63,7 +62,9 @@ public sealed class EditablePathNode
     public required double Center { get; set; }
     public required double Width { get; set; }
     public V2PathCurve? CurveToNext { get; set; }
+    public string? CustomExpr { get; set; }
     public bool? Judge { get; set; }
+    internal EditablePathNode Clone() => (EditablePathNode)MemberwiseClone();
 }
 
 public sealed class EditableNote
@@ -77,6 +78,7 @@ public sealed class EditableNote
     public required double Width { get; set; }
     public double ScrollSpeedMultiplier { get; set; } = 1.0;
     public V2PathCurve? CurveToNext { get; set; }
+    public string? CustomExpr { get; set; }
     public List<EditablePathNode> Nodes { get; } = [];
 
     public EditableNote Clone()
@@ -92,20 +94,9 @@ public sealed class EditableNote
             Width = Width,
             ScrollSpeedMultiplier = ScrollSpeedMultiplier,
             CurveToNext = CurveToNext,
+            CustomExpr = CustomExpr,
         };
-        foreach (var node in Nodes)
-        {
-            clone.Nodes.Add(new EditablePathNode
-            {
-                Key = node.Key,
-                Id = node.Id,
-                Time = node.Time,
-                Center = node.Center,
-                Width = node.Width,
-                CurveToNext = node.CurveToNext,
-                Judge = node.Judge,
-            });
-        }
+        clone.Nodes.AddRange(Nodes.Select(node => node.Clone()));
         return clone;
     }
 }
@@ -132,11 +123,19 @@ public sealed class EditableChart
     public List<EditableScroll> ScrollSpeeds { get; } = [];
     public List<EditableNote> Notes { get; } = [];
 
+    public CustomCurveCache CurveCache { get; internal set; } = new();
+
+    // An explicitly v2.1 source without Custom is legal and its existing ruleset is part of its identity.
+    internal int DeclaredMinorFloor { get; set; }
+    public int FormatMinor => DeclaredMinorFloor != 0 || ScrollSpeeds.Exists(s => s.CurveToNext == V2ScrollCurve.Custom) ||
+        Notes.Exists(n => n.CurveToNext == V2PathCurve.Custom || n.Nodes.Exists(p => p.CurveToNext == V2PathCurve.Custom))
+            ? V2Format.CustomCurvesMinor : 0;
+
     public EditableChart Clone()
     {
         var clone = new EditableChart
         {
-            Key = Key,
+            Key = Key, DeclaredMinorFloor = DeclaredMinorFloor, CurveCache = CurveCache.Fork(),
             Id = Id, Difficulty = Difficulty, DifficultyKey = DifficultyKey, Level = Level,
             Unrated = Unrated, File = File, Audio = Audio, Preview = Preview,
             AudioOffsetSec = AudioOffsetSec, OffsetPosition = OffsetPosition,
@@ -166,6 +165,11 @@ public sealed class EditorDocument
     private ChartOffsetNudge? _activeOffsetNudge;
 
     public string? PackageDirectory { get; private set; }
+    /// <summary>Minor version of the last opened or successfully written package, not the live edits.</summary>
+    public int SourceFormatMinor { get; private set; }
+    private int _declaredPackMinorFloor;
+    public int FormatMinor => _declaredPackMinorFloor != 0 || Charts.Exists(chart => chart.FormatMinor != 0)
+        ? V2Format.CustomCurvesMinor : 0;
     public required string PackId { get; set; }
     public required long Revision { get; set; }
     public required string Title { get; set; }
@@ -196,6 +200,7 @@ public sealed class EditorDocument
         var document = new EditorDocument
         {
             PackageDirectory = packageDirectory,
+            SourceFormatMinor = packageDirectory is null ? 0 : pack.FormatMinor,
             PackId = pack.Id,
             Revision = pack.Revision,
             Title = pack.Title,
@@ -210,6 +215,7 @@ public sealed class EditorDocument
                 throw new InvalidOperationException($"Chart '{entry.Id}' is missing from editor load data.");
             var editable = new EditableChart
             {
+                CurveCache = CustomCurveCache.For(chart).Fork(),
                 Id = entry.Id,
                 Difficulty = entry.Difficulty,
                 DifficultyKey = entry.DifficultyKey,
@@ -230,13 +236,15 @@ public sealed class EditorDocument
             {
                 Time = item.Time,
                 Value = item.Value,
-                CurveToNext = item.CurveToNext,
+                CurveToNext = item.CurveToNext, CustomExpr = item.CustomExpr,
             }));
             editable.Notes.AddRange(ToEditableNotes(chart.NotesLeft, EditorTrack.Left));
             editable.Notes.AddRange(ToEditableNotes(chart.NotesCenter, EditorTrack.Center));
             editable.Notes.AddRange(ToEditableNotes(chart.NotesRight, EditorTrack.Right));
+            if (editable.FormatMinor == 0) editable.DeclaredMinorFloor = chart.FormatMinor;
             document.Charts.Add(editable);
         }
+        if (document.FormatMinor == 0) document._declaredPackMinorFloor = pack.FormatMinor;
         document.SelectedChartId = document.Charts[0].Id;
         document._nextId = document.AllIds().Select(TrailingNumber).DefaultIfEmpty(0).Max() + 1;
         document.IsUnpersisted = packageDirectory is null;
@@ -379,17 +387,46 @@ public sealed class EditorDocument
         ArgumentNullException.ThrowIfNull(command);
         EndChartOffsetNudge();
         var chartId = SelectedChartId;
-        try
-        {
-            command.Execute(this);
-        }
-        finally
-        {
-            _allIds = null;
-        }
+        ExecuteValidated(command);
         ChangeVersion++;
         RecordCommand(command, chartId);
         UpdateDirtyState();
+    }
+
+    private void ExecuteValidated(IEditorCommand command)
+    {
+        var owner = SelectedChart;
+        var chartId = owner.Id;
+        var selection = Selection;
+        var previous = owner.CurveCache;
+        var candidates = previous.ForkForCommand();
+        owner.CurveCache = candidates;
+        try
+        {
+            command.Execute(this);
+            // Individual path/Scroll edits can all be valid but their combined chart may
+            // exceed the strict limit. Never publish history or an unusable stage snapshot.
+            var current = SelectedChart;
+            var minor = current.FormatMinor;
+            if (minor != 0)
+            {
+                try { V2SemanticValidator.ValidateChart(BuildChartSnapshot(SelectedChartId), requireMainJudgement: false); }
+                catch
+                {
+                    command.Undo(this);
+                    if (SelectedChartId != chartId) SelectChart(chartId);
+                    Select(selection);
+                    throw;
+                }
+            }
+            // Drop stale tables on downgrade; keep only validated entries on success.
+            previous = ReferenceEquals(current, owner) && minor == 0 ? new() : candidates.Fork();
+        }
+        finally
+        {
+            owner.CurveCache = previous;
+            _allIds = null;
+        }
     }
 
     private void RecordCommand(IEditorCommand command, string chartId)
@@ -428,30 +465,25 @@ public sealed class EditorDocument
         EndChartOffsetNudge();
         if (_redo.Count == 0)
             return;
-        var entry = _redo.Pop();
+        var entry = _redo.Peek();
         if (Charts.Any(chart => chart.Id == entry.ChartId))
             SelectChart(entry.ChartId);
-        try
-        {
-            entry.Command.Execute(this);
-        }
-        finally
-        {
-            _allIds = null;
-        }
+        ExecuteValidated(entry.Command);
+        _redo.Pop();
         ChangeVersion++;
         _undo.Push(entry);
         _historyPosition++;
         UpdateDirtyState();
     }
 
-    internal void CompleteSave(string directory, long version, IReadOnlyList<V2ExternalResourceMapping> resources)
+    internal void CompleteSave(string directory, long version, int savedMinor, IReadOnlyList<V2ExternalResourceMapping> resources)
     {
         foreach (var resource in resources)
             if (_pendingResourceReplacements.TryGetValue(resource.PackageRelativePath, out var source) &&
                 string.Equals(source, resource.ExternalSourcePath, StringComparison.OrdinalIgnoreCase))
                 _pendingResourceReplacements.Remove(resource.PackageRelativePath);
         PackageDirectory = Path.GetFullPath(directory);
+        SourceFormatMinor = savedMinor;
         IsUnpersisted = false;
         _savedHistoryPosition = ChangeVersion == version ? _historyPosition : -1;
         UpdateDirtyState();
@@ -462,6 +494,7 @@ public sealed class EditorDocument
         EndChartOffsetNudge();
         ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
         PackageDirectory = Path.GetFullPath(packageDirectory);
+        SourceFormatMinor = FormatMinor;
         IsUnpersisted = false;
         _savedHistoryPosition = _historyPosition;
         UpdateDirtyState();
@@ -490,6 +523,7 @@ public sealed class EditorDocument
     public V2Pack BuildPackSnapshot() => new()
     {
         Id = PackId,
+        FormatMinor = FormatMinor,
         Revision = Revision,
         Title = Title,
         Artist = Artist,
@@ -510,31 +544,29 @@ public sealed class EditorDocument
         }).ToArray(),
     };
 
-    public V2Chart BuildChartSnapshot(string id)
+    public V2Chart BuildChartSnapshot(string id) => BuildChartSnapshot(id, isolateCache: false);
+
+    private V2Chart BuildChartSnapshot(string id, bool isolateCache)
     {
         var chart = Charts.Single(item => item.Id == id);
-        return new V2Chart
+        return (isolateCache ? chart.CurveCache.Fork() : chart.CurveCache).Attach(new V2Chart
         {
             ChartId = chart.Id,
+            FormatMinor = chart.FormatMinor,
             AudioOffsetSec = chart.AudioOffsetSec,
             Bpms = chart.Bpms.OrderBy(item => item.Time)
                 .Select(item => new V2BpmEvent(item.Time, item.Bpm)).ToArray(),
             ScrollSpeeds = chart.ScrollSpeeds.OrderBy(item => item.Time)
-                .Select(item => new V2ScrollEvent
-                {
-                    Time = item.Time,
-                    Value = item.Value,
-                    CurveToNext = item.CurveToNext,
-                }).ToArray(),
+                .Select(item => item.ToSnapshot()).ToArray(),
             NotesLeft = BuildTrack(chart, EditorTrack.Left),
             NotesCenter = BuildTrack(chart, EditorTrack.Center),
             NotesRight = BuildTrack(chart, EditorTrack.Right),
-        };
+        });
     }
 
     public IReadOnlyDictionary<string, V2Chart> BuildAllChartSnapshots() => Charts.ToDictionary(
         chart => chart.Id,
-        chart => BuildChartSnapshot(chart.Id),
+        chart => BuildChartSnapshot(chart.Id, isolateCache: true),
         StringComparer.Ordinal);
 
     private static IReadOnlyList<V2Note> BuildTrack(EditableChart chart, EditorTrack track) => chart.Notes
@@ -544,10 +576,12 @@ public sealed class EditorDocument
         .Select(ToSnapshot)
         .ToArray();
 
-    private static V2Note ToSnapshot(EditableNote note)
+    internal static V2Note ToSnapshot(EditableNote note)
     {
         if (note.Type is not (V2NoteType.Hold or V2NoteType.Mixer))
         {
+            if (note.CustomExpr is not null || note.CurveToNext is not null || note.Nodes.Count != 0)
+                throw new InvalidOperationException($"Non-path note '{note.Id}' has path data.");
             return new V2BasicNote
             {
                 Id = note.Id,
@@ -564,7 +598,7 @@ public sealed class EditorDocument
             Time = node.Time,
             Center = node.Center,
             Width = node.Width,
-            CurveToNext = node.CurveToNext,
+            CurveToNext = node.CurveToNext, CustomExpr = node.CustomExpr,
             Judge = note.Type == V2NoteType.Hold ? node.Judge : null,
             JudgeWasExplicit = note.Type == V2NoteType.Hold &&
                 (node.Judge is not null || index + 1 == note.Nodes.Count),
@@ -577,7 +611,7 @@ public sealed class EditorDocument
             Center = note.Center,
             Width = note.Width,
             ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
-            CurveToNext = note.CurveToNext,
+            CurveToNext = note.CurveToNext, CustomExpr = note.CustomExpr,
             Nodes = nodes,
         };
     }
@@ -595,7 +629,8 @@ public sealed class EditorDocument
                 Center = note.Center,
                 Width = note.Width,
                 ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
-                CurveToNext = note is V2PathNote path ? path.CurveToNext : null,
+                CurveToNext = (note as V2PathNote)?.CurveToNext,
+                CustomExpr = (note as V2PathNote)?.CustomExpr,
             };
             if (note is V2PathNote pathNote)
             {
@@ -607,7 +642,7 @@ public sealed class EditorDocument
                         Time = node.Time,
                         Center = node.Center,
                         Width = node.Width,
-                        CurveToNext = node.CurveToNext,
+                        CurveToNext = node.CurveToNext, CustomExpr = node.CustomExpr,
                         Judge = node.Judge,
                     });
                 }

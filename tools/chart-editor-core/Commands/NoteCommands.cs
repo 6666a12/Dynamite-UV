@@ -8,7 +8,7 @@ public sealed class AddNoteCommand(EditableNote note) : IEditorCommand
 
     public void Execute(EditorDocument document)
     {
-        EditorCommandRules.ValidateNote(_note);
+        EditorCommandRules.ValidateNote(_note, document.SelectedChart.CurveCache);
         var ids = new[] { _note.Id }.Concat(_note.Nodes.Select(node => node.Id)).ToArray();
         if (ids.Distinct(StringComparer.Ordinal).Count() != ids.Length)
             throw new InvalidOperationException($"Note '{_note.Id}' contains duplicate parent/node IDs.");
@@ -64,7 +64,7 @@ public sealed class MoveNoteCommand(string noteId, ExactBarTime time, double cen
         candidate.Time = time;
         candidate.Center = center;
         candidate.Width = width;
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
         if (!_captured)
         {
             _oldTime = note.Time;
@@ -96,7 +96,7 @@ public sealed class SetNoteScrollSpeedMultiplierCommand(string noteId, double mu
         var note = document.RequireNote(noteId);
         var candidate = note.Clone();
         candidate.ScrollSpeedMultiplier = multiplier;
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
         if (!_captured)
         {
             _before = note.ScrollSpeedMultiplier;
@@ -140,7 +140,7 @@ public sealed class MovePathNoteCommand(string noteId, ExactBarTime time, double
         candidate.Width = width;
         foreach (var node in candidate.Nodes)
             node.Time = node.Time + _delta;
-        EditorCommandRules.ValidateNote(candidate);
+        EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
 
         note.Time = time;
         note.Center = center;
@@ -239,8 +239,9 @@ public sealed class ChangeNoteTypeCommand : IEditorCommand
             _before = document.SelectedChart.Notes[_index].Clone();
             try
             {
-                _after = BuildChangedNote(document, _before);
-                EditorCommandRules.ValidateNote(_after);
+                var candidate = BuildChangedNote(document, _before);
+                EditorCommandRules.ValidateNote(candidate, document.SelectedChart.CurveCache);
+                _after = candidate;
             }
             catch
             {
@@ -266,7 +267,7 @@ public sealed class ChangeNoteTypeCommand : IEditorCommand
         changed.Type = _newType;
         if (_newType is not (V2NoteType.Hold or V2NoteType.Mixer))
         {
-            changed.CurveToNext = null;
+            (changed.CurveToNext, changed.CustomExpr) = (null, null);
             changed.Nodes.Clear();
             return changed;
         }
@@ -291,13 +292,13 @@ public sealed class ChangeNoteTypeCommand : IEditorCommand
                     Width = changed.Width,
                 };
             }
-            terminal.CurveToNext = null;
+            (terminal.CurveToNext, terminal.CustomExpr) = (null, null);
             changed.Nodes.Add(terminal);
         }
 
         foreach (var node in changed.Nodes)
             node.Judge = _newType == V2NoteType.Hold ? node.Judge ?? true : null;
-        changed.Nodes[^1].CurveToNext = null;
+        (changed.Nodes[^1].CurveToNext, changed.Nodes[^1].CustomExpr) = (null, null);
         if (_newType == V2NoteType.Hold)
             changed.Nodes[^1].Judge = true;
         return changed;

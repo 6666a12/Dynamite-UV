@@ -28,7 +28,7 @@ python server/dev.py grant-admin --username <已有用户名>
 全部要求Bearer（不提供匿名曲库/下载）：
 
 - GET `/api/v1/catalog/packs?q=<文字>&offset=0`：每页最多50、offset上限10000，q最多80字符，按发布时间/id倒序，字面子串搜索标题、曲师、包ID及差分展示元数据，参数化SQL。
-- GET `/api/v1/catalog/releases/{releaseId}`：版本元数据、授权说明、各差分Digest/ruleset。
+- GET `/api/v1/catalog/releases/{releaseId}`：版本元数据、授权说明、各差分 Digest/ruleset。2.1 包可同时含 2.0 和 2.1 差分；审核按每个差分的规则集计算摘要，不能从包头猜测所有成绩的规则集。发现接口的 `dynamite-uv-pack/2` 表示主版本。
 - GET `/api/v1/catalog/releases/{releaseId}/download`：下载ZIP，支持Range；服务打开同一文件句柄校验大小/SHA-256后输出，篡改返回503。下架或不存在404。文件已开始输出时下架不能追溯撤回该响应。
 
 - GET `/api/v1/catalog/releases/{releaseId}/cover`：同源、固定发布封面，鉴权/下架规则同下载；对实际输出文件验证大小/hash，无封面404。

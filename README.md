@@ -22,7 +22,7 @@ Dynamix 风格的 **clean-room 社区音游重实现**。游戏可离线游玩�
 | 模块 | 已可使用 | 边界 |
 | --- | --- | --- |
 | [游戏](docs/handoff.md#21-游戏) | 首页 → 选曲/试听 → 三轨游玩 → 结算；支持 Hold/Mixer、校准、Mirror/Auto、BLEED 血条。Standard 与 Hardcore 分开保存本机最佳成绩。 | 选曲筛选/排序仍是占位，Hit/UI 与结果音效不完整；BLEED 失败仍复用普通结算页。低端性能未验收，专项暂缓。 |
-| [Windows 制谱器](docs/dyna-maker-uv.md) | Avalonia 工作台嵌入 Godot 舞台；可新建、打开、保存 strict v2 目录谱包，编辑 Note、路径及 BPM/Scroll，并播放预览。 | `windows-x64-test-v1` 是已确认的[测试包基线](docs/verification.md#当前-windows-编辑器测试包基线)，不是公开发行批准。ZIP/XML/DY 未接入；真实波形、Storyboard 不列当前目标。 |
+| [Windows 制谱器](docs/dyna-maker-uv.md) | Avalonia 工作台嵌入 Godot 舞台；可新建、打开、保存 strict v2 目录谱包，编辑 Note、路径及 BPM/Scroll，并播放预览。Scroll、Hold、Mixer 支持[谱面 v2.1 自定义缓动](docs/chart-format-v2.1.md)；只有需要新格式的谱才提示升级。 | `windows-x64-test-v1` 是已确认的[测试包基线](docs/verification.md#当前-windows-编辑器测试包基线)，不是公开发行批准。ZIP/XML/DY 未接入；真实波形、Storyboard 不列当前目标。 |
 | [网络服务](server/README.md) | 游戏可注册/登录、从谱面商店首次下载安装、上传符合条件的本局成绩；管理员可发布/下架谱包。离线游玩不要求账号。 | 属于开发阶段，生产部署未验收；暂无更新/删除已安装谱包、排行榜、段位或多人联机。 |
 | [项目网站](docs/website.md) | 中英文首页和制谱教程共用工作台截图与练习音频。 | Pages 工作流只发布网页；本地检查不证明网站已经上线，也不代表游戏或制谱器已公开发行。 |
 

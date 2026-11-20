@@ -85,7 +85,8 @@ internal static class PersistenceFixture
         for (var i = 0; i < scrollCurves.Length; i++)
         {
             var time = ExactBarTime.FromFraction(i * 2, 1);
-            document.Execute(new EditScrollCommand(time, time, 1 + i % 3 * .25, scrollCurves[i]));
+            document.Execute(new EditScrollCommand(time, time, 1 + i % 3 * .25, scrollCurves[i],
+                scrollCurves[i] == V2ScrollCurve.Custom ? "t^1.5" : null));
         }
     }
 

@@ -8,6 +8,7 @@ namespace DynamiteUniverse.Editor;
 public partial class EditorPreviewController : Control
 {
     private readonly EditorStageIpc _ipc = new();
+    private readonly EditorPreviewChartLoader _charts = new();
     private readonly HashSet<int> _selection = new();
     private EditorStagePreview _stage = null!;
     private EditorContextMenu _menu = null!;
@@ -231,10 +232,9 @@ public partial class EditorPreviewController : Control
         if (!incremental) _menu.Close();
         var revision = root.GetProperty("revision").GetInt64();
         if (revision <= _revision) return;
-        var chart = V2JsonDecoder.DecodeChart(root.GetProperty("chart").GetString()!, "editor-preview",
-            requireMainJudgement: false);
-        var adapted = V2RuntimeAdapter.Adapt(chart, root.GetProperty("title").GetString(),
-            requireMainJudgement: false);
+        var adapted = _charts.Load(root.GetProperty("chart").GetString()!, root.GetProperty("title").GetString(),
+            root.TryGetProperty("curveOwner", out var owner) ? owner.GetString() : null);
+        var chart = adapted.Metadata.SourceChart;
         var audioPath = root.TryGetProperty("audioPath", out var audioElement) &&
             audioElement.ValueKind == System.Text.Json.JsonValueKind.String ? audioElement.GetString() : null;
         // Chart identity and audio identity are independent: sibling difficulties commonly

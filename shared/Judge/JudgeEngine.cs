@@ -151,12 +151,12 @@ public static class SustainJudgementRules
     }
 
     /// <summary>
-    /// Hold 确认提前断开时，中间节点全部 Miss，尾节点以首次失去接触的
-    /// 实际时刻按普通时间窗评级。
+    /// 提前断条时，尾按首次失联时刻评级。旧合同保持未结算中间节点全 Miss；
+    /// 连续回放时，粗帧内在结算时刻之前经过的节点仍为 Perfect。
     /// </summary>
     public static IReadOnlyList<Settlement> SettleReleasedHold(
         IEnumerable<JudgeUnit> units, int headId, double releaseTime,
-        JudgeEngine engine)
+        JudgeEngine engine, double? perfectPointsBefore = null)
     {
         var settled = new List<Settlement>();
         foreach (var unit in units)
@@ -180,8 +180,11 @@ public static class SustainJudgementRules
             }
             else
             {
-                grade = JudgeGrade.Miss;
-                resolution = JudgeResolution.AutoMiss;
+                // A coarse frame can discover a break after passing real scored nodes.
+                // Points in contact or frozen grace (strictly before settlement) already count.
+                var passed = perfectPointsBefore is { } cutoff && unit.Time < cutoff;
+                grade = passed ? JudgeGrade.Perfect : JudgeGrade.Miss;
+                resolution = passed ? JudgeResolution.Perfect : JudgeResolution.AutoMiss;
                 timing = HitTiming.Exact;
             }
 
@@ -664,9 +667,11 @@ public static class JudgePlan
     {
         var nodes = new List<Note> { head };
         var next = head.SubNoteId;
-        var guard = 0;
+        // v2.1 is bounded at validation and may legitimately exceed the old flattened-link cap
+        // once hidden render samples are included. Preserve the old ruleset for older charts.
+        var limit = chart.V2Metadata?.SourceChart.FormatMinor > 0 ? byId.Count : 10000;
         var seen = new HashSet<int> { head.Id };
-        while (next != -1 && byId.TryGetValue(next, out var target) && guard++ < 10000)
+        while (next != -1 && byId.TryGetValue(next, out var target) && seen.Count <= limit)
         {
             if (!seen.Add(target.Id))
                 break;

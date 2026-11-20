@@ -21,6 +21,7 @@ public readonly record struct HoldTouchProjection(
 /// </summary>
 public sealed class HoldContactFrame
 {
+    private readonly SustainContactPartition _partition = new();
     private readonly Dictionary<int, HoldTouchProjection> _initial = new();
     private readonly Dictionary<int, HoldTouchProjection> _samples = new();
     private readonly List<(double Time, int Id, HoldTouchProjection? Touch)> _events = new();
@@ -49,11 +50,13 @@ public sealed class HoldContactFrame
         _samples.Clear();
         foreach (var (id, touch) in _initial)
             _samples[id] = touch;
+        var cursor = from;
         for (var i = 0; i < _events.Count;)
         {
             var time = _events[i].Time;
             if (time > until)
                 break;
+            if (time > cursor) Advance(time);
             do
             {
                 var input = _events[i++];
@@ -65,14 +68,27 @@ public sealed class HoldContactFrame
 
             // Same-time replacement fingers form a single complete snapshot.
             if (time >= from)
-                ObserveAt(time);
+                ObserveAt(time, path.BoundsAtRuntime(time));
         }
-        ObserveAt(until);
+        if (until > cursor) Advance(until);
+        ObserveAt(until, path.BoundsAtRuntime(until));
         return contact;
 
-        void ObserveAt(double time)
+        void Advance(double end)
         {
-            var bounds = path.BoundsAtRuntime(time);
+            if (path.ReplaysHoldGeometry)
+            {
+                _partition.Begin(path, cursor, end, inBars: true);
+                foreach (var projection in _samples.Values)
+                    if (projection.On(path.Track) is { } touch)
+                        _partition.Add(path, touch.Position, Math.Max(0, touchWidth) * .5);
+                _partition.Visit(path, ObserveAt);
+            }
+            cursor = end;
+        }
+
+        void ObserveAt(double time, NoteBounds bounds)
+        {
             var connected = false;
             foreach (var projection in _samples.Values)
             {
@@ -83,7 +99,11 @@ public sealed class HoldContactFrame
                     break;
                 }
             }
-            contact = contact.Observe(time, path.EndTime, connected, bpmAt(time), settings);
+            // Connected→connected and disconnected→disconnected do not change state. In
+            // particular, do not consult the tempo map for every moving edge of every finger.
+            bool wasConnected = !contact.HasLoss;
+            if (connected != wasConnected)
+                contact = contact.Observe(time, path.EndTime, connected, bpmAt(time), settings);
         }
     }
 }

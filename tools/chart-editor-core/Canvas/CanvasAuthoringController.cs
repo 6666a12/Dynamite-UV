@@ -70,7 +70,7 @@ public sealed class CanvasAuthoringController
     /// 的公共入口）。center/width 由调用方按路径求值结果给出，所以插入点几何与路径逐位一致。
     /// 返回新节点 id；文档选中态切到该节点。</summary>
     public string AddPathNode(string noteId, ExactBarTime time, double center, double width,
-        V2PathCurve? curveToNext = null, bool? judge = null)
+        V2PathCurve? curveToNext = null, bool? judge = null, string? customExpr = null)
     {
         var id = Document.AllocateId($"{noteId}-node");
         Document.Execute(new AddPathNodeCommand(noteId, new EditablePathNode
@@ -79,7 +79,7 @@ public sealed class CanvasAuthoringController
             Time = time,
             Center = center,
             Width = width,
-            CurveToNext = curveToNext,
+            CurveToNext = curveToNext, CustomExpr = customExpr,
             Judge = judge,
         }));
         return id;
@@ -158,8 +158,8 @@ public sealed class CanvasAuthoringController
     }
 
     /// <summary>Sets the outgoing curve of one path node; the tail node has none.</summary>
-    public void SetPathNodeCurve(string noteId, string nodeId, V2PathCurve? curve) =>
-        Document.Execute(new SetPathCurveCommand(noteId, nodeId, curve));
+    public void SetPathNodeCurve(string noteId, string nodeId, V2PathCurve? curve, string? customExpr = null) =>
+        Document.Execute(new SetPathCurveCommand(noteId, nodeId, curve, customExpr));
 
     /// <summary>Sets the Hold judge flag of one path node (the tail stays locked ON).</summary>
     public void SetHoldJudge(string noteId, string nodeId, bool judge) =>

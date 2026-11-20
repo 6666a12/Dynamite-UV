@@ -55,6 +55,38 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+<a id="6047-fixes"></a>
+### 2026-11-20 · `6047a15` 审查修复：持续判定、公式缓存与草稿
+
+**编辑耗时。** Windows x64、Ryzen 9 7940HX。把 64、65、128 个不同的回弹公式分别放进一张谱，预热后只改音频偏移，不改公式。计时从实际 Avalonia “应用偏移”按钮开始，包含命令、序列化、IPC 和独立 Godot 舞台返回新 revision 的 `tick`；使用无窗口 Debug 构建，不含 GPU 显示。旧版每档取一次，新版每档七次，以下给出中位数和全距：
+
+| 不同公式数 | 修复前：按钮到舞台确认 | 修复后：按钮到舞台确认 |
+| ---: | ---: | ---: |
+| 64 | 33.5 ms | 31.3 ms（16.3–72.0 ms） |
+| 65 | 53.65 s | 30.5 ms（14.8–77.5 ms） |
+| 128 | 未测旧版整条链路 | 29.8 ms（13.8–46.6 ms） |
+
+[65 条修复前](../.tmp/fix6047-baseline-a35cbae7-65-result.json)与[冻结源码复测](../.tmp/fix6047-frozen-bench-7f6eefba-65-result.json)、[128 条冻结源码复测](../.tmp/fix6047-frozen-bench-7f6eefba-128-result.json)。在收紧一次命令引入多条新公式的预校验前，第一组独立测量的 65/128 条中位数分别为 [17.3 ms](../.tmp/fix6047-final-bench-5db90838-65-result.json) 和 [31.1 ms](../.tmp/fix6047-final-bench-5db90838-128-result.json)。两组都包含 IPC 等待和舞台调度，不是单次编译耗时。缓存复用不等于跳过校验：首次加载完全不同的 128 条复杂公式时，Debug 舞台从接收首张谱到确认仍约 21 秒。[缓存回归](../tools/chart-editor-tests/CustomCurveCacheTests.cs)用实际编译次数检查不会重编未改的公式，还覆盖同名不同差分来回切换、坏草稿、回滚和拒绝第 129 个源文本。这个实验不代表所有大谱操作或低端设备的帧率。
+
+只计命令、不含 UI 与舞台时，审查现场同一个 Debug 探针在 65 条公式下原为 11.62–11.84 s；最终源码三次分别为 [0.4、0.2、0.2 ms](../.tmp/fix6047-original-probe.utf8.log)。[65 条复测谱包](../builds/qa-6047a15-curves/65-curves-test-pack.zip)通过严格校验，可解压后用制谱器打开目录再改音频偏移。
+
+另用 [Release 基准](../tools/chart-editor-tests/CustomCurveCacheBenchmark.cs)拆开测量。在相同公式系列的 65 条样本中，预热后第一轮单次文档命令从 916.75 ms 降到 0.23 ms，生成快照和编码从 1063.14 ms 降到 0.37 ms，解码和适配从 3239.30 ms 降到 1.83 ms。64/65/128 三档连续三轮热编辑，这三个阶段的编译次数都是零。128 条全新公式在 Release 下两端仍须各编译 128 次，分别用 2.31 s 和 1.87 s；这组计时不含实际 IPC、UI 或 GPU。复跑命令：`dotnet run --project tools/chart-editor-tests -c Release -- --curve-cache-benchmark`。[旧版数据](../.tmp/cache-6047-baseline-release.log) / [新版计时和编译次数](../.tmp/cache-6047-fixed-release.log)。
+
+**游戏判定。** [原生按住不动回放](../tools/verification/custom_hold_contact_native.py)在头点输入屏幕触摸，直到尾点过后才松手。240 BPM、`17/96` 小节、`t+24*t*(1-t)` 的回摆 Hold 在修复前的 4/30 FPS 均为两个 Perfect，60/64 FPS 均为头 Perfect、尾 Good。修复后四档均为头 Perfect、尾 Miss（500,000 分）：从头点起第 10.516 ms 失联，150 ms 宽限早于 177.083 ms 的尾点结束。直线对照四档均为两个 Perfect（1,000,000 分）。[旧版重放](../.tmp/fix6047-old-game-final-93991f6d/rebound/result.json) / [新版重放](../.tmp/fix6047-native-confirm-c0282050/rebound/result.json)。[核心专项](../tools/core-tests/Gameplay/CustomHoldReplayTests.cs)还覆盖 1000 FPS、多指换手、切触和宽限边界。[原 Mixer、Auto 与舞台增量更新](../.tmp/custom-curve-native-case/run-20261120-202952-273666/status.json)复测通过。没有修改旧格式的成绩身份，也没有以提高 Hold 容错来掩盖帧率差异。
+
+**草稿。** [实际 Avalonia 控件断言](../editor/shell/Curves/CustomCurveVerification.cs)检查 Scroll 新增成功或失败都不会吃掉原草稿、隐藏草稿仍拦截保存、改差分 ID 后能继续编辑、复制差分不串草稿，以及原件与副本的撤销/重做。验证不使用真实用户谱包或可见窗口。[Debug 统一复验](../.tmp/fix6047-unified-verify.log)退出 0：结构检查、游戏/舞台/Shell 构建、核心/编辑器/网络回归、Shell 无窗口控件检查、71 项发布工具测试和差异空白检查通过。
+
+**Windows 修复候选。** [便携编辑器 ZIP](../builds/win-v21-fix-20261120-2034/DynaMakerUV-Windows-x64-v2.1-review-fixes.zip)，70,735,429 字节，SHA-256 `792119c552f70c8bb6156a30f24d2ee70248dc163d15032f348cbff8d4d9f483`。使用固定 `windows-x64-test-v1` 配置，重建了 Shell、Shared 与原生舞台托管代码；PCK 明确复用上一候选已验证的资源，不是本轮重新导出。[验包记录](../builds/win-v21-fix-20261120-2034/evidence/verified-package.json)：299 个归档文件 CRC 及逐文件 SHA-256 相符；实际解压后的系统和内置运行时各通过 402 项 Shell 断言，另通过启动器四种路径、舞台资源/IPC/HUD 检查。此包仅供本地试用，未签名、未公开发布；不是游戏客户端安装包。
+
+### 2026-11-20 · v2.1 自定义缓动
+
+- **数值。** [有理数舍入测试](../tools/core-tests/Charts/ExactRoundingTests.cs)覆盖半 ULP 最近偶数、次正规数、上溢分界，以及全部有限指数带中的 16,375 次有符号逐位往返。修复前，`1/2^1074` 转成零，`1+3/2^54` 转成 `1`；同一探针修复后分别得到位模式 `0000000000000001` 和 `3ff0000000000001`。另用固定随机种子生成 10,000 组有理数，与 Python `Fraction` 转 binary64 的结果逐位相同。回弹公式 `1-(1-t)^1.5*cos(3*pi*t)` 的 425 个折点、点间取值都有[固定位向量](../tools/core-tests/Charts/CustomCurvePrecisionTests.cs)，在本机 Windows x64 的 .NET 10.0.8、10.0.10 上开启和关闭硬件内建均通过。另外使用隔离的固定 `Microsoft.NETCore.App 9.0.18`（候选舞台版本，禁用版本前滚）运行完整核心回归，硬件内建开、关两次都通过同一组向量。不是 ARM 实测。
+- **制谱器、兼容和服务端。** [完整 Debug 非图形回归](../.tmp/custom-v21-final-verify.log)退出 0，含游戏/舞台/Shell 构建，核心、编辑器、网络、Shell 的 17 项新增真实控件断言及 71 项发布工具测试。Shell 编译有 6 条 Avalonia 弃用/资源警告，不在本次新增控件。原 [2.0 源包向量](../schemas/chart-format-v2/vectors/gameplay-digest-v1.json)和 [2.1 混合包双差分向量](../schemas/chart-format-v2.1/vectors/gameplay-digest-mixed.json)分别复核通过，双语教程检查通过。另从 11 月 12 日便携测试基线实际加载旧 Shared（`eada977b…`）：旧包头和示例的 2.0 差分可解码，2.1 包头和回弹差分都在 `formatMinor` 明确拒绝。真实商店离线预检 `--inspect-package`（含 FFmpeg）接受混合包，对 `t+0/(t-.314159)` 报 `/scrollSpeeds/0/customExpr` 并拒绝；未连接生产服务器或发布谱包。
+
+- **最终原生运行。** 校对源码游戏、舞台和 Shell 的 Debug Shared 均为 `6546bb7a17e835699d98956f46dde4af765b5ae49f0921bfa47ca36d40c21456` 后，以[原生测试驱动](../tools/verification/custom_curve_native.py)对同一合成谱实跑（[最终结果](../.tmp/custom-curve-native-case/run-20261120-173401-232545/status.json)）。4 FPS 和 64 FPS 以原生 ScreenTouch 注入相同的按下/松开事件；Mixer 的两个 Miss 分别在 1.125、1.25 秒，1.375 秒恢复。共有时间点的判定、分数一致。整谱 19 个主判定，Auto 19 Perfect；实测 Hold 的 422 个内部细分段不画横向端帽。这是对象检查，不是 GPU 像素或实机触感验收。舞台加载、定位、播放中更新公式和暂停通过；坏公式返回对应 JSON Pointer，上一版本仍可定位。此前有用户 Godot 窗口时复验主动跳过，没有终止用户程序。
+
+- **Windows 本地候选。** [完整 ZIP](../builds/win-custom-expr-20261120-d13d0c4e/DynaMakerUV-Windows-x64-v2.1-candidate.zip)为 70,721,381 字节，SHA-256 `9b56027ed11a9dcb382d59b0c405874c2d9ef8485dee32ccc72378ed1618c222`。固定 `windows-x64-test-v1` 配置，PCK 为本次全新导出；第一次 console 包装器在保存 PCK 后挂起，不计为成功，最终候选由第二次官方非 console 引擎 `--headless` 干净导出。包中舞台、系统版 Shell、内置 Shell 三份 Shared 与 ZIP 条目逐字节相同，并分别在对应 .NET 9.0.18/10.0.10 下实算回弹折点 SHA、载入示例 `rebound` 得到 15 个主判定、拒绝段中奇点：[包内数值记录](../builds/win-custom-expr-20261120-d13d0c4e/evidence/artifact-curve-precision.json)。[验包记录](../builds/win-custom-expr-20261120-d13d0c4e/evidence/verified-package.json)覆盖 ZIP 的 299 个文件、CRC、逐文件 SHA、解压后的两套 Shell 无窗口测试（各 17 项自定义曲线控件断言）及 4 组启动器路径。本次导出的舞台资源、基本原生 IPC 及 HUD 门禁通过；用户重新打开工作台后未另起解压版的原生 2.1 IPC 进程。此候选不替代上方用户已确认的测试基线。未签名，仍有 29 个第三方通知待复核；无 .NET 干净机器、真实触屏/GPU 与低端设备性能未在这一轮验收，未发布游戏 APK 或上传发行包。
+
 **2026-11-20 · 制谱器逐帧预览时钟。** 默认 Debug 舞台和工作台已重建；`python -B tools/verify.py --configuration Debug --no-restore` 通过。Shell 回归验证 600 个连续待显示帧只占一个回调、暂停/按键/恢复顺序、同一显示样本更新底栏与 TIMING、旧请求/旧修订不回写、连续点按及向后 seek。手动专项 `python -B tools/chart-editor-tests/native_clock_ipc_smoke.py --godot <console.exe>` 已在真实 Godot 4.7.1 Mono 无窗口运行，以临时 WAV 和变 BPM 谱测试：引擎限 60 FPS，两次观察各 1.11 秒，0.5× 收到约 60.5 帧/秒、1.5× 约 60.1 帧/秒。暂停确认的秒数与小节和上一条播放帧完全一致；暂停后停点不漂移，暂停/播放中后跳、自然曲尾冻结与音频只加载一次也通过。未代替用户做可见窗口流畅度验收。日志 `.tmp/native-frame-clock.log`、`.tmp/frame-clock-full.log`。
 
 **2026-11-20 · 同拍三种音符的节奏窗。** 在临时谱通过 Shell 的 `place` 路由逐颗加入同一轨、同一时刻的 Hold、Drag、Tap：旧版第三次放置后已有两颗的绘制行均变化，播放线又叠在标记之上；未复现程序退出。改为可复用的固定行，播放线画在音符后面，不改文档坐标和匹配规则。Release Shell `--headless` 通过，包含上述前后布局断言以及六种可绘制类型任选三种（20 组）在同一位置放置、实际控件渲染与撤销；结构和差异空白检查通过。未覆盖真实桌面合成异常。日志 `.tmp/three-note-chord-before.log`、`.tmp/three-note-chord-final.log`。

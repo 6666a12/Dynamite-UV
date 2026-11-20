@@ -121,7 +121,7 @@ public sealed class EditorDocumentSession
 
         return (write, result =>
         {
-            document.CompleteSave(result.DestinationDirectory, version, resources);
+            document.CompleteSave(result.DestinationDirectory, version, pack.FormatMinor, resources);
             if (ReferenceEquals(Document, document)) Draft = null;
             return new(kind, result.DestinationDirectory, document.Charts.Count);
         });

@@ -49,7 +49,7 @@ public sealed class CanvasProjection
                 Center = note.Center - note.Width / 2d,
                 Width = note.Width,
                 ScrollSpeedMultiplier = note.ScrollSpeedMultiplier,
-                CurveToNext = note.CurveToNext,
+                CurveToNext = note.CurveToNext, CustomExpr = note.CustomExpr,
             };
             maxTime = Math.Max(maxTime, item.Time + 4);
             foreach (var node in note.Nodes)
@@ -64,7 +64,7 @@ public sealed class CanvasProjection
                     Time = nodeTime,
                     Center = node.Center - node.Width / 2d,
                     Width = node.Width,
-                    CurveToNext = node.CurveToNext,
+                    CurveToNext = node.CurveToNext, CustomExpr = node.CustomExpr,
                     Judge = node.Judge == true,
                 });
             }

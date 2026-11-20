@@ -43,8 +43,8 @@ public static class V2JsonDecoder
         DecodePack(Encoding.UTF8.GetBytes(json), sourceName);
 
     public static V2Chart DecodeChart(string json, string sourceName = "chart.json",
-        bool requireMainJudgement = true) =>
-        DecodeChart(Encoding.UTF8.GetBytes(json), sourceName, requireMainJudgement);
+        bool requireMainJudgement = true, CustomCurveCache? curveCache = null) =>
+        DecodeChart(Encoding.UTF8.GetBytes(json), sourceName, requireMainJudgement, curveCache);
 
     public static V2Pack DecodePack(byte[] utf8Json, string sourceName = "meta.json") =>
         DecodePack((ReadOnlyMemory<byte>)utf8Json, sourceName);
@@ -59,6 +59,7 @@ public static class V2JsonDecoder
 
         var pack = new V2Pack
         {
+            FormatMinor = ReadFormatMinor(properties, sourceName),
             Id = ReadId(Required(properties, "id", sourceName, ""), sourceName, "/id"),
             Revision = ReadSafeInteger(Required(properties, "revision", sourceName, ""),
                 sourceName, "/revision", 1),
@@ -80,11 +81,11 @@ public static class V2JsonDecoder
         DecodePack(utf8Json.ToArray(), sourceName);
 
     public static V2Chart DecodeChart(byte[] utf8Json, string sourceName = "chart.json",
-        bool requireMainJudgement = true) =>
-        DecodeChart((ReadOnlyMemory<byte>)utf8Json, sourceName, requireMainJudgement);
+        bool requireMainJudgement = true, CustomCurveCache? curveCache = null) =>
+        DecodeChart((ReadOnlyMemory<byte>)utf8Json, sourceName, requireMainJudgement, curveCache);
 
     public static V2Chart DecodeChart(ReadOnlyMemory<byte> utf8Json, string sourceName = "chart.json",
-        bool requireMainJudgement = true)
+        bool requireMainJudgement = true, CustomCurveCache? curveCache = null)
     {
         using var document = Parse(utf8Json, sourceName);
         var root = RequireObject(document.RootElement, sourceName, "");
@@ -97,6 +98,7 @@ public static class V2JsonDecoder
             sourceName, "/timing", TimingFields);
         var chart = new V2Chart
         {
+            FormatMinor = ReadFormatMinor(properties, sourceName),
             ChartId = ReadId(Required(properties, "chartId", sourceName, ""),
                 sourceName, "/chartId"),
             AudioOffsetSec = ReadFiniteNumber(
@@ -114,13 +116,14 @@ public static class V2JsonDecoder
             NotesRight = ReadNotes(Required(properties, "notesRight", sourceName, ""),
                 sourceName, "/notesRight"),
         };
+        if (curveCache is not null) curveCache.Attach(chart);
         V2SemanticValidator.ValidateChart(chart, sourceName, requireMainJudgement);
         return chart;
     }
 
     public static V2Chart DecodeChart(ReadOnlySpan<byte> utf8Json, string sourceName = "chart.json",
-        bool requireMainJudgement = true) =>
-        DecodeChart(utf8Json.ToArray(), sourceName, requireMainJudgement);
+        bool requireMainJudgement = true, CustomCurveCache? curveCache = null) =>
+        DecodeChart(utf8Json.ToArray(), sourceName, requireMainJudgement, curveCache);
 
     private static JsonDocument Parse(ReadOnlyMemory<byte> utf8Json, string sourceName)
     {
@@ -317,6 +320,8 @@ public static class V2JsonDecoder
                     Child(itemPointer, "time")),
                 Value = ReadFiniteNumber(Required(properties, "value", source, itemPointer),
                     source, Child(itemPointer, "value")),
+                CustomExpr = properties.TryGetValue("customExpr", out var expr)
+                    ? ReadString(expr, source, Child(itemPointer, "customExpr")) : null,
                 CurveToNext = properties.TryGetValue("curveToNext", out var curve)
                     ? ReadScrollCurve(curve, source, Child(itemPointer, "curveToNext"))
                     : null,
@@ -386,6 +391,8 @@ public static class V2JsonDecoder
                 Center = common.Center,
                 Width = common.Width,
                 ScrollSpeedMultiplier = common.ScrollSpeedMultiplier,
+                CustomExpr = properties.TryGetValue("customExpr", out var expr)
+                    ? ReadString(expr, source, Child(itemPointer, "customExpr")) : null,
                 CurveToNext = properties.TryGetValue("curveToNext", out var curve)
                     ? ReadPathCurve(curve, source, Child(itemPointer, "curveToNext"))
                     : null,
@@ -419,6 +426,8 @@ public static class V2JsonDecoder
                     source, Child(itemPointer, "center")),
                 Width = ReadFiniteNumber(Required(properties, "width", source, itemPointer),
                     source, Child(itemPointer, "width")),
+                CustomExpr = properties.TryGetValue("customExpr", out var expr)
+                    ? ReadString(expr, source, Child(itemPointer, "customExpr")) : null,
                 CurveToNext = properties.TryGetValue("curveToNext", out var curve)
                     ? ReadPathCurve(curve, source, Child(itemPointer, "curveToNext"))
                     : null,
@@ -603,6 +612,15 @@ public static class V2JsonDecoder
                 $"expected '{expected}', found '{actual}'");
     }
 
+    private static int ReadFormatMinor(IReadOnlyDictionary<string, JsonElement> properties, string source)
+    {
+        if (!properties.TryGetValue("formatMinor", out var element)) return 0;
+        var minor = ReadSafeInteger(element, source, "/formatMinor", 0);
+        if (minor != V2Format.CustomCurvesMinor)
+            throw Error(source, "/formatMinor", $"unsupported explicit formatMinor {minor}; omit for v2.0 or use 1 for v2.1");
+        return (int)minor;
+    }
+
     private static void RequireIntegerLiteral(IReadOnlyDictionary<string, JsonElement> properties,
         string name, long expected, string source, string pointer)
     {
@@ -649,22 +667,22 @@ public static class V2JsonDecoder
         Exception? inner = null) => new(source, pointer, reason, inner);
 
     private static readonly HashSet<string> PackFields =
-        ["format", "formatVersion", "id", "revision", "title", "artist", "audio", "cover", "preview", "charts"];
+        ["format", "formatVersion", "formatMinor", "id", "revision", "title", "artist", "audio", "cover", "preview", "charts"];
     private static readonly HashSet<string> ChartEntryFields =
         ["id", "difficulty", "difficultyKey", "level", "unrated", "charters", "file", "audio", "preview"];
     private static readonly HashSet<string> PreviewFields = ["startSec", "durationSec"];
     private static readonly HashSet<string> ChartFields =
-        ["format", "formatVersion", "chartId", "audioOffsetSec", "timing", "scrollSpeeds", "notesLeft", "notesCenter", "notesRight"];
+        ["format", "formatVersion", "formatMinor", "chartId", "audioOffsetSec", "timing", "scrollSpeeds", "notesLeft", "notesCenter", "notesRight"];
     private static readonly HashSet<string> TimingFields = ["bpms"];
     private static readonly HashSet<string> BpmFields = ["time", "bpm"];
-    private static readonly HashSet<string> ScrollFields = ["time", "value", "curveToNext"];
+    private static readonly HashSet<string> ScrollFields = ["time", "value", "curveToNext", "customExpr"];
     private static readonly HashSet<string> BarTimeFields = ["bar", "numerator", "denominator"];
     private static readonly HashSet<string> BasicNoteFields =
         ["id", "type", "time", "center", "width", "scrollSpeedMultiplier"];
     private static readonly HashSet<string> PathNoteFields =
-        ["id", "type", "time", "center", "width", "scrollSpeedMultiplier", "curveToNext", "nodes"];
-    private static readonly HashSet<string> HoldNodeFields = ["id", "time", "center", "width", "curveToNext", "judge"];
-    private static readonly HashSet<string> MixerNodeFields = ["id", "time", "center", "width", "curveToNext"];
+        ["id", "type", "time", "center", "width", "scrollSpeedMultiplier", "curveToNext", "customExpr", "nodes"];
+    private static readonly HashSet<string> HoldNodeFields = ["id", "time", "center", "width", "curveToNext", "customExpr", "judge"];
+    private static readonly HashSet<string> MixerNodeFields = ["id", "time", "center", "width", "curveToNext", "customExpr"];
 
     private static readonly Dictionary<string, V2Difficulty> Difficulties = new(StringComparer.Ordinal)
     {
@@ -702,6 +720,7 @@ public static class V2JsonDecoder
         ["easeOutSine"] = V2PathCurve.EaseOutSine,
         ["easeInOutSine"] = V2PathCurve.EaseInOutSine,
         ["smooth"] = V2PathCurve.Smooth,
+        ["custom"] = V2PathCurve.Custom,
     };
 
     private static readonly Dictionary<string, V2ScrollCurve> ScrollCurves = new(StringComparer.Ordinal)
@@ -717,5 +736,6 @@ public static class V2JsonDecoder
         ["easeInSine"] = V2ScrollCurve.EaseInSine,
         ["easeOutSine"] = V2ScrollCurve.EaseOutSine,
         ["easeInOutSine"] = V2ScrollCurve.EaseInOutSine,
+        ["custom"] = V2ScrollCurve.Custom,
     };
 }

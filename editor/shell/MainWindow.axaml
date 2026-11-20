@@ -121,9 +121,10 @@
       </Border>
     </Grid>
     <Border Grid.Row="2" Background="{DynamicResource Bg}" Padding="14,2">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock x:Name="StatusText" Classes="caption" VerticalAlignment="Center" Text="{local:Tr Status.Ready}" TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="NativeText" IsVisible="False" Grid.Column="1" Classes="cyan" VerticalAlignment="Center" FontSize="10" Text="{local:Tr Status.NativeWaiting}" />
+        <Button x:Name="DiscardFormulaDrafts" Grid.Column="1" Classes="ghost" IsVisible="False" Padding="4,0" MinHeight="0" Content="{local:Tr Curve.DiscardAll}" />
+        <TextBlock x:Name="NativeText" IsVisible="False" Grid.Column="2" Classes="cyan" VerticalAlignment="Center" FontSize="10" Text="{local:Tr Status.NativeWaiting}" />
       </Grid>
     </Border>
     <Border x:Name="ShortcutOverlay" Grid.Row="0" Grid.RowSpan="3" IsVisible="False" Background="#E6080C18" ZIndex="100" Padding="24">

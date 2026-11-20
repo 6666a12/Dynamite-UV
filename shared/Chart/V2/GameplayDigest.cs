@@ -300,7 +300,7 @@ public sealed record V2GameplayDigestResult(
     string Sha256)
 {
     public string Algorithm => V2Format.GameplayDigestAlgorithm;
-    public string RulesetId => V2Format.RulesetId;
+    public string RulesetId { get; init; } = V2Format.RulesetId;
 }
 
 /// <summary>Gameplay-v1 projection, canonicalization, and SHA-256 implementation.</summary>
@@ -313,7 +313,7 @@ public static class V2GameplayDigest
     public static V2GameplayDigestResult Compute(
         V2Chart chart, Judge.JudgePreset judgePreset, string resolvedAudioSha256)
     {
-        V2SemanticValidator.ValidateChart(chart);
+        var curves = V2SemanticValidator.ValidateChartCurves(chart, "chart.json", requireMainJudgement: true);
         if (resolvedAudioSha256.Length != 64 ||
             resolvedAudioSha256.Any(c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f')))
             throw new ArgumentException(
@@ -322,18 +322,24 @@ public static class V2GameplayDigest
         if (judgePreset == Judge.JudgePreset.Tutorial)
             throw new ArgumentException("Tutorial is not a v2 JudgePreset.", nameof(judgePreset));
 
-        var projection = BuildProjection(chart, judgePreset, resolvedAudioSha256);
+        var projection = BuildProjection(chart, judgePreset, resolvedAudioSha256, curves);
         var canonical = JsonCanonicalizer.Canonicalize(projection);
         var digest = Sha256Hex(Encoding.UTF8.GetBytes(canonical));
-        return new V2GameplayDigestResult(projection, resolvedAudioSha256, canonical, digest);
+        return new V2GameplayDigestResult(projection, resolvedAudioSha256, canonical, digest)
+            { RulesetId = V2Format.RulesetIdFor(chart.FormatMinor) };
     }
 
     public static IReadOnlyDictionary<string, object?> BuildProjection(
-        V2Chart chart, Judge.JudgePreset judgePreset, string resolvedAudioSha256)
+        V2Chart chart, Judge.JudgePreset judgePreset, string resolvedAudioSha256) =>
+        BuildProjection(chart, judgePreset, resolvedAudioSha256,
+            V2SemanticValidator.ValidateChartCurves(chart, "chart.json", requireMainJudgement: false));
+
+    private static IReadOnlyDictionary<string, object?> BuildProjection(
+        V2Chart chart, Judge.JudgePreset judgePreset, string resolvedAudioSha256, CustomCurveValidation curves)
     {
-        var left = ProjectAndSortNotes(chart.NotesLeft);
-        var center = ProjectAndSortNotes(chart.NotesCenter);
-        var right = ProjectAndSortNotes(chart.NotesRight);
+        var left = ProjectAndSortNotes(chart.NotesLeft, curves);
+        var center = ProjectAndSortNotes(chart.NotesCenter, curves);
+        var right = ProjectAndSortNotes(chart.NotesRight, curves);
         var scrolls = chart.ScrollSpeeds.Count == 0
             ? new object?[]
             {
@@ -351,14 +357,13 @@ public static class V2GameplayDigest
                     ["value"] = NormalizeZero(scroll.Value),
                 };
                 if (index < chart.ScrollSpeeds.Count - 1)
-                    item["curveToNext"] = ScrollCurveName(
-                        scroll.CurveToNext ?? V2ScrollCurve.Linear);
+                    ProjectCurve(item, ScrollCurveName(scroll.CurveToNext ?? V2ScrollCurve.Linear), scroll.CustomExpr, curves);
                 return (object?)item;
             }).ToArray();
 
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["rulesetId"] = V2Format.RulesetId,
+            ["rulesetId"] = V2Format.RulesetIdFor(chart.FormatMinor),
             ["judgePreset"] = JudgePresetName(judgePreset),
             ["audio"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -387,10 +392,10 @@ public static class V2GameplayDigest
     public static string Sha256Hex(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
-    private static object?[] ProjectAndSortNotes(IReadOnlyList<V2Note> notes)
+    private static object?[] ProjectAndSortNotes(IReadOnlyList<V2Note> notes, CustomCurveValidation curves)
     {
         var projected = notes.Select(note => new ProjectedNote(
-            note.Time, TypeOrder(note.Type), ProjectNote(note))).ToArray();
+            note.Time, TypeOrder(note.Type), ProjectNote(note, curves))).ToArray();
         Array.Sort(projected, static (left, right) =>
         {
             var comparison = left.Time.CompareTo(right.Time);
@@ -404,7 +409,7 @@ public static class V2GameplayDigest
         return projected.Select(item => (object?)item.Value).ToArray();
     }
 
-    private static IReadOnlyDictionary<string, object?> ProjectNote(V2Note note)
+    private static IReadOnlyDictionary<string, object?> ProjectNote(V2Note note, CustomCurveValidation curves)
     {
         var result = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
@@ -418,7 +423,7 @@ public static class V2GameplayDigest
         if (note is not V2PathNote path)
             return result;
 
-        result["curveToNext"] = PathCurveName(path.CurveToNext ?? V2PathCurve.Linear);
+        ProjectCurve(result, PathCurveName(path.CurveToNext ?? V2PathCurve.Linear), path.CustomExpr, curves);
         result["nodes"] = path.Nodes.Select((node, index) =>
         {
             var projected = new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -428,13 +433,19 @@ public static class V2GameplayDigest
                 ["width"] = NormalizeZero(node.Width),
             };
             if (index < path.Nodes.Count - 1)
-                projected["curveToNext"] = PathCurveName(
-                    node.CurveToNext ?? V2PathCurve.Linear);
+                ProjectCurve(projected, PathCurveName(node.CurveToNext ?? V2PathCurve.Linear), node.CustomExpr, curves);
             if (path.Type == V2NoteType.Hold)
                 projected["judge"] = node.Judge == true;
             return (object?)projected;
         }).ToArray();
         return result;
+    }
+
+    private static void ProjectCurve(Dictionary<string, object?> item, string name, string? expression,
+        CustomCurveValidation curves)
+    {
+        item["curveToNext"] = name;
+        if (expression is not null) item["customExpr"] = curves.Canonical(expression);
     }
 
     private static IReadOnlyDictionary<string, object?> ProjectTime(ExactBarTime time) =>
@@ -485,6 +496,7 @@ public static class V2GameplayDigest
         V2PathCurve.EaseOutSine => "easeOutSine",
         V2PathCurve.EaseInOutSine => "easeInOutSine",
         V2PathCurve.Smooth => "smooth",
+        V2PathCurve.Custom => "custom",
         _ => throw new ArgumentOutOfRangeException(nameof(curve)),
     };
 
@@ -501,6 +513,7 @@ public static class V2GameplayDigest
         V2ScrollCurve.EaseInSine => "easeInSine",
         V2ScrollCurve.EaseOutSine => "easeOutSine",
         V2ScrollCurve.EaseInOutSine => "easeInOutSine",
+        V2ScrollCurve.Custom => "custom",
         _ => throw new ArgumentOutOfRangeException(nameof(curve)),
     };
 

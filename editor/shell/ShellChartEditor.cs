@@ -42,9 +42,10 @@ internal sealed class ShellChartEditor(
             var note = document.SelectedChart.Notes.Single(item => item.Id == noteId);
             var time = document.Snap(ExactTime(data.GetProperty("bar").GetDouble()));
             var shape = EditorPathProjection.ShapeOf(note);
-            var (center, width) = EditorPathProjection.Sample(shape, time);
+            var (center, width) = EditorPathProjection.Sample(shape, time, document.SelectedChart.CurveCache);
             var previous = note.Nodes.LastOrDefault(node => node.Time < time);
             var curve = previous?.CurveToNext ?? (previous is null && note.Time < time ? note.CurveToNext : null);
+            if (curve == V2PathCurve.Custom) { report(text["Curve.Insert"]); return; }
             var id = new CanvasAuthoringController(document).AddPathNode(noteId, time, center, width,
                 curve, note.Type == V2NoteType.Hold ? true : null);
             documentChanged();
@@ -100,16 +101,17 @@ internal sealed class ShellChartEditor(
         catch (Exception ex) { report(ex.Message); }
     }
 
-    public void ApplyCurve(EditorDocument? document, string noteId, string? nodeId, V2PathCurve curve)
+    public string? ApplyCurve(EditorDocument? document, string noteId, string? nodeId, V2PathCurve curve, string? expr)
     {
-        if (document is null) return;
+        if (document is null) return text["Timing.Error.NoDocument"];
         try
         {
-            document.Execute(new SetPathCurveCommand(noteId, nodeId, curve));
+            document.Execute(new SetPathCurveCommand(noteId, nodeId, curve, expr));
             documentChanged();
             report(text.Format("Message.CurveApplied", nodeId ?? noteId, curve));
+            return null;
         }
-        catch (Exception ex) { report(ex.Message); }
+        catch (Exception ex) { report(ex.Message); return ex.Message; }
     }
 
     public void ApplyHoldJudge(EditorDocument? document, string noteId, string nodeId, bool judge)
@@ -290,16 +292,17 @@ internal sealed class ShellChartEditor(
         return commands.Count;
     }
 
-    public void ApplyTiming(EditorDocument? document, IEditorCommand command)
+    public string? ApplyTiming(EditorDocument? document, IEditorCommand command)
     {
-        if (document is null) return;
+        if (document is null) return text["Timing.Error.NoDocument"];
         try
         {
             document.Execute(command);
             documentChanged();
             report(text["Message.TimingApplied"]);
+            return null;
         }
-        catch (Exception ex) { report(ex.Message); }
+        catch (Exception ex) { report(ex.Message); return ex.Message; }
     }
 
     private static ExactBarTime ExactTime(double bar) =>

@@ -19,7 +19,8 @@ public sealed partial class InspectorView : UserControl
     public event Action<string, double>? SpeedChanged;
     public Func<EditorBatchEdit, string?>? BatchEditRequested { get; set; }
     public event Action<string>? BatchLocateRequested;
-    public event Action<string, string?, V2PathCurve>? CurveChanged;
+    public Func<string, string?, V2PathCurve, string?, string?>? CurveChangeRequested { get; set; }
+    internal CustomCurveEditor Formula => this.FindControl<CustomCurveEditor>("PathFormula")!;
     public event Action<string, string, bool>? HoldJudgeChanged;
     public event Action<int, int>? NudgeRequested;
 
@@ -42,6 +43,7 @@ public sealed partial class InspectorView : UserControl
     public InspectorView()
     {
         AvaloniaXamlLoader.Load(this);
+        Formula.AttachChoice(this.FindControl<ComboBox>("CurveChoice")!);
         var batch = this.FindControl<SelectionInspectorView>("BatchInspector")!;
         batch.ApplyRequested = edit => BatchEditRequested?.Invoke(edit) ?? null;
         batch.LocateRequested += id => BatchLocateRequested?.Invoke(id);
@@ -79,7 +81,8 @@ public sealed partial class InspectorView : UserControl
 
     internal void SetCurveForVerification(V2PathCurve curve)
     {
-        this.FindControl<ComboBox>("CurveChoice")!.SelectedIndex = (int)curve;
+        var choice = this.FindControl<ComboBox>("CurveChoice")!;
+        choice.SelectedItem = choice.Items.OfType<ComboBoxItem>().Single(i => Equals(i.Tag, curve.ToString()));
         ApplyCurve(null, new RoutedEventArgs());
     }
 
@@ -162,7 +165,8 @@ public sealed partial class InspectorView : UserControl
         this.FindControl<ComboBox>("NoteTypeChoice")!.SelectedIndex = note is null ? 0 : (int)note.Type;
         this.FindControl<ComboBox>("TrackChoice")!.SelectedIndex = note is null ? (int)EditorTrack.Center : (int)note.Track;
         var curve = node?.CurveToNext ?? (node is null ? note?.CurveToNext : null) ?? V2PathCurve.Linear;
-        this.FindControl<ComboBox>("CurveChoice")!.SelectedIndex = (int)curve;
+        Formula.ShowTarget(_document, CanEditCurve && !multiple ? node?.Key ?? note?.Key : null, node?.Id ?? note?.Id,
+            curve.ToString(), node is null ? note?.CustomExpr : node.CustomExpr);
         this.FindControl<ComboBox>("CurveChoice")!.IsEnabled = CanEditCurve;
         this.FindControl<Button>("ApplyCurveButton")!.IsEnabled = CanEditCurve;
         this.FindControl<StackPanel>("HoldJudgePanel")!.IsVisible = note?.Type == V2NoteType.Hold && node is not null;
@@ -202,7 +206,7 @@ public sealed partial class InspectorView : UserControl
             var selectedLines = new List<string>();
             foreach (var item in _document?.SelectedChart.Notes ?? Enumerable.Empty<EditableNote>())
             {
-                var report = EditorSpatialAnalysis.Analyze(item);
+                var report = EditorSpatialAnalysis.Analyze(item, _document!.SelectedChart.CurveCache);
                 var risk = report.Risks;
                 if (risk.HasFlag(EditorSpatialRisk.RecommendedOverflow)) overflow++;
                 if (risk.HasFlag(EditorSpatialRisk.Invisible)) invisible++;
@@ -241,8 +245,9 @@ public sealed partial class InspectorView : UserControl
     private void ApplyCurve(object? sender, RoutedEventArgs e)
     {
         if (_primary is null || !CanEditCurve) return;
-        var curve = (V2PathCurve)this.FindControl<ComboBox>("CurveChoice")!.SelectedIndex;
-        CurveChanged?.Invoke(_primary, SelectedNode?.Id, curve);
+        if (this.FindControl<ComboBox>("CurveChoice")!.SelectedItem is ComboBoxItem { Tag: string name } &&
+            Enum.TryParse<V2PathCurve>(name, out var curve))
+            Formula.Submit(expr => CurveChangeRequested is null ? _text["Timing.Error.NoDocument"] : CurveChangeRequested(_primary, SelectedNode?.Id, curve, expr));
     }
 
     private void ApplyHoldJudge(object? sender, RoutedEventArgs e)

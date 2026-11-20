@@ -96,11 +96,11 @@ public sealed class GodotStageService : IDisposable
     }
 
     public void Load(string chartJson, string title, string artist, string? audioPath, double bar,
-        long revision, IReadOnlyList<string> selection, string difficulty = "", int? level = null) =>
-        Send(new { command = "load", chart = chartJson, title, artist, audioPath, bar, revision, selection, difficulty, level });
+        long revision, IReadOnlyList<string> selection, string difficulty = "", int? level = null, string? curveOwner = null) =>
+        Send(new { command = "load", chart = chartJson, title, artist, audioPath, bar, revision, selection, difficulty, level, curveOwner });
     public void Update(string chartJson, string title, string artist, string? audioPath,
-        long revision, IReadOnlyList<string> selection, string difficulty = "", int? level = null) =>
-        Send(new { command = "update", chart = chartJson, title, artist, audioPath, revision, selection, difficulty, level });
+        long revision, IReadOnlyList<string> selection, string difficulty = "", int? level = null, string? curveOwner = null) =>
+        Send(new { command = "update", chart = chartJson, title, artist, audioPath, revision, selection, difficulty, level, curveOwner });
     public bool TogglePlayback(bool playing, long clockRequest = 0) => TrySend(new { command = "play", playing, clockRequest });
     public bool Seek(double bar, long clockRequest = 0) => TrySend(new { command = "seek", bar, clockRequest });
     public void SetPlayerSpeed(double multiplier) => Send(new { command = "playerSpeed", multiplier });

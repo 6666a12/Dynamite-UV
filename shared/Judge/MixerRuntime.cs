@@ -14,7 +14,7 @@ public sealed class MixerRuntime(SustainPath path, Func<double, double> barAt)
 {
     public const double GraceBars = .125;
     private readonly Dictionary<int, double> _touches = new();
-    private readonly List<double> _cuts = new();
+    private readonly SustainContactPartition _partition = new();
     private double? _time;
     private double? _lossBar;
     public bool Placed { get; private set; }
@@ -105,24 +105,10 @@ public sealed class MixerRuntime(SustainPath path, Func<double, double> barAt)
         if (to <= from) return;
         if (to <= path.StartTime) { _time = to; return; }
         from = Math.Max(from, path.StartTime);
-        _cuts.Clear();
-        _cuts.Add(from);
-        _cuts.Add(to);
-        if (Placed) MixerContactGeometry.AddBoundaries(path, from, to, Position, _cuts);
-        foreach (var position in _touches.Values)
-            MixerContactGeometry.AddBoundaries(path, from, to, position, _cuts);
-        _cuts.Sort();
-        for (var i = 1; i < _cuts.Count; i++)
-        {
-            var left = _cuts[i - 1];
-            var right = _cuts[i];
-            if (right <= left) continue;
-            // Include isolated/tangent contact and Hold jumps as well as open cells.
-            Observe(left, path.BoundsAtRuntime(left), auto);
-            // Membership is constant in this open cell. Start losses at its exact
-            // boundary, not at the midpoint or the render frame that discovered it.
-            Observe(left, path.BoundsAtRuntime(left + (right - left) * .5), auto);
-        }
+        _partition.Begin(path, from, to, inBars: false);
+        if (Placed) _partition.Add(path, Position);
+        foreach (var position in _touches.Values) _partition.Add(path, position);
+        _partition.Visit(path, (time, bounds) => Observe(time, bounds, auto));
         _time = to;
     }
 

@@ -118,7 +118,7 @@ internal static class EditorDifficultyCreation
         }
         if (request.CopyScroll)
             chart.ScrollSpeeds.AddRange(reference.ScrollSpeeds.Select(e => new EditableScroll
-                { Time = e.Time, Value = e.Value, CurveToNext = e.CurveToNext }));
+                { Time = e.Time, Value = e.Value, CurveToNext = e.CurveToNext, CustomExpr = e.CustomExpr }));
 
         var external = request.AudioSource == DifficultyAudioSource.External;
         chart.Audio = request.AudioSource switch

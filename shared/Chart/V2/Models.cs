@@ -9,7 +9,15 @@ public static class V2Format
     public const string ChartFormat = "dynamite-uv-chart";
     public const int FormatVersion = 2;
     public const string RulesetId = "dynamite-uv-ruleset-2.0";
+    public const int CustomCurvesMinor = 1;
     public const string GameplayDigestAlgorithm = "gameplay-v1";
+
+    public static string RulesetIdFor(int formatMinor) => formatMinor switch
+    {
+        0 => RulesetId,
+        CustomCurvesMinor => "dynamite-uv-ruleset-2.1",
+        _ => throw new ArgumentOutOfRangeException(nameof(formatMinor)),
+    };
 }
 
 public enum V2Difficulty
@@ -49,6 +57,7 @@ public enum V2PathCurve
     EaseInOutSine,
     /// <summary>Frozen <c>pchip-v1</c> shape interpolation; path-only, never a plain progress.</summary>
     Smooth,
+    Custom,
 }
 
 public enum V2ScrollCurve
@@ -64,6 +73,7 @@ public enum V2ScrollCurve
     EaseInSine,
     EaseOutSine,
     EaseInOutSine,
+    Custom,
 }
 
 /// <summary>An optional package or chart-entry preview interval in decoded audio seconds.</summary>
@@ -95,6 +105,7 @@ public sealed record V2Pack
 {
     public string Format => V2Format.PackFormat;
     public int FormatVersion => V2Format.FormatVersion;
+    public int FormatMinor { get; init; }
     public required string Id { get; init; }
     public required long Revision { get; init; }
     public required string Title { get; init; }
@@ -119,6 +130,7 @@ public sealed record V2ScrollEvent
     public required ExactBarTime Time { get; init; }
     public required double Value { get; init; }
     public V2ScrollCurve? CurveToNext { get; init; }
+    public string? CustomExpr { get; init; }
 }
 
 /// <summary>A path control point embedded in a Hold or Mixer.</summary>
@@ -129,6 +141,7 @@ public sealed record V2PathNode
     public required double Center { get; init; }
     public required double Width { get; init; }
     public V2PathCurve? CurveToNext { get; init; }
+    public string? CustomExpr { get; init; }
     /// <summary>Resolved Hold judgement state. Mixer nodes always leave this null.</summary>
     public bool? Judge { get; init; }
     /// <summary>True only when a Hold node explicitly contained <c>judge</c>.</summary>
@@ -156,6 +169,7 @@ public sealed record V2BasicNote : V2Note;
 public sealed record V2PathNote : V2Note
 {
     public V2PathCurve? CurveToNext { get; init; }
+    public string? CustomExpr { get; init; }
     public required IReadOnlyList<V2PathNode> Nodes { get; init; }
     public ExactBarTime EndTime => Nodes[^1].Time;
 }
@@ -165,6 +179,7 @@ public sealed record V2Chart
 {
     public string Format => V2Format.ChartFormat;
     public int FormatVersion => V2Format.FormatVersion;
+    public int FormatMinor { get; init; }
     public required string ChartId { get; init; }
     public required double AudioOffsetSec { get; init; }
     public required IReadOnlyList<V2BpmEvent> Bpms { get; init; }

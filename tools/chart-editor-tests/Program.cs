@@ -19,9 +19,13 @@ internal static class Program
                 PackageLifecycleTests.Run(args[1]);
                 return 0;
             }
+            if (args.SequenceEqual(["--curve-cache-benchmark"])) { CustomCurveCacheBenchmark.Run(); return 0; }
+            if (args.SequenceEqual(["--curve-cache-tests"])) { CustomCurveCacheTests.Run(); return 0; }
             EditorDifficultyWorkflowTests.Run();
             if (args.SequenceEqual(["--difficulty-workflow"])) return 0;
             StepPathTests.Run();
+            CustomCurveDocumentTests.Run();
+            CustomCurveCacheTests.Run();
             PackageLifecycleTests.Run();
             EditorBatchEditTests.Run();
             EditorNoteClipboardTests.Run();

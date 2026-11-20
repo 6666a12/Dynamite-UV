@@ -3,17 +3,21 @@ namespace DynamiteUniverse.Shared.Judge;
 /// <summary>Logical receiver width is the chart width; skin inset/glow is decorative.</summary>
 public static class MixerContactGeometry
 {
+    private const double ContactTolerance = 1e-10;
     public static bool CanCatch(NoteBounds body, double receiver) =>
-        double.IsFinite(receiver) && receiver >= body.Left - 1e-10 && receiver <= body.Right + 1e-10;
+        double.IsFinite(receiver) && receiver >= body.Left - ContactTolerance && receiver <= body.Right + ContactTolerance;
 
     /// <summary>All possible contact transitions, including path discontinuities.</summary>
     public static void AddBoundaries(SustainPath path, double from, double to,
-        double receiver, List<double> output)
+        double receiver, List<double> output) => AddBoundaries(path, from, to, receiver, output, []);
+
+    internal static void AddBoundaries(SustainPath path, double from, double to,
+        double receiver, List<double> output, List<double> bars)
     {
         if (path.V2Evaluator is { } evaluator && path.V2BpmTimeline is { } bpm)
         {
-            var bars = new List<double>();
-            evaluator.AddReceiverBoundaries(bpm.RuntimeBarAt(from), bpm.RuntimeBarAt(to), receiver, bars);
+            bars.Clear();
+            evaluator.AddReceiverBoundaries(bpm.RuntimeBarAt(from), bpm.RuntimeBarAt(to), receiver, bars, ContactTolerance);
             foreach (var bar in bars)
             {
                 var second = bpm.RuntimeSecondsAt(bar);
