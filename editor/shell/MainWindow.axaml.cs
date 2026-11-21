@@ -52,6 +52,7 @@ public sealed partial class MainWindow : Window
     private readonly WorkbenchTimingKeys _timingKeys;
     private readonly WorkbenchModalHost _modal;
     private readonly DifficultyCreationFlow _difficulty;
+    private readonly BpmImportFlow _bpmImport;
     private readonly WorkbenchUserStore _userStore;
     private readonly WorkbenchPreferenceSession _preferences;
     private readonly WorkbenchLayoutSession _layoutSession;
@@ -91,6 +92,7 @@ public sealed partial class MainWindow : Window
             });
         _curves = new(_inspector.Formula, _timing.Formula, this.FindControl<Button>("DiscardFormulaDrafts")!, _modal, _text, Report);
         _difficulty = new(_session, _modal, () => { RefreshDocument(); Report(_text.Format("Message.ChartAdded", CurrentDocument!.SelectedChartId)); });
+        _bpmImport = new(_session, _modal, () => RefreshDocument(refreshChartChoices: false), Report, _text);
         _layoutSession = new WorkbenchLayoutSession(_userStore, _factory, Report);
         _workspace = new(this, _layoutSession, _stageView, launchStage ?? (() =>
         {
@@ -117,7 +119,7 @@ public sealed partial class MainWindow : Window
         _inspector.BatchLocateRequested += id =>
         {
             if (CurrentDocument?.SelectedChart.Notes.FirstOrDefault(n => n.Id == id) is { } note)
-                SeekBar(note.Time.ToDouble(), snap: false);
+                SeekBar(note.Time);
         };
         _inspector.SpeedChanged += (id, speed) => _editing.ApplySpeed(CurrentDocument, _selectedNoteIds, id, speed);
         _inspector.LocateRequested += (id, nodeId) =>
@@ -128,7 +130,7 @@ public sealed partial class MainWindow : Window
             _selection.Show(document, _inspector);
             _timing.ClearRowSelection();
             var note = document.SelectedChart.Notes.Single(n => n.Id == id);
-            SeekBar((nodeId is null ? note.Time : note.Nodes.Single(n => n.Id == nodeId).Time).ToDouble(), snap: false);
+            SeekBar(nodeId is null ? note.Time : note.Nodes.Single(n => n.Id == nodeId).Time);
             SendDocument();
         };
         _inspector.CurveChangeRequested = (id, nodeId, curve, expr) => _editing.ApplyCurve(CurrentDocument, id, nodeId, curve, expr);
@@ -716,13 +718,14 @@ public sealed partial class MainWindow : Window
         if (CurrentDocument is not null) SeekBar(_rhythmTimeline.Advance(_clock.Bar, delta), snap: false);
     }
 
-    private void SeekBar(double bar, bool snap = true)
+    private void SeekBar(ExactBarTime anchor) => SeekBar(anchor.ToDouble(), snap: false, anchor);
+
+    private void SeekBar(double bar, bool snap = true, ExactBarTime? anchor = null)
     {
-        if (CurrentDocument is null) return;
-        var maximum = _timeline.MaximumBar;
-        var snapped = Math.Clamp(snap && CurrentDocument.SnapEnabled ? Math.Round(bar * _snapDenominator) / _snapDenominator : bar, 0, maximum);
-        _clock.Seek(snapped, _rhythmTimeline.SecondsAt(snapped), _service.Seek);
-        Report(_text.Format("Message.Seek", snapped));
+        if (CurrentDocument is not { } document) return;
+        var target = _rhythmTimeline.ResolveSeek(bar, snap && document.SnapEnabled ? _snapDenominator : null, anchor);
+        _clock.Seek(target.Bar, _rhythmTimeline.SecondsAt(target.Bar), _service.Seek, target.Anchor);
+        Report(_text.Format("Message.Seek", target.Bar));
     }
 
     private void ChangeSnap(int direction, bool fine)
@@ -858,6 +861,10 @@ public sealed partial class MainWindow : Window
     private async void NewClicked(object? sender, RoutedEventArgs e) => await CreatePackage();
     private async void OpenClicked(object? sender, RoutedEventArgs e) => await OpenPackage();
     private void AddChartClicked(object? sender, RoutedEventArgs e) { if (!_ioBusy && !_closePending && !ShortcutsVisible) _difficulty.Show(); }
+    private void ImportBpmClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!_ioBusy && !_closePending && !ShortcutsVisible && !_modal.IsOpen && !_curves.BlockPending()) _bpmImport.Show();
+    }
     private async void SettingsClicked(object? sender, RoutedEventArgs e) => await EditPackageSettings();
     private void CopyChartClicked(object? sender, RoutedEventArgs e) => CopyChart();
     private void MoveChartUpClicked(object? sender, RoutedEventArgs e) => MoveChart(-1);
@@ -931,7 +938,7 @@ public sealed partial class MainWindow : Window
                     {
                         try
                         {
-                            var anchor = ExactBarTime.FromFraction((long)Math.Round(Math.Max(0, _clock.Bar) * _snapDenominator), _snapDenominator);
+                            var anchor = EditorGeometry.Snap(_clock.ExactBar ?? ExactBarTime.FromDouble(Math.Max(0, _clock.Bar)), _snapDenominator);
                             var pasted = _noteClipboard.Paste(CurrentDocument, anchor);
                             SelectNotes(pasted);
                             RefreshDocument();
@@ -955,7 +962,7 @@ public sealed partial class MainWindow : Window
                 _service.Send(new { command = "wheelDirection", reversed = WheelReversed });
                 Report(_text[WheelReversed ? "Message.WheelReversed" : "Message.WheelNormal"]);
                 return true;
-            case Key.R when modifiers == KeyModifiers.None: SeekBar(0); return true;
+            case Key.R when modifiers == KeyModifiers.None: SeekBar(ExactBarTime.Zero); return true;
             case Key.A: SeekSeconds(modifiers == KeyModifiers.Shift ? -.01 : -1); return true;
             case Key.D: SeekSeconds(modifiers == KeyModifiers.Shift ? .01 : 1); return true;
             case Key.C: ChangeSnap(-1, modifiers == KeyModifiers.Shift); return true;

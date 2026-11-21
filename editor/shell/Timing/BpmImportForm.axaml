@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DynamiteUniverse.Editor.Shell"
+             x:Class="DynamiteUniverse.Editor.Shell.BpmImportForm"
+             MaxHeight="680" KeyboardNavigation.TabNavigation="Cycle">
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="section" Text="{local:Tr BpmImport.Title}" FontSize="20" />
+      <TextBlock x:Name="Target" Classes="caption" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,6,0,0">
+        <TextBlock x:Name="FileName" Text="{local:Tr BpmImport.NoFile}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <Button x:Name="BrowseButton" Grid.Column="1" Content="{local:Tr Create.Browse}" Click="BrowseClicked" />
+      </Grid>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel x:Name="Preview" IsVisible="False" Spacing="6" Margin="0,0,8,0">
+        <CheckBox x:Name="Snap" Content="{local:Tr BpmImport.Snap}" IsChecked="True" IsCheckedChanged="SnapChanged" />
+        <TextBlock x:Name="Summary" Classes="caption" TextWrapping="Wrap" />
+        <TextBlock x:Name="SourceAudio" Classes="caption" TextWrapping="Wrap" />
+        <TextBlock x:Name="Offset" TextWrapping="Wrap" />
+        <Grid x:Name="ManualOffsetPanel" IsVisible="False" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox x:Name="ManualOffset" PlaceholderText="{local:Tr BpmImport.OffsetInput}"
+                   AutomationProperties.Name="{local:Tr BpmImport.OffsetInput}" TextChanged="OffsetChanged" />
+          <Button Grid.Column="1" Content="{local:Tr BpmImport.KeepOffset}" Click="KeepOffsetClicked" />
+        </Grid>
+        <TextBlock x:Name="Warning" Classes="pink" TextWrapping="Wrap" />
+        <Grid ColumnDefinitions="*,*,*,*" Margin="8,4,22,0">
+          <TextBlock Classes="eyebrow" Text="{local:Tr BpmImport.Bar}" />
+          <TextBlock Grid.Column="1" Classes="eyebrow" Text="BPM" />
+          <TextBlock Grid.Column="2" Classes="eyebrow" Text="{local:Tr BpmImport.SourceMs}" />
+          <TextBlock Grid.Column="3" Classes="eyebrow" Text="{local:Tr BpmImport.SnapMs}" />
+        </Grid>
+        <ListBox x:Name="Points" MaxHeight="214" Focusable="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 AutomationProperties.Name="{local:Tr BpmImport.Title}">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="8,3" /></Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="local:BpmImportPreviewRow">
+              <Grid ColumnDefinitions="*,*,*,*">
+                <TextBlock Text="{Binding Bar}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Bar}" />
+                <TextBlock Grid.Column="1" Text="{Binding Bpm}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Bpm}" />
+                <TextBlock Grid.Column="2" Text="{Binding SourceMs}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SourceMs}" />
+                <TextBlock Grid.Column="3" Text="{Binding SnapMs}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SnapMs}" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="2" Spacing="8">
+      <ScrollViewer MaxHeight="74">
+        <TextBlock x:Name="Feedback" Classes="pink" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      </ScrollViewer>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="{local:Tr Create.Cancel}" Click="CancelClicked" />
+        <Button x:Name="ApplyButton" IsEnabled="False" Content="{local:Tr BpmImport.Apply}" Classes="accent" Click="ApplyClicked" />
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</UserControl>

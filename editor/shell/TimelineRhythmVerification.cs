@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using DynamiteUniverse.ChartEditor.Core;
@@ -74,8 +75,43 @@ internal static class TimelineRhythmVerification
             VerifyPlacedChord(window, timeline, check);
             window.ShortcutForVerification(Key.Up);
             check("Rhythm: keyboard side change follows the tool panel", timeline.Track == window.PlacementTrackForVerification && timeline.Track != EditorTrack.Right);
+            VerifyExactTiming(window, document, check);
         }
         finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
+    }
+
+    private static void VerifyExactTiming(MainWindow window, EditorDocument document, Action<string, bool> check)
+    {
+        for (var i = 0; i < 3; i++) window.ShortcutForVerification(Key.C);
+        var quarter = ExactBarTime.FromFraction(1, 4);
+        window.SeekForVerification(.125);
+        check("Rhythm: a half-grid seek and document snap both choose the later quarter", window.CurrentBar == .25 &&
+            document.GridDivisor == 4 && document.Snap(ExactBarTime.FromFraction(1, 8)) == quarter);
+        window.ShortcutForVerification(Key.C, KeyModifiers.Shift);
+        var third = ExactBarTime.FromFraction(1, 3);
+        window.SeekForVerification(.34);
+        var timing = window.Timing;
+        var chart = document.SelectedChart;
+        var bpmTime = timing.FindControl<TextBox>("BpmTimeValue")!;
+        var scrollTime = timing.FindControl<TextBox>("ScrollTimeValue")!;
+        void Click(string name) => timing.FindControl<Button>(name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        timing.FindControl<NumericUpDown>("BpmValueInput")!.Value = 180;
+        bpmTime.Text = "";
+        Click("AddBpmButton");
+        check("Rhythm: blank BPM time at a snapped playhead is exactly 1/3", document.GridDivisor == 3 &&
+            chart.Bpms.Count == 2 && chart.Bpms[1].Time == third);
+        bpmTime.Text = "1/3"; Click("AddBpmButton");
+        check("Rhythm: explicit 1/3 cannot create a second BPM at the same beat", chart.Bpms.Count == 2);
+        scrollTime.Text = "0"; Click("AddScrollButton");
+        scrollTime.Text = ""; Click("AddScrollButton");
+        check("Rhythm: blank Scroll time also preserves the exact grid point", chart.ScrollSpeeds.Any(s => s.Time == third));
+        document.SnapEnabled = false;
+        window.SeekForVerification(.2345673);
+        bpmTime.Text = ""; Click("AddBpmButton");
+        check("Rhythm: free seek remains continuous and only quantizes the committed timing event", window.CurrentBar == .2345673 &&
+            chart.Bpms.Any(b => b.Time == ExactBarTime.FromFraction(234567, 1_000_000)));
+        document.SnapEnabled = true;
+        for (var i = 0; i < 4; i++) window.ShortcutForVerification(Key.Z, KeyModifiers.Control);
     }
 
     private static void VerifyPlacedChord(MainWindow window, TimelineView view, Action<string, bool> check)

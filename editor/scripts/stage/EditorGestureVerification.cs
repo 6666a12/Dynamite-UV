@@ -21,6 +21,7 @@ internal static class EditorGestureVerification
         };
         StageSelectionVerification.Run(chart);
         var empty = V2RuntimeAdapter.Adapt(chart, requireMainJudgement: false);
+        VerifyPlacementTypeChange(empty.Metadata);
         using (var stage = new EditorStagePreview())
         {
             stage.SetChart(empty);
@@ -201,6 +202,48 @@ internal static class EditorGestureVerification
             GD.Print("PASS Godot full-span placement time guides: center/left/right, normal and panned viewport");
         }
         finally { overlay.Free(); }
+    }
+
+    private static void VerifyPlacementTypeChange(V2RuntimeChartMetadata metadata)
+    {
+        const EditorTrack track = EditorTrack.Center;
+        var author = new EditorStageAuthoring();
+        var time = ExactBarTime.FromFraction(3, 16);
+        var point = Point(track, time.ToDouble(), 2.53);
+        using var motion = new InputEventMouseMotion();
+        using var press = new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true };
+        using var release = new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false };
+        var placements = new List<StagePlacementRequest>();
+        author.PlaceRequested += placements.Add;
+        bool InputAt(InputEvent input) => author.HandleInput(input, point, [], metadata, 0, 1);
+        void Type(V2NoteType type) => author.Configure("PLACE", type, track, 1, 16);
+        Type(V2NoteType.Tap);
+        InputAt(motion);
+        Check(author.PlacementPreview?.Time == time, "initial hover snaps to 3/16");
+        Type(V2NoteType.Hold);
+        Check(author.PlacementPreview is { Type: (int)V2NoteType.Hold, Snapped: true, TailStage: false, Center: 2.5 } hold &&
+            hold.Time == time && hold.TailTime == ExactBarTime.FromFraction(4, 16), "no-motion Hold hover retains head and builds a default tail");
+        Type(V2NoteType.Drag);
+        Check(author.PlacementPreview is { Type: (int)V2NoteType.Drag } drag && drag.Time == time && drag.TailTime == time,
+            "no-motion short hover drops the old Hold tail");
+        InputAt(press); InputAt(release);
+        Check(placements is [{ Type: (int)V2NoteType.Drag, Bar: 3d / 16, Center: 2.5 }],
+            "stationary click places the new type at the previewed time and center");
+
+        Type(V2NoteType.Hold);
+        InputAt(press); InputAt(release);
+        Check(author.HasActiveDrag && author.PlacementPreview is { TailStage: true }, "Hold is waiting for the tail");
+        Type(V2NoteType.Mixer);
+        Check(!author.HasActiveDrag && author.PlacementPreview is null && placements.Count == 1,
+            "type change cancels the active Hold rather than turning it into a Mixer");
+
+        InputAt(press);
+        Check(author.HasActiveDrag, "a fresh press starts width adjustment");
+        Type(V2NoteType.Tap);
+        InputAt(release);
+        Check(!author.HasActiveDrag && author.PlacementPreview is null && placements.Count == 1,
+            "releasing after a width draft was cancelled does not place a note");
+        GD.Print("PASS Godot stationary hover type switch at 3/16, click-to-place, and active draft cancellation");
     }
 
     private static Vector2 Point(EditorTrack track, double bar, double center = 2.5)

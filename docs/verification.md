@@ -55,6 +55,24 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-22 · 制谱器：原地切换放置预览类型
+
+- Godot 4.7.1 `--headless --quit-after 300 --path editor -- --verify-gestures` 退出 0。新增用例验证 `3/16` 悬停时不挪鼠标从 Tap 切到 Hold、再切 Drag：保留精确头点，按新类型生成或清除尾点，可直接点击放置；切换类型仍取消调宽或待选尾点的草稿，不误提交。[原生手势日志](<../.tmp/hover-type-native.log#L14>)。`python -B tools/verify.py --no-restore` 退出 0，[全仓日志](<../.tmp/hover-type-verify.log>)。未做可见窗口输入实测或重新打包。
+
+### 2026-11-21 · 制谱器：播放头保留精确拍位
+
+- `python -B tools/verify.py --no-restore` 退出 0。Avalonia 无窗口回归用实际按钮验证：`1/3` 格点留空新增 BPM 和 Scroll 使用精确分数；手填 `1/3` 不能重复新增 BPM；`1/8` 在四分网格上统一到后一格；自由定位保持连续，留空提交才量化。用模拟舞台回报覆盖了延迟回复、近似浮点回报和连续移动清除精确锚点。[验证日志](<../.tmp/playhead-exact-final.log#L1127-L1131>)。Godot 舞台构建通过，未启动原生舞台或打包。
+
+### 2026-11-21 · 制谱器插件：osu! 旧谱 BPM 兼容
+
+- `python -B tools/verify.py --no-restore` 退出 0，新增断言覆盖旧版短行、缺省标志、v3/v4 的 `+24 ms`、v5 起不平移，以及现代版仍要求显式红绿标志。中英文教程通过站点检查。[验证日志](<../.tmp/bpm-legacy-accepted.log>)。
+- 5 份未修改版本头的真实 `.osu` 样例（v3、v7、两份 v9、v10）分别通过吸附开关两种模式、撤销／重做、strict 包保存与重开。v3 的 DISCO★PRINCE 得到 `+142 ms`；v9 的 The Unforgiving 导入 20 个 BPM 点。只下载谱面文本，未试听原曲、启动 Godot 或打包。
+
+### 2026-11-21 · 制谱器插件：导入 BPM
+
+- `python -B tools/verify.py --no-restore` 退出 0：结构门禁检查 451 个 C# 源文件，三端 Debug 构建 0 错误，核心、编辑器、网络、商店、Avalonia Headless 以及 70 项发布工具与 6 项录制门禁回归均通过。Shell 有既有弃用提示，以及由工作台直接构造的导入表单的 AVLN3001 资源加载提示；无窗口回归实际打开了表单。[验证日志](<../.tmp/bpm-import-verify.log>) · [测试统计](<../.tmp/bpm-import-verify.stderr.log>)。
+- BPM 专项含 31 项定向断言（红线/绿线、拍长精度、吸附边界与无累积漂移、Malody 分数拍和 BGM 锚点等）及 13 项 Shell 场景（导入预览、坏文件、取消、单差分替换、Undo/Redo、手动偏移、strict 包重开）。站点静态检查和 7 项网站回归通过。未启动 Godot，未检查真实 Windows 选择文件、原生舞台听感或用户谱面，未出新包。
+
 ### 2026-11-21 · 工程整理：音频适配、旧画布和验证入口
 
 - 游戏与原生制谱舞台共用原始音频适配；游戏的导入资源优先、缓存和报错返回不变。退役旧画布、旧首页矢量核心和只验证旧实现的用例，保留现行舞台草稿、文档命令和精确拍位回归。

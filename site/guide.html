@@ -147,6 +147,10 @@
         <tr><td>预览流速 / SPEED</td><td><kbd>Q</kbd> 降、<kbd>E</kbd> 升，每次 0.1，范围 0.1 至 2.0 倍。画面疏密会变，音乐照常播。</td><td>否</td></tr>
         <tr><td>音乐倍率 / RATE</td><td><kbd>W</kbd> 升、<kbd>S</kbd> 降，每次 0.1，范围 0.2 至 2.0 倍。音乐和播放头一起快放或慢放。</td><td>否</td></tr>
       </tbody></table></div>
+      <div id="import-bpm" class="guide-subsection" data-keywords="导入 BPM 插件 Malody mc osu 红线 吸附">
+        <h3>已有对轨？先导入 BPM</h3><p>选好目标差分，点「插件 → 导入 BPM」，浏览并选择 <code>.mc</code> 或 <code>.osu</code>。核对偏移和 BPM 表，再点「替换 BPM 表」。只动当前差分，不导入音符、Scroll 或音频文件；现有音符的小节位置不变，但换 BPM 后在录音里的命中时间可能不同。一次 <kbd>Ctrl+Z</kbd> 可恢复原对轨。</p>
+        <p>osu! 支持 v3–v14 和 v128，只读红线。默认把离整拍不到 0.001 小节且最多移动 1 毫秒的点吸到整拍；取消勾选可关闭吸附。v3/v4 的音频时间始终按 osu! 规则加 24 毫秒。Malody 保留原来的分数拍位；无法确定 BGM 偏移时，手填毫秒数或点「保留当前偏移」。请检查源谱与当前差分使用的是同一段录音。</p>
+      </div>
       <div id="timing-panel" class="guide-subsection" data-keywords="变 BPM 增加 删除 修改 应用 起始事件 基准 渐变 线性 阶跃">
         <h3>在对轨面板试一次增、改、删</h3>
         <p>在舞台上按 <kbd>↓</kbd> 看正面的小节刻度；再按变亮，第三次关闭。<kbd>←</kbd> 和 <kbd>→</kbd> 分别管两个侧面，<kbd>↑</kbd> 仍然切换放置面。线旁的数字是小节位置，这些线不会存入谱包。左栏切到「对轨」/ TIMING，偏移字段下方是 BPM，再往下是 SCROLL，各有自己的列表、输入框和按钮。「新增」在指定时间建立事件；「应用」修改列表中选中的行；「删除」移除那一行。填时间用小节，可写 <code>4</code>、<code>1/4</code>、<code>4+1/4</code> 或有限小数；留空取当前播放头。练习时把时间写出来，免得加错地方。</p>
@@ -191,7 +195,7 @@
       <h3>换封面、音频或选曲时的试听片段</h3>
       <p>在「文件 → 谱面包 / 差分设置」中，上半部改整个包的 ID、曲名、曲师、默认音频、封面和试听区间；下半部改当前差分的 ID、包内谱面文件名、难度、等级或不定级、谱师和音频偏移。多个谱师可用英文逗号分隔。试听输入的是<strong>起点和时长，单位秒</strong>，不是起止两个时间。比如从第 2 秒开始试听 4 秒，填 <code>2</code> 和 <code>4</code>。</p>
       <p>只有这张差分需要另一段试听或另一版音乐？勾选相应的「当前差分覆盖…」。勾选音频覆盖后点「替换」选择文件，再应用；取消覆盖则回到包的默认设置。点「应用设置」把这一组改动一起提交。换过的音频可立即预览，成功保存后才从包内读；在这之前保留所选的外部文件。</p>
-      <div class="callout warning"><p class="callout-title">替换媒体前备一份完整谱包</p><p>先保存并复制整个包，或另存到空目录后在副本里改。跨过保存再撤销，不一定能找回旧音频或封面的内容。编辑器读写本地 strict v2 目录包；没有 ZIP、XML 或 DY 的导入导出按钮。</p></div>
+      <div class="callout warning"><p class="callout-title">替换媒体前备一份完整谱包</p><p>先保存并复制整个包，或另存到空目录后在副本里改。跨过保存再撤销，不一定能找回旧音频或封面的内容。编辑器读写本地 strict v2 目录包。</p></div>
     </section>
 
     <section id="shortcuts" class="guide-section" data-keywords="快捷键 键盘 hotkey F1 ctrl shift Z X A D W S Q E 1 2 3 4 5 6 7">
@@ -216,8 +220,8 @@
         <details><summary>数字键、空格或复制粘贴没起作用？</summary><p>输入框、数值框和下拉框会保留自己的按键。先结束输入，点「选择」工具再试，或点可见的播放按钮。文本框里的 Ctrl+C/V 操作文字。在工作台侧栏里仍可按 Ctrl+S 保存；打开「添加差分」表单时，背景的保存和编辑快捷键不会生效。按 Ctrl+Enter 确认，或按 Esc 取消。</p></details>
         <details><summary>有音符，为什么舞台上看不到，或框选不到？</summary><p>回到「属性 → 定位 Note / 节点」，按 ID 与时间选它；核对轨道、中心、宽度和风险提示。音符可能已经过线、离屏，或视图被 PAN 移远。框选只取当前轨、按头部时间和中心算范围。别先在原处重复放一颗。</p></details>
         <details><summary>音乐不响，或每一拍好像都提前了？</summary><p>在舞台空白处点右键，确认音乐预览音量没有调到 0，再核对当前差分是否覆盖了包音频。只滚动或拖时间轴是定位，按空格才开播。若是拍点偏差，先恢复音乐倍率 1.0，按<a href="#timing">对轨步骤</a>分别检查偏移和 BPM。</p></details>
-        <details><summary>能打开旧 XML、DY 或 ZIP 吗？</summary><p>当前要选带包信息和音频的 strict v2 谱包目录。旧格式、ZIP 的导入导出都未接上，改扩展名无效。</p></details>
-        <details><summary>波形、对象磁吸和 Storyboard 在哪里开？</summary><p>音频分析面板可以打开，但没有真实波形或 BPM 导入。对象磁吸已停用，放置时的对齐标记只是提示，时间吸附和位置网格仍可用。Storyboard、游戏完整 HUD 预览和自动录制没有可用的制谱入口；也没有公开插件安装流程。</p></details>
+        <details><summary>能直接打开 ZIP 谱包吗？</summary><p>不能。若 ZIP 里已经是完整的 strict v2 谱包，先解压，再选包含包信息、谱面和音频的目录。</p></details>
+        <details><summary>波形、对象磁吸和 Storyboard 在哪里开？</summary><p>音频分析面板可以打开，但没有真实波形；已有对轨可从<a href="#import-bpm">插件 → 导入 BPM</a>导入。对象磁吸已停用，放置时的对齐标记只是提示，时间吸附和位置网格仍可用。Storyboard、游戏完整 HUD 预览和自动录制没有可用的制谱入口；也没有公开插件安装流程。</p></details>
         <details><summary>撤销更换音频，能找回保存前的文件吗？</summary><p>不能指望撤销恢复已被换掉的旧媒体。去替换前的备份取原文件，再在包或差分设置中选回。</p></details>
         <details><summary>怎样反馈一个能重现的问题？</summary><p>到 <a href="https://github.com/6666a12/Dynamite-UV/issues">GitHub Issues</a> 写明版本、从哪个界面开始、按了什么、预期和实际各是什么，附完整报错。截图先遮去私人路径；如需附谱包，请用能公开的音频和封面，或用本页的节拍做最小例子。</p></details>
       </div>

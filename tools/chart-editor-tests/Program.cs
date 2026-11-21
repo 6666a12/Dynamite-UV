@@ -21,8 +21,10 @@ internal static class Program
             }
             if (args.SequenceEqual(["--curve-cache-benchmark"])) { CustomCurveCacheBenchmark.Run(); return 0; }
             if (args.SequenceEqual(["--curve-cache-tests"])) { CustomCurveCacheTests.Run(); return 0; }
+            if (args.SequenceEqual(["--timing-import"])) { TimingFileImportTests.Run(); return 0; }
             EditorDifficultyWorkflowTests.Run();
             if (args.SequenceEqual(["--difficulty-workflow"])) return 0;
+            TimingFileImportTests.Run();
             StepPathTests.Run();
             CustomCurveDocumentTests.Run();
             CustomCurveCacheTests.Run();

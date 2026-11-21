@@ -1,4 +1,3 @@
-using System.Numerics;
 using DynamiteUniverse.Shared.Chart;
 using DynamiteUniverse.Shared.Chart.V2;
 
@@ -365,10 +364,7 @@ public sealed class EditorDocument
             return time;
         if (GridDivisor <= 0)
             throw new InvalidOperationException("Grid divisor must be positive.");
-        var scaled = time.ImproperNumerator * GridDivisor;
-        var denominator = time.Denominator;
-        var rounded = BigInteger.Divide(scaled * 2 + denominator, denominator * 2);
-        return ExactBarTime.FromFraction(rounded, GridDivisor);
+        return EditorGeometry.Snap(time, GridDivisor);
     }
 
     public string AllocateId(string prefix)

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avalonia.Controls;
+using DynamiteUniverse.Shared.Chart.V2;
 
 namespace DynamiteUniverse.Editor.Shell;
 
@@ -9,21 +10,24 @@ internal sealed class WorkbenchPreviewClock(TimelineView timeline, TimingView ti
 {
     private long _request;
     private bool? _intendedPlayback;
+    private long? _exactSeekRequest;
     internal double Second { get; private set; }
     internal double Bar { get; private set; }
+    internal ExactBarTime? ExactBar { get; private set; }
     internal bool Playing { get; private set; }
 
-    internal void ResetSession() { _request = 0; _intendedPlayback = null; Playing = false; }
+    internal void ResetSession() { _request = 0; _intendedPlayback = null; Playing = false; ShowPosition(Second, Bar); }
     internal bool Toggle(Func<bool, long, bool> send)
     {
         var next = !(_intendedPlayback ?? Playing);
         if (send(next, _request + 1)) { _request++; _intendedPlayback = next; }
         return next;
     }
-    internal void Seek(double bar, double second, Func<double, long, bool> send)
+    internal void Seek(double bar, double second, Func<double, long, bool> send, ExactBarTime? exactBar = null)
     {
-        if (send(bar, _request + 1)) _request++;
-        ShowPosition(second, bar);
+        bool sent = send(bar, _request + 1);
+        if (sent) _request++;
+        ShowPosition(second, bar, exactBar, sent && exactBar.HasValue ? _request : null);
     }
     internal bool Accept(JsonElement data, long chartRevision)
     {
@@ -33,15 +37,20 @@ internal sealed class WorkbenchPreviewClock(TimelineView timeline, TimingView ti
         if (!double.IsFinite(second) || !double.IsFinite(bar)) return false;
         _intendedPlayback = null;
         Playing = data.GetProperty("playing").GetBoolean();
-        ShowPosition(second, bar);
+        // Keep a rational anchor only if the stage says this is still the same seek. A stage
+        // may numerically round-trip that position, or move to a visually indistinguishable one.
+        bool anchored = !Playing && _exactSeekRequest is { } id &&
+            data.TryGetProperty("positionSeek", out var seek) && seek.ValueKind == JsonValueKind.Number && seek.GetInt64() == id;
+        ShowPosition(second, bar, anchored ? ExactBar : null, anchored ? _exactSeekRequest : null);
         return true;
     }
-    internal void ShowPosition(double second, double bar)
+    internal void ShowPosition(double second, double bar, ExactBarTime? exactBar = null, long? positionSeek = null)
     {
-        if (Second == second && Bar == bar) return;
-        Second = second; Bar = bar;
+        _exactSeekRequest = positionSeek;
+        if (Second == second && Bar == bar && ExactBar == exactBar) return;
+        Second = second; Bar = bar; ExactBar = exactBar;
         timeline.CurrentBar = bar;
-        timing.SetCurrentBar(bar);
+        timing.SetCurrentBar(bar, exactBar);
         RefreshReadout();
     }
     internal void RefreshReadout() => readout.Text = text.Format("Transport.Position",

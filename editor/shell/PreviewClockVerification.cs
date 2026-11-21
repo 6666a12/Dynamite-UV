@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avalonia.Controls;
+using DynamiteUniverse.Shared.Chart.V2;
 
 namespace DynamiteUniverse.Editor.Shell;
 
@@ -9,8 +10,8 @@ internal static class PreviewClockVerification
     {
         var pending = new Queue<Action>(); var delivered = new List<StageMessage>();
         var dispatch = new StageFrameDispatch(pending.Enqueue, delivered.Add);
-        StageMessage Tick(double seconds, double bar, long clockRequest, bool playing, bool frame = true, long revision = 1) =>
-            new("tick", JsonSerializer.SerializeToElement(new { second = seconds, bar, clockRequest, playing, frame, revision, playerSpeed=1, playbackRate=1 }));
+        StageMessage Tick(double seconds, double bar, long clockRequest, bool playing, bool frame = true, long revision = 1, long? positionSeek = null) =>
+            new("tick", JsonSerializer.SerializeToElement(new { second = seconds, bar, clockRequest, playing, frame, revision, playerSpeed=1, playbackRate=1, positionSeek }));
         for (var i = 0; i < 600; i++) dispatch.Receive(Tick(i/60d,i/120d,0,true));
         check("Clock: 600 pending display frames use one dispatcher callback", pending.Count == 1);
         var pause = Tick(10,5,1,false,false); var resume = Tick(10,5,2,true,false);
@@ -47,5 +48,16 @@ internal static class PreviewClockVerification
             !Apply(Tick(1,.5,4,true,false)) && Apply(Tick(1,.5,5,false,false)) && !clock.Playing);
         clock.ResetSession(); Apply(Tick(0,0,0,false,false));
         SamePosition("replacement stage starts a new request sequence",0,0);
+        var third = ExactBarTime.FromFraction(1, 3);
+        var approximate = Math.BitIncrement(third.ToDouble());
+        clock.Seek(third.ToDouble(), .6666666666666666, (_, id) => id == 1, third);
+        check("Clock: stale movement cannot invalidate a pending exact seek", !Apply(Tick(0, 0, 0, false)) && clock.ExactBar == third);
+        check("Clock: authoritative seek keeps the fraction despite nearby double projection", Apply(Tick(2d / 3, approximate, 1, false, false, positionSeek: 1)) &&
+            clock.Bar == approximate && clock.ExactBar == third && timing.FindControl<TextBlock>("PlayheadCaption")!.Text!.Contains("1/3"));
+        check("Clock: continuous stage movement clears the fraction even if the numeric sample is unchanged", Apply(Tick(2d / 3, approximate, 1, false)) && clock.ExactBar is null);
+        clock.Seek(third.ToDouble(), 2d / 3, (_, _) => false, third);
+        check("Clock: locally available precision works without a running stage", clock.ExactBar == third);
+        clock.Seek(third.ToDouble(), 2d / 3, (_, _) => false);
+        check("Clock: a continuous seek clears an exact anchor at the same projected bar", clock.ExactBar is null);
     }
 }

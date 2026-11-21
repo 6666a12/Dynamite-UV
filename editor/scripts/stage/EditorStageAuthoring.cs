@@ -70,13 +70,19 @@ public sealed class EditorStageAuthoring
     public void Configure(string tool, V2NoteType type, EditorTrack track, double width, int gridDivisor,
         bool positionSnap = true)
     {
-        _positionSnap = positionSnap;
+        // A type-only change can reuse the exact hover location, but never an active draft.
+        var hover = tool == "PLACE" && tool == _tool && track == _track && type != _type &&
+            gridDivisor == _gridDivisor && positionSnap == _positionSnap && _placement is null
+            ? _placementPreview : null;
         if (tool != _tool || track != _track || type != _type) Cancel();
         _tool = tool;
         _type = type;
         _track = track;
         _width = Math.Max(width, .1);
         _gridDivisor = Math.Max(1, gridDivisor);
+        _positionSnap = positionSnap;
+        if (hover is not null)
+            _placementPreview = HoverVisual(hover.Time, hover.Center, HoverWidth(), hover.Snapped);
     }
 
     public void Cancel()
@@ -360,7 +366,7 @@ public sealed class EditorStageAuthoring
         if (_placement is null)
         {
             var time = SnappedBarAt(_track, point, metadata, currentTime, playerSpeed);
-            var width = Math.Max(EditorStagePlacement.QuantizePosition(_width, WidthStep), .1);
+            var width = HoverWidth();
             var center = EditorStagePlacement.QuantizePosition(
                 EditorStagePlacement.CenterAt(_track, point.X, point.Y), PositionStep);
             var rawCenter = EditorStagePlacement.CenterAt(_track, point.X, point.Y);
@@ -368,10 +374,7 @@ public sealed class EditorStageAuthoring
             var magnetic = _magnet.Resolve(probe, rawCenter, width, DistancePixels(probe, metadata, currentTime, playerSpeed),
                 _magnetNotes, metadata, currentTime, playerSpeed, _magnetSelection);
             if (magnetic is { } aligned) center = aligned;
-            var tail = _type is V2NoteType.Hold or V2NoteType.Mixer
-                ? time + ExactBarTime.FromFraction(1, _gridDivisor) : time;
-            _placementPreview = new EditorPlacementVisual((int)_type, (int)_track, time,
-                tail, center, width, false, snap);
+            _placementPreview = HoverVisual(time, center, width, snap);
             return;
         }
 
@@ -392,6 +395,15 @@ public sealed class EditorStageAuthoring
         _placementPreview = new EditorPlacementVisual((int)_type, (int)_track,
             _placement.Time, _placement.TailTime, _placement.Center,
             _placement.Width, _placement.TailStage, snap);
+    }
+
+    private double HoverWidth() => Math.Max(EditorStagePlacement.QuantizePosition(_width, WidthStep), .1);
+
+    private EditorPlacementVisual HoverVisual(ExactBarTime time, double center, double width, bool snap)
+    {
+        var tail = _type is V2NoteType.Hold or V2NoteType.Mixer
+            ? time + ExactBarTime.FromFraction(1, _gridDivisor) : time;
+        return new((int)_type, (int)_track, time, tail, center, width, false, snap);
     }
 
     private Note PlacementNote(ExactBarTime time, double center, double width, V2RuntimeChartMetadata metadata) => new()

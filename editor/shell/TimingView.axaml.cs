@@ -18,6 +18,7 @@ public sealed partial class TimingView : UserControl
     private readonly IWorkbenchLocalizer _text = WorkbenchLocalizer.Shared;
     private EditorDocument? _document;
     private double _currentBar;
+    private ExactBarTime? _exactPlayhead;
     private bool _updating;
     private double? _loadedBpm;
     private decimal? _displayedBpm;
@@ -48,9 +49,10 @@ public sealed partial class TimingView : UserControl
     }
 
     /// <summary>Keeps the playhead bar in sync; empty add-time fields default to this bar.</summary>
-    public void SetCurrentBar(double bar)
+    public void SetCurrentBar(double bar, ExactBarTime? exactBar = null)
     {
         _currentBar = bar;
+        _exactPlayhead = exactBar;
         UpdatePlayheadCaption();
     }
 
@@ -108,7 +110,8 @@ public sealed partial class TimingView : UserControl
     private void UpdatePlayheadCaption()
     {
         this.FindControl<TextBlock>("PlayheadCaption")!.Text =
-            _text.Format("Timing.PlayheadCaption", _currentBar.ToString("0.##", CultureInfo.InvariantCulture));
+            _text.Format("Timing.PlayheadCaption", _exactPlayhead is { } exact
+                ? ExactBarTimeText.Format(exact) : _currentBar.ToString("0.##", CultureInfo.InvariantCulture));
     }
 
     private void UpdateView()
@@ -327,15 +330,16 @@ public sealed partial class TimingView : UserControl
         return false;
     }
 
-    /// <summary>Empty time fields default to the playhead bar, parsed exactly in the BarTime domain.</summary>
+    /// <summary>Empty time fields use the playhead anchor; continuous time is explicitly rounded on commit only.</summary>
     private bool TryReadTime(TextBox field, out ExactBarTime time)
     {
         if (string.IsNullOrWhiteSpace(field.Text))
         {
-            time = ExactBarTimeText.Parse(Math.Round(_currentBar, 6).ToString("0.######", CultureInfo.InvariantCulture));
-            return true;
+            if (_exactPlayhead is { } anchor) { time = anchor; return true; }
+            if (ExactBarTimeText.TryParse(Math.Round(_currentBar, 6).ToString("0.######", CultureInfo.InvariantCulture), out time))
+                return true;
         }
-        if (ExactBarTimeText.TryParse(field.Text, out time)) return true;
+        else if (ExactBarTimeText.TryParse(field.Text, out time)) return true;
         ShowError(_text["Timing.Error.InvalidTime"]);
         return false;
     }

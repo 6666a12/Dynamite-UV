@@ -87,6 +87,13 @@
               </Button.Flyout>
             </Button>
             <Button Content="{local:Tr Menu.View}" Classes="ghost" Click="RestoreClicked" />
+            <Button x:Name="PluginsMenu" Content="{local:Tr Menu.Plugins}" Classes="ghost">
+              <Button.Flyout>
+                <MenuFlyout>
+                  <MenuItem x:Name="ImportBpmMenuItem" Header="{local:Tr BpmImport.Title}" Click="ImportBpmClicked" />
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
             <Button Content="{local:Tr Menu.Help}" Classes="ghost" Click="ShortcutsClicked" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0" Spacing="8">

@@ -63,10 +63,11 @@ public sealed class EditorStageIpc : IDisposable
     });
 
     public void SendTick(double second, double bar, bool playing, double playerSpeed, double playbackRate,
-        long revision, long clockRequest, bool frame) => Emit("tick", writer =>
+        long revision, long clockRequest, bool frame, long? positionSeek = null) => Emit("tick", writer =>
         {
             writer.WriteNumber("revision", revision);
             writer.WriteNumber("clockRequest", clockRequest);
+            if (positionSeek is { } id) writer.WriteNumber("positionSeek", id);
             writer.WriteBoolean("frame", frame);
             writer.WriteNumber("second", second);
             writer.WriteNumber("bar", bar);

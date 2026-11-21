@@ -24,6 +24,7 @@ public partial class EditorPreviewController : Control
     private double _playerSpeed = 1.0;
     private double _playbackRate = 1.0;
     private long _clockRequest;
+    private (long Request, double Bar)? _positionSeek;
     private bool _panClockMoved;
     private string? _audioPath;
     private long _revision = -1;
@@ -161,7 +162,7 @@ public partial class EditorPreviewController : Control
             case "load": Load(root, false); break;
             case "update": Load(root, true); break;
             case "play": AcceptClockRequest(root); SetPlaying(root.GetProperty("playing").GetBoolean()); break;
-            case "seek": AcceptClockRequest(root); Seek(root.GetProperty("bar").GetDouble()); break;
+            case "seek": AcceptClockRequest(root); Seek(root.GetProperty("bar").GetDouble(), positionSeek: _clockRequest); break;
             case "timelineWheel":
                 if (!_workbenchBlocked && !_menu.IsOpen && root.GetProperty("revision").GetInt64() == _revision)
                     ScrubWheel(root.GetProperty("steps").GetDouble() * (_stage.WheelReversed ? -1 : 1));
@@ -250,6 +251,7 @@ public partial class EditorPreviewController : Control
         }
         if (!incremental)
         {
+            _positionSeek = null;
             SetPlaying(false);
             _second = 0;
         }
@@ -286,6 +288,7 @@ public partial class EditorPreviewController : Control
     private void SetPlaying(bool playing)
     {
         _playing = playing && _adapted is not null;
+        if (_playing) _positionSeek = null;
         _stage.SetPlaying(_playing);
         _stage.SuspendPlayback(_panAudioSuspended);
         _audio.PitchScale = (float)_playbackRate;
@@ -299,10 +302,11 @@ public partial class EditorPreviewController : Control
         SendTick();
     }
 
-    private void Seek(double bar, bool scrub = false)
+    private void Seek(double bar, bool scrub = false, long? positionSeek = null)
     {
         if (_adapted is null) return;
         _bar = Math.Max(0, bar);
+        _positionSeek = !_playing && positionSeek is { } id && id > 0 ? (id, _bar) : null;
         _second = _adapted.Metadata.BpmTimeline.RuntimeSecondsAt(_bar);
         if (_audio.Stream is { } stream) _second = Math.Min(_second, stream.GetLength());
         _bar = _adapted.Metadata.BpmTimeline.RuntimeBarAt(_second);
@@ -371,6 +375,7 @@ public partial class EditorPreviewController : Control
         if (_audio.Stream is { } stream) second = Math.Min(second, stream.GetLength());
         second = Math.Max(0, second);
         if (Math.Abs(second - _second) < 1e-9) return;
+        _positionSeek = null;
         _second = second;
         _bar = metadata.BpmTimeline.RuntimeBarAt(second);
         _stage.CurrentBar = _bar;
@@ -432,8 +437,14 @@ public partial class EditorPreviewController : Control
     private void SendTick()
     {
         _panClockMoved = false;
-        if (_adapted is not null) _bar = _adapted.Metadata.BpmTimeline.RuntimeBarAt(_second);
-        _ipc.SendTick(_second, _bar, _playing, _playerSpeed, _playbackRate, _revision, _clockRequest, frame: false);
+        if (_adapted is { } adapted)
+        {
+            var timeline = adapted.Metadata.BpmTimeline;
+            if (_positionSeek is { } seek && timeline.RuntimeSecondsAt(seek.Bar) != _second) _positionSeek = null;
+            _bar = timeline.RuntimeBarAt(_second);
+        }
+        _ipc.SendTick(_second, _bar, _playing, _playerSpeed, _playbackRate, _revision, _clockRequest,
+            frame: false, positionSeek: _positionSeek?.Request);
     }
 
     private async void Capture(string path)

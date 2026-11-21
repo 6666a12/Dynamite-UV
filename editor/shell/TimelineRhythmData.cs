@@ -70,6 +70,15 @@ internal sealed class WorkbenchTimeline(TimelineView view)
         view.MaximumBar = _duration > 0 && _tempo is not null
             ? Math.Max(last, _tempo.RuntimeBarAt(_duration)) : Math.Max(32, Math.Ceiling(last + 4));
     }
+    public (double Bar, ExactBarTime? Anchor) ResolveSeek(double bar, int? grid, ExactBarTime? anchor)
+    {
+        if (anchor is null && grid is { } divisor)
+            anchor = EditorGeometry.Snap(ExactBarTime.FromDouble(Math.Max(0, bar)), divisor);
+        var projected = anchor?.ToDouble() ?? bar;
+        var clamped = Math.Clamp(projected, 0, view.MaximumBar);
+        return (clamped, clamped == projected && anchor is { IsJsonSafeCanonical: true } ? anchor : null);
+    }
+
     public double SecondsAt(double bar) => _tempo?.RuntimeSecondsAt(bar) ?? 0;
     public double Advance(double bar, double seconds) => _tempo?.RuntimeBarAt(SecondsAt(bar) + seconds) ?? bar;
 }
