@@ -55,7 +55,13 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
-### 2026-11-21 · `bf45328` 审查修复（当前源码）
+### 2026-11-21 · 工程整理：音频适配、旧画布和验证入口
+
+- 游戏与原生制谱舞台共用原始音频适配；游戏的导入资源优先、缓存和报错返回不变。退役旧画布、旧首页矢量核心和只验证旧实现的用例，保留现行舞台草稿、文档命令和精确拍位回归。
+- `python -B tools/verify.py --no-restore` 输出 `VERIFICATION PASS`：结构门禁检查 444 个 C# 源文件，三端 Debug 构建均 0 错误（游戏、舞台 0 警告；Shell 的未改动文件报 6 条警告），核心、编辑器、网络、商店和 Shell 无窗口回归通过；70 项发布工具回归、6 项 Python 优化模式录制门禁及 `git diff --check` 通过。Shell 无窗口步骤复用前一步构建产物。见[执行日志](<../.tmp/engineering-health-20261121/verify.log>)及[测试统计](<../.tmp/engineering-health-20261121/verify.stderr.log>)。
+- 将商店的源码字符串检查换成[窗口套件](<../tools/client-menu-qa/README.md>)中的展开、收起、重开节点验证；编辑器打包参数走模拟进程断言，运行时选择由[候选包验证](<../tools/editor-release/verify_launcher.py>)检查。未启动 Godot，未执行商店窗口用例或真实候选包启动器，未实测四种音频的实际播放、APK 资源映射和 Android 真机；没有出新包。固定测试基线 ZIP 哈希保持不变，清理范围见[产物索引](<build-artifacts.md>)。
+
+### 2026-11-21 · `bf45328` 审查修复（当时工作区）
 
 - 外框按下效果结束后保留触点，快捷设置直接转交捕获的松手或取消；被展开卡替代的曲行在隐藏时同步选中高亮。录制脚本使用显式校验，Python 优化模式下也不会把缺失、过小或非 AVI 文件记作录制通过。
 - `python -B tools/verify.py --no-restore` 退出 0：458 个 C# 源文件结构门禁、游戏/舞台/Shell Debug 构建（均 0 警告、0 错误）、核心/编辑器/网络/商店及 Shell 无窗口回归、71 项发布工具回归、6 项 Python 优化模式录制门禁和差异检查均通过；6 项录制门禁在普通 Python 也通过。[验证日志](<../.tmp/menu-review-20261121/verify.log>) · [测试统计与 Git 行尾提示](<../.tmp/menu-review-20261121/verify.stderr.log>)。
@@ -351,7 +357,7 @@ dotnet run --project tools/core-tests/CoreTests.csproj
 dotnet run --project tools/chart-editor-tests/ChartEditorTests.csproj
 dotnet run --project tools/server-tests/ServerTests.csproj
 dotnet run --project tools/store-browse-tests/StoreBrowseTests.csproj
-dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --headless
+dotnet run --no-build --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --headless
 python -B -m unittest discover -s tools/release/tests -p "test_*.py"
 python -O -B -m unittest discover -s tools/client-menu-qa -p test_run.py
 git diff --check

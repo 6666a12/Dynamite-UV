@@ -92,8 +92,9 @@ internal static class EditorGeometryTests
               Math.Abs(EditorStagePlacement.SnapCenter(9d, false) -
                   EditorStagePlacement.MaximumCenter) < 1e-12,
             "authoring centre snap keeps the 0.1 step, the fine step and the coordinate clamp");
-        Check(Math.Abs(EditorStagePlacement.SnapWidth(.975d) - 1d) < 1e-12 &&
-              Math.Abs(EditorStagePlacement.SnapWidth(.02d) - 0d) < 1e-12 &&
+        var defaultWidthStep = 1d / EditorGeometry.WidthSnapDivisor;
+        Check(Math.Abs(EditorStagePlacement.QuantizePosition(.975d, defaultWidthStep) - 1d) < 1e-12 &&
+              EditorStagePlacement.QuantizePosition(.02d, defaultWidthStep) == 0d &&
               Math.Abs(EditorGeometry.CenterSnap - .1d) < 1e-12 &&
               Math.Abs(EditorGeometry.FineCenterSnap - .01d) < 1e-12 &&
               Math.Abs(EditorGeometry.WidthSnapDivisor - 20d) < 1e-12,

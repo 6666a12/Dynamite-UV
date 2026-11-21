@@ -146,9 +146,9 @@ Godot 页面分部文件仍共享宿主状态，不能以单个入口变短认�
 
 第二轮中 GameplayMain 把渲染与特效生命周期交给 `GameplayNoteRenderer` / `GameplayEffects`，
 `SustainRuntime` 仅保存判定状态；渲染只读取 `SustainVisualSnapshot` 值和判定结果。
-节点仍挂在原 `_noteRoot`，创建/回收顺序及每帧协调顺序保持。editor 的文档/草稿资源归
-`EditorDocumentSession`，已有对象的手势提交/取消归 `CanvasEditGesture`；选曲浏览归 `SongBrowseState`。
-详见 [第二轮行为核对](<archive/reports/2026-10-25-modularization-phase2.md>)，其中明确记录一次草稿保存行为修正。
+节点仍挂在原 `_noteRoot`，创建/回收顺序及每帧协调顺序保持。editor 的文档和草稿资源归
+`EditorDocumentSession`；现行舞台手势由 `EditorStageAuthoring` 协调，Shell 将提交转换为文档命令。选曲浏览归 `SongBrowseState`。
+早期画布已退役；当时的草稿保存修正见 [第二轮行为核对](<archive/reports/2026-10-25-modularization-phase2.md>)。
 
 第三轮的公共视觉、HUD、音源、独立控件、editor 页面与画布模型见 [第三轮行为核对](<archive/reports/2026-10-25-modularization-phase3.md>)。
 控件通过 provider 获取当前动效/落速，不保存全局会话；公共视觉无应用级依赖。源码/分部类预算同时收紧。

@@ -37,14 +37,13 @@ FROZEN_WIRE_LITERALS = {
 
 def scan_legacy_identity(root: Path) -> Counter[tuple[str, str]]:
     actual: Counter[tuple[str, str]] = Counter()
-    # Local agent worktrees are separate checkouts, not this product's source tree.
-    # Exclude only this root-relative container; a product folder named "worktrees"
-    # (or any other .claude content) must remain subject to the same identity rules.
-    local_worktrees = root / ".claude" / "worktrees"
+    # Match these root-relative .gitignore directories only. Same-name directories
+    # under product paths and other .claude content still belong to the scan.
+    local_directories = {root / name for name in (".claude/worktrees", ".tmp", "builds", "design")}
     for directory, dirs, files in os.walk(root):
         parent = Path(directory)
         dirs[:] = [name for name in dirs if name not in EXCLUDED_PARTS and
-                   parent / name != local_worktrees]
+                   parent / name not in local_directories]
         for name in files:
             path = parent / name
             if (name in EXCLUDED_PARTS or path.suffix.casefold() not in TEXT_SUFFIXES or
@@ -64,24 +63,33 @@ class BrandIdentityTests(unittest.TestCase):
     def test_legacy_identity_is_limited_to_explicit_compatibility_and_history(self) -> None:
         self.assertEqual(scan_legacy_identity(REPO_ROOT), ALLOWED_LEGACY_MATCHES)
 
-    def test_scan_skips_only_local_worktree_container(self) -> None:
+    def test_scan_skips_only_exact_root_local_directories(self) -> None:
         with tempfile.TemporaryDirectory(prefix="brand-scope-") as directory:
             root = Path(directory)
-            paths = [
+            ignored = (
                 ".claude/worktrees/old-checkout/client/source.cs",
+                ".tmp/review/source.cs",
+                "builds/candidate/README.md",
+                "design/experiment.json",
+            )
+            scanned = (
                 "client/source.cs",
                 "client/worktrees/source.cs",
                 "client/.claude/worktrees/source.cs",
                 ".claude/instructions.md",
                 "docs/archive/history.md",
                 "client/new-untracked-source.cs",
-            ]
-            for relative in paths:
+                "tools/.tmp/source.cs",
+                "tools/builds/source.cs",
+                "client/design/source.cs",
+                "design-notes/README.md",
+            )
+            for relative in (*ignored, *scanned):
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("DuxCommunity", encoding="utf-8")
             self.assertEqual(scan_legacy_identity(root), Counter({
-                (relative, "DuxCommunity"): 1 for relative in paths[1:]
+                (relative, "DuxCommunity"): 1 for relative in scanned
             }))
 
     def test_project_and_android_identity_are_final(self) -> None:

@@ -402,47 +402,36 @@ internal static class EditorCommandTests
             "a path keeps at least one node");
     }
 
-    internal static void TestCanvasDragAnchor()
+    internal static void TestSpatialEditPreservesExactTime()
     {
         var document = CreateCleanDocument("editor.drag", "hard", "Drag", "Community");
         var controller = new CanvasAuthoringController(document);
         var original = ExactBarTime.FromFraction(1, 3);
-        var bpms = document.SelectedChart.Bpms;
-        var seconds = EditorTime.BarToSeconds(original, bpms);
         var id = controller.AddNote(V2NoteType.Tap, EditorTrack.Center, original, 2.5, 1);
         var note = document.SelectedChart.Notes.Single(item => item.Id == id);
         document.MarkSaved(Path.Combine(Path.GetTempPath(), "editor-drag-test"));
-        // The pointer may grab anywhere inside the object rather than at its exact center/time.
-        var anchor = new CanvasDragAnchor(original, seconds, 2.5, seconds + .01, 2.7);
-        foreach (var snap in new[] { true, false })
-        {
-            var unchanged = anchor.TimeAt(seconds + .01, bpms, 32, snap, .001);
-            controller.MoveNote(id, unchanged, anchor.CenterAt(2.7), 1);
-            Check(note.Time == original && !document.IsDirty,
-                $"canvas click preserves exact 1/3 and clean history with snap {snap}");
-        }
-        controller.MoveNote(id, anchor.TimeAt(seconds + .01, bpms, 32, true, .001),
-            anchor.CenterAt(3.2), 1);
-        Check(note.Time == original && Math.Abs(note.Center - 3.0) < 1e-12,
-            "spatial drag preserves the original exact time and grab offset");
-        controller.Undo();
-        Check(!document.IsDirty && note.Center == 2.5,
-            "one undo after spatial drag returns to the saved note");
 
-        var holdId = controller.AddNote(V2NoteType.Hold, EditorTrack.Left,
-            ExactBarTime.Zero, 1, 1, original);
-        var tail = document.SelectedChart.Notes.Single(item => item.Id == holdId).Nodes[0];
-        var tailAnchor = new CanvasDragAnchor(tail.Time, seconds, tail.Center, seconds + .02, 1.1);
+        var time = original + EditorStagePlacement.ResolveMoveDelta(original, ExactBarTime.Zero, 32, true);
+        controller.MoveNote(id, time, note.Center, note.Width);
+        Check(!document.IsDirty && note.Time == original, "an unchanged note does not dirty the document");
+        var center = note.Center + EditorStagePlacement.ResolvePositionDelta(note.Center, .5, .1);
+        controller.MoveNote(id, time, center, note.Width);
+        Check(note.Time == original && note.Center == 3, "a spatial-only note edit preserves the off-grid time");
+        controller.Undo();
+        Check(!document.IsDirty && note.Center == 2.5, "one undo returns to the saved note");
+
+        var holdId = controller.AddNote(V2NoteType.Hold, EditorTrack.Left, ExactBarTime.Zero, 1, 1, original);
+        var hold = document.SelectedChart.Notes.Single(item => item.Id == holdId);
+        var tail = hold.Nodes[0];
         document.MarkSaved(Path.Combine(Path.GetTempPath(), "editor-drag-test"));
-        controller.EditPathNode(holdId, tail.Id,
-            tailAnchor.TimeAt(seconds + .02, bpms, 32, true, .001), tail.Center, tail.Width);
-        Check(!document.IsDirty && tail.Time == original,
-            "path-node click preserves its own exact time and clean history");
-        controller.EditPathNode(holdId, tail.Id,
-            tailAnchor.TimeAt(seconds + .42, bpms, 32, true, .001),
-            tailAnchor.CenterAt(1.6), tail.Width);
-        Check(tail.Time == ExactBarTime.FromFraction(19, 32) &&
-              Math.Abs(tail.Center - 1.5) < 1e-12,
-            "path-node drag applies pointer displacement to the node rather than the head");
+        controller.EditPathNode(holdId, tail.Id, tail.Time, tail.Center, tail.Width);
+        Check(!document.IsDirty && tail.Time == original, "an unchanged node does not dirty the document");
+        var movedTime = tail.Time + EditorStagePlacement.ResolveMoveDelta(tail.Time,
+            ExactBarTime.FromFraction(1, 4), 32, true);
+        var movedCenter = tail.Center + EditorStagePlacement.ResolvePositionDelta(tail.Center, .5, .1);
+        controller.EditPathNode(holdId, tail.Id, movedTime, movedCenter, tail.Width);
+        Check(tail.Time == ExactBarTime.FromFraction(19, 32) && tail.Center == 1.5 &&
+              hold.Time == ExactBarTime.Zero && hold.Center == 1,
+            "a snapped node edit moves the node and leaves its head intact");
     }
 }

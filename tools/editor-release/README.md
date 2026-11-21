@@ -81,8 +81,9 @@ python -I tools/editor-release/verify_launcher.py <candidate>
 python -I tools/editor-release/measure.py <baseline> <candidate>
 ```
 
-The launcher helper exercises system-first and forced-bundled selection and Shell
-headless regression. On a development machine this does **not** establish clean-machine
+The launcher helper verifies the system-first and forced-bundled selections against
+`distribution.json` and runs the Shell headless regression. It requires compatible
+system .NET 10 x64 outside the candidate and does **not** establish clean-machine
 behavior with no .NET installed. The measurement helper reports uncompressed bytes
 and actual DEFLATE level-6 payload bytes, excluding ZIP headers; it writes no archive.
 

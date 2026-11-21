@@ -258,9 +258,21 @@ func store():
  await sign_in();if failed:return
  if not await active_page('store'):return
  var row:='StoreRelease_134ecc9a759a4df4b1c560af3bbba800';if not await wait_release(row):return
+ var original_row:=named(row) as Control
+ if not require(original_row!=null,'real release row exists before folding'):return
  if not visible_id('StoreExpanded'):
   if not await click_id(row):return
- await wait_s(.45);await shot('01-loopback-release');if not await click_id('StoreFilterInstalled'):return
+ await wait_s(.45)
+ if not require(visible_id('StoreExpanded') and is_instance_valid(original_row) and named(row)==original_row,'opening details preserves the existing release row'):return
+ if not await click_id('StoreFold'):return
+ for i in 180:
+  if not visible_id('StoreExpanded') and visible_id(row):break
+  await get_tree().process_frame
+ if not require(not visible_id('StoreExpanded') and visible_id(row) and is_instance_valid(original_row) and named(row)==original_row,'folding details reveals the same release row'):return
+ if not await click_id(row):return
+ await wait_s(.45)
+ if not require(visible_id('StoreExpanded') and is_instance_valid(original_row) and named(row)==original_row,'the same release row still opens details after folding'):return
+ await shot('01-loopback-release');if not await click_id('StoreFilterInstalled'):return
  await wait_s(.3);if not require(visible_id('StoreEmpty') and visible_id('StoreShowAll') and not visible_id('StoreExpanded') and not visible_id('StorePrimary') and not visible_id(row),'empty installed: no stale release or CTA'):return
  await shot('02-empty-installed');if not await click_id('StoreShowAll'):return
  if not await wait_release(row):return

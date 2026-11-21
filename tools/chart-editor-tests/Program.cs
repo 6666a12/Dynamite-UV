@@ -51,7 +51,7 @@ internal static class Program
             EditorCommandTests.TestCanvasAuthoringController();
             EditorCommandTests.TestEditorPropertySteps();
             EditorCommandTests.TestMenuStepCommands();
-            EditorCommandTests.TestCanvasDragAnchor();
+            EditorCommandTests.TestSpatialEditPreservesExactTime();
             EditorGeometryTests.TestEditorTimeConversion();
             PackagePersistenceTests.TestGoldenRoundTrip();
             PackagePersistenceTests.TestStrictPackageOpen();
@@ -65,13 +65,7 @@ internal static class Program
             AudioProbeTests.Run();
             EditorSessionTests.Run();
             EditorAutoTimelineTests.Run();
-            CanvasEditGestureTests.Run();
-            CanvasProjectionTests.Run();
-            CanvasPlacementDraftTests.Run();
             StagePlacementDraftTests.Run();
-            CanvasSelectionStateTests.Run();
-            CanvasHitTestingTests.Run();
-            CanvasGesturePreviewTests.Run();
             EditorCreateRequestTests.Run();
             Console.WriteLine("EDITOR TESTS PASS");
             return 0;

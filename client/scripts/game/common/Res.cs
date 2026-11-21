@@ -1,4 +1,5 @@
 using Godot;
+using DynamiteUniverse.Presentation.Audio;
 using DynamiteUniverse.Shared.Audio;
 using DynamiteUniverse.Shared.IO;
 
@@ -12,13 +13,6 @@ public static class Res
     private const int MaxRawTextureHeight = 4096;
     private const long MaxRawTexturePixels = 16_000_000;
     private const int MaxCachedAudio = 4;
-    /// <summary>
-    /// 可管理的 FLAC 解码上限。GodotSharp 没有 AudioStreamFLAC，managed 解码器的输入/输出预算
-    /// 在这里统一收口，避免恶意包通过音频路径逼出失控分配；64 MiB 的 16-bit 交错 PCM
-    /// 约等于 6 分钟 44.1 kHz 立体声，足够覆盖谱面常用长度。
-    /// </summary>
-    private static readonly FlacDecoderOptions FlacOptions = FlacDecoderOptions.GamePlayback;
-    private static int MaxFlacBytes => FlacOptions.MaxInputBytes;
     private static readonly PathResourceCache<AudioStream> AudioCache = new(MaxCachedAudio);
     private static readonly object AudioLock = new();
     private static readonly object VirtualFileLock = new();
@@ -40,8 +34,8 @@ public static class Res
 
     public static AudioStream? LoadAudio(string path)
     {
-        var cacheable = !path.StartsWith("res://", StringComparison.Ordinal);
-        if (cacheable)
+        var isResourcePath = path.StartsWith("res://", StringComparison.Ordinal);
+        if (!isResourcePath)
         {
             lock (AudioLock)
             {
@@ -53,36 +47,27 @@ public static class Res
         AudioStream? Load()
         {
             // the original wav/ogg/mp3/flac file may no longer exist in the APK.
-            if (path.StartsWith("res://", StringComparison.Ordinal) && ResourceLoader.Exists(path))
+            if (isResourcePath && ResourceLoader.Exists(path))
                 return GD.Load<AudioStream>(path);
 
-            if (!Godot.FileAccess.FileExists(path))
+            try
             {
-                GD.PushError($"Res.LoadAudio: 文件不存在 {path}");
+                return GodotRawAudioLoader.Load(path);
+            }
+            catch (InvalidDataException ex)
+            {
+                GD.PushError($"Res.LoadAudio: {ex.Message}");
                 return null;
             }
-            var ext = path.GetExtension().ToLowerInvariant();
-            switch (ext)
+            catch (FlacDecodeException ex)
             {
-                case "wav":
-                    return AudioStreamWav.LoadFromFile(path);
-                case "ogg":
-                    return AudioStreamOggVorbis.LoadFromFile(path);
-                case "mp3":
-                    return AudioStreamMP3.LoadFromFile(path);
-                case "flac":
-                    // GodotSharp 4.7.1 没有 AudioStreamFLAC，只能自己解码再包成 WAV 流。
-                    return LoadFlac(path);
-                default:
-                    GD.PushError($"Res.LoadAudio: 不支持的音频格式 {path}");
-                    return null;
+                GD.PushError($"Res.LoadAudio: FLAC 解码失败 {path}：{ex.Message}");
+                return null;
             }
         }
 
-        var loaded = path.StartsWith("res://", StringComparison.Ordinal)
-            ? WithVirtualFileAccess(Load)
-            : Load();
-        if (loaded != null && cacheable)
+        var loaded = isResourcePath ? WithVirtualFileAccess(Load) : Load();
+        if (loaded != null && !isResourcePath)
         {
             lock (AudioLock)
                 AudioCache.Set(path, loaded);
@@ -90,62 +75,13 @@ public static class Res
         return loaded;
     }
 
-    /// <summary>
-    /// FLAC → AudioStreamWav。GodotSharp 4.7.1 没有 AudioStreamFLAC，这里用 shared 的 managed
-    /// 解码器把采样统一成 16-bit 交错 PCM 再交给引擎。解码失败明确返回 null 并报错，
-    /// 不会静默返回空音频。读取走 Godot FileAccess，因此 res://（PCK/Android）与 user:// 都可用。
-    /// </summary>
-    private static AudioStream? LoadFlac(string path)
-    {
-        byte[] bytes;
-        using (var file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read))
-        {
-            if (file == null)
-            {
-                GD.PushError($"Res.LoadAudio: 无法打开 FLAC {path} " +
-                             $"({Godot.FileAccess.GetOpenError()})");
-                return null;
-            }
-            var length = file.GetLength();
-            if (length == 0 || length > (ulong)MaxFlacBytes)
-            {
-                GD.PushError($"Res.LoadAudio: FLAC 大小 {length} 字节超出允许范围 {path}");
-                return null;
-            }
-            var buffer = file.GetBuffer((long)length);
-            if ((ulong)buffer.LongLength != length)
-            {
-                GD.PushError($"Res.LoadAudio: FLAC 未完整读取 {path}");
-                return null;
-            }
-            bytes = buffer;
-        }
-
-        FlacDecodedAudio decoded;
-        try
-        {
-            decoded = FlacDecoder.Decode(bytes, FlacOptions);
-        }
-        catch (FlacDecodeException ex)
-        {
-            GD.PushError($"Res.LoadAudio: FLAC 解码失败 {path}：{ex.Message}");
-            return null;
-        }
-
-        return new AudioStreamWav
-        {
-            Format = AudioStreamWav.FormatEnum.Format16Bits,
-            MixRate = decoded.SampleRate,
-            Stereo = decoded.Channels > 1,
-            Data = decoded.Pcm16LittleEndian,
-        };
-    }
-
     public static bool EvictAudio(string path)
     {
         lock (AudioLock)
             return AudioCache.Remove(path);
-    }    public static void ClearAudioCache()
+    }
+
+    public static void ClearAudioCache()
     {
         lock (AudioLock)
             AudioCache.Clear();

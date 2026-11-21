@@ -161,10 +161,6 @@ public static class EditorStagePlacement
         return Math.Clamp(QuantizePosition(value, increment), 0d, maximumCenter);
     }
 
-    /// <summary>Note widths snap to 1/<see cref="EditorGeometry.WidthSnapDivisor"/> of a chart unit.</summary>
-    public static double SnapWidth(double width) =>
-        QuantizePosition(width, 1d / EditorGeometry.WidthSnapDivisor);
-
     /// <summary>Snap the grabbed anchor once; all selected Notes keep their relative phases.</summary>
     public static ExactBarTime ResolveMoveDelta(ExactBarTime anchor, ExactBarTime delta,
         int gridDivisor, bool snap)

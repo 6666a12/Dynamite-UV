@@ -38,9 +38,9 @@
 
 - 显式 v2 严格解码/跨文件校验/Digest，失败拒绝；普通 legacy 优先转 v2，不适用才保留 legacy-direct。手工目录：开发/Internal 先读 `res://testdata/packs` 再读 `user://charts`，同 id 用户包覆盖；Public/未分类导出只读后者。商店另按已完成的安装登记纳入曲库，不覆盖手工包。
 - **res:// 必须走 Godot 虚拟文件系统，不可引入 System.IO**：导出后原资源可能在 PCK/导入 remap 中。此分支 Digest 按空音频字节计算；user:// /绝对路径的真实文件分支含音频字节，两者不可混同。见 [加载适配](<../client/scripts/game/charts/V2Integration.cs>)。
-- legacy `Position` 是左缘；v2 是 `center + width`。画布预览中的 Center 仍沿用左缘语义，提交文档命令时才转换；精确 BarTime 不经显示秒值往返。
+- legacy `Position` 是左缘；v2 用 `center + width`。现行制谱舞台的放置、预览和文档命令使用中心坐标；精确 BarTime 不经显示秒值往返。
 - v2 父 Note 可用 `scrollSpeedMultiplier` 在全局 Scroll 与玩家落速之上逐 Note 调整视觉倍率，缺省为 1；Hold/Mixer 全路径共用父倍率，命中秒与判定不变，非默认值进入 Digest。Scroll/路径曲线已扩至 Quad、Cubic、Sine 常用族，`smooth` 仍为路径专用 PCHIP。[v2.1](chart-format-v2.1.md) 在 Scroll 和持续音符的出向段上支持 `custom` + `customExpr`；严格校验的折线同时供制谱器和游戏使用，未升级的 2.0 差分保留原成绩身份。
-- 客户端直接播放 WAV/MP3/Ogg Vorbis；原生 FLAC 由 shared 托管解码为 16-bit PCM 后包装为 WAV 流。编辑器默认写包 Probe 支持 WAV/MP3/FLAC/Ogg Vorbis 的结构与时长校验；FLAC 输入限 64 MiB，逐帧解析子帧并验证 CRC-8/CRC-16，WAV chunk 不得越过 RIFF 声明边界；Opus/M4A/AAC 明确拒绝。
+- 游戏和原生制谱舞台共用 [Godot 原始音频适配](<../presentation/audio/GodotRawAudioLoader.cs>)：WAV/MP3/Ogg Vorbis 直接加载，FLAC 由 shared 托管解码为 16-bit PCM 后包装为 WAV 流。游戏仍优先加载 `res://` 导入资源；编辑器写包 Probe 另做结构与时长校验，FLAC 输入限 64 MiB，逐帧解析子帧并验证 CRC-8/CRC-16，WAV chunk 不得越过 RIFF 声明边界，Opus/M4A/AAC 明确拒绝。
 - 普通判定按固定 150BPM 换算；Standard 依难度选预设，Hardcore 使用 Hard 窗 ×0.5；Hold 首次断触冻结宽限 deadline，Mixer 则为实际音乐时间的 1/8 chart bar 宽限。当前 Mixer 无额外尾判。
 - 输入批次锁是精确 double 同刻锁，任何普通输入结算均可武装，Mine 不检查也不武装；触点可复用、跨轨投影可重叠。未知 id 的 Move 忽略，失焦清触点。短 Hold 保留头的晚判窗口，以带时间戳的联系快照处理同帧短点/换指。
 - 每帧音频时钟、视图、输入、持续状态、sweep、Mixer 收尾、HUD、结算的顺序不可重排；音频位置单次播放单调过滤，暂停/恢复下限保留。详见 [运行时架构](<runtime-architecture.md>)。

@@ -4,9 +4,8 @@ namespace DynamiteUniverse.ChartEditor.Core;
 
 /// <summary>
 /// One new-note placement on the native stage: width drag, optional Hold tail, then one document command.
-/// Pure centre-coordinate model for the current stage: unlike <see cref="CanvasPlacementDraft"/>,
-/// <see cref="Center"/> is the track centre, never the canvas left edge. The host supplies a snapped
-/// head time and pointer centres; this type performs no second/text conversion and never touches the document.
+/// <see cref="Center"/> is the track centre, never a left edge. The host supplies a snapped head
+/// time and pointer centres; this type performs no second/text conversion and never touches the document.
 /// </summary>
 public sealed class StagePlacementDraft
 {

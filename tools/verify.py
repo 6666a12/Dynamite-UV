@@ -23,7 +23,7 @@ def main() -> int:
                     "tools/server-tests/ServerTests.csproj", "tools/store-browse-tests/StoreBrowseTests.csproj"):
         commands.append(["dotnet", "run", "--project", project, "--configuration", args.configuration, *restore])
     commands.append(["dotnet", "run", "--project", "editor/shell/DynaMakerUv.Editor.Shell.csproj",
-                     "--configuration", args.configuration, *restore, "--", "--headless"])
+                     "--configuration", args.configuration, "--no-build", "--", "--headless"])
     commands.extend([
         [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tools/release/tests", "-p", "test_*.py"],
         [sys.executable, "-O", "-B", "-m", "unittest", "discover", "-s", "tools/client-menu-qa", "-p", "test_run.py"],
