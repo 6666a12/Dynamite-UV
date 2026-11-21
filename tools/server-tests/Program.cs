@@ -36,6 +36,8 @@ void Check(bool condition, string name)
     Console.WriteLine($"{(condition ? "PASS" : "FAIL")} {name}");
     if (!condition) failures++;
 }
+StoreLoginIntentTests.Run(Check);
+if (args.Contains("--store-login-intent")) return failures == 0 ? 0 : 1;
 await ClientNetworkTests.Run(Check);
 await StoreClientTests.Run(Check);
 await UploadStateTests.Run(Check);

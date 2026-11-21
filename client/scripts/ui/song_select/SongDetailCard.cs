@@ -13,18 +13,17 @@ namespace DynamiteUniverse.Ui;
 internal partial class SongDetailCard : Control
 {
     // ---- 卡内几何（坐标以卡左上角为原点）----
-    private const float CardHeight = 392f;
-    private const float CardCut = 14f;
-    private const float CardPad = 32f;
-    private const float CoverSize = 288f;
+    private const float CardHeight = 354f;
+    private const float CardPad = 46f;
+    private const float CoverSize = 285f;
     private const float CoverInsetX = 32f;
-    private const float CoverInsetY = 52f;
-    private const float InfoInsetX = 360f;
+    private const float CoverInsetY = 33f;
+    private const float InfoInsetX = 351f;
     private const float TransportInsetX = 360f;
-    private const float TransportInsetY = 256f;
-    private const float TransportSize = 64f;
-    private const float BarInsetX = 444f;
-    private const float BarInsetY = 303f;
+    private const float TransportInsetY = 247f;
+    private const float TransportSize = 58f;
+    private const float BarInsetX = 474f;
+    private const float BarInsetY = 277f;
 
     private readonly float _listWidth;
     private readonly float _rowHeight;
@@ -38,6 +37,10 @@ internal partial class SongDetailCard : Control
     private readonly ColorRect _previewFill;
     private readonly KnobMark _previewKnob;
     private readonly Label _previewTime;
+    private readonly Label _previewCaption, _tempo;
+    private bool _canPlay;
+    private readonly SignalReceipt _previewCurrent = new() { Name = "PreviewRailCurrent" };
+    private Vector2 _playhead = new(BarInsetX, BarInsetY+3);
 
     /// <summary>卡本体被点击（收起请求）：卡的其余区域吞掉点击，进度条与文字不拦指针。</summary>
     public event Action? CollapseRequested;
@@ -53,32 +56,16 @@ internal partial class SongDetailCard : Control
         _motion = new SongCardMotion(rowHeight, CardHeight);
 
         Name = "ExpandedCard";
-        CustomMinimumSize = new Vector2(listWidth, CardHeight);
+        CustomMinimumSize = new Vector2(0, CardHeight);
+        SizeFlagsHorizontal = SizeFlags.ExpandFill;
         Size = new Vector2(listWidth, CardHeight);
         Visible = false;
         MouseFilter = MouseFilterEnum.Stop;
-
-        AddChild(new CutPanel
-        {
-            Position = Vector2.Zero,
-            Size = new Vector2(listWidth, CardHeight),
-            Cut = CardCut,
-            Fill = MenuStyle.Active,
-            Border = UiFonts.Cyan,
-            BorderWidth = 0f,
-            MouseFilter = MouseFilterEnum.Ignore,
-        });
-        AddChild(new ColorRect
-        {
-            Position = new Vector2(2, 122),
-            Size = new Vector2(6, 148),
-            Color = UiFonts.Cyan,
-            MouseFilter = MouseFilterEnum.Ignore,
-        });
+        FocusMode = FocusModeEnum.All; FocusEntered += QueueRedraw; FocusExited += QueueRedraw;
 
         var coverPos = new Vector2(CoverInsetX, CoverInsetY);
         var coverSize = new Vector2(CoverSize, CoverSize);
-        AddChild(new CoverPlaceholder
+        AddChild(new CatalogueScope
         {
             Position = coverPos,
             Size = coverSize,
@@ -94,13 +81,15 @@ internal partial class SongDetailCard : Control
         };
         AddChild(_cover);
 
-        _title = MakeLabel(new Vector2(InfoInsetX, 44), new Vector2(listWidth - InfoInsetX - 40, 64),
-            46, MenuStyle.Text);
-        AddChild(_title);
-        _artist = MakeLabel(new Vector2(InfoInsetX, 136), new Vector2(700, 40), 24, MenuStyle.Text);
+        _title = MakeLabel(new Vector2(InfoInsetX, 71), new Vector2(listWidth - InfoInsetX - 45, 78),
+            62, MenuStyle.Text);
+        _title.AddThemeFontOverride("font", UiFonts.TechBold); _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; AddChild(_title);
+        _artist = MakeLabel(new Vector2(InfoInsetX, 148), new Vector2(listWidth - InfoInsetX - 46, 42), 26, MenuStyle.Secondary);
         AddChild(_artist);
-        _charter = MakeLabel(new Vector2(InfoInsetX, 174), new Vector2(700, 36), 22, MenuStyle.Secondary);
-        AddChild(_charter);
+        _charter = MakeLabel(new Vector2(InfoInsetX, 193), new Vector2(listWidth - InfoInsetX - 316, 36), 20, MenuStyle.Secondary);
+        _artist.TextOverrunBehavior = _charter.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; AddChild(_charter);
+        _tempo = MakeLabel(new Vector2(listWidth - 315, 193), new Vector2(269, 36), 19, MenuStyle.Secondary);
+        _tempo.HorizontalAlignment = HorizontalAlignment.Right; AddChild(_tempo);
 
         _transport = new PreviewTransport
         {
@@ -111,10 +100,9 @@ internal partial class SongDetailCard : Control
         _transport.Pressed += () => TransportPressed?.Invoke();
         AddChild(_transport);
 
-        var previewLabel = MakeLabel(new Vector2(BarInsetX, 258), new Vector2(200, 26), 14, MenuStyle.Secondary);
-        previewLabel.Text = "PREVIEW";
-        AddChild(previewLabel);
-        _previewTime = MakeLabel(new Vector2(listWidth - CardPad - 320, 258),
+        _previewCaption = MakeLabel(new Vector2(BarInsetX, 235), new Vector2(295, 30), 15, MenuStyle.Secondary);
+        _previewCaption.Text = "PREVIEW"; AddChild(_previewCaption);
+        _previewTime = MakeLabel(new Vector2(listWidth - CardPad - 320, 235),
             new Vector2(320, 26), 15, MenuStyle.Secondary);
         _previewTime.HorizontalAlignment = HorizontalAlignment.Right;
         AddChild(_previewTime);
@@ -131,7 +119,7 @@ internal partial class SongDetailCard : Control
         {
             Position = new Vector2(BarInsetX, BarInsetY),
             Size = new Vector2(0, 6),
-            Color = new Color(UiFonts.Cyan, 0.75f),
+            Color = CatalogueCardFace.Accent,
             MouseFilter = MouseFilterEnum.Ignore,
         };
         AddChild(_previewFill);
@@ -142,6 +130,7 @@ internal partial class SongDetailCard : Control
             MouseFilter = MouseFilterEnum.Ignore,
         };
         AddChild(_previewKnob);
+        AddChild(_previewCurrent);
     }
 
     /// <summary>当前封面贴图（START 把它交给过场 relay）。</summary>
@@ -269,12 +258,29 @@ internal partial class SongDetailCard : Control
         ApplyCoverAlpha();
     }
 
-    public void SetTransportPlaying(bool playing) => _transport.SetPlaying(playing);
+    public void SetTransportPlaying(bool playing)
+    {
+        _transport.SetPlaying(playing);
+        _previewKnob.SetPlaying(playing);
+        var label = playing ? "PREVIEW   /   PLAYING" : _canPlay ? "PREVIEW   /   IDLE" : "PREVIEW";
+        if (_previewCaption.Text != label) _previewCaption.Text = label;
+    }
 
-    public void SetTransportEnabled(bool enabled) => _transport.Disabled = !enabled;
+    public void ConfirmTransport()
+    {
+        if (!CanPreview || !_canPlay) return;
+        var start = _transport.Position + _transport.Size * .5f;
+        _previewCurrent.EmitConductor(CatalogueCardFace.Accent, .76f, start,
+            new(start.X,296), new(start.X+12,308), new(443,308), new(BarInsetX,BarInsetY+3), _playhead);
+    }
+    public void ClearTransportCurrent() => _previewCurrent.Cancel();
+
+    public void SetTempo(string value) => _tempo.Text = value;
+
+    public void SetTransportEnabled(bool enabled) { _canPlay = enabled; _transport.Disabled = !enabled; if (!enabled) _previewCaption.Text = "PREVIEW"; }
 
     /// <summary>卡内读数位：详情还在加载。</summary>
-    public void ShowChartLoading() => _previewTime.Text = "加载谱面中…";
+    public void ShowChartLoading() { _tempo.Text = ""; _previewTime.Text = "加载谱面中…"; }
 
     /// <summary>卡内读数位：详情加载失败。</summary>
     public void ShowChartUnavailable() => _previewTime.Text = "谱面无法加载";
@@ -289,14 +295,26 @@ internal partial class SongDetailCard : Control
     public void ShowPreviewProgress(float fraction, double elapsed, double duration)
     {
         var barWidth = _listWidth - CardPad - BarInsetX;
+        _playhead = new(BarInsetX + barWidth*fraction, BarInsetY+3);
+        _previewCurrent.TrackReceiver(_playhead);
         _previewFill.Size = new Vector2(barWidth * fraction, 6);
         _previewKnob.Position = new Vector2(BarInsetX + barWidth * fraction - 7, BarInsetY - 4);
         _previewTime.Text = $"{FormatSeconds(elapsed)} / {FormatSeconds(duration)}";
     }
 
+    public override void _Draw()
+    {
+        CatalogueCardFace.Draw(this, selected: 1f, expanded: true);
+        var etch = new Color("665777");
+        DrawLine(new(337,308),new(443,308),etch,1.6f,true); DrawLine(new(443,308),new(BarInsetX,BarInsetY+3),etch,1.6f,true);
+        for (var x=BarInsetX+7; x<_listWidth-CardPad; x+=59) DrawLine(new(x,BarInsetY+13),new(x,BarInsetY+19),etch,1.3f,true);
+        if (HasFocus()) DrawLine(new(5,135),new(5,220),CatalogueCardFace.Accent,3,true);
+    }
+
     public override void _GuiInput(InputEvent e)
     {
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } ||
+            (HasFocus() && e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Enter or Key.KpEnter or Key.Space }))
         {
             CollapseRequested?.Invoke();
             AcceptEvent();
@@ -308,8 +326,8 @@ internal partial class SongDetailCard : Control
     private void ApplyHeight()
     {
         var height = Mathf.Max(_rowHeight, _motion.ShownHeight);
-        CustomMinimumSize = new Vector2(_listWidth, height);
-        Size = new Vector2(_listWidth, height);
+        CustomMinimumSize = new Vector2(0, height);
+        Size = new Vector2(Size.X, height);
         ClipContents = true;
     }
 

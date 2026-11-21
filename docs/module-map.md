@@ -89,7 +89,8 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `CanvasHitTesting` | 逆序遮挡、节点/头/尾/身体优先级与边缘 typed hit | 新 UI 的矩形、路径求值、坐标换算及 Hit 适配 |
 | `CanvasGesturePreview` | 移动、宽度、节点时间/宽度与路径精确时间平移的纯预览计算 | 新 UI 的输入、屏幕几何、Projection 回写和一次命令提交 |
 | `TrackHandoffPresentation` / `TrackHandoffState` | relay UI、front/fx、相位推进与独立放电尾巴 | Signal Lock、路由、ready timeout、输入锁和转场完成时机 |
-| `SongListViewport` / `SongListScrollState` | 列表触摸/滚轮输入、滚动读写、惯性与选择意图 | Browse、展开/收起、搜索、详情试听和页面导航 |
+| `CatalogueDrum` / `SongListViewport` / `SongListScrollState` | 菜单浅弧的绘制与逆投影、列表指针捕获与原生点击重放 / 滚动条适配 / 滚轮与触摸板惯性 | 各页面保留布局、列表数据、选择、展开/收起、搜索、详情试听及导航 |
+| `ContactRim` / `ChannelStripKey` / `SongRow` | 外框包络及触点归属 / 快捷键的真实输入捕获与提交判定 / 曲行的选择视觉（隐藏时同步到终值） | 外框不修改设置或接管输入；快捷键直接转交已捕获的按下、松手及取消；选曲页仍拥有实际选择和试听 |
 | `GameSettingsCodec` | 设置快照、JSON、旧字段迁移和配色恢复 | 唯一运行态、user://、原子写入、警告和 AudioServer |
 | `EditorCreateRequest` / `EditorDifficultyCreation` / `EditorMediaSlots` | 新包请求 / 新差分的独立对轨快照与音频预检 / 媒体引用与写入路径分配 | `EditorDocumentSession` 只在文档与参考差分仍有效时提交；writer 保留严格发布校验 |
 | `ProjectWorkspaceSession` / `WorkbenchLayoutSession` | 当前窗口从起始页进入制谱工作区，首次启动/显式重试舞台；进入项目时挂接和恢复 Dock | 文件选择、会话采纳/撤销仍属 Shell 与 EditorDocumentSession；IPC/进程由 GodotStageService 负责。没有挂接 Dock 就不写布局 |

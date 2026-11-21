@@ -50,6 +50,7 @@ class ReleaseContractTests(unittest.TestCase):
             "res://shaders/note_material.gdshader",
             "res://shaders/note_surface.gdshader",
             "res://shaders/home_diffuse.gdshader",
+            "res://shaders/catalogue_drum.gdshader",
             "res://assets/fonts/SpaceGrotesk-Regular.woff2",
             "res://assets/fonts/SpaceGrotesk-Bold.woff2",
             "res://assets/models/detonation-orrery-mk6.glb",

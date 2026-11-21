@@ -6,528 +6,179 @@ namespace DynamiteUniverse.Ui;
 
 public partial class SettingsScreen
 {
-    // ---- 设计稿几何（penpot_build5.py 的常量） ----
-    private const float BarHeight = 120f;
-    private const float TabX = 48f;
-    private const float TabWidth = 340f;
-    private const float TabHeight = 96f;
-    private const float TabPitch = 108f;
-    private const float CardX = 428f;
-    private const float CardY = 176f;
-    private const float CardWidth = 1444f;
-    private const float CardHeight = 832f;
-    private const float ColumnLeft = 476f;
-    private const float ColumnRight = 1824f;
-    private const float RowHeight = 156f;
-    private const float TouchButton = 96f;
-    private const float StepperValueWidth = 220f;
-    private const float SegmentWidth = SettingsSegments.SegmentWidth;
-    private const float SegmentHeight = SettingsSegments.SegmentHeight;
-    private const float SegmentGap = SettingsSegments.SegmentGap;
-    private const float ToggleWidth = 132f;
-    private const float ToggleHeight = 60f;
-    private const float ToggleKnob = SettingsToggle.ToggleKnob;
-    private const float TrackX = 1048f;
-    private const float TrackWidth = SettingsSlider.TrackWidth;
-    private const float TrackHandle = SettingsSlider.TrackHandle;
-    private const float FooterLineY = 876f;
-    private const float FooterTextY = 942f;
-
-    // ---- 顶部栏 ----
+    // Native 1920×1080 adaptation of the shallow-arc station. Content and footer never bend.
+    private const float ColumnLeft=519, ColumnRight=1842, End=1829, RowHeight=127.5f;
+    private static float RowY(int index) => 434 + index*RowHeight;
+    private static Color Teal => SettingsSectionRail.Teal;
+    private static Color Rule => SettingsSectionRail.Rule;
 
     private void BuildTopBar()
     {
-        var back = new CutButton
-        {
-            LowBorder = true,
-            Position = new Vector2(64f, 50f),
-            Size = new Vector2(72f, 72f),
-            Cut = 12f,
-            Text = "‹",
-            FontSize = 36,
-            Accent = UiFonts.Cyan,
-        };
-        back.Pressed += Back;
-        AddChild(back);
-        _enterItems.Add(back);
-
-        var title = new Label
-        {
-            Position = new Vector2(176f, 58f),
-            Size = new Vector2(700f, 56f),
-            Text = "SETTINGS",
-            VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        MenuStyle.Heading(title);
-        AddChild(title);
-        _enterItems.Add(title);
-
-        var version = new Label
-        {
-            Position = new Vector2(ColumnRight - 400f, 46f),
-            Size = new Vector2(400f, 28f),
-            Text = ClientVersionLabel(),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        UiLabels.Tech(version, 13, MenuStyle.Secondary);
-        AddChild(version);
-        _enterItems.Add(version);
+        var top = new Control { Name="SettingsHeader", Size=new(1920,120), MouseFilter=Control.MouseFilterEnum.Ignore };
+        AddChild(top); _enterItems.Add(top);
+        var back = new CutButton { Name="SettingsBack", Position=new(60,26), Size=new(87,60), Cut=8,
+            LowBorder=true, Text="←", FontSize=29, Accent=Teal, AccessibilityName="返回首页" };
+        back.Pressed += Back; top.AddChild(back);
+        Text(top,"Dynamite Universe",173,56,330,52,35,SettingsSectionRail.Ink,true);
+        Line(top,510,39,2,37,Rule); Text(top,"设置",536,56,155,38,21,SettingsSectionRail.Muted);
+        Line(top,60,110,1800,2,Rule);
     }
-
-    // 版本号与 client/export_presets.cfg 的 version/name、release/apk-policy.json 的
-    // version_name 同源，沿用 Main.cs 的构建特性分流（不硬编 XAPK 的 0.18.00）。
-    private static string ClientVersionLabel()
-    {
-        if (OS.HasFeature("internal_testdata"))
-            return "v0.1.2-internal-testdata";
-        if (OS.HasFeature("editor") && !OS.HasFeature("public_release"))
-            return "v0.1.2-dev";
-        return "v0.1.2";
-    }
-
-    // ---- 左侧 tab 栏 ----
 
     private void BuildTabs()
     {
-        for (var i = 0; i < TabNames.Length; i++)
-        {
-            var tab = (SettingsTab)i;
-            var item = new SettingsTabItem
-            {
-                Position = new Vector2(TabX, CardY + i * TabPitch),
-                Size = new Vector2(TabWidth, TabHeight),
-                Text = TabNames[i],
-            };
-            item.Chosen += () => SelectTab(tab, animate: true);
-            AddChild(item);
-            _tabItems[i] = item;
-            _enterItems.Add(item);
-        }
+        var pane = new Control { Name="SettingsNavigation", Size=new(444,750), MouseFilter=Control.MouseFilterEnum.Ignore };
+        AddChild(pane); _enterItems.Add(pane);
+        Text(pane,"系统设置",72,214,370,71,48,SettingsSectionRail.Ink);
+        Line(pane,72,285,366,2,Rule);
+        _rail = new SettingsSectionRail { Name="SettingsSectionRail", Position=new(72,305), Size=new(368,424),
+            CanChoose=()=>_built && !_localMotionBusy && !TransitionDirector.IsBusy };
+        _rail.Chosen += n => SelectTab((SettingsTab)n, true);
+        pane.AddChild(_rail);
+        _sectionSignal = new SignalReceipt { Name="SettingsSectionReceipt", ZIndex=2 }; AddChild(_sectionSignal);
     }
-
-    // ---- 内容卡 ----
 
     private void BuildContent()
     {
-        var card = new CutPanel
+        _monitor = new SettingsChannelMonitor { Name="SettingsChannelMonitor" }; AddChild(_monitor);
+        for (var i=0;i<_tabRoots.Length;i++)
         {
-            Position = new Vector2(CardX, CardY),
-            Size = new Vector2(CardWidth, CardHeight),
-            Cut = 20f,
-            Fill = Colors.Transparent,
-            Border = UiFonts.Line,
-            BorderWidth = 0f,
-        };
-        AddChild(card);
-        _enterItems.Add(card);
-
-        for (var i = 0; i < _tabRoots.Length; i++)
-        {
-            var root = new Control
-            {
-                Position = Vector2.Zero,
-                Size = UiLayout.DesignSize,
-                Visible = false,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
-            };
-            AddChild(root);
-            _tabRoots[i] = root;
+            var root=new Control { Name="SettingsContent"+SettingsSectionRail.Sections[i], Size=UiLayout.DesignSize,
+                Visible=false, MouseFilter=Control.MouseFilterEnum.Ignore };
+            AddChild(root); _tabRoots[i]=root;
+            var head = new Control { Position=new(ColumnLeft,176), Size=new(ColumnRight-ColumnLeft,147), MouseFilter=Control.MouseFilterEnum.Ignore };
+            root.AddChild(head); _enterItems.Add(head);
+            Text(head,SettingsSectionRail.Titles[i],0,53,1150,81,52,SettingsSectionRail.Ink);
+            Line(head,0,144,ColumnRight-ColumnLeft,2,Rule);
+            Line(head,0,144,198,3,i==3?SettingsSectionRail.Violet:Teal);
         }
-
-        BuildGameplayTab(_tabRoots[(int)SettingsTab.Gameplay]);
-        BuildAudioTab(_tabRoots[(int)SettingsTab.Audio]);
-        BuildDisplayTab(_tabRoots[(int)SettingsTab.Display]);
-        BuildEffectsTab(_tabRoots[(int)SettingsTab.Effects]);
+        BuildGameplayTab(_tabRoots[0]); BuildAudioTab(_tabRoots[1]); BuildDisplayTab(_tabRoots[2]); BuildEffectsTab(_tabRoots[3]);
     }
 
     private void BuildGameplayTab(Control root)
     {
-        var s = GameSession.Settings;
-        AddGroupHeader(root, "GAMEPLAY", 220f);
-
-        // 四行改用音频板的 156 行距（设计稿只为三行开了更宽的 pitch）。
-        var offsetRow = CreateRow(root, 344f);
-        AddRowLabel(offsetRow, "JUDGE OFFSET", "-300 … +300 ms");
-        AddStepper(offsetRow,
-            () => $"{s.TimingOffsetMs:+0;-0;0} ms",
-            direction => s.TimingOffsetMs = Math.Clamp(
-                s.TimingOffsetMs + direction * TimingStepMs, -300, 300));
-        AddCalibrationEntry(offsetRow);
-
-        var speedRow = CreateRow(root, 500f);
-        var speedSub = AddRowLabel(speedRow, "DROP SPEED", $"{s.FallSpeedMultiplier:F1}x");
-        if (speedSub != null)
-            _valueBindings.Add(new ValueBinding(speedSub,
-                () => $"{s.FallSpeedMultiplier:F1}x", speedSub.Position, speedSub.Text));
-        AddStepper(speedRow,
-            () => $"Lv {s.FallSpeedLevel:D2}",
-            direction => s.FallSpeedLevel = Math.Clamp(s.FallSpeedLevel + direction, 1, 20));
-
-        var judgeTextRow = CreateRow(root, 656f);
-        AddRowLabel(judgeTextRow, "JUDGE TEXT", "PERFECT / GREAT 浮字");
-        AddToggle(judgeTextRow,
-            () => s.JudgeTextEnabled,
-            () => s.JudgeTextEnabled = !s.JudgeTextEnabled);
-
-        var modeRow = CreateRow(root, 812f);
-        var modeSub = AddRowLabel(modeRow, "MODE", GameplayModeTag(s.GameplayMode));
-        if (modeSub != null)
-            _valueBindings.Add(new ValueBinding(modeSub,
-                () => GameplayModeTag(s.GameplayMode), modeSub.Position, modeSub.Text));
-        AddSegments(modeRow, ModeNames,
-            () => (int)s.GameplayMode,
-            index => s.GameplayMode = index == 1
-                ? GameplayMode.Hardcore : GameplayMode.Standard);
-
-        AddFooter(root);
+        var s=GameSession.Settings;
+        AddStepper(Row(root,0,"判定偏移"),()=> $"{s.TimingOffsetMs:+0;-0;+0} ms",
+            delta=>s.TimingOffsetMs=Math.Clamp(s.TimingOffsetMs+delta*TimingStepMs,-300,300),"JudgeOffset");
+        AddStepper(Row(root,1,"音符落速"),()=> $"{s.FallSpeedMultiplier:F1}×",
+            delta=>s.FallSpeedLevel=Math.Clamp(s.FallSpeedLevel+delta,1,20),"FallSpeed");
+        AddToggle(Row(root,2,"判定浮字"),()=>s.JudgeTextEnabled,()=>s.JudgeTextEnabled=!s.JudgeTextEnabled);
+        AddSegments(Row(root,3,"判定模式"),ModeNames,()=> (int)s.GameplayMode,
+            n=>s.GameplayMode=n==1?GameplayMode.Hardcore:GameplayMode.Standard,"Mode");
+        Footer(root,"节拍校准   →",UiRoutes.Calibration);
     }
-
     private void BuildAudioTab(Control root)
     {
-        var s = GameSession.Settings;
-        AddGroupHeader(root, "AUDIO", 220f);
-
-        AddVolumeRow(root, 344f, "MUSIC VOLUME", UiFonts.Pink,
-            () => s.MusicVolume, value => s.MusicVolume = value);
-        AddVolumeRow(root, 344f + RowHeight, "HITSOUND VOLUME", UiFonts.Cyan,
-            () => s.HitVolume, value => s.HitVolume = value);
-        AddVolumeRow(root, 344f + 2f * RowHeight, "UI VOLUME", UiFonts.Cyan,
-            () => s.UiVolume, value => s.UiVolume = value);
-
-        AddFooter(root);
+        var s=GameSession.Settings;
+        AddSlider(Row(root,0,"曲目音量"),Teal,0,100,()=>s.MusicVolume,v=>s.MusicVolume=v,"Music");
+        AddSlider(Row(root,1,"打击音量"),Teal,0,100,()=>s.HitVolume,v=>s.HitVolume=v,"Hit");
+        AddSlider(Row(root,2,"界面音量"),Teal,0,100,()=>s.UiVolume,v=>s.UiVolume=v,"UI");
+        Footer(root,"节拍校准   →",UiRoutes.Calibration);
     }
-
     private void BuildDisplayTab(Control root)
     {
-        var s = GameSession.Settings;
-        AddGroupHeader(root, "DISPLAY", 220f);
-
-        // 本 tab 只有一个设置项：行位沿用其余两个 tab 的首行节奏，避免卡片中段空成一块。
-        var motionRow = CreateRow(root, 344f);
-        AddRowLabel(motionRow, "UI MOTION", null);
-        AddSegments(motionRow, MotionNames,
-            () => (int)s.MotionMode,
-            index => s.MotionMode = index switch
-            {
-                1 => UiMotionMode.Reduced,
-                2 => UiMotionMode.Off,
-                _ => UiMotionMode.Full,
-            });
-
-        AddFooter(root);
+        var s=GameSession.Settings;
+        // The production settings model has a UI motion preference, not the lab's geometry dials.
+        AddSegments(Row(root,0,"界面动效"),MotionNames,()=> (int)s.MotionMode,
+            n=>s.MotionMode=n switch {1=>UiMotionMode.Reduced,2=>UiMotionMode.Off,_=>UiMotionMode.Full},"Motion");
+        Footer(root);
     }
-
     private void BuildEffectsTab(Control root)
     {
-        var s = GameSession.Settings;
-        AddGroupHeader(root, "EFFECTS", 220f);
-
-        var levelRow = CreateRow(root, 344f);
-        AddRowLabel(levelRow, "HIT EFFECTS", "REDUCED 减粒子 / OFF 只留残影");
-        AddSegments(levelRow, EffectLevelNames,
-            () => (int)s.HitEffectLevel,
-            index => s.HitEffectLevel = (HitEffectLevel)index);
-
-        var brightnessRow = CreateRow(root, 500f);
-        AddRowLabel(brightnessRow, "NOTE BRIGHTNESS", "100% = 设计原值");
-        AddSlider(brightnessRow, UiFonts.Cyan, 80, 140,
-            () => s.NoteBrightnessPercent, value => s.NoteBrightnessPercent = value);
-
-        var flashRow = CreateRow(root, 656f);
-        AddRowLabel(flashRow, "FLASH INTENSITY", "100% = 设计原值");
-        AddSlider(flashRow, UiFonts.Cyan, 60, 150,
-            () => s.FlashIntensityPercent, value => s.FlashIntensityPercent = value);
-
-        var residualRow = CreateRow(root, 812f);
-        AddRowLabel(residualRow, "HIT RESIDUAL", "判定线上的命中光斑");
-        AddSegments(residualRow, ResidualNames,
-            () => ResidualIndex(s.HitResidualMs),
-            index => s.HitResidualMs = ResidualValuesMs[index]);
-
-        AddFooter(root);
-        AddColorsEntry(root);
+        var s=GameSession.Settings;
+        AddSegments(Row(root,0,"命中反馈"),EffectLevelNames,()=> (int)s.HitEffectLevel,n=>s.HitEffectLevel=(HitEffectLevel)n,"HitEffects");
+        AddSlider(Row(root,1,"音符亮度"),Teal,80,140,()=>s.NoteBrightnessPercent,v=>s.NoteBrightnessPercent=v);
+        AddSlider(Row(root,2,"闪光强度"),Teal,60,150,()=>s.FlashIntensityPercent,v=>s.FlashIntensityPercent=v);
+        AddSegments(Row(root,3,"命中残影"),ResidualNames,()=>ResidualIndex(s.HitResidualMs),n=>s.HitResidualMs=ResidualValuesMs[n],"Residual");
+        Footer(root,"音符配色   →",UiRoutes.NoteColors);
     }
+    private static int ResidualIndex(int ms) => Array.IndexOf(ResidualValuesMs,ms) is var n && n>=0 ? n : 2;
+    internal static string GameplayModeTag(GameplayMode mode) => mode==GameplayMode.Hardcore ? "HARD · 硬核判定（窗口 ×0.5）" : "Normal 判定窗口";
 
-    /// <summary>
-    /// EFFECTS 页脚的「音符配色 ▶」：与 RESET DEFAULTS 同一行、靠右，和校准入口一样
-    /// 是独立页面而不是第五个 tab。见 Penpot 板 Game — Settings (Effects)。
-    /// </summary>
-    private void AddColorsEntry(Control root)
+    private void Footer(Control root,string? text=null,string? target=null)
     {
-        var entry = new CutButton
-        {
-            LowBorder = true,
-            Position = new Vector2(ColumnRight - 240f, FooterLineY + 46f),
-            Size = new Vector2(240f, 48f),
-            Cut = 12f,
-            Text = "音符配色 ▶",
-            FontSize = 20,
-            Accent = UiFonts.Cyan,
-        };
-        entry.Pressed += () =>
-        {
-            if (_localMotionBusy || TransitionDirector.IsBusy)
-                return;
-            GameSession.Settings.Save();
-            TransitionDirector.Navigate(UiRoutes.NoteColors, TransitionKind.Standard,
-                "OPEN CHANNEL", "NOTE COLORS");
-        };
-        root.AddChild(entry);
+        var reset = new FlatTextButton { Name="ResetDefaults", Position=new(ColumnLeft,948), Size=new(226,76), Text="恢复默认设置" };
+        reset.Pressed+=()=>{ GameSession.Settings.ResetToDefaults(); Commit(); };
+        root.AddChild(reset); _enterItems.Add(reset);
+        if (text==null || target==null)return;
+        var entry = KeyButton(root, target==UiRoutes.Calibration?"SettingsCalibrationEntry":"SettingsColorsEntry",
+            text,1545,948,282,76,() =>
+            {
+                if (_localMotionBusy || TransitionDirector.IsBusy)return;
+                _monitor.Stop(); GameSession.Settings.Save();
+                TransitionDirector.Navigate(target,TransitionKind.Standard,"OPEN CHANNEL",target==UiRoutes.Calibration?"CALIBRATION":"NOTE COLORS");
+            });
         _enterItems.Add(entry);
+        Line(entry,1,11,3,54,Teal);
     }
 
-    private static int ResidualIndex(int ms)
+    private Control Row(Control root,int index,string name)
     {
-        var index = Array.IndexOf(ResidualValuesMs, ms);
-        return index >= 0 ? index : 2;
-    }
-
-    // 只列已实现的两种模式；Bleed 预留，见 docs/gameplay-spec.md「游玩模式」。
-    internal static string GameplayModeTag(GameplayMode mode) => mode switch
-    {
-        GameplayMode.Hardcore => "HARD · 硬核判定（窗口 ×0.5）",
-        _ => "Normal 判定窗口",
-    };
-
-    private void AddVolumeRow(Control root, float centerY, string title, Color accent,
-        Func<int> read, Action<int> write)
-    {
-        var row = CreateRow(root, centerY);
-        AddRowLabel(row, title, null);
-        AddSlider(row, accent, 0, 100, read, write);
-    }
-
-    private void AddFooter(Control root)
-    {
-        var rule = new ColorRect
-        {
-            Position = new Vector2(ColumnLeft, FooterLineY),
-            Size = new Vector2(ColumnRight - ColumnLeft, 1.5f),
-            Color = new Color(UiFonts.Line, 0.6f),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        root.AddChild(rule);
-
-        var reset = new FlatTextButton
-        {
-            Position = new Vector2(ColumnLeft, 914f),
-            Size = new Vector2(300f, 64f),
-            Text = "RESET DEFAULTS",
-        };
-        reset.Pressed += () =>
-        {
-            GameSession.Settings.ResetToDefaults();
-            Commit();
-        };
-        root.AddChild(reset);
-        _enterItems.Add(reset);
-    }
-
-    // ---- 通用行构件 ----
-
-    private void AddGroupHeader(Control parent, string text, float centerY)
-    {
-        var item = new Control
-        {
-            Position = new Vector2(ColumnLeft, centerY - 14f),
-            Size = new Vector2(ColumnRight - ColumnLeft, 68f),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        parent.AddChild(item);
-        AddLabel(item, text, 14, MenuStyle.Secondary, false, 0f, 14f, 600f, 28f);
-        item.AddChild(new ColorRect
-        {
-            Position = new Vector2(0f, 34f),
-            Size = new Vector2(ColumnRight - ColumnLeft, 1.5f),
-            Color = UiFonts.Line,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        });
-        _enterItems.Add(item);
-    }
-
-    private Control CreateRow(Control parent, float centerY)
-    {
-        var row = new Control
-        {
-            Position = new Vector2(ColumnLeft, centerY - RowHeight * 0.5f),
-            Size = new Vector2(ColumnRight - ColumnLeft, RowHeight),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        parent.AddChild(row);
-        _enterItems.Add(row);
+        var row=new Control { Name="SettingRow"+index, Position=new(ColumnLeft,RowY(index)-RowHeight*.5f),
+            Size=new(ColumnRight-ColumnLeft,RowHeight), MouseFilter=Control.MouseFilterEnum.Ignore };
+        root.AddChild(row); _enterItems.Add(row);
+        Text(row,name,3,RowHeight*.5f,495,58,30,SettingsSectionRail.Ink);
+        Line(row,0,RowHeight-1,ColumnRight-ColumnLeft,1.5f,Rule);
         return row;
     }
-
-    private static Label? AddRowLabel(Control row, string title, string? subText)
+    private static void Line(Control parent,float x,float y,float w,float h,Color color) =>
+        parent.AddChild(new ColorRect { Position=new(x,y),Size=new(w,h),Color=color,MouseFilter=Control.MouseFilterEnum.Ignore });
+    private static Label Text(Control parent,string value,float x,float centerY,float w,float h,int px,Color color,
+        bool bold=false,HorizontalAlignment align=HorizontalAlignment.Left)
     {
-        AddLabel(row, title, 26, MenuStyle.Text, false, 0f, RowHeight * 0.5f - 15f, 700f, 36f);
-        if (subText == null)
-            return null;
-        return AddLabel(row, subText, 15, MenuStyle.Secondary, false, 0f, RowHeight * 0.5f + 17f, 700f, 26f);
+        var l=new Label { Position=new(x,centerY-h*.5f),Size=new(w,h),Text=value,HorizontalAlignment=align,
+            VerticalAlignment=VerticalAlignment.Center,MouseFilter=Control.MouseFilterEnum.Ignore };
+        UiLabels.Apply(l,value.Any(ch=>ch>127)?UiFonts.Cjk:bold?UiFonts.TechBold:UiFonts.Tech,px,color);
+        parent.AddChild(l);return l;
     }
-
-    private static Label AddLabel(Control parent, string text, int fontSize, Color color, bool bold,
-        float x, float centerY, float width, float height,
-        HorizontalAlignment align = HorizontalAlignment.Left)
+    private CutButton KeyButton(Control parent,string id,string title,float x,float y,float w,float h,Action act)
     {
-        var label = new Label
-        {
-            Position = new Vector2(x, centerY - height * 0.5f),
-            Size = new Vector2(width, height),
-            Text = text,
-            HorizontalAlignment = align,
-            VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        if (bold)
-            UiLabels.TechBold(label, fontSize, color);
-        else
-            UiLabels.Tech(label, fontSize, color);
-        parent.AddChild(label);
-        return label;
+        var b=new CutButton { Name=id,Position=new(x,y),Size=new(w,h),LowBorder=true,Cut=7,Text=title,
+            FontSize=w<85?31:25,Accent=Teal,FocusMode=Control.FocusModeEnum.All,AccessibilityName=title };
+        b.Pressed+=()=>{if(!_localMotionBusy && !TransitionDirector.IsBusy)act();};
+        b.GuiInput+=e=>{if(b.HasFocus() && e is InputEventKey {Pressed:true,Echo:false,Keycode:Key.Enter or Key.KpEnter or Key.Space})
+            {b.AcceptEvent();if(!_localMotionBusy && !TransitionDirector.IsBusy)act();}};
+        parent.AddChild(b);return b;
     }
-
-    private void AddStepper(Control row, Func<string> valueText, Action<int> adjust)
+    private void AddStepper(Control row,Func<string> read,Action<int> change,string id)
     {
-        var leftX = ColumnRight - ColumnLeft - (TouchButton * 2f + StepperValueWidth + 48f);
-        var rightX = ColumnRight - ColumnLeft - TouchButton;
-
-        var minus = new CutButton
-        {
-            LowBorder = true,
-            Position = new Vector2(leftX, 30f),
-            Size = new Vector2(TouchButton, TouchButton),
-            Cut = 18f,
-            Text = "‹",
-            FontSize = 40,
-            Accent = UiFonts.Cyan,
-        };
-        minus.Pressed += () =>
-        {
-            adjust(-1);
-            Commit();
-        };
-        row.AddChild(minus);
-
-        var plus = new CutButton
-        {
-            LowBorder = true,
-            Position = new Vector2(rightX, 30f),
-            Size = new Vector2(TouchButton, TouchButton),
-            Cut = 18f,
-            Text = "›",
-            FontSize = 40,
-            Accent = UiFonts.Cyan,
-        };
-        plus.Pressed += () =>
-        {
-            adjust(1);
-            Commit();
-        };
-        row.AddChild(plus);
-
-        var value = AddLabel(row, valueText(), 34, UiFonts.Cyan, true,
-            leftX + TouchButton + 24f, RowHeight * 0.5f, StepperValueWidth, 64f,
-            HorizontalAlignment.Center);
-        _valueBindings.Add(new ValueBinding(value, valueText, value.Position, value.Text));
+        const float w=74,h=68;var y=(RowHeight-h)*.5f;
+        void Adjust(int sign){change(sign);Commit();}
+        KeyButton(row,id+"Minus","−",1443-ColumnLeft,y,w,h,()=>Adjust(-1));
+        KeyButton(row,id+"Plus","+",1755-ColumnLeft,y,w,h,()=>Adjust(1));
+        var label=Text(row,read(),1530-ColumnLeft,RowHeight*.5f,204,60,34,Teal,true,HorizontalAlignment.Center);
+        _valueBindings.Add(new ValueBinding(label,read,label.Position,label.Text));
     }
-
-    /// <summary>
-    /// JUDGE OFFSET 行右侧的「校准 ▶」入口：移到说明文字下面一行（左对齐），
-    /// 与同行的步进器错开，不与 ‹ › 抢 96px 触控键的位置。样式对齐该行既有控件。
-    /// </summary>
-    private void AddCalibrationEntry(Control row)
+    private void AddToggle(Control row,Func<bool> read,Action toggle)
     {
-        var entry = new CutButton
-        {
-            LowBorder = true,
-            Position = new Vector2(0f, RowHeight - 44f),
-            Size = new Vector2(240f, 44f),
-            Cut = 12f,
-            Text = "校准 ▶",
-            FontSize = 20,
-            Accent = UiFonts.Cyan,
-        };
-        entry.Pressed += () =>
-        {
-            if (_localMotionBusy || TransitionDirector.IsBusy)
-                return;
-            GameSession.Settings.Save();
-            TransitionDirector.Navigate(UiRoutes.Calibration, TransitionKind.Standard,
-                "OPEN CHANNEL", "CALIBRATION");
-        };
-        row.AddChild(entry);
-        _enterItems.Add(entry);
+        var control = new SettingsToggle { Name="JudgeText",MotionProfileProvider=()=>UiMotionProfile.For(GameSession.Settings.MotionMode),
+            Position=new(1634-ColumnLeft,(RowHeight-68)*.5f),Size=new(195,68) };
+        control.SetOn(read(),false);control.Pressed+=()=>{toggle();Commit();};row.AddChild(control);
+        _stateRefreshers.Add(()=>control.SetOn(read(),true));
     }
-
-    private void AddToggle(Control row, Func<bool> read, Action toggle)
+    private void AddSlider(Control row,Color accent,int min,int max,Func<int> read,Action<int> write,string? bus=null)
     {
-        var control = new SettingsToggle
+        var centerY=RowHeight*.5f;
+        var control=new SettingsSlider { Name=(bus??"Effect")+"Slider",Position=new(1168-ColumnLeft,0),
+            Size=new(SettingsSlider.TrackWidth+SettingsSlider.TrackHandle,RowHeight),Accent=accent,Min=min,Max=max };
+        var percent=Text(row,$"{read()}%",1720-ColumnLeft,centerY,109,59,32,accent,true,HorizontalAlignment.Right);
+        control.SetValue(read());row.AddChild(control);
+        var receipt = new SignalReceipt { Name="ChannelReceipt",Position=control.Position };row.AddChild(receipt);
+        void Light(int v)
         {
-            MotionProfileProvider = () => UiMotionProfile.For(GameSession.Settings.MotionMode),
-            Position = new Vector2(ColumnRight - ColumnLeft - ToggleWidth, 48f),
-            Size = new Vector2(ToggleWidth, ToggleHeight),
-        };
-        control.SetOn(read(), animate: false);
-        control.Pressed += () =>
-        {
-            toggle();
-            Commit();
-        };
-        row.AddChild(control);
-        _stateRefreshers.Add(() => control.SetOn(read(), animate: true));
+            var x=SettingsSlider.TrackHandle*.5f+SettingsSlider.TrackWidth*((v-min)/(float)Math.Max(1,max-min));
+            var y=centerY+SettingsSlider.TrackHandle*.5f+7;
+            receipt.Emit(accent,new Vector2(SettingsSlider.TrackHandle*.5f,y+8),new Vector2(Mathf.Max(SettingsSlider.TrackHandle*.5f,x-10),y+8),new Vector2(x,y));
+        }
+        control.Changed+=v=>{percent.Text=$"{v}%";write(v);Commit();Light(v);};
+        _stateRefreshers.Add(()=>{var v=read();control.SetValue(v);percent.Text=$"{v}%";});
+        if(bus!=null)KeyButton(row,"Monitor"+bus,"试听",1000-ColumnLeft,centerY-31,130,62,()=>{_monitor.Listen(bus);Light(read());});
     }
-
-    private void AddSlider(Control row, Color accent, int min, int max,
-        Func<int> read, Action<int> write)
+    private void AddSegments(Control row,string[] labels,Func<int> read,Action<int> write,string id)
     {
-        var percent = AddLabel(row, $"{read()}%", 36, accent, true,
-            ColumnRight - ColumnLeft - 320f, RowHeight * 0.5f, 320f, 64f,
-            HorizontalAlignment.Right);
-
-        var control = new SettingsSlider
-        {
-            Position = new Vector2(TrackX - ColumnLeft - TrackHandle * 0.5f, 0f),
-            Size = new Vector2(TrackWidth + TrackHandle, RowHeight),
-            Accent = accent,
-            Min = min,
-            Max = max,
-        };
-        control.SetValue(read());
-        control.Changed += value =>
-        {
-            percent.Text = $"{value}%";
-            write(value);
-            Commit();
-        };
-        row.AddChild(control);
-        _stateRefreshers.Add(() =>
-        {
-            var value = read();
-            control.SetValue(value);
-            percent.Text = $"{value}%";
-        });
-    }
-
-    private void AddSegments(Control row, string[] labels, Func<int> read, Action<int> write)
-    {
-        var total = labels.Length * SegmentWidth + (labels.Length - 1) * SegmentGap;
-        var control = new SettingsSegments
-        {
-            Position = new Vector2(ColumnRight - ColumnLeft - total,
-                RowHeight * 0.5f - SegmentHeight * 0.5f),
-            Size = new Vector2(total, SegmentHeight),
-        };
-        control.Configure(labels, read());
-        control.Chosen += index =>
-        {
-            write(index);
-            Commit();
-        };
-        row.AddChild(control);
-        _stateRefreshers.Add(() => control.SetSelected(read()));
+        var w = labels.Length==2 ? 196f : labels.Length==4 ? 138f : 162f;
+        var width=labels.Length*w+(labels.Length-1)*9;
+        var control=new SettingsSegments { Name=id,CellWidth=w,Position=new(End-ColumnLeft-width,(RowHeight-68)*.5f),Size=new(width,68) };
+        control.Configure(labels,read());control.Chosen+=n=>{write(n);Commit();};row.AddChild(control);
+        _stateRefreshers.Add(()=>control.SetSelected(read()));
     }
 }

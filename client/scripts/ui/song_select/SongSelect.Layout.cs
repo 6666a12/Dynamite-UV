@@ -45,28 +45,34 @@ public partial class SongSelect
 
     private void BuildTopBar()
     {
-        var logo = new Label { Position = new Vector2(64, 43), Text = "Dynamite Universe" };
-        UiLabels.Tech(logo, 34, MenuStyle.Text);
-        _topRoot.AddChild(logo);
-
-        var back = new CutButton
+        var back = new TechButton
         {
-            LowBorder = true,
-            Accent = MenuStyle.Accent,
-            Position = new Vector2(1708, 36),
-            Size = new Vector2(180, 56),
-            Text = "返回",
-            FontSize = 22,
+            Name = "SongBack", AccessibilityName = "返回", LowBorder = true, BackChevron = true,
+            Accent = MenuStyle.Accent, Cut = 7, Position = new(60, 27), Size = new(87, 59),
         };
         back.Pressed += NavigateBack;
-        _topRoot.AddChild(back);
+        _topRoot.AddChild(back); ContactRim.Attach(back);
+        var logo = MakeLabel(new(174, 26), new(328, 58), 36, MenuStyle.Text);
+        logo.Text = "Dynamite Universe";
+        UiLabels.Apply(logo, MenuStyle.HeadingFont, 36, MenuStyle.Text);
+        _topRoot.AddChild(logo);
+        AddLine(_topRoot, new(510, 39), new(1.5f, 37.5f), new Color("2B3B48"));
+        var context = MakeLabel(new(534, 35), new(612, 41), 19, MenuStyle.Secondary);
+        context.Text = "SONG SELECT   /   PLAY CONFIGURATION";
+        _topRoot.AddChild(context);
+        AddLine(_topRoot, new(60, 110), new(1810, 1.5f), new Color("2B3B48"));
     }
 
     // ---- 右列曲库 ----
 
     private void BuildLibrary()
     {
-        _libTitle = MakeLabel(new Vector2(ListX, HeaderY), new Vector2(700, 30), 20, MenuStyle.Secondary);
+        var name = MakeLabel(new(ListX, 115), new(305, 56), 38, MenuStyle.Text);
+        UiLabels.Apply(name, MenuStyle.HeadingFont, 38, MenuStyle.Text);
+        name.Text = "Song library";
+        _listRoot.AddChild(name);
+        _libTitle = MakeLabel(new(ListX + 290, HeaderY), new(423, 32), 17, MenuStyle.Secondary);
+        _libTitle.Name = "LibraryCount";
         _listRoot.AddChild(_libTitle);
 
         // 筛选占位：只有描边、整体压到 55%，无交互（筛选项待拍板）。
@@ -94,29 +100,29 @@ public partial class SongSelect
             Size = new Vector2(ListWidth, ListHeight),
             ClipContents = true,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto, FollowFocus = true,
             ScrollVerticalCustomStep = RowHeight + RowGap,
         };
         _listRoot.AddChild(_songScroll);
         _rowBox = new VBoxContainer
         {
-            CustomMinimumSize = new Vector2(ListWidth, 0),
+            CustomMinimumSize = new Vector2(0, 0),
             MouseFilter = Control.MouseFilterEnum.Ignore,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         _rowBox.AddThemeConstantOverride("separation", (int)RowGap);
         _songScroll.AddChild(_rowBox);
-        _listViewport = new SongListViewport(_songScroll, () => ListRect, () => ScrollTau,
-            SelectVisibleRowAt);
+        _drum = CatalogueDrum.Attach(_songScroll);
+        _drum.CanInteract = () => !_localTransitionBusy;
 
         for (var i = 0; i < GameSession.Packs.Count; i++)
         {
             var idx = i;
             var row = new SongRow
             {
-                CustomMinimumSize = new Vector2(ListWidth, RowHeight),
+                CustomMinimumSize = new Vector2(0, RowHeight),
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                Pack = GameSession.Packs[i],
+                Ordinal = idx + 1, Pack = GameSession.Packs[i],
             };
             row.Pressed += () => OnRowPressed(idx);
             _rows.Add(row);
@@ -192,30 +198,32 @@ public partial class SongSelect
             Position = new Vector2(0, 950), Size = new Vector2(1920, 130),
             Color = new Color("121F32"), MouseFilter = Control.MouseFilterEnum.Ignore,
         });
+        AddLine(_bottomRoot, new(60, 950), new(1810, 1.5f), new Color("2B3B48"));
         _diffBtn = new CutButton
         {
             LowBorder = true,
             Accent = MenuStyle.Accent,
-            Position = new Vector2(40, 966),
-            Size = new Vector2(300, 88),
+            Name = "SongDifficulty",
+            Position = new Vector2(60, 966),
+            Size = new Vector2(400, 88),
             MinimalAccent = true,
             AlignLeft = true,
-            SubText = "点击切换难度 ▲",
+            SubText = "DIFFICULTY   /   SELECT",
             FontSize = 30,
             TechFont = true,
         };
         _diffBtn.Pressed += BrowseNextDifficulty;
         _bottomRoot.AddChild(_diffBtn);
 
-        var bestHeading = MakeLabel(new Vector2(390, 976), new Vector2(240, 22), 14, MenuStyle.Muted);
-        bestHeading.Text = "BEST";
+        var bestHeading = MakeLabel(new Vector2(540, 976), new Vector2(240, 22), 14, MenuStyle.Muted);
+        bestHeading.Text = "BEST SCORE";
         _bottomRoot.AddChild(bestHeading);
-        var clearHeading = MakeLabel(new Vector2(722, 976), new Vector2(240, 22), 14, MenuStyle.Muted);
-        clearHeading.Text = "CLEAR";
+        var clearHeading = MakeLabel(new Vector2(924, 976), new Vector2(240, 22), 14, MenuStyle.Muted);
+        clearHeading.Text = "CLEAR STATUS";
         _bottomRoot.AddChild(clearHeading);
-        _bestLabel = MakeLabel(new Vector2(390, 1000), new Vector2(310, 44), 30, MenuStyle.Text);
+        _bestLabel = MakeLabel(new Vector2(540, 1000), new Vector2(310, 44), 30, MenuStyle.Text);
         _bottomRoot.AddChild(_bestLabel);
-        _clearLabel = MakeLabel(new Vector2(722, 1000), new Vector2(460, 44), 30, MenuStyle.Secondary);
+        _clearLabel = MakeLabel(new Vector2(924, 1000), new Vector2(460, 44), 30, MenuStyle.Secondary);
         _bottomRoot.AddChild(_clearLabel);
 
         _bestGrade = new Label
@@ -233,7 +241,8 @@ public partial class SongSelect
             Accent = MenuStyle.Accent,
             Position = new Vector2(1500, 966),
             Size = new Vector2(380, 88),
-            Text = "START ▶",
+            Name = "SongStart",
+            Text = "START  →",
             StyleKind = CutButton.ButtonStyle.Solid,
             FontSize = 32,
             TechFont = true,

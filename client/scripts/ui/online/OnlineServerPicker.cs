@@ -11,7 +11,7 @@ internal sealed partial class OnlineServerPicker : Control
     private readonly OptionButton _saved;
     private readonly Button _connect, _confirm;
     private readonly Label _identity, _status;
-    public event Action? Closed;
+    public event Action<bool>? Closed; // true only when a real, confirmed server was explicitly accepted
 
     public OnlineServerPicker()
     {
@@ -21,18 +21,21 @@ internal sealed partial class OnlineServerPicker : Control
         OnlineWidgets.Text(this, "切换服务器", new(496, 194, 760, 60), 36, MenuStyle.Text);
         OnlineWidgets.Link(this, "关闭  ×", new(1300, 208, 130, 48), 22, Close);
         OnlineWidgets.Text(this, "账号资料由所选服务器的运营者管理；切服后需重新登录", new(496, 270, 920, 38), 20, MenuStyle.Secondary);
-        _saved = new OptionButton { Position = new(496, 330), Size = new(920, 52) };
+        _saved = new OptionButton { Name = "OnlinePickerSaved", Position = new(496, 330), Size = new(920, 52) };
         _saved.AddThemeFontOverride("font", UiFonts.Cjk); _saved.AddThemeFontSizeOverride("font_size", 22);
         _saved.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = MenuStyle.Idle });
         AddChild(_saved);
         Address = OnlineWidgets.Input(this, "https://服务器地址", new(496, 418, 920, 76), 2048);
+        Address.Name = "OnlinePickerAddress"; Address.AccessibilityName = "服务器地址";
         _saved.ItemSelected += index => { if (index > 0) Address.Text = OnlineSession.Servers[(int)index - 1].Address; };
         _connect = OnlineWidgets.Link(this, "连接 / 检查服务器  →", new(496, 526, 420, 56), 24,
             () => ConnectRequested?.Invoke());
+        _connect.Name = "OnlinePickerConnect";
         _identity = OnlineWidgets.Text(this, "", new(496, 600, 920, 100), 19, MenuStyle.Secondary);
         _identity.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _confirm = OnlineWidgets.Primary(this, "确认此服务器身份", new(496, 724, 920, 72),
             Confirm);
+        _confirm.Name = "OnlinePickerConfirm";
         _status = OnlineWidgets.Text(this, "", new(496, 820, 920, 70), 19, MenuStyle.Secondary);
         _status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         Visible = false;
@@ -46,11 +49,12 @@ internal sealed partial class OnlineServerPicker : Control
         foreach (var entry in OnlineSession.Servers) _saved.AddItem(entry.Address);
         Visible = true; Address.GrabFocus();
     }
-    public void Close()
+    public void Close() => Finish(false);
+    private void Finish(bool accepted)
     {
         OnlineSession.Connection.CancelPending();
         Address.Text = OnlineSession.Connection.State.Server?.BaseUri.AbsoluteUri ?? "";
-        Visible = false; Closed?.Invoke();
+        Visible = false; Closed?.Invoke(accepted);
     }
     public bool AddressMatches()
     {
@@ -62,12 +66,13 @@ internal sealed partial class OnlineServerPicker : Control
         if (!AddressMatches() || _confirm.Disabled) return;
         OnlineSession.Connection.ConfirmInstance();
         if (!OnlineSession.SaveConfirmed()) { SaveFailed?.Invoke(); return; }
-        Close();
+        Finish(true);
     }
     public void Refresh(AccountConnectionState state, bool blocked, string message)
     {
         _connect.Disabled = blocked; _saved.Disabled = blocked; Address.Editable = !blocked;
-        _confirm.Disabled = blocked || !state.NeedsConfirmation || !AddressMatches();
+        _confirm.Text = state.NeedsConfirmation ? "确认此服务器身份" : "使用此服务器";
+        _confirm.Disabled = blocked || state.Descriptor is null || !AddressMatches();
         _confirm.Modulate = _confirm.Disabled ? new Color(1, 1, 1, 0.45f) : Colors.White;
         _identity.Text = state.Descriptor is { } d
             ? $"{d.Name}\n{state.Server!.BaseUri}\n实例 ID：{d.InstanceId}"

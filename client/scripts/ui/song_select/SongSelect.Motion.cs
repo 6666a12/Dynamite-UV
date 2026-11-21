@@ -18,7 +18,7 @@ public partial class SongSelect
     /// <summary>展开卡的逐帧推进：由 <see cref="_cardAnimating"/> 作门闩，没有高度/文字/封面动画段时
     /// 整段早退，_Process 里只剩滚动与预览读数。收拢落点回调在组件应用其余差量前恢复普通行。</summary>
     private void StepCardAnimations(double delta) =>
-        _detailCard.Advance(delta, _detailRequest.CurrentGeneration, ApplySearchFilter);
+        _detailCard.Advance(delta, _detailRequest.CurrentGeneration, FinishCollapse);
 
     // ---- 进场动画 ----
 

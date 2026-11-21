@@ -1,7 +1,11 @@
 namespace DynamiteUniverse.Network;
 
 public sealed record AccountConnectionState(ServerAddress? Server, OnlineDescriptor? Descriptor,
-    OnlineAccount? Account, bool Busy, string Status, bool NeedsConfirmation);
+    OnlineAccount? Account, bool Busy, string Status, bool NeedsConfirmation)
+{
+    // Non-secret UI correlation marker. Authorization still goes through CaptureCatalog/IsCurrent.
+    public long Generation { get; init; }
+}
 
 /// <summary>Single active session, immutable request identity, and generation-gated completion. No engine or disk.</summary>
 public sealed class AccountConnection(IAccountTransport transport)
@@ -23,7 +27,7 @@ public sealed class AccountConnection(IAccountTransport transport)
             lock (_gate)
             {
                 if (_login is not null && _login.ExpiresAt <= DateTimeOffset.UtcNow) { _login = null; _status = "session_expired"; }
-                return new(_server, _descriptor, _login?.Account, _busy, _status, _descriptor is not null && !_confirmed);
+                return new(_server, _descriptor, _login?.Account, _busy, _status, _descriptor is not null && !_confirmed) { Generation = _generation };
             }
         }
     }

@@ -5,7 +5,7 @@ using DynamiteUniverse.Ui;
 namespace DynamiteUniverse;
 
 /// <summary>
-/// Branded home screen: Penpot「Game — Home v2 · 01 Compact」的固定 1920×1080 布局，
+/// Branded home station: 固定 1920×1080 的左侧弧带与右侧核心，
 /// 右侧 Mk VI 核心模型 + 弥散光，左侧品牌块与动作区。只协调装配与入场，控件细节在 ui/home。
 /// </summary>
 public partial class Main : Node2D
@@ -24,16 +24,16 @@ public partial class Main : Node2D
 		// 参考环先画，模型与其弥散光覆盖在上面。
 		var reticle = new HomeReticle
 		{
-			Position = new Vector2(870, 70),
-			Size = new Vector2(1050, 960),
+			Name = "HomeOrbit", Position = new Vector2(883.5f, 141),
+			Size = new Vector2(945, 774),
 		};
 		AddChild(reticle);
 		RegisterEntrance(reticle, 0);
 
 		var energyCore = new HomeEnergyReactor
 		{
-			Position = new Vector2(900, 90),
-			Size = new Vector2(1000, 920),
+			Name = "HomeMkVI", Position = new Vector2(883.5f, 141),
+			Size = new Vector2(945, 774),
 		};
 		AddChild(energyCore);
 		RegisterEntrance(energyCore, 0);

@@ -51,6 +51,7 @@ public partial class SongSelect
         _detailCard.SetTransportPlaying(result.Success);
         if (!result.Success) _detailCard.ShowPreviewUnavailable();
         UpdatePreviewReadout(0);
+        if (result.Success) _detailCard.ConfirmTransport();
         if (!result.Success && !string.IsNullOrWhiteSpace(result.Error))
             GD.PushWarning($"SongSelect: preview loading {result.Key.PackId}/{result.Key.ChartId} failed: {result.Error}");
     }
@@ -68,14 +69,16 @@ public partial class SongSelect
     private void StopPreview()
     {
         _previewPlayer.Stop();
+        _detailCard.ClearTransportCurrent();
         _detailCard.SetTransportPlaying(false);
         UpdatePreviewReadout(0);
     }
 
     private void TogglePreviewPause()
     {
-        if (_detailCard.CanPreview && _previewPlayer.TogglePause())
-            _detailCard.SetTransportPlaying(_previewPlayer.Playing);
+        if (!_detailCard.CanPreview || !_previewPlayer.TogglePause()) return;
+        UpdatePreviewReadout(_previewPlayer.Elapsed);
+        _detailCard.ConfirmTransport();
     }
 
     /// <summary>Read-only progress; playback stops at the preview end without looping.</summary>
@@ -95,7 +98,7 @@ public partial class SongSelect
         for (var i = 0; i < _rows.Count; i++)
             _rows[i].Selected = i == _packIdx;
 
-        _libTitle.Text = $"SONG LIBRARY · {GameSession.Packs.Sum(p => p.Charts.Count)} CHARTS";
+        _libTitle.Text = $"{GameSession.Packs.Count:00} TRACKS   /   {GameSession.Packs.Sum(p => p.Charts.Count):00} CHARTS";
 
         if (pack == null || pack.Charts.Count == 0)
         {
@@ -189,6 +192,8 @@ public partial class SongSelect
             return;
         if (loaded is not null)
         {
+            var bpms = loaded.RuntimeChart.Sections.Select(s => s.Bpm).Where(b => b > 0 && double.IsFinite(b)).ToArray();
+            _detailCard.SetTempo(bpms.Length == 0 ? "" : bpms.Min() == bpms.Max() ? $"{bpms[0]:0.##} BPM" : $"{bpms.Min():0.##}–{bpms.Max():0.##} BPM");
             _startBtn.Disabled = false;
             _detailCard.SetTransportEnabled(true);
         }

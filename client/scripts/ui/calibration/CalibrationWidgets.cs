@@ -146,28 +146,40 @@ internal partial class CalibrationStrip : Control
     public float MedianAlpha { get; set; } = 1f;
 
     private static float MsToPx => 726f / (float)CalibrationStats.MaxAcceptedDeviationMs;
+    private SignalReceipt? _receipt;
+
+    internal void ClearReceipt() => _receipt?.Cancel();
+
+    internal void ConfirmSample(double deviationMs, Vector2 hit, Vector2 jack)
+    {
+        if (_receipt == null) { _receipt = new SignalReceipt { Name = "SampleReceipt" }; AddChild(_receipt); }
+        var marker = new Vector2(AxisX + AxisWidth * .5f + (float)deviationMs * MsToPx, AxisCenterY);
+        // Lead out through the engraved plate jack, then follow the distribution strip to this sample.
+        float busY = AxisCenterY - 24;
+        _receipt.EmitConductor(deviationMs < 0 ? UiFonts.Pink : UiFonts.Cyan, .40f,
+            hit, new(hit.X, jack.Y), jack, new(jack.X, busY-12), new(jack.X+12,busY), new(marker.X,busY), marker);
+    }
 
     /// <summary>Complete 后 MEDIAN 标记线的高度（设计稿 44px）。</summary>
     private const float MedianMarkerHeight = 44f;
 
     public override void _Draw()
     {
-        var points = UiGeometry.CutCorners(Size, Cut);
-        DrawColoredPolygon(points, new Color(new Color("0f1429"), 0.85f));
-        DrawPolyline(UiGeometry.Close(points), UiFonts.Line, 2f, true);
-
-        DrawString(UiFonts.Cjk, new Vector2(LabelX, LabelY + 16f), "DEVIATION MAP · 偏差分布",
-            HorizontalAlignment.Left, -1, 13, UiFonts.Dim);
+        DrawLine(new(0, 1), new(Size.X, 1), new Color("293e4c"), 2f, true);
+        DrawString(UiFonts.Cjk, new Vector2(LabelX, LabelY + 20f), "偏差分布",
+            HorizontalAlignment.Left, -1, 24, MenuStyle.Text);
 
         var mid = AxisX + AxisWidth * 0.5f;
-        DrawRect(new Rect2(AxisX, AxisCenterY, AxisWidth, 1.5f), UiFonts.Line);
+        DrawRect(new Rect2(AxisX, AxisCenterY, AxisWidth, 1.5f), MenuStyle.Muted);
+        for (var i=-3; i<=3; i++)
+            DrawRect(new Rect2(mid+i*AxisWidth/6f-1, AxisCenterY-8, 2, 16), i==0 ? UiFonts.Cyan : new Color("364955"));
         DrawRect(new Rect2(mid - 1f, AxisCenterY - 14f, 2f, 28f), UiFonts.Cyan);
-        DrawString(UiFonts.Tech, new Vector2(AxisX, AxisCenterY + AxisLabelY + 14f), "-150",
+        DrawString(UiFonts.Tech, new Vector2(AxisX, AxisCenterY + AxisLabelY + 14f), "−150 ms",
             HorizontalAlignment.Left, -1, 12, UiFonts.Dim);
         DrawString(UiFonts.Tech, new Vector2(mid - 20f, AxisCenterY + AxisLabelY + 14f), "0",
             HorizontalAlignment.Center, 40f, 12, UiFonts.Dim);
         DrawString(UiFonts.Tech, new Vector2(AxisX + AxisWidth - 80f, AxisCenterY + AxisLabelY + 14f),
-            "+150", HorizontalAlignment.Right, 80f, 12, UiFonts.Dim);
+            "+150 ms", HorizontalAlignment.Right, 80f, 12, UiFonts.Dim);
 
         for (var i = 0; i < Samples.Count; i++)
         {

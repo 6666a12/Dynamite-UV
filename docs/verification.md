@@ -9,8 +9,8 @@
 
 | 字段 | 当前基线 |
 | --- | --- |
-| ZIP | `builds/editor-test-20261112-uninstall.zip`（本地忽略产物，不随克隆取得） |
-| 解压目录 | `builds/editor-test-20261112-uninstall/` |
+| ZIP | [editor-test-20261112.zip](<../builds/editor-test-20261112.zip>)（本地忽略产物，不随克隆取得） |
+| 解压目录 | [editor-test-20261112-uninstall](<../builds/editor-test-20261112-uninstall/>) |
 | 大小 / SHA-256 | 约67.15MiB / `165f8f7728031fa0487452c9550805947439066b46a3bab041a8779dc43bcc62` |
 | 平台 / 版本 | Windows x64 / `0.1.0-preview`；版本号未区分所有历史候选，须同时核对包名和hash |
 | 导出配置 | `windows-x64-test-v1`；定义在 [test-profile.json](../tools/editor-release/test-profile.json)，操作见 [打包说明](../tools/editor-release/README.md) |
@@ -54,6 +54,26 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 2026-11-11 首个 Windows x64 编辑器分发候选包：新增 `tools/editor-release/build.py`、原生 `tools/editor-release/launcher.cpp` 与 Shell `StageLaunch`。候选包位于忽略的 `builds/editor-candidate-20261111/`，约303MiB，包含 Avalonia Shell、Godot自包含舞台、包内.NET 10.0.10、运行来源日志、文件SHA-256、README和许可证/第三方通知目录；`distributionStatus` 明确为 `local-candidate-not-cleared-for-publication`。系统运行时优先与 `--bundled-runtime` 强制包内路径均已在仓库外中文/空格目录通过 `--launcher-check`；复制到该目录后直接运行 Shell headless 回归，退出0。包内运行时完整真实窗口回归 `tmp_shots/editor-distribution-20261111/desktop-results.txt` 通过：Godot嵌入、三差分/音频推进、Shell Save As、Inspector、Ctrl+Z/Y/S、重开。完整仓库 `builds/editor-distribution-verify.log` 返回0：结构319源文件，三端构建（Shell保留3条既有Watermark弃用警告）、核心/编辑器/Shell回归、38项发布测试和diff检查通过。Godot导出舞台运行时优先切换探针失败并已确认是Godot 4.7.1官方Mono导出模板要求其自包含runtime；没有修改引擎或伪称舞台支持系统优先。候选包未经代码签名，且29个NuGet包当前只有license标识而未发现包内notice文件，需依赖归属/notice复核后才能对外分发；未实现自动更新，未完成无.NET/不兼容.NET的真实机器测试，不称正式发行包。
 
 ## 最近验证记录
+
+### 2026-11-21 · `bf45328` 审查修复（当前源码）
+
+- 外框按下效果结束后保留触点，快捷设置直接转交捕获的松手或取消；被展开卡替代的曲行在隐藏时同步选中高亮。录制脚本使用显式校验，Python 优化模式下也不会把缺失、过小或非 AVI 文件记作录制通过。
+- `python -B tools/verify.py --no-restore` 退出 0：458 个 C# 源文件结构门禁、游戏/舞台/Shell Debug 构建（均 0 警告、0 错误）、核心/编辑器/网络/商店及 Shell 无窗口回归、71 项发布工具回归、6 项 Python 优化模式录制门禁和差异检查均通过；6 项录制门禁在普通 Python 也通过。[验证日志](<../.tmp/menu-review-20261121/verify.log>) · [测试统计与 Git 行尾提示](<../.tmp/menu-review-20261121/verify.stderr.log>)。
+- 已新增 [Windows 选曲窗口用例](<../tools/client-menu-qa/README.md>)，覆盖长按、第二指和收卡高亮；隔离工程 `--prepare-only` 通过（[准备清单](<../.tmp/production-migration-qa/runs/20261121-204645-library-cd9d9baf/manifest.json>)）。现有客户端 Godot 编辑器未关闭，本轮未重跑窗口用例、未导出 APK 或测试 Android 真机；下方历史实录保持原样。
+- 已核对 Windows 测试基线 ZIP 文件名和 SHA-256；本地探针与原型的移动及保留范围见[产物索引](<build-artifacts.md>)。
+
+### 2026-11-21 · 正式客户端菜单视觉迁移（Windows，工作区版本）
+
+Godot 4.7.1 Mono / Vulkan Mobile，同一份 Debug 客户端程序集 `1f1a1d129c02d7a825ff6e08f91c8294a2d3fb3c73ae405912337b5c13cf75b4`。客户端构建 0 警告、0 错误；`python -B tools/verify.py --no-restore` 通过（458 个 C# 源文件结构检查、三端构建、核心/编辑器/网络/商店回归、Shell headless、71 项发布工具测试、补丁检查）。这是 Windows 开发版，不是 APK、公开服或用户视觉验收。
+
+[真实窗口套件的复跑说明](<../tools/client-menu-qa/README.md>)。四个隔离窗口均通过：
+
+- **首页与选曲**：三条真实入口、Mk VI 与母线；12 个独立测试谱包把列表实际撑出窗口。拖动滚过曲卡不选歌，点击展开后真实解码试听，收卡停播；HARDCORE 立即锁住 BLEED，点击锁定项不能解锁。录制中发现短弧面有黑带，改为每个可见列表一次 GPU 画布拷贝后重新录制。未实测移动 GPU 开销。
+- **配色**：沿用宽松双列与横向色相条；鼠标选中 HEX 缓冲再输入 `F65C95`，点击应用后隔离存档正确。按下 HOLD 时远离手指的外框有 13 个采样点变化，本体采样区 0 个；三背景中按住还原入页配色，松开显示已改方案。
+- **账号与商店**：首次服务器身份确认、取消后再登录不迟到跳页、从新的商店意图完成登录后续进目录；“已安装”空态无陈旧卡/按钮，返回全部可恢复原选择。正式下载器经回环 HTTP 下载示例 ZIP、校验并建立安装收据；回到曲库准确选中该安装项，维持原版入场静音，点开才播放。
+- **设置与校准**：改变曲目音量且隔离设置文件中的值同步变化；原击打区可开始采样，热身阶段仍为 0，之后出现首个有效样本和偏差。停止重置而不应用。自动输入不用于评价物理设备时延。
+
+[36 秒正式客户端实录](<../builds/official-v3-migration/Dynamite-Universe-Menu-Migration.mp4>) · [四屏对照](<../builds/official-v3-migration/Four-Official-Screens.png>) · [断言和媒体摘要](<../builds/official-v3-migration/evidence.json>)（本地生成物，不随源码分发）。
 
 <a id="6047-fixes"></a>
 ### 2026-11-20 · `6047a15` 审查修复：持续判定、公式缓存与草稿
@@ -330,8 +350,10 @@ dotnet build editor/shell/DynaMakerUv.Editor.Shell.csproj
 dotnet run --project tools/core-tests/CoreTests.csproj
 dotnet run --project tools/chart-editor-tests/ChartEditorTests.csproj
 dotnet run --project tools/server-tests/ServerTests.csproj
+dotnet run --project tools/store-browse-tests/StoreBrowseTests.csproj
 dotnet run --project editor/shell/DynaMakerUv.Editor.Shell.csproj -- --headless
 python -B -m unittest discover -s tools/release/tests -p "test_*.py"
+python -O -B -m unittest discover -s tools/client-menu-qa -p test_run.py
 git diff --check
 ```
 

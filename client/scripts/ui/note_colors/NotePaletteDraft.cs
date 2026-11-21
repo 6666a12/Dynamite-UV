@@ -107,15 +107,16 @@ public sealed class NotePaletteDraft
     public void BeginGesture() => _gestureStart ??= _current;
 
     /// <summary>A drag back to its starting value consumes no history and preserves redo.</summary>
-    public void EndGesture()
+    public bool EndGesture()
     {
         if (_gestureStart is not { } start)
-            return;
+            return false;
         _gestureStart = null;
         if (SameState(start, _current))
-            return;
+            return false;
         PushBounded(_undo, start);
         _redo.Clear();
+        return true;
     }
 
     public bool SetColor(int channel, string hex)

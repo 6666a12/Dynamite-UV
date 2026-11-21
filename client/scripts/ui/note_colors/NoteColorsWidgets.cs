@@ -110,6 +110,8 @@ public partial class TechButton : Control
     public enum Kind { Outline, Accent, Solid }
 
     public bool LowBorder { get; init; }
+    /// <summary>Transparent hit target over a real specimen: draw only focus/hover corners, never the pigment.</summary>
+    public bool FrameOnly { get; init; }
     public bool BackChevron { get; set; }
 
     private readonly NoteColorPointerCapture _pointer = new();
@@ -296,6 +298,12 @@ public partial class TechButton : Control
     {
         var points = NoteColorsWidgets.CutCorners(Size, Cut);
         var down = _held || _keyOwner is not null || (_pointer.Active && _pointerInside);
+        if (FrameOnly)
+        {
+            if (_enabled && (_hover || HasFocus() || down))
+                DrawPolyline(UiGeometry.Close(points), new Color(Accent, HasFocus() ? .65f : .32f), 1f, true);
+            return;
+        }
         Color fill;
         Color border;
         Color text;

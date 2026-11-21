@@ -9,20 +9,15 @@ public partial class SongSelect
     private readonly List<SongRow> _rows = new();
     private IReadOnlyList<int> _visibleOrder => _browse.VisibleIndices;
     private ScrollContainer _songScroll = null!;
-    private SongListViewport _listViewport = null!;
+    private CatalogueDrum _drum = null!;
+    private SongRow? _keyboardFold;
 
     private bool _expanded => _detailCard.IsPresenting;
-
-    private static double ScrollTau =>
-        GameSession.Settings.MotionMode == UiMotionMode.Off ? 0d : ScrollInertia.TauSeconds;
 
     public override void _Input(InputEvent e)
     {
         if (_localTransitionBusy || TransitionDirector.IsBusy)
             return;
-        if (_listViewport.HandleInput(e))
-            return;
-
         // 搜索框聚焦时 Esc 先清空并交出焦点，避免直接吃掉整页的返回语义。
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } &&
             _search.HasFocus())
@@ -52,24 +47,10 @@ public partial class SongSelect
             _browse.SelectPack(index);
             GameSession.ClearPreload();
         }
+        bool keyboardFocus = _rows[index].HasFocus(); _keyboardFold = null;
         ExpandCard();
+        if (keyboardFocus) _detailCard.GrabFocus();
         BeginRefreshAll();
-    }
-
-    private void SelectVisibleRowAt(Vector2 position)
-    {
-        // Container geometry includes the animated detail card, filtering and row gaps.
-        if (_detailCard.Visible && _detailCard.GetGlobalRect().HasPoint(position))
-        {
-            _detailCard.HandleListTap(position);
-            return;
-        }
-        foreach (var index in _visibleOrder)
-            if (_rows[index].Visible && _rows[index].GetGlobalRect().HasPoint(position))
-            {
-                OnRowPressed(index);
-                return;
-            }
     }
 
     private void ExpandCard()
@@ -91,13 +72,20 @@ public partial class SongSelect
     {
         if (!_expanded)
             return;
+        var focus = GetViewport().GuiGetFocusOwner();
+        if (_packIdx >= 0 && focus != null && (focus == _detailCard || _detailCard.IsAncestorOf(focus))) _keyboardFold = _rows[_packIdx];
         StopPreview();
         _detailRequest.Invalidate();
         // 收拢动画期间展开态仍为 true：行维持隐藏、卡占位逐帧收缩，收完才换回普通行，
         // 避免收缩途中"行 + 半截卡"双重占高。途中再点行由 ExpandCard 干净反向。
         // 落点那一帧由 StepCardAnimations 拿到返回值后恢复普通行。
-        if (_detailCard.Collapse())
-            ApplySearchFilter();
+        if (_detailCard.Collapse()) FinishCollapse();
+    }
+
+    private void FinishCollapse()
+    {
+        var row = _keyboardFold; _keyboardFold = null; ApplySearchFilter();
+        if (!_expanded && row != null && row.IsVisibleInTree()) row.GrabFocus();
     }
 
     private void ApplySearchFilter()

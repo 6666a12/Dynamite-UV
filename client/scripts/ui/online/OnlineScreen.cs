@@ -4,82 +4,100 @@ using DynamiteUniverse.Network;
 
 namespace DynamiteUniverse.Ui;
 
-/// <summary>Penpot Online v2 login page; session/network ownership remains outside the scene.</summary>
+/// <summary>V3 network desk: show the actual server-issued identity on a pass; network and navigation lifetimes remain outside the presentation.</summary>
 public partial class OnlineScreen : Node2D
 {
     private LineEdit _username = null!, _password = null!;
     private Label _server = null!, _address = null!, _connection = null!, _status = null!, _heading = null!;
     private Control _form = null!, _signedIn = null!;
-    private Label _account = null!;
+    private OnlinePassFace _pass = null!;
+    private Button _switchServer = null!;
     private Button _submit = null!, _register = null!, _refresh = null!, _logout = null!, _visibility = null!;
     private OnlineServerPicker _picker = null!;
     private readonly List<Button> _navigation = new();
     private Task? _operation;
     private string? _localMessage;
     private bool _registerMode;
+    private StoreLoginIntent? _storeIntent;
+    private bool _loginOperation;
     public override void _Ready()
     {
-        AddChild(new ColorRect { Size = UiLayout.DesignSize, Color = MenuStyle.Background,
-            MouseFilter = Control.MouseFilterEnum.Ignore });
-        _navigation.Add(OnlineWidgets.Link(this, "‹", new(64, 40, 50, 45), 36, Back, MenuStyle.Secondary));
-        OnlineWidgets.Text(this, "账号", new(124, 42, 400, 40), 32, MenuStyle.Text);
-        OnlineWidgets.Text(this, "DYNAMITE / UNIVERSE", new(1420, 49, 430, 22), 17, MenuStyle.Muted, true);
-        OnlineWidgets.Text(this, "当前服务器", new(128, 170, 600, 23), 18, MenuStyle.Muted);
-        _server = OnlineWidgets.Text(this, "未选择服务器", new(122, 210, 740, 95), 76, MenuStyle.Text);
-        _server.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        _address = OnlineWidgets.Text(this, "选择服务器后登录", new(128, 320, 730, 29), 23, MenuStyle.Secondary, true);
-        _address.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        AddChild(new ColorRect { Position = new(129, 382), Size = new(6, 6), Color = MenuStyle.Accent,
-            MouseFilter = Control.MouseFilterEnum.Ignore });
-        _connection = OnlineWidgets.Text(this, "未连接", new(150, 372, 640, 24), 17, MenuStyle.Accent);
-        _navigation.Add(OnlineWidgets.Link(this, "切换服务器  ↗", new(128, 420, 450, 48), 23, () =>
-        { ClearPassword(); _picker.Open(); }));
-        OnlineWidgets.Surface(this, new(104, 550, 752, 362));
-        AddChild(new ColorRect { Position = new(128, 546), Size = new(36, 3), Color = MenuStyle.Accent,
-            MouseFilter = Control.MouseFilterEnum.Ignore });
-        OnlineWidgets.Text(this, "服务器公告", new(128, 572, 500, 33), 25, MenuStyle.Text);
-        OnlineWidgets.Text(this, "公告功能尚未接入", new(128, 664, 690, 39), 30, MenuStyle.Secondary);
-        _navigation.Add(OnlineWidgets.Link(this, "继续本地游玩  →", new(128, 931, 620, 48), 22,
-            () => { OnlineSession.Connection.CancelPending(); TransitionDirector.Navigate(UiRoutes.SongSelect, TransitionKind.Standard); }, MenuStyle.Secondary));
-        _heading = OnlineWidgets.Text(this, "登录", new(1072, 232, 480, 65), 52, MenuStyle.Text);
-        _register = OnlineWidgets.Link(this, "创建账号  ↗", new(1574, 248, 240, 48), 20, ToggleRegistration, MenuStyle.Secondary);
-        _form = new Control { Size = UiLayout.DesignSize, MouseFilter = Control.MouseFilterEnum.Ignore }; AddChild(_form);
-        OnlineWidgets.Text(_form, "用户名", new(1072, 370, 650, 23), 18, MenuStyle.Muted);
-        _username = OnlineWidgets.Input(_form, "输入用户名", new(1072, 410, 720, 73), 32);
-        _username.TooltipText = "3–32位字母、数字或下划线";
-        OnlineWidgets.Text(_form, "密码", new(1072, 536, 650, 23), 18, MenuStyle.Muted);
-        _password = OnlineWidgets.Input(_form, "输入密码", new(1072, 576, 720, 73), 128, true);
-        _password.TooltipText = "12–128个字符";
-        _password.AddThemeConstantOverride("minimum_character_width", 1);
-        // Reserve space for the visibility action without shortening the design's underline.
-        foreach (var state in new[] { "normal", "read_only", "focus" })
-            _password.AddThemeStyleboxOverride(state, new StyleBoxEmpty { ContentMarginRight = 100, ContentMarginBottom = 22 });
-        _visibility = OnlineWidgets.Link(_form, "显示", new(1726, 580, 66, 48), 17,
-            () => { _password.Secret = !_password.Secret; _visibility.Text = _password.Secret ? "显示" : "隐藏"; }, MenuStyle.Muted);
+        _navigation.Add(NetworkDeskChrome.Install(this, "账号", "OnlineBack", Back));
+        _pass = new OnlinePassFace(); AddChild(_pass);
+        OnlineWidgets.Text(this, "会话通行证", new(80, 179, 880, 116), 77, NetworkDeskChrome.Ink);
+        OnlineWidgets.Text(this, "服务器签发  ·  仅本次登录有效", new(84, 304, 860, 48), 24, NetworkDeskChrome.Muted);
+        var localPlay = OnlineWidgets.Link(this, "继续本地游玩  →", new(82, 912, 440, 72), 23,
+            () => { CancelStore(); OnlineSession.Connection.CancelPending(); TransitionDirector.Navigate(UiRoutes.SongSelect, TransitionKind.Standard); }, NetworkDeskChrome.Muted);
+        localPlay.Name = "OnlineContinueLocal"; _navigation.Add(localPlay);
+
+        _heading = OnlineWidgets.Text(this, "登录", new(1116, 226, 402, 94), 55, NetworkDeskChrome.Ink);
+        _register = OnlineWidgets.Link(this, "创建账号  ↗", new(1583, 247, 222, 62), 23, ToggleRegistration, NetworkDeskChrome.Teal);
+        _register.Name = "OnlineRegister";
+        _form = new Control { Name = "OnlineSignInForm", Size = UiLayout.DesignSize, MouseFilter = Control.MouseFilterEnum.Ignore }; AddChild(_form);
+        OnlineWidgets.Text(_form, "用户名", new(1116, 353, 662, 44), 24, NetworkDeskChrome.Ink);
+        _username = OnlineWidgets.Input(_form, "输入用户名", new(1116, 408, 668, 72), 32);
+        _username.Name = "OnlineUsername"; _username.AccessibilityName = "用户名"; _username.TooltipText = "3–32位字母、数字或下划线";
+        NetworkDeskChrome.InputStyle(_username);
+        OnlineWidgets.Text(_form, "密码", new(1116, 514, 662, 44), 24, NetworkDeskChrome.Ink);
+        _password = OnlineWidgets.Input(_form, "输入密码", new(1116, 569, 668, 72), 128, true);
+        _password.Name = "OnlinePassword"; _password.AccessibilityName = "密码"; _password.TooltipText = "12–128个字符";
+        _password.AddThemeConstantOverride("minimum_character_width", 1); NetworkDeskChrome.InputStyle(_password, 116);
+        _visibility = OnlineWidgets.Link(_form, "显示", new(1686, 575, 92, 60), 21,
+            () => { _password.Secret = !_password.Secret; _visibility.Text = _password.Secret ? "显示" : "隐藏"; }, NetworkDeskChrome.Muted);
+        _visibility.Name = "OnlineShowPassword";
         _password.TextSubmitted += _ => Submit();
-        _submit = OnlineWidgets.Primary(_form, "登录", new(1072, 732, 720, 80), Submit);
-        _signedIn = new Control { Size = UiLayout.DesignSize, MouseFilter = Control.MouseFilterEnum.Ignore }; AddChild(_signedIn);
-        _account = OnlineWidgets.Text(_signedIn, "", new(1072, 394, 720, 100), 38, MenuStyle.Text);
-        _account.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        OnlineWidgets.Text(_signedIn, "仅本次运行保持登录", new(1072, 536, 720, 36), 22, MenuStyle.Secondary);
-        _refresh = OnlineWidgets.Link(_signedIn, "检查会话  ↗", new(1072, 592, 300, 48), 23,
+        _submit = OnlineWidgets.Link(_form, "登录", new(1116, 732, 668, 76), 26, Submit);
+        _submit.Name = "OnlineSubmit"; NetworkDeskChrome.KeyStyle(_submit, NetworkDeskChrome.Teal, MenuStyle.Ink);
+        ContactRim.Attach(_submit, () => !_submit.Disabled);
+
+        _signedIn = new Control { Name = "OnlineSignedIn", Size = UiLayout.DesignSize, MouseFilter = Control.MouseFilterEnum.Ignore }; AddChild(_signedIn);
+        OnlineWidgets.Text(_signedIn, "退出或会话过期后需要重新登录。", new(1116, 394, 668, 64), 24, NetworkDeskChrome.Muted);
+        _refresh = OnlineWidgets.Link(_signedIn, "检查会话", new(1116, 568, 668, 74), 25,
             () => Start(OnlineSession.Connection.RefreshAsync));
-        _logout = OnlineWidgets.Primary(_signedIn, "退出登录", new(1072, 732, 720, 80),
+        _refresh.Name = "OnlineRefresh"; NetworkDeskChrome.KeyStyle(_refresh, NetworkDeskChrome.Teal, MenuStyle.Ink);
+        _logout = OnlineWidgets.Link(_signedIn, "退出登录", new(1116, 732, 668, 76), 25,
             () => Start(OnlineSession.Connection.LogoutAsync));
-        _status = OnlineWidgets.Text(this, "", new(1072, 844, 720, 110), 20, MenuStyle.Secondary);
-        _status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        _picker = new OnlineServerPicker(); AddChild(_picker);
+        _logout.Name = "OnlineLogout"; NetworkDeskChrome.KeyStyle(_logout, new Color("1D3040"), NetworkDeskChrome.Ink);
+        _status = OnlineWidgets.Text(this, "", new(1116, 816, 672, 67), 19, NetworkDeskChrome.Muted);
+        _status.Name = "OnlineMessage"; _status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _server = OnlineWidgets.Text(this, "未选择服务器", new(1116, 902, 431, 45), 24, NetworkDeskChrome.Ink);
+        _server.Name = "OnlineServerName";
+        _address = OnlineWidgets.Text(this, "", new(1116, 949, 668, 33), 18, NetworkDeskChrome.Muted);
+        _address.Name = "OnlineServerAddress";
+        _connection = OnlineWidgets.Text(this, "", new(1116, 987, 669, 37), 18, NetworkDeskChrome.Muted);
+        _connection.Name = "OnlineConnectionState";
+        _server.TextOverrunBehavior = _address.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _switchServer = OnlineWidgets.Link(this, "切换服务器  ↗", new(1561, 894, 244, 66), 22, () =>
+        { CancelStore(); ClearPassword(); _picker.Open(); }, NetworkDeskChrome.Teal);
+        _switchServer.Name = "OnlineSwitchServer"; _navigation.Add(_switchServer);
+        _picker = new OnlineServerPicker { Name = "OnlinePicker" }; AddChild(_picker);
         _picker.ConnectRequested += Discover;
         _picker.SaveFailed += () => _localMessage = "服务器已确认，但地址列表未保存";
         _picker.Address.TextChanged += _ => ClearPassword();
-        _picker.Closed += () => _register.GrabFocus();
+        _picker.Closed += accepted =>
+        {
+            var state = OnlineSession.Connection.State;
+            if (!accepted || state.Server is null || state.Descriptor is null || state.NeedsConfirmation) CancelStore();
+            else _storeIntent?.Pin(state.Server.BaseUri.AbsoluteUri, state.Descriptor.InstanceId);
+            _switchServer.Disabled = false; _switchServer.GrabFocus();
+        };
         _picker.Address.Text = OnlineSession.Connection.State.Server?.BaseUri.AbsoluteUri ?? "";
         _Process(0);
         TransitionDirector.ReportSceneReady(() => { });
     }
+    internal void ContinueToStore(StoreLoginIntent intent)
+    {
+        var state = OnlineSession.Connection.State;
+        if (state.Account is not null || !intent.Active) return;
+        _storeIntent = intent;
+        // First server selection is part of this route. A later manual server switch is not.
+        if (state.Server is null || state.Descriptor is null || state.NeedsConfirmation) _picker.Open();
+        else intent.Pin(state.Server.BaseUri.AbsoluteUri, state.Descriptor.InstanceId);
+    }
+    private void CancelStore() { _storeIntent?.Cancel(); _storeIntent = null; _loginOperation = false; }
     private void Back()
     {
-        OnlineSession.Connection.CancelPending(); TransitionDirector.Navigate(UiRoutes.Main, TransitionKind.Back);
+        CancelStore(); OnlineSession.Connection.CancelPending(); TransitionDirector.Navigate(UiRoutes.Main, TransitionKind.Back);
     }
     private void ClearPassword()
     {
@@ -92,15 +110,28 @@ public partial class OnlineScreen : Node2D
     private void Submit()
     {
         if (_submit.Disabled || _picker.Visible || !_picker.AddressMatches()) return;
+        if (_operation is { IsCompleted: false } || TransitionDirector.IsBusy) return;
+        var username = _username.Text.Trim();
+        _loginOperation = !_registerMode;
+        if (_loginOperation) _storeIntent?.LoginStarted(OnlineSession.Connection.State, username);
         var password = _password.Text; ClearPassword();
         Start(() => _registerMode
-            ? OnlineSession.Connection.RegisterAsync(_username.Text.Trim(), password)
-            : OnlineSession.Connection.LoginAsync(_username.Text.Trim(), password));
+            ? OnlineSession.Connection.RegisterAsync(username, password)
+            : OnlineSession.Connection.LoginAsync(username, password));
     }
     private void Discover()
     {
         if (_operation is { IsCompleted: false }) return;
-        try { OnlineSession.Select(_picker.Address.Text); Start(OnlineSession.Connection.DiscoverAsync); }
+        try
+        {
+            var address = ServerAddress.Parse(_picker.Address.Text, OnlineSession.AllowLocalHttp);
+            var endpoint = address.BaseUri.AbsoluteUri;
+            // A previously saved address carries a known instance pin. An explicitly accepted
+            // replacement can still sign in, but must not inherit the old store destination.
+            var expectedInstance = OnlineSession.Servers.FirstOrDefault(entry => entry.Address == endpoint)?.InstanceId;
+            _storeIntent?.Pin(endpoint, expectedInstance);
+            OnlineSession.Select(_picker.Address.Text); Start(OnlineSession.Connection.DiscoverAsync);
+        }
         catch (OnlineException ex) { _localMessage = StatusText(ex.Code); }
     }
     private void Start(Func<Task> action)
@@ -114,14 +145,21 @@ public partial class OnlineScreen : Node2D
         {
             if (_operation.IsFaulted) { _ = _operation.Exception; _localMessage = "操作未完成，请重试"; }
             else if (OnlineSession.Connection.State.Status == "registered_login_required") _registerMode = false;
-            _operation = null;
+            var login = _loginOperation && _operation.IsCompletedSuccessfully;
+            _loginOperation = false; _operation = null;
+            if (login)
+            {
+                // Render the verified receipt even when a requested store visit starts its existing transition immediately.
+                _pass.Observe(OnlineSession.Connection.State);
+                if (TryContinueStore()) return;
+            }
         }
         var state = OnlineSession.Connection.State;
         var blocked = state.Busy || _operation is { IsCompleted: false };
         var signedIn = state.Account is not null;
         foreach (var navigation in _navigation) navigation.Disabled = _picker.Visible;
         _form.Visible = !signedIn; _signedIn.Visible = signedIn; _register.Visible = !signedIn;
-        _heading.Text = signedIn ? "账号" : _registerMode ? "创建账号" : "登录";
+        _heading.Text = signedIn ? "会话管理" : _registerMode ? "创建账号" : "登录";
         _register.Text = _registerMode ? "返回登录  ↗" : "创建账号  ↗";
         _register.Disabled = blocked || _picker.Visible;
         _submit.Text = _registerMode ? "创建账号" : "登录";
@@ -137,14 +175,47 @@ public partial class OnlineScreen : Node2D
         _address.TooltipText = _address.Text;
         _connection.Text = state.Busy ? "正在连接…" : state.NeedsConfirmation ? "等待确认服务器身份" :
             state.Descriptor is null ? "未连接" : state.Descriptor.Capabilities.Accounts ? "已发现服务器" : "账号服务暂不可用";
-        _account.Text = state.Account?.Username ?? "";
+        _pass.Observe(state);
         var message = _localMessage ?? StatusText(state.Status);
         _status.Text = message;
         _picker.Refresh(state, blocked, message);
     }
+    private bool TryContinueStore()
+    {
+        var state = OnlineSession.Connection.State;
+        if (TransitionDirector.IsBusy || _picker.Visible || !IsInsideTree() ||
+            !ReferenceEquals(GetTree().CurrentScene, this) || _storeIntent?.Take(state) != true) return false;
+        try
+        {
+            // Reuse the actual saved-source/compatibility/session gates, never infer auth from form input.
+            var access = OnlineSession.CaptureCatalog();
+            if (access.AccountId != state.Account?.Id || !OnlineSession.Connection.IsCurrent(access)) return false;
+            return TransitionDirector.Navigate(UiRoutes.Store, TransitionKind.Standard, "OPEN CHANNEL", "CHART STORE", beforeSwitch: () =>
+            {
+                // Authentication can expire between the click and the director's opaque barrier.
+                if (OnlineSession.Connection.IsCurrent(access)) return;
+                _localMessage = "会话已改变或过期，请重新登录";
+                throw new OperationCanceledException("Store navigation cancelled: account session changed.");
+            });
+        }
+        catch (OnlineException ex) { _localMessage = ex.Code == "server_not_saved" ? "请先确认并保存当前服务器" : StatusText(ex.Code); return false; }
+    }
+    public override void _UnhandledInput(InputEvent e)
+    {
+        if (!TransitionDirector.IsBusy && e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+        {
+            GetViewport().SetInputAsHandled();
+            if (_picker.Visible) _picker.Close(); else Back();
+        }
+    }
+    public override void _Notification(int what)
+    {
+        if (what != NotificationWMGoBackRequest || _picker is null || !IsInsideTree() || TransitionDirector.IsBusy) return;
+        if (_picker.Visible) _picker.Close(); else Back();
+    }
     public override void _ExitTree()
     {
-        ClearPassword(); OnlineSession.Connection.CancelPending();
+        CancelStore(); ClearPassword(); OnlineSession.Connection.CancelPending();
     }
     private static string StatusText(string code) => code switch
     {

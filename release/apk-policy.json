@@ -50,6 +50,7 @@
         "shaders/note_material.gdshader",
         "shaders/note_surface.gdshader",
         "shaders/home_diffuse.gdshader",
+        "shaders/catalogue_drum.gdshader",
         ".godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata",
         ".godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata",
         ".godot/mono/publish/arm64/DynamiteUniverse.deps.json",

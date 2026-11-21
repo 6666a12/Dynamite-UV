@@ -54,4 +54,11 @@ class DatabaseLifecycleTests(unittest.TestCase):
         source = (ROOT / 'client/scripts/ui/store/StoreScreen.cs').read_text(encoding='utf-8')
         select = source.split('private void Select(StoreRelease release)', 1)[1].split('private void Download', 1)[0]
         self.assertNotIn('Rebuild()', select)
-        self.assertIn('row.Select(row.Release.Id == release.Id)', select)
+        self.assertNotIn('Rebind()', select)
+        self.assertIn('BindCard(visible, interactive: true)', select)
+        deck = (ROOT / 'client/scripts/ui/store/StoreDeck.cs').read_text(encoding='utf-8')
+        expand = deck.split('public void Expand(StoreRelease release, bool interactive)', 1)[1].split('public void Collapse', 1)[0]
+        self.assertNotIn('SyncRows(', expand)
+        self.assertNotIn('new StoreRow', expand)
+        self.assertIn('row.Select(true)', expand)
+        self.assertIn('_list.MoveChild(_card, row.GetIndex())', expand)

@@ -2,88 +2,58 @@ using Godot;
 
 namespace DynamiteUniverse.Ui;
 
-/// <summary>
-/// Home v2 的 SELECT DESTINATION 区：650×108 主按钮 + 2×2 次级底板（谱面工坊 / 设置 / 段位模式 / 联机大厅）。
-/// 只有“游玩”和“设置”接真实导航；其余三个沿用设计稿的禁用灰板，不接收输入也不占 Tab 焦点。
-/// </summary>
+/// <summary>Three actual destination ports on one shallow drum; the underlying VBox remains the
+/// keyboard/focus tree. The projected scroll region and the stationary conductor share one origin.</summary>
 internal static class HomeActions
 {
-    private const float Left = 96f;
+    internal static readonly Vector2 Origin = new(78, 513);
+    internal static readonly Vector2 Extent = new(735, 387);
+    private const float Pitch = 147f;
 
-    public static void Build(Node parent, Action<Control, int> register)
+    public static void Build(Node home, Action<Control, int> register)
     {
-        var eyebrow = new Label
+        var deck = new Control { Name = "HomePortDeck", Position = Origin, Size = Extent,
+            MouseFilter = Control.MouseFilterEnum.Ignore };
+        home.AddChild(deck);
+        var scroll = new ScrollContainer { Name = "HomePortScroll", Size = Extent, ClipContents = true,
+            FollowFocus = true, ScrollVerticalCustomStep = Pitch,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.ShowNever };
+        var rows = new VBoxContainer { Name = "HomePorts", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            MouseFilter = Control.MouseFilterEnum.Ignore };
+        rows.AddThemeConstantOverride("separation", 17);
+        deck.AddChild(scroll); scroll.AddChild(rows);
+        var drum = CatalogueDrum.Attach(scroll);
+        var wire = new HomePortWiring { Name = "HomePortWiring", Size = Extent,
+            MouseFilter = Control.MouseFilterEnum.Ignore, ProcessMode = Node.ProcessModeEnum.Always };
+        deck.AddChild(wire);
+        var tiles = new HomeActionTile[3];
+        var names = new[] { "HomePlay", "HomeStore", "HomeSettings" };
+        var labels = new[] { "游玩", "谱面商店", "设置" };
+        // Keep nearly half a row in view at the crop. There are three real ports, not repeated
+        // filler rows. No scrollbar track is painted through the electrical contacts.
+        for (int i = 0; i < tiles.Length; ++i)
         {
-            Position = new Vector2(Left, 578f),
-            Size = new Vector2(400f, 20f),
-            Text = "SELECT DESTINATION",
-        };
-        UiLabels.Apply(eyebrow, HomePalette.Tech(2), 14, HomePalette.SectionLabel);
-        parent.AddChild(eyebrow);
-        register(eyebrow, 3);
-
-        var play = new HomeActionTile
-        {
-            Position = new Vector2(Left, 616f),
-            Size = new Vector2(650f, 108f),
-            Title = "游玩",
-            SubTitle = "PLAY  /  ENTER SONG LIBRARY",
-            Style = HomeActionTile.TileStyle.Primary,
-            TitleOffset = new Vector2(32f, 18f),
-            SubTitleOffset = new Vector2(32f, 64f),
-            TitleFontSize = 32,
-            SubTitleFontSize = 14,
-            CutSize = new Vector2(13.5f, 13.5f),
-            ShowArrow = true,
-            ArrowOffset = new Vector2(554f, 40f),
-        };
-        play.Pressed += () => TransitionDirector.Navigate(
-            UiRoutes.SongSelect,
-            TransitionKind.Standard,
-            "OPEN CHANNEL",
-            "SONG LIBRARY");
-        parent.AddChild(play);
-        register(play, 4);
-
-        var connected = DynamiteUniverse.Game.OnlineSession.Connection.State.Account is not null;
-        var workshop = SecondaryTile("谱面商店", connected ? "CHART STORE  /  ONLINE" : "CHART STORE  /  LOGIN REQUIRED",
-            connected ? HomeActionTile.TileStyle.Outline : HomeActionTile.TileStyle.Disabled, new Vector2(Left, 748f));
-        workshop.Pressed += () =>
-        {
-            if (DynamiteUniverse.Game.OnlineSession.Connection.State.Account is not null)
-                TransitionDirector.Navigate(UiRoutes.Store, TransitionKind.Standard, "OPEN CHANNEL", "CHART STORE");
-        };
-        parent.AddChild(workshop);
-        register(workshop, 5);
-
-        var settings = SecondaryTile("设置", "SETTINGS  /  SYSTEM", HomeActionTile.TileStyle.Outline,
-            new Vector2(432f, 748f));
-        settings.Pressed += () => TransitionDirector.Navigate(
-            UiRoutes.Settings,
-            TransitionKind.Standard,
-            "OPEN CHANNEL",
-            "SETTINGS");
-        parent.AddChild(settings);
-        register(settings, 5);
-
-        var rank = SecondaryTile("段位模式", "RANK MODE  /  OFFLINE", HomeActionTile.TileStyle.Disabled,
-            new Vector2(Left, 864f));
-        parent.AddChild(rank);
-        register(rank, 6);
-
-        var lobby = SecondaryTile("联机大厅", "ONLINE LOBBY  /  OFFLINE", HomeActionTile.TileStyle.Disabled,
-            new Vector2(432f, 864f));
-        parent.AddChild(lobby);
-        register(lobby, 6);
+            int index = i;
+            var tile = new HomeActionTile { Name = names[i], Title = labels[i], PortIndex = i,
+                AccessibilityName = labels[i], CustomMinimumSize = new Vector2(0, Pitch - 17),
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            tiles[i] = tile; rows.AddChild(tile);
+            tile.Pressed += () =>
+            {
+                if (TransitionDirector.IsBusy) return;
+                bool accepted = index switch
+                {
+                    0 => TransitionDirector.Navigate(UiRoutes.SongSelect, TransitionKind.Standard, "OPEN CHANNEL", "SONG LIBRARY"),
+                    1 => HomeStoreRoute.Open(home),
+                    _ => TransitionDirector.Navigate(UiRoutes.Settings, TransitionKind.Standard, "OPEN CHANNEL", "SETTINGS"),
+                };
+                // The director has already accepted and paused the departing scene. Only the
+                // visual receipt runs through that pause; no callback drives navigation from it.
+                if (accepted) wire.Acknowledge(index);
+            };
+        }
+        wire.Bind(drum, scroll, tiles);
+        register(deck, 3);
     }
-
-    private static HomeActionTile SecondaryTile(string title, string subTitle,
-        HomeActionTile.TileStyle style, Vector2 position) => new()
-    {
-        Position = position,
-        Size = new Vector2(314f, 92f),
-        Title = title,
-        SubTitle = subTitle,
-        Style = style,
-    };
 }

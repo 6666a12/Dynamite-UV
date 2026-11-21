@@ -24,8 +24,13 @@ internal static class ClientNetworkTests
         fake.Delayed.SetResult(new(new string('a',64),DateTimeOffset.UtcNow.AddHours(1),new(Guid.NewGuid(),"fixture")));
         await oldLogin;
         check(state.State.Account is null && state.State.Server == b, "Late login from A cannot populate B even with same instance UUID");
-        fake.Delayed = null; await state.LoginAsync("fixture", "fixture-password");
+        fake.Delayed = null;
+        var storeIntent = new StoreLoginIntent(state.State);
+        storeIntent.LoginStarted(state.State, "fixture");
+        await state.LoginAsync("fixture", "fixture-password");
         check(state.State.Account is not null, "Confirmed current server can log in");
+        check(storeIntent.Take(state.State) && !storeIntent.Take(state.State),
+            "Store navigation consumes exactly the generation published by AccountConnection.LoginAsync");
         fake.Offline = true; await state.RefreshAsync();
         check(state.State.Account is not null, "Transport failure does not sign out current identity");
         fake.Offline = false;

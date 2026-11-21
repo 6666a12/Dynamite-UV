@@ -76,8 +76,9 @@ public partial class CalibrationScreen : Node2D
     private CalibrationStage _stage = null!;
     private CalibrationHitReadout _hitReadout = null!;
     private CalibrationStrip _strip = null!;
-    private CutPanel _statsPanel = null!;
-    private CutPanel _resultPanel = null!;
+    private CalibrationStrikePlate _strike = null!;
+    private CutButton _startStop = null!;
+    private Label _resultCount = null!;
     private Control _statsContent = null!;
     private Control _resultContent = null!;
 
@@ -90,7 +91,6 @@ public partial class CalibrationScreen : Node2D
     private Label _lastHitValue = null!;
     private Label _lastHitUnit = null!;
     private Label _frozenTag = null!;
-    private Label _earlyLateLegend = null!;
     private Label _pulseInstruction = null!;
 
     private Label _targetValue = null!;
@@ -208,14 +208,17 @@ public partial class CalibrationScreen : Node2D
         if (_navigating || !TapZone.HasPoint(position))
             return false;
 
-        RegisterHit(SongPositionSeconds());
+        // Capture the original clock before any visual operation; all of TapZone still counts.
+        var now = SongPositionSeconds();
+        _strike.Touch(position - _strike.Position);
+        RegisterHit(now, position);
         return true;
     }
 
     /// <summary>
     /// 把一次击打交给采样内核（首击进入采样），再按结果刷新读数；相位变化触发的可视切换由本页负责。
     /// </summary>
-    private void RegisterHit(double songSec)
+    private void RegisterHit(double songSec, Vector2? contact = null)
     {
         var phaseBefore = _sampling.Phase;
         var result = _sampling.Hit(songSec);
@@ -224,14 +227,14 @@ public partial class CalibrationScreen : Node2D
         if (result.Outcome == HitOutcome.Ignored)
             return;
 
-        ApplyHitOutcome(result);
+        ApplyHitOutcome(result, contact);
         if (_sampling.Phase != phaseBefore)
             ApplyPhase();
         RefreshReadouts();
     }
 
     /// <summary>读数口径：热身灰显；入样与「同 note 重复」都按 Accepted 彩色显示；其余显示 —。</summary>
-    private void ApplyHitOutcome(HitResult result)
+    private void ApplyHitOutcome(HitResult result, Vector2? contact)
     {
         switch (result.Outcome)
         {
@@ -239,6 +242,14 @@ public partial class CalibrationScreen : Node2D
                 ShowHitReadout(HitReadout.Warmup, result.DeviationMs);
                 break;
             case HitOutcome.Accepted:
+                // Start on the plate itself for a plate strike. The rest of TapZone still counts;
+                // a hit there uses the plate terminal rather than drawing across the falling lane.
+                var box = _strike.GetGlobalRect();
+                var hit = contact is { } p && box.HasPoint(p) ? p : box.GetCenter();
+                var jack = new Vector2(box.GetCenter().X, box.End.Y-4);
+                var toStrip = _strip.GetGlobalTransform().AffineInverse();
+                _strip.ConfirmSample(result.DeviationMs, toStrip*hit, toStrip*jack);
+                goto case HitOutcome.Duplicate;
             case HitOutcome.Duplicate:
                 ShowHitReadout(HitReadout.Accepted, result.DeviationMs);
                 break;
@@ -280,6 +291,7 @@ public partial class CalibrationScreen : Node2D
         if (_navigating)
             return;
         _sampling.Restart();
+        _strip.ClearReceipt();
         _lastHitKind = HitReadout.None;
         _strayReadoutRemaining = 0.0;
         _completeElapsed = 0.0;
@@ -412,9 +424,9 @@ public partial class CalibrationScreen : Node2D
         var phase = _sampling.Phase;
         var (tag, title, guide) = phase switch
         {
-            SamplingPhase.Complete => ("PHASE 02 / 02", "APPLY · 应用",
-                "确认建议偏移后立即生效，也可以再测一次"),
-            _ => ("PHASE 01 / 02", "TAP · 跟拍", "音符压线的瞬间，击打屏幕任意位置"),
+            SamplingPhase.Complete => ("校准完成", "已完成", "确认建议偏移，或重新跟拍。"),
+            SamplingPhase.Sampling => ("采样中", "节拍校准", "每小节第一拍，音符压线时击打。"),
+            _ => ("等待开始", "节拍校准", "每小节第一拍，音符压线时击打。"),
         };
         _phaseTag.Text = tag;
         _phaseTitle.Text = title;
@@ -430,9 +442,10 @@ public partial class CalibrationScreen : Node2D
             segment.Color = on ? UiFonts.Cyan : done ? new Color(UiFonts.Text, 0.7f) : UiFonts.Line;
         }
 
-        _statsPanel.Visible = !complete;
+        _startStop.Text = phase == SamplingPhase.Ready ? "开始采样" : "停止采样";
+        _strike.Frozen = complete;
+        _strike.QueueRedraw();
         _statsContent.Visible = !complete;
-        _resultPanel.Visible = complete;
         _resultContent.Visible = complete;
         _frozenTag.Visible = complete;
         _hitReadout.Visible = !complete;
@@ -561,7 +574,7 @@ public partial class CalibrationScreen : Node2D
         var currentOffset = GameSession.Settings.TimingOffsetMs;
         _currentOffsetValue.Text = FormatMilliseconds(currentOffset);
 
-        _targetValue.Text = _sampling.TargetSamples.ToString();
+        _targetValue.Text = $"/ {_sampling.TargetSamples:00}";
 
         // LAST HIT：入样 = 带符号彩色毫秒（负=早=粉、正=晚=青）；热身 = 同样带符号但灰显；
         // stray tap / 还没击打过 = —。
@@ -584,13 +597,14 @@ public partial class CalibrationScreen : Node2D
         _lastHitUnit.Visible = _lastHitKind != HitReadout.None;
 
         _medianValue.Text = stats.MedianMs is { } median
-            ? FormatSignedMilliseconds(median)
+            ? $"{FormatSignedMilliseconds(median)} ms"
             : "—";
         _spreadValue.Text = stats.SpreadMs is { } spread
-            ? $"±{Math.Round(spread):0} ms"
+            ? $"{Math.Round(spread):0} ms"
             : "—";
 
-        _progressCount.Text = $"{stats.Count} / {_sampling.TargetSamples}";
+        _progressCount.Text = $"{stats.Count:00}";
+        _resultCount.Text = $"{stats.Count:00} / {_sampling.TargetSamples:00}";
         var ratio = Math.Clamp(stats.Count / (float)_sampling.TargetSamples, 0f, 1f);
         _progressFill.Size = new Vector2(ProgressTrackWidth * ratio, ProgressTrackHeight);
 
@@ -600,7 +614,7 @@ public partial class CalibrationScreen : Node2D
 
         _resultSuggestedValue.Text = _suggestedValue.Text;
         _resultSuggestedSub.Text = stats.Count > 0
-            ? $"基于 {stats.Count} 个有效样本 · 离散 {_spreadValue.Text}"
+            ? $"中位数  {_medianValue.Text}     标准差  {_spreadValue.Text}"
             : "尚无有效样本";
         _resultDelta.Text = stats.SuggestedOffset(currentOffset) is { } finalOffset
             ? $"当前 {FormatMilliseconds(currentOffset)} → 应用后 {FormatMilliseconds(finalOffset)}"

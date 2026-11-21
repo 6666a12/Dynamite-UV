@@ -16,11 +16,11 @@ public partial class SongRow : Control
     private float _commitAmount;
     private double _commitElapsed;
     private double _commitDuration;
-    private Vector2[]? _points;
 
     [Signal]
     public delegate void PressedEventHandler();
 
+    public int Ordinal { get; init; }
     public ChartPack? Pack { get => _pack; set { _pack = value; Refresh(); } }
 
     public bool Selected
@@ -31,26 +31,22 @@ public partial class SongRow : Control
             if (_selected == value)
                 return;
             _selected = value;
-            SnapInteractionIfMotionIsOff();
-            Refresh();
+            AccessibilityDescription = value ? "当前选择" : "";
+            RefreshInteraction();
         }
     }
 
     public override void _Ready()
     {
+        AccessibilityName = _pack?.Title ?? "";
         _hoverAmount = _hover ? 1f : 0f;
         _selectedAmount = _selected ? 1f : 0f;
         MouseDefaultCursorShape = CursorShape.PointingHand;
+        SetProcess(false);
+        FocusMode = FocusModeEnum.All;
+        FocusEntered += QueueRedraw; FocusExited += QueueRedraw;
         MouseEntered += OnMouseEntered;
         MouseExited += OnMouseExited;
-    }
-
-    public override void _Notification(int what)
-    {
-        if (what == NotificationResized)
-        {
-            _points = null;
-        }
     }
 
     public override void _Process(double delta)
@@ -71,6 +67,8 @@ public partial class SongRow : Control
                 nextCommit = 0f;
             }
         }
+        if (nextHover == (_hover ? 1f : 0f) && nextSelected == (_selected ? 1f : 0f) && _commitDuration <= 0)
+            SetProcess(false);
         if (nextHover == _hoverAmount && nextSelected == _selectedAmount &&
             nextCommit == _commitAmount)
             return;
@@ -89,6 +87,7 @@ public partial class SongRow : Control
             _commitAmount = 0f;
             return;
         }
+        SetProcess(true);
         _commitElapsed = 0.0;
         _commitDuration = Math.Max(0.01, duration ?? profile.FocusDuration);
         _commitAmount = 0f;
@@ -108,7 +107,7 @@ public partial class SongRow : Control
             ButtonIndex: MouseButton.Left,
             Pressed: true,
         };
-        if (pressed)
+        if (MouseFilter != MouseFilterEnum.Ignore && (pressed || (HasFocus() && e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Enter or Key.KpEnter or Key.Space })))
         {
             AcceptEvent();
             EmitSignal(SignalName.Pressed);
@@ -121,35 +120,13 @@ public partial class SongRow : Control
         var hover = UiEase.Standard(profile.IsAnimated ? _hoverAmount : (_hover ? 1f : 0f));
         var selected = UiEase.Standard(profile.IsAnimated ? _selectedAmount : (_selected ? 1f : 0f));
         var commit = profile.IsAnimated ? UiEase.Echo(_commitAmount) : 0f;
-        const float cut = 10f;
-        Vector2[] pts = _points ??= UiGeometry.CutCorners(Size, cut);
-        var idleFill = MenuStyle.Surface;
-        var hoverFill = MenuStyle.Idle;
-        var fill = idleFill.Lerp(hoverFill, hover)
-            .Lerp(MenuStyle.Active, selected)
-            .Lerp(new Color("27496d"), commit * 0.44f);
-        DrawColoredPolygon(pts, fill);
-
-        if (profile.AllowDirectionalMotion && selected > 0f)
-        {
-            var locatorHeight = Mathf.Min(62f, Size.Y - cut * 2f) * selected;
-            var locatorColor = new Color(UiFonts.Cyan, 0.92f * selected);
-            DrawRect(new Rect2(2f, (Size.Y - locatorHeight) * 0.5f,
-                4f + 2f * selected, locatorHeight), locatorColor);
-        }
-
-        if (_pack == null)
-            return;
-
-        var textShift = profile.AllowDirectionalMotion ? 8f * selected : 0f;
-        var textX = 24f + textShift;
-
-        // 左：曲名 + 曲师·谱师
-        DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.44f), _pack.Title,
-            HorizontalAlignment.Left, Size.X * 0.55f, 30, MenuStyle.Text);
-        DrawString(UiFonts.Cjk, new Vector2(textX, Size.Y * 0.78f),
-            _pack.SourceLabel.Length == 0 ? $"{_pack.Artist} · 谱师 {_pack.Charter}" : $"{_pack.SourceLabel} · {_pack.Artist}",
-            HorizontalAlignment.Left, Size.X * 0.55f, 18, MenuStyle.Secondary);
+        CatalogueCardFace.Draw(this, hover, selected, commit: commit);
+        if (HasFocus()) DrawRect(new Rect2(Vector2.One * 2f, Size - Vector2.One * 4f), CatalogueCardFace.Accent, false, 2f);
+        if (_pack == null) return;
+        DrawString(UiFonts.TechBold, new(28, Size.Y * .47f), Ordinal.ToString("00"), HorizontalAlignment.Left, 48, 20, MenuStyle.Secondary);
+        float xTitle = 84f + (profile.AllowDirectionalMotion ? 8f * selected : 0f);
+        var byline = _pack.SourceLabel.Length == 0 ? $"{_pack.Artist} · 谱师 {_pack.Charter}" : $"{_pack.SourceLabel} · {_pack.Artist}";
+        CatalogueCardFace.DrawHeading(this, _pack.Title, byline, xTitle);
 
         // 右：难度徽章（从右往左排，giga 在最右）
         const float chipW = 44f, chipH = 34f, gap = 8f;
@@ -186,16 +163,21 @@ public partial class SongRow : Control
         if (_hover == hover)
             return;
         _hover = hover;
-        SnapInteractionIfMotionIsOff();
-        Refresh();
+        RefreshInteraction();
     }
 
-    private void SnapInteractionIfMotionIsOff()
+    private void RefreshInteraction()
     {
-        if (MotionProfile.IsAnimated)
-            return;
-        _hoverAmount = _hover ? 1f : 0f;
-        _selectedAmount = _selected ? 1f : 0f;
+        var animate = IsVisibleInTree() && MotionProfile.IsAnimated;
+        if (!animate)
+        {
+            // The selected row is replaced by the expanded card. Keep its ink current
+            // without processing while hidden, so folding can reveal it immediately.
+            _hoverAmount = _hover ? 1f : 0f;
+            _selectedAmount = _selected ? 1f : 0f;
+        }
+        SetProcess(animate);
+        Refresh();
     }
 
     private static float Advance(float current, float target, double delta, double duration) =>

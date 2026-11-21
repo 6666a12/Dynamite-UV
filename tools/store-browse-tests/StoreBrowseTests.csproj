@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <!-- Exercise the real page state and request owners without an engine, a server or player storage. -->
+  <ItemGroup>
+    <ProjectReference Include="../../shared/DynamiteUniverse.Shared.csproj" />
+    <Compile Include="../../client/scripts/network/AccountProtocol.cs" Link="Network/AccountProtocol.cs" />
+    <Compile Include="../../client/scripts/network/CatalogProtocol.cs" Link="Network/CatalogProtocol.cs" />
+    <Compile Include="../../client/scripts/network/CatalogTransport.cs" Link="Network/CatalogTransport.cs" />
+    <Compile Include="../../client/scripts/network/CatalogInstaller.cs" Link="Network/CatalogInstaller.cs" />
+    <Compile Include="../../client/scripts/ui/store/StoreBrowseState.cs" Link="Store/StoreBrowseState.cs" />
+    <Compile Include="../../client/scripts/ui/store/StoreRequest.cs" Link="Store/StoreRequest.cs" />
+  </ItemGroup>
+</Project>

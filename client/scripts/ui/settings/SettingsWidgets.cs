@@ -7,78 +7,9 @@ namespace DynamiteUniverse.Ui;
 
 // ---- 设计稿专用控件 ----
 
-/// <summary>竖排 tab：选中 = panel 填充 + 左侧 cyan 竖条，未选中 = 1.5px 描边。</summary>
-internal partial class SettingsTabItem : Control
-{
-    private bool _selected;
-    private bool _hover;
-
-    [Signal]
-    public delegate void ChosenEventHandler();
-
-    public string Text { get; set; } = "";
-
-    public bool Selected
-    {
-        get => _selected;
-        set
-        {
-            if (_selected == value)
-                return;
-            _selected = value;
-            QueueRedraw();
-        }
-    }
-
-    public override void _Ready()
-    {
-        MouseDefaultCursorShape = CursorShape.PointingHand;
-        MouseEntered += () =>
-        {
-            _hover = true;
-            QueueRedraw();
-        };
-        MouseExited += () =>
-        {
-            _hover = false;
-            QueueRedraw();
-        };
-    }
-
-    public override void _GuiInput(InputEvent e)
-    {
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } or
-            InputEventScreenTouch { Pressed: true })
-        {
-            EmitSignal(SignalName.Chosen);
-            AcceptEvent();
-        }
-    }
-
-    public override void _Draw()
-    {
-        var points = UiGeometry.CutCorners(Size, 14f);
-        if (_selected)
-        {
-            DrawColoredPolygon(points, MenuStyle.Active);
-            DrawRect(new Rect2(0f, 14f, 8f, Size.Y - 14f), UiFonts.Cyan);
-        }
-        else
-        {
-            DrawColoredPolygon(points, _hover ? MenuStyle.Active : MenuStyle.Idle);
-        }
-
-        DrawString(_selected ? UiFonts.TechBold : UiFonts.Tech,
-            new Vector2(0f, MenuStyle.Baseline(_selected ? UiFonts.TechBold : UiFonts.Tech, 24, Size.Y)), Text,
-            HorizontalAlignment.Center, Size.X, 24,
-            _selected ? MenuStyle.Text : MenuStyle.Secondary);
-    }
-}
-
-/// <summary>132×60 开关：cyan 半透明轨 + 48px 切角方块，切换时方块滑动。</summary>
+/// <summary>状态文本与小型轨道共用正式动画进度，值立即生效。</summary>
 internal partial class SettingsToggle : Control
 {
-    internal const float ToggleKnob = 48f;
     public required Func<UiMotionProfile> MotionProfileProvider { private get; init; }
 
     private bool _on;
@@ -128,29 +59,22 @@ internal partial class SettingsToggle : Control
 
     public override void _Draw()
     {
-        var track = UiGeometry.CutCorners(Size, 16f);
-        if (_on)
-        {
-            DrawColoredPolygon(track, MenuStyle.Active);
-        }
-        else
-        {
-            DrawColoredPolygon(track, MenuStyle.Idle);
-        }
+        DrawColoredPolygon(UiGeometry.CutCorners(Size, 7), _on ? new Color("244550") : MenuStyle.Idle);
+        var font = UiFonts.TechBold;
+        DrawString(font, new(16, MenuStyle.Baseline(font,22,Size.Y)), _on ? "ON" : "OFF", HorizontalAlignment.Left,76,22,_on ? SettingsSectionRail.Teal : MenuStyle.Secondary);
+        var track = new Rect2(Size.X-81, Size.Y/2-14, 64,28);
+        DrawRect(track,new Color("0d1925"));
+        DrawRect(new Rect2(track.Position.X+3+_knob*31,track.Position.Y+3,27,22),_on ? SettingsSectionRail.Teal : MenuStyle.Secondary);
 
-        var knobX = 12f + _knob * (Size.X - 24f - ToggleKnob);
-        var knob = UiGeometry.CutCorners(knobX, (Size.Y - ToggleKnob) * 0.5f,
-            ToggleKnob, ToggleKnob, 12f);
-        DrawColoredPolygon(knob, _on ? UiFonts.Cyan : new Color(MenuStyle.Secondary, 0.55f));
     }
 
     private UiMotionProfile MotionProfile => MotionProfileProvider();
 }
 
-/// <summary>620×6 轨 + 44px 切角手柄；点按/拖动直接改值（按 5 取整）。</summary>
+/// <summary>480×6 轨 + 36px 切角手柄；点按/拖动直接改值（按 5 取整）。</summary>
 internal partial class SettingsSlider : Control
 {
-    internal const float TrackWidth = 620f, TrackHandle = 44f;
+    internal const float TrackWidth = 480f, TrackHandle = 36f;
     internal const int VolumeStepPercent = 5;
 
     private int _value;
@@ -237,7 +161,8 @@ internal partial class SettingsSlider : Control
 /// <summary>168×72 分段选择（FULL / REDUCED / OFF）。</summary>
 internal partial class SettingsSegments : Control
 {
-    internal const float SegmentWidth = 168f, SegmentHeight = 72f, SegmentGap = 12f;
+    private const float SegmentGap = 9f;
+    public float CellWidth { get; init; } = 162f;
 
     private string[] _labels = [];
     private int _selected;
@@ -299,21 +224,21 @@ internal partial class SettingsSegments : Control
     }
 
     private int IndexAt(float x) =>
-        Mathf.Clamp((int)(x / (SegmentWidth + SegmentGap)), 0, _labels.Length - 1);
+        Mathf.Clamp((int)(x / (CellWidth + SegmentGap)), 0, _labels.Length - 1);
 
     public override void _Draw()
     {
         for (var i = 0; i < _labels.Length; i++)
         {
-            var origin = new Vector2(i * (SegmentWidth + SegmentGap), 0f);
-            var points = UiGeometry.CutCorners(origin.X, origin.Y, SegmentWidth, SegmentHeight, 16f);
+            var origin = new Vector2(i * (CellWidth + SegmentGap), 0f);
+            var points = UiGeometry.CutCorners(origin.X, origin.Y, CellWidth, Size.Y, 7f);
 
             var selected = i == _selected;
             DrawColoredPolygon(points, selected || i == _hover ? MenuStyle.Active : MenuStyle.Idle);
-            DrawString(UiFonts.TechBold,
-                origin + new Vector2(0f, SegmentHeight * 0.5f + 7f), _labels[i],
-                HorizontalAlignment.Center, SegmentWidth, 20,
-                selected ? UiFonts.Cyan : MenuStyle.Secondary);
+            if(selected) DrawRect(new Rect2(origin.X+2,10,3,Size.Y-20),SettingsSectionRail.Teal);
+            var font = _labels[i].Any(ch => ch > 127) ? UiFonts.Cjk : UiFonts.TechBold;
+            DrawString(font, origin + new Vector2(0f, MenuStyle.Baseline(font,23,Size.Y)), _labels[i],
+                HorizontalAlignment.Center, CellWidth, 23, selected ? MenuStyle.Text : MenuStyle.Secondary);
         }
     }
 }
@@ -355,8 +280,8 @@ internal partial class FlatTextButton : Control
 
     public override void _Draw()
     {
-        DrawColoredPolygon(UiGeometry.CutCorners(Size, 12f), _hover ? MenuStyle.Active : MenuStyle.Idle);
-        DrawString(UiFonts.Tech, new Vector2(0f, MenuStyle.Baseline(UiFonts.Tech, 16, Size.Y)), Text,
-            HorizontalAlignment.Center, Size.X, 16, _hover ? UiFonts.Cyan : MenuStyle.Secondary);
+        if (_hover) DrawColoredPolygon(UiGeometry.CutCorners(Size, 6),MenuStyle.Idle);
+        DrawString(UiFonts.Cjk, new Vector2(3f, MenuStyle.Baseline(UiFonts.Cjk, 20, Size.Y)), Text,
+            HorizontalAlignment.Left, Size.X-4, 20, _hover ? SettingsSectionRail.Teal : MenuStyle.Muted);
     }
 }

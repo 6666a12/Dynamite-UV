@@ -196,6 +196,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
             "assets/shaders/note_material.gdshader": b"shader_type canvas_item;",
             "assets/shaders/note_surface.gdshader": b"shader_type canvas_item;",
             "assets/shaders/home_diffuse.gdshader": b"shader_type canvas_item;",
+            "assets/shaders/catalogue_drum.gdshader": b"shader_type canvas_item;",
             "assets/assets/models/detonation-orrery-mk6.glb": (
                 REPO_ROOT / "client" / "assets" / "models" / "detonation-orrery-mk6.glb"
             ).read_bytes(),

@@ -38,13 +38,14 @@ public partial class NoteColorsScreen : Node2D
     private bool _comparing;
     private bool _refreshing;
     private bool _pickerDragging;
-    private bool _hexGesture;
+    private bool _hexGesture, _hexEditing;
     private int _channel = (int)NoteColorChannel.Hold;
     private int? _pairOverride;
     private int[] _pairOrder = [];
     private string _feedback = "";
     private double _feedbackTtl;
-    private readonly List<string> _recent = [];
+    // MRU belongs to this running client, not the preset file or the page lifetime.
+    private static readonly List<string> RecentColors = [];
     private readonly List<TechButton> _normalButtons = [];
     private readonly List<NotePaletteSpecimen> _allSpecimens = [];
     private readonly List<TechButton> _compareButtons = [];
@@ -57,8 +58,8 @@ public partial class NoteColorsScreen : Node2D
     private readonly CutPanel[] _headerSwatches = new CutPanel[6];
     private readonly NotePaletteSpecimen[] _collection = new NotePaletteSpecimen[6];
     private readonly Label[] _collectionLabels = new Label[6];
-    private readonly NotePaletteSpecimen[] _backgroundSpecimens = new NotePaletteSpecimen[3];
-    private readonly Label[] _contrasts = new Label[3];
+    private NoteColorComparison _deskComparison = null!;
+    private readonly NoteColorComparison[] _backgroundComparisons = new NoteColorComparison[3];
     private readonly TechButton[] _pairButtons = new TechButton[2];
     private NotePaletteSpecimen _pairLeft = null!, _pairRight = null!;
     private Label _title = null!, _subtitle = null!, _status = null!, _presetName = null!;
@@ -71,7 +72,7 @@ public partial class NoteColorsScreen : Node2D
     private SvField _sv = null!;
     private HueBar _hue = null!;
     private LineEdit _hex = null!;
-    private CutPanel _hexFrame = null!, _oldSwatch = null!, _newSwatch = null!;
+    private CutPanel _hexFrame = null!;
 
     public override void _Ready()
     {
@@ -200,17 +201,18 @@ public partial class NoteColorsScreen : Node2D
             _hue.Hue = color.H;
         }
         if (!_hex.HasFocus()) _hex.Text = "#" + NotePalette.ToHex(color);
-        _newSwatch.Fill = color;
+        // Original is never rebased by Apply. For a newly created slot, fall back to the entry slot.
         var original = _draft.Original;
         var oldSlot = original.Slots[current.ActiveIndex].IsEmpty ? original.Slots[original.ActiveIndex] : original.Slots[current.ActiveIndex];
-        _oldSwatch.Fill = Color.FromHtml("#" + oldSlot.Colors[_channel]);
+        var originalColor = _comparing ? color : Color.FromHtml("#" + oldSlot.Colors[_channel]);
+        if (!_observing) _deskComparison.Show(Types[_channel], originalColor, color, _comparing, Settings.NoteBrightnessScale);
         _judgeBurst.Selected = !shown.BurstFollowsNote;
         _noteBurst.Selected = shown.BurstFollowsNote;
         _sessionHint.Text = _feedback.Length > 0 ? _feedback : _comparing ? "松开恢复当前草稿" : _draft.IsDirty ? "仅预览，应用后生效" : "调整颜色后，点击应用保存";
         _sessionHint.AddThemeColorOverride("font_color", _feedback.Length > 0 ? WarningColor : MutedColor);
         _readabilityHint.Text = NotePaletteMetrics.Warnings(palette).Count is var count && count > 0
             ? $"{count} 处配色提醒 · 仅供参考" : "对比背景与相近音符";
-        RefreshObservation(palette, color);
+        if (_observing) RefreshObservation(palette, color, originalColor);
         foreach (var button in _normalButtons) button.Enabled = !_comparing;
         _presetButton.Enabled = !_comparing && !_observing;
         _undoButton.Enabled = !_comparing && _draft.CanUndo;
@@ -222,8 +224,8 @@ public partial class NoteColorsScreen : Node2D
         _hex.Editable = !_comparing;
         for (var i = 0; i < _recentButtons.Count; i++)
         {
-            _recentButtons[i].Visible = _recentSwatches[i].Visible = i < _recent.Count;
-            if (i < _recent.Count) _recentSwatches[i].Fill = Color.FromHtml("#" + _recent[i]);
+            _recentButtons[i].Visible = _recentSwatches[i].Visible = i < RecentColors.Count;
+            if (i < RecentColors.Count) _recentSwatches[i].Fill = Color.FromHtml("#" + RecentColors[i]);
         }
         _refreshing = false;
     }
@@ -232,7 +234,11 @@ public partial class NoteColorsScreen : Node2D
     {
         if (_comparing || _modal is not null || TransitionDirector.IsBusy) return;
         CommitHex();
-        if (action()) { _feedback = ""; Refresh(); }
+        var before = _draft.Current.Slots[_draft.Current.ActiveIndex].Colors[_channel];
+        if (!action()) return;
+        if (before != _draft.Current.Slots[_draft.Current.ActiveIndex].Colors[_channel]) RememberCurrentColor();
+        _feedback = "";
+        Refresh();
     }
 
     private void SelectChannel(int channel)
@@ -259,8 +265,7 @@ public partial class NoteColorsScreen : Node2D
     {
         if (!_pickerDragging) return;
         _pickerDragging = false;
-        _draft.EndGesture();
-        RememberCurrentColor();
+        if (_draft.EndGesture()) RememberCurrentColor();
         Refresh();
     }
 
@@ -272,7 +277,7 @@ public partial class NoteColorsScreen : Node2D
 
     private void HexChanged(string text)
     {
-        if (_refreshing || _comparing) return;
+        if (_refreshing || _comparing || !_hexEditing) return;
         if (!_hexGesture) { _draft.BeginGesture(); _hexGesture = true; }
         var valid = NotePalette.TryParseHex(text, out var color);
         _hexFrame.Border = valid ? UiFonts.Cyan : WarningColor;
@@ -282,11 +287,18 @@ public partial class NoteColorsScreen : Node2D
     private void CommitHex()
     {
         if (!_built || _refreshing) return;
+        // LineEdit can defer TextChanged to frame end. A paste followed immediately by
+        // Enter / focus loss must commit the actual buffer, not the previous frame's colour.
+        if (_hexEditing && NotePalette.TryParseHex(_hex.Text, out var final) &&
+            NotePalette.ToHex(final) != _draft.Current.Slots[_draft.Current.ActiveIndex].Colors[_channel])
+        {
+            if (!_hexGesture) { _draft.BeginGesture(); _hexGesture = true; }
+            _draft.SetColor(_channel, NotePalette.ToHex(final));
+        }
         if (_hexGesture)
         {
-            _draft.EndGesture();
+            if (_draft.EndGesture()) RememberCurrentColor();
             _hexGesture = false;
-            RememberCurrentColor();
         }
         // Programmatic normalization must not open a new HEX undo transaction.
         _refreshing = true;
@@ -298,9 +310,9 @@ public partial class NoteColorsScreen : Node2D
     private void RememberCurrentColor()
     {
         var color = _draft.Current.Slots[_draft.Current.ActiveIndex].Colors[_channel];
-        _recent.Remove(color);
-        _recent.Insert(0, color);
-        if (_recent.Count > 5) _recent.RemoveAt(5);
+        RecentColors.Remove(color);
+        RecentColors.Insert(0, color);
+        if (RecentColors.Count > 5) RecentColors.RemoveAt(5);
     }
 
     private void History(bool redo)
@@ -413,10 +425,10 @@ public partial class NoteColorsScreen : Node2D
     }
 
     private TechButton Button(Node parent, string text, float x, float y, float width, float height,
-        Action action, TechButton.Kind kind = TechButton.Kind.Outline, int size = 18, bool register = true)
+        Action action, TechButton.Kind kind = TechButton.Kind.Outline, int size = 18, bool register = true, bool frameOnly = false)
     {
         var button = new TechButton { Position = new(x, y), Size = new(width, height), Text = text,
-            FontSize = size, Cut = 12, StyleKind = kind, LowBorder = true, Accent = MenuStyle.Accent };
+            FontSize = size, Cut = 12, StyleKind = kind, LowBorder = true, FrameOnly = frameOnly, Accent = MenuStyle.Accent };
         button.Pressed += () => { if (!TransitionDirector.IsBusy && !_inputShield.Visible) action(); };
         parent.AddChild(button);
         if (register) _normalButtons.Add(button);

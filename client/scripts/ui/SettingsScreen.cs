@@ -5,20 +5,18 @@ using DynamiteUniverse.Shared.Judge;
 namespace DynamiteUniverse.Ui;
 
 /// <summary>
-/// 设置页：v3 低边框菜单布局，顶部返回键 + SETTINGS 标题 + 右上版本号，
-/// 左侧四 tab、右侧设置项。仅展示使用新样式，数值、保存与音频总线应用路径不变。
+/// 设置页：v3 低边框菜单布局，顶部返回键、品牌和设置标签，
+/// 左侧固定裁切的浅弧分区、右侧正式设置项。仅展示使用新样式，数值、保存与音频总线应用路径不变。
 /// </summary>
 public partial class SettingsScreen : Node2D
 {
     private const int TimingStepMs = 5;
-    private const int VolumeStepPercent = SettingsSlider.VolumeStepPercent;
     /// <summary>进场错峰总预算：条目再多也在这么久内排完，避免最后一行等一秒多。</summary>
     private const double EnterStaggerBudgetSeconds = 0.30;
 
-    private static readonly string[] TabNames = ["GAMEPLAY", "AUDIO", "DISPLAY", "EFFECTS"];
-    private static readonly string[] MotionNames = ["FULL", "REDUCED", "OFF"];
-    private static readonly string[] EffectLevelNames = ["FULL", "REDUCED", "OFF"];
-    private static readonly string[] ResidualNames = ["OFF", "0.20s", "0.30s", "0.45s"];
+    private static readonly string[] MotionNames = ["完整", "减弱", "关闭"];
+    private static readonly string[] EffectLevelNames = ["完整", "减弱", "关闭"];
+    private static readonly string[] ResidualNames = ["关闭", "0.20s", "0.30s", "0.45s"];
     private static readonly int[] ResidualValuesMs = [0, 200, 300, 450];
     // Bleed 为预留模式，暂不出现在设置页（见 docs/gameplay-spec.md「游玩模式」）。
     private static readonly string[] ModeNames = ["STANDARD", "HARDCORE"];
@@ -43,7 +41,9 @@ public partial class SettingsScreen : Node2D
     private readonly List<Control> _enterItems = new();
     private readonly Dictionary<Control, Vector2> _enterBasePositions = new();
     private readonly Control[] _tabRoots = new Control[4];
-    private readonly SettingsTabItem[] _tabItems = new SettingsTabItem[4];
+    private SettingsSectionRail _rail = null!;
+    private SignalReceipt _sectionSignal = null!;
+    private SettingsChannelMonitor _monitor = null!;
 
     private SettingsTab _tab = SettingsTab.Gameplay;
     // 从配色页返回时仍停在 EFFECTS（场景重载后静态字段仍在）。
@@ -71,9 +71,10 @@ public partial class SettingsScreen : Node2D
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (!_localMotionBusy && !TransitionDirector.IsBusy &&
-            e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
-            Back();
+        if (_localMotionBusy || TransitionDirector.IsBusy || e is not InputEventKey { Pressed: true, Echo: false } k) return;
+        if (k.Keycode == Key.Escape) { GetViewport().SetInputAsHandled(); Back(); }
+        else if ((long)k.Keycode >= (long)Key.Key1 && (long)k.Keycode <= (long)Key.Key4)
+        { GetViewport().SetInputAsHandled(); SelectTab((SettingsTab)((int)k.Keycode-(int)Key.Key1), true); }
     }
 
     private void SelectTab(SettingsTab tab, bool animate)
@@ -81,8 +82,14 @@ public partial class SettingsScreen : Node2D
         var previous = _tab;
         _tab = tab;
         _lastTab = tab;
-        for (var i = 0; i < _tabItems.Length; i++)
-            _tabItems[i].Selected = i == (int)tab;
+        _rail.Mark((int)tab);
+        if (previous != tab) _monitor.Stop();
+        if (_built && previous != tab && animate)
+        {
+            var pin = ToLocal(_rail.Jack((int)tab));
+            _sectionSignal.Emit(tab == SettingsTab.Effects ? SettingsSectionRail.Violet : Teal,
+                pin, new(460,pin.Y), new(481,pin.Y-21), new(481,341), new(501,321), new(520,321), new(717,321));
+        }
 
         for (var i = 0; i < _tabRoots.Length; i++)
             _tabRoots[i].Visible = i == (int)tab;

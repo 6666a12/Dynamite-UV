@@ -62,7 +62,6 @@ public partial class SongSelect : Node2D
 
     public override void _Process(double delta)
     {
-        _listViewport.Step(delta);
         if (_cardAnimating)
             StepCardAnimations(delta);
         CompleteChartDetailsLoad();

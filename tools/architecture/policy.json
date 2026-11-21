@@ -9,7 +9,8 @@
     "tools/core-tests",
     "tools/chart-editor-tests",
     "server",
-    "tools/server-tests"
+    "tools/server-tests",
+    "tools/store-browse-tests"
   ],
   "pure_roots": [
     "shared",
@@ -250,6 +251,20 @@
         "../../shared/DynamiteUniverse.Shared.csproj"
       ],
       "source_links": [],
+      "packages": []
+    },
+    "tools/store-browse-tests/StoreBrowseTests.csproj": {
+      "references": [
+        "../../shared/DynamiteUniverse.Shared.csproj"
+      ],
+      "source_links": [
+        "../../client/scripts/network/AccountProtocol.cs",
+        "../../client/scripts/network/CatalogProtocol.cs",
+        "../../client/scripts/network/CatalogTransport.cs",
+        "../../client/scripts/network/CatalogInstaller.cs",
+        "../../client/scripts/ui/store/StoreBrowseState.cs",
+        "../../client/scripts/ui/store/StoreRequest.cs"
+      ],
       "packages": []
     },
     "tools/chart-tool/ChartTool.csproj": {

@@ -200,8 +200,7 @@ public partial class NoteColorsScreen
             for (var i = 0; i < 3; i++)
                 if (!int.TryParse(fields[i].Text, out channels[i]) || channels[i] is < 0 or > 255)
                 { hint.Text = "请输入 0–255 的整数。"; hint.AddThemeColorOverride("font_color", WarningColor); return; }
-            _draft.SetColor(_channel, $"{channels[0]:X2}{channels[1]:X2}{channels[2]:X2}");
-            RememberCurrentColor();
+            if (_draft.SetColor(_channel, $"{channels[0]:X2}{channels[1]:X2}{channels[2]:X2}")) RememberCurrentColor();
             CloseModal();
             Refresh();
         }, TechButton.Kind.Solid, register: false);
