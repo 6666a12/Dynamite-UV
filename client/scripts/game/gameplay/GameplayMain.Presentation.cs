@@ -184,6 +184,8 @@ public partial class GameplayMain
 			: GameSession.Scores.TryUpdate(_run.PackId, _run.LegacyScoreKey, record, _onlineRun.Mode));
 		if (isNewRecord)
 			GameSession.Scores.SaveDeferred();
+		if (Video.VideoCaptureInvocation.Active)
+			VideoCaptureAutoResult = _auto && !isNewRecord && !stageFailure;
 		var outcome = ResultOutcome.Classify(record, _plan.HeadlineUnitCount, stageFailure);
 		var texture = CoverTextureCache.Current(_run.CoverPath) ?? CoverTextureCache.Load(_run.CoverPath);
 		// Force-close only hides the pause layer and keeps its paused flag untouched. Natural

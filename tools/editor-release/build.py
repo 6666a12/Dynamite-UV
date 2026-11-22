@@ -13,7 +13,16 @@ import xml.etree.ElementTree as ET
 import zipfile
 import sys
 
-ROOT = Path(__file__).resolve().parents[2]
+TOOL_DIR = Path(__file__).resolve().parent
+# Both the documented python -I command and importlib-based tests omit the script directory.
+sys.path.insert(0, str(TOOL_DIR))
+try:
+    from capture_build import CAPTURE_DLL, CAPTURE_EXTENSION, isolated_capture, sha256, verify_engine, verify_native
+    from capture_pck import verify_capture_pck
+finally:
+    del sys.path[0]
+
+ROOT = TOOL_DIR.parents[1]
 
 
 def run(*args: str) -> None:
@@ -21,13 +30,14 @@ def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True, timeout=600)
 
 
-def verify_resources(godot: Path, pack: Path) -> None:
+def verify_resources(godot: Path, pack: Path, capture: bool = False) -> None:
     with tempfile.TemporaryDirectory(prefix="editor-pack-resource-check-") as directory:
         project = Path(directory)
         (project / "project.godot").write_text('config_version=5\n', encoding="utf-8")
         shutil.copy2(ROOT / "tools/editor-release/verify_resources.gd", project / "verify.gd")
         result = subprocess.run(
-            [str(godot.resolve()), "--headless", "--path", str(project), "--script", "verify.gd", "--", str(pack.resolve())],
+            [str(godot.resolve()), "--headless", "--path", str(project), "--script", "verify.gd", "--", str(pack.resolve()),
+             *([CAPTURE_EXTENSION] if capture else [])],
             cwd=project, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
         print(result.stdout, end="", flush=True)
         print(result.stderr, end="", flush=True)
@@ -103,7 +113,22 @@ def main() -> None:
     parser.add_argument("--stage-template", type=Path, help="Matching custom Godot release template; replaces native EXE only")
     parser.add_argument("--stage-from", type=Path, help="Explicitly reuse stage files from a prior candidate (recorded in manifest)")
     parser.add_argument("--profile", choices=["windows-x64-test-v1"], help="Pinned user-approved test profile")
+    parser.add_argument("--with-video-export", action="store_true", help="Include the standalone streaming capture worker; FFmpeg stays external")
+    parser.add_argument("--capture-native", type=Path, help="Build output containing uv_video_stream.dll, .gdextension, and .variant")
+    parser.add_argument("--capture-qa", action="store_true", help="Permit a delay-enabled native QA build under .tmp only")
     args = parser.parse_args()
+    if args.with_video_export != (args.capture_native is not None):
+        parser.error("Supply --with-video-export and --capture-native together")
+    if args.capture_qa and (not args.capture_native or not args.output.resolve().is_relative_to((ROOT / '.tmp').resolve())):
+        parser.error('--capture-qa is allowed only for capture outputs under .tmp')
+    capture_variant = 'qa' if args.capture_qa else 'release'
+    if args.capture_native:
+        try:
+            verify_engine(args.godot)
+            args.capture_native = args.capture_native.resolve()
+            capture_digest = verify_native(ROOT, args.capture_native, capture_variant)
+        except (ValueError, OSError, subprocess.TimeoutExpired) as error:
+            parser.error(str(error))
     profile = None
     if args.profile:
         profile = json.loads((ROOT / "tools/editor-release/test-profile.json").read_text())
@@ -132,6 +157,33 @@ def main() -> None:
                 stage / "data_DynaMakerUv.Editor_windows_x86_64/coreclr.dll"]
     if not all(p.is_file() for p in required):
         raise RuntimeError("Godot export is incomplete")
+    capture_info = None
+    if args.with_video_export:
+        capture = output / "capture"
+        capture.mkdir()
+        capture_exe = capture / "DynaMakerCapture.exe"
+        payload = capture / "data_DynamiteUniverse_windows_x86_64"
+        pack = capture / "DynaMakerCapture.pck"
+        native_dll = capture / CAPTURE_DLL
+        with isolated_capture(ROOT, args.capture_native, capture_digest) as (project, sources, roots):
+            godot = str(args.godot.resolve())
+            run(godot, "--headless", "--path", str(project), "--import")
+            run(godot, "--headless", "--quit", "--path", str(project),
+                "--export-release", "UV Video Capture", str(capture_exe))
+            if not all(p.is_file() for p in (capture_exe, pack, native_dll, payload / "DynamiteUniverse.dll", payload / "coreclr.dll")):
+                raise RuntimeError("Video capture export is incomplete")
+            if sha256(native_dll) != capture_digest:
+                raise RuntimeError('Streaming MovieWriter DLL was not packaged as expected')
+            engine_version = verify_engine(capture_exe)
+            verify_capture_pck(pack, project, sources, roots, CAPTURE_EXTENSION)
+            verify_resources(args.godot, pack, capture=True)
+        shutil.copy2(ROOT / 'tools/gameplay-capture/native/GODOT-CPP-LICENSE.md', capture)
+        capture_info = {"preset": "UV Video Capture", "transport": "matroska-named-pipe", "frameSlots": 10,
+                        "nativeVariant": capture_variant, "engineVersion": engine_version,
+                        "nativeSha256": capture_digest,
+                        "executable": "capture/DynaMakerCapture.exe",
+                        "sha256": hashlib.sha256(capture_exe.read_bytes()).hexdigest(),
+                        "pckSha256": hashlib.sha256(pack.read_bytes()).hexdigest(), "ffmpeg": "external-user-supplied"}
     if args.trimmed_stage:
         with tempfile.TemporaryDirectory(prefix="editor-stage-trim-") as temporary:
             scratch = Path(temporary)
@@ -201,6 +253,11 @@ def main() -> None:
     for name in ["Uninstall.cmd", "uninstall.ps1"]:
         shutil.copy2(ROOT / "tools/editor-release" / name, output / name)
     inventory = collect_notices(output)
+    if capture_info:
+        for name in ("orbitron", "kenney"):
+            license_directory = ROOT / "third_party" / name
+            if license_directory.is_dir():
+                shutil.copytree(license_directory, output / "licenses" / name)
     missing = [r["package"] for r in inventory if not r["noticeFiles"]]
     manifest = {"product": "DynaMaker UV", "version": "0.1.0-preview", "rid": "win-x64",
                 "buildProfile": args.profile,
@@ -212,7 +269,8 @@ def main() -> None:
                 "customStageTemplateSha256": hashlib.sha256(args.stage_template.read_bytes()).hexdigest() if args.stage_template else None,
                 "experimentalTrimming": args.trimmed_fallback or args.trimmed_stage,
                 "customTemplateLimitations": ["OpenGL-only", "no ANGLE fallback", "no WinRT TTS", "no AccessKit", "native icon/version resources not reapplied"] if args.stage_template else [],
-                "distributionStatus": "local-candidate-not-cleared-for-publication",
+                "videoExport": capture_info,
+                 "distributionStatus": "local-candidate-not-cleared-for-publication",
                 "noticeReviewRequired": missing}
     (output / "distribution.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "README.txt").write_text(
@@ -220,6 +278,8 @@ def main() -> None:
         "Start DynaMakerUV.exe. Extract the whole directory; do not move the EXE alone.\n"
         "Shell: compatible system .NET 10 x64 first; bundled runtime fallback.\n"
         "Godot stage: its exported self-contained runtime. No SDK or installer required.\n"
+        + ("Video export: install FFmpeg separately or locate ffmpeg.exe in File > Export Chart Video.\n"
+           if capture_info else "This candidate does not include the optional video capture worker.\n") +
         "Preferences: %LOCALAPPDATA%/DynaMakerUV/. Keep chart packages outside this directory.\n"
         "Uninstall: close the editor and run Uninstall.cmd. Confirmed program files only; charts, extra/modified files and preferences stay.\n"
         "Diagnostics: --launcher-check, --bundled-runtime, --launcher-wait.\n"

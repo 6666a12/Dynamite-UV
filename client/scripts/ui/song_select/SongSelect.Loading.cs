@@ -30,6 +30,8 @@ public partial class SongSelect
     private void StartPreview()
     {
         StopPreview();
+        if (_skipVideoPreview)
+            return;
         var pack = CurrentPack;
         if (pack == null || pack.Charts.Count == 0)
             return;
@@ -39,15 +41,20 @@ public partial class SongSelect
             return;
 
         _detailCard.ShowPreviewLoading();
-        _previewPlayer.Load(new SongPreviewKey(_detailRequest.CurrentGeneration, pack.LibraryId, diff.ChartId,
-            loaded.ResolvedAudioPath), pack.PreviewFor(diff));
+        var key = new SongPreviewKey(_detailRequest.CurrentGeneration, pack.LibraryId, diff.ChartId, loaded.ResolvedAudioPath);
+        if (_previewPlayer.Load(key, pack.PreviewFor(diff)) is { } immediate)
+            ApplyPreviewLoadResult(immediate);
     }
 
     private void CompletePreviewLoad()
     {
         var completion = _previewPlayer.CompleteLoad(key =>
             IsCurrentPreviewLoad(key.Generation, key.PackId, key.ChartId));
-        if (completion is not { } result) return;
+        if (completion is { } result) ApplyPreviewLoadResult(result);
+    }
+
+    private void ApplyPreviewLoadResult(SongPreviewCompletion result)
+    {
         _detailCard.SetTransportPlaying(result.Success);
         if (!result.Success) _detailCard.ShowPreviewUnavailable();
         UpdatePreviewReadout(0);

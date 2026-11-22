@@ -26,6 +26,7 @@ def main() -> int:
                      "--configuration", args.configuration, "--no-build", "--", "--headless"])
     commands.extend([
         [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tools/release/tests", "-p", "test_*.py"],
+        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tools/editor-release", "-p", "test_capture_build.py"],
         [sys.executable, "-O", "-B", "-m", "unittest", "discover", "-s", "tools/client-menu-qa", "-p", "test_run.py"],
         ["git", "diff", "--check"],
     ])

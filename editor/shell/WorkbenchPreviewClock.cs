@@ -20,8 +20,16 @@ internal sealed class WorkbenchPreviewClock(TimelineView timeline, TimingView ti
     internal bool Toggle(Func<bool, long, bool> send)
     {
         var next = !(_intendedPlayback ?? Playing);
-        if (send(next, _request + 1)) { _request++; _intendedPlayback = next; }
+        RequestPlayback(next, send);
         return next;
+    }
+    internal void Pause(Func<bool, long, bool> send)
+    {
+        if (_intendedPlayback ?? Playing) RequestPlayback(false, send);
+    }
+    private void RequestPlayback(bool playing, Func<bool, long, bool> send)
+    {
+        if (send(playing, _request + 1)) { _request++; _intendedPlayback = playing; }
     }
     internal void Seek(double bar, double second, Func<double, long, bool> send, ExactBarTime? exactBar = null)
     {

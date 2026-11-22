@@ -49,6 +49,9 @@ public partial class ResultScreen : Control
     private const float StampPunchAmplitude = 0.25f;
     private const float JudgmentDistributionX = 900f;
 
+    internal bool RevealComplete => _active && _timeline.IsComplete && _page.IsVisibleInTree() &&
+        _grade.Visible && _grade.Texture is not null;
+
     internal void Present(ResultScreenData data, UiMotionProfile motion,
         Action covered, Action back, Action next, Action retry, bool canNext)
     {
@@ -57,7 +60,8 @@ public partial class ResultScreen : Control
         _covered = covered;
         _canNext = canNext;
         _timeline = new ResultRevealTimeline(motion.Mode);
-        _art = new ResultGradeArt(data.Score.Grade, motion.Mode == UiMotionMode.Full);
+        _art = new ResultGradeArt(data.Score.Grade, motion.Mode == UiMotionMode.Full,
+            synchronous: Video.VideoCaptureInvocation.Active);
         Size = new Vector2(1920, 1080);
         ClipContents = true;
         MouseFilter = MouseFilterEnum.Stop;

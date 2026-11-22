@@ -55,6 +55,51 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-22 · 谱面视频：提交 `5dfb08b7` 审核后的源码修补
+
+- [非图形整仓回归](<../.tmp/ocr-fix-verify-complete.log>)退出 0。覆盖父进程退出后继承的输出句柄、关闭设置后等待探测清理、显式暂停覆盖未确认播放、快照写入中止/只读媒体/发布竞争，以及 v2 试听与结算报告。另跑 [Windows 录制时序和 junction 回归](<../client/tests/verify-video-capture.ps1>)；原生管道收尾测试连续通过 8 次，覆盖未读尾部、读完 EOF 和中途断开。
+- [录制构建回归](<../tools/editor-release/test_capture_build.py>)覆盖隔离输入、图标哈希、PCK 成员和 DLL 变体。新校验对上一包的 122 项捕获 PCK 离线通过；对旧包录制 EXE 只运行 `--headless --version`，实际输出 `4.7.1.stable.mono.official.a13da4feb`，未进入任何场景。这次没有重出包、运行新 worker 或重新实录；录像时序与部署仍待下一轮内测，新 Shell 与旧 worker 的报告不兼容，应配套构建。
+
+### 2026-11-22 · 谱面视频：10 帧管道流式导出（Windows 内测）
+
+- [Windows x64 流式候选 ZIP](<../builds/DynaMakerUV-video-streaming-win-x64.zip>)：235,632,619 字节，SHA-256 `daf1bca09542980a9ec45ed3f681f62e7f6a4f2eaea68e7dfcd34eef638b9209`。独立解包后逐文件校验、系统优先与包内 .NET 启动回归通过。专用 PCK 校验了原生扩展、HUD shader、共享字体与开发素材排除；ZIP 不含 FFmpeg、FFprobe、QA 延时组件或本地测试谱。
+- 原生 Release/QA 两版 CTest 都通过：持有在途帧时第 11 帧必须等待，24 组 RGBA/PCM 原字节按序读出，验证 EOF、满队列读端中断与未连接取消。外置 FFmpeg 的 H.264、HEVC 和 AV1 管道输入均完成 120 帧和 48 kHz AAC 立体声的实物互操作。
+- [32 秒自造谱](<../.tmp/uv-streaming/qa02-normal/captured.mp4>)三次正式录制的条件为正常、每帧收取延迟 30 ms、单次停顿 2.8 秒。峰值分别为 1、10、10 槽；首帧、1,919 帧、各阶段帧节点、[Auto 68 Perfect / 1,000,000](<../.tmp/uv-streaming/synthetic-result.png>)及音视频一致，三份 MP4 SHA-256 相同。同一机器结论，不承诺跨 GPU 像素/位流逐字节一致。满队列期间用 Shell 取消，关闭两个进程且无 MP4 或临时目录残留。
+- [长谱正常跑次](<../.tmp/uv-streaming/long02-normal/summary.json>)用 180 秒自造音乐，11,625 帧、193.75 秒、1080p60 H.264、Stereo 48 kHz AAC。RTX 4060 Laptop / NVMe 上约 4 分 02 秒完成采集和编码，另跑标准逐帧解码 6.21 秒；逐字节 SHA 验证耗时另计。峰值工作目录 48,148,513 字节（约 46 MiB，含源快照和 MP4，无 AVI）；旧长谱跑次观测 AVI 本身至少 867 MiB。不同构建的性能仅作参考。比对[试听和歌曲首、中、尾的实际解码波形](<../.tmp/uv-streaming/long02-normal/audio-qa.json>)：采样窗口间漂移 0 ms、试听与游玩偏差在一帧内、交接与结算相应采样窗为静音。长谱分别以每帧延迟 28 ms、在第 4,200 帧停顿 3.2 秒把队列压到 10 槽；[两种限速成片和正常跑次](<../.tmp/uv-streaming/determinism-evidence.json>)的首帧、阶段节点、采样与 MP4 字节均相同。
+- [解包版服务实录](<../.tmp/uv-streaming/release-checks.log>)用包内 .NET 和外置 FFmpeg、开发工具不在 PATH，输入是带未保存改动的选中差分。C: 可用 1,871 MiB 时 H.264 快档/CRF 18 从准备到验片 44.84 秒；HEVC 与 AV1 在 D: 完成全片。原谱文件与 dirty 不变。分别终止 worker、FFmpeg，或在 MP4 封装阶段发取消，均清理双进程和工作目录且不发布半成品。标准非图形验证 `python -B tools/verify.py --no-restore` 退出 0。
+- 在用户授权的 Git 忽略区，用一份 APK 派生开发谱转换的 strict v2 副本完整录制并解码。试听与额外留屏均设为 0：起片帧等于 Track Handoff，评级揭晓仍完整。原谱、转换副本和录制成片都未纳入 Git 或候选包。
+- 单独用 20 MiB/s 上限[节流复制旧短样片 AVI 和新路径的快照/两次 MP4 写入量](<../.tmp/uv-streaming/disk-bandwidth-model.json>)，实际字节 184.1 MiB 对 12.0 MiB；这是写入量实验，不是整段录制测速。本机只有 SSD，不把限速、余量保护或复制模型当成物理 HDD 与旧 GPU 实测。
+
+### 2026-11-22 · 谱面视频：低磁盘余量误拦截修复
+
+- [修正版 Windows x64 ZIP](<../builds/DynaMakerUV-video-export-win-x64-low-space.zip>)：235,800,647 字节，SHA-256 `96862f341c63634c68d230f99760739f2ef07739b97ffce4ed5d2512186bad6b`。从下述视频内测候选复用录制组件及运行时，重新发布 Shell；ZIP 清单与系统优先/包内运行时启动复验通过。
+- 旧实现把预计 AVI 大小（最多 1900 MiB）加 128 MiB 当成硬启动门槛，并未预分配。修正版仅在启动时检查 64 MiB，录制与转码写入阶段低于 32 MiB 停止；1900 MiB 仍是独立的 AVI 上限。新增 4 项 Shell 回归覆盖旧门槛、低空间安全余量、中文诊断与失败结果。
+- C: 实际剩余 1843 MiB 时，四分钟合成音频（命中旧 2028 MiB 门槛）进入正式录制并在 AVI 写入约 4 MiB 后取消，进程和临时文件均清理；随后在同一卷完整导出 32 秒 H.264，峰值观测 AVI 约 184 MiB，成片约 5.2 MiB。未做四分钟长谱在该剩余空间下的完整导出，也未为测试填满磁盘。
+
+### 2026-11-22 · DynaMaker UV 正式场景视频导出（Windows 内测）
+
+- [Windows x64 便携候选](<../builds/DynaMakerUV-video-export-win-x64-preview.zip>)：235,798,725 字节，SHA-256 `c81148ccd8c673a1ef4de7f271366bf6cf658e86c068d94ce69e853163bd43e4`。ZIP 715 项，逐文件与包内清单匹配；系统优先和强制包内 .NET 的启动及 Shell 无窗口回归均通过。录制 PCK 从独立空项目挂载，动态 HUD shader 和共享字体可加载，资源路径未发现 `testdata` 或旧 Mk II 模型。未随包复制 FFmpeg、FFprobe 或 Python；不是已确认的瘦身测试基线，也不是公开发布包。
+- `python -B tools/verify.py --no-restore` 退出 0；新增 Avalonia 无窗口导出设置/进度 12 项、导出快照 14 项通过。核心快照覆盖只写当前差分、媒体替换、无保存副作用和拒绝覆盖；短程真实录制取消终止子进程，未发布 MP4。
+- 180 秒原创合成音频、第二差分带未保存改动的[长谱视频](<../.tmp/uv-video-integration/three-minute.mp4>)为 193.983 秒、11,639 帧、1080p60 H.264 / 48 kHz AAC 立体声，全片解码通过。RTX 4060 Laptop 上从准备到验片约 9 分 51 秒；录制中观察到临时 AVI 至少 867 MiB，非容量上限。该次使用修正 HUD shader 前的候选，日志有隐藏 BLEED 条的资源错误。长程驱动器的全局目录断言与随后短测的临时目录冲突；单独复核长程原包字节和该次专属工作目录清理均通过。最终候选已单独补验 PCK 和短程。
+- 最终候选使用包内 .NET 及包内 worker，开发工具不在 PATH，显式使用外部 FFmpeg。真实录制中取消约 5.7 秒后退出，无残留 worker、临时文件或 MP4；成功导出的[32 秒样片](<../.tmp/uv-video-integration/candidate-success.mp4>)含 3.5 秒试听与揭晓后 4 秒结算留屏，1080p60、1921 帧、可听 48 kHz AAC 立体声。全部流程约 105 秒，临时 AVI 约 184 MiB。逐帧抽看 [试听、交接、游玩和 Ω 结算](<../.tmp/uv-video-integration/candidate-stages.png>)：当前 MEGA Lv12 差分、68 Perfect、100 万分；原包字节及 dirty 不变。
+- 本节不代表用户手动验收、干净机器实装、跨 GPU/DPI、硬件编码或目标平台上传通过。编码器实物互操作另见下方原型记录，不能把不同 CRF 档的耗时视为同画质对比。
+
+### 2026-11-22 · 谱面视频原型：H.264、HEVC、AV1
+
+- 从同一份既有 Godot AVI 以三种软件编码器分别转出 32.00 秒、1920×1080@60 MP4，均为 1920 帧、8-bit 限幅 YUV420、48 kHz AAC 立体声，FFprobe 核对码流、容器标签与时长，FFmpeg 全片解码通过。`medium` 档：[H.264 CRF 16](<../.tmp/gameplay-capture/codec-comparison-final-20261122/h264/metadata.json>) 13.97 秒 / 7,377,341 字节、[HEVC CRF 20](<../.tmp/gameplay-capture/codec-comparison-final-20261122/hevc/metadata.json>) 28.30 秒 / 4,828,082 字节、[AV1 CRF 24](<../.tmp/gameplay-capture/codec-comparison-final-20261122/av1/metadata.json>) 18.03 秒 / 5,434,866 字节。时间仅含转码，三种 CRF 不等价，不作同画质比较；三版音轨均通过曲首曲尾波形检查。
+- 另从正式游玩抽取 0.75 秒测试各编码器 `slow` / `high`，六组通过编码与解码。AV1 高速档最初试 10，SVT 有画面瑕疵警告，改为 9 后[复验通过](<../.tmp/gameplay-capture/codec-speed-smoke-20261122/av1-high-final.json>)。样片工具无引擎回归 8 项与 `git diff --check` 通过；未重启游戏、未测硬件编码、平台上传或跨设备播放。
+
+### 2026-11-22 · 谱面视频原型：可调时长、编码和静音混音
+
+- [自定义样片](<../.tmp/gameplay-capture/runs/20261122-145246-gameplay-capture-01dfb8d8/synthetic-pulse.mp4>)实录试听 210 帧（3.5 秒）、结算揭晓后停留 240 帧（4 秒）；H.264 位流核对为 CRF 18，预设 `veryfast`。32.00 秒 MP4 全片解码通过。[参数和耗时](<../.tmp/gameplay-capture/runs/20261122-145246-gameplay-capture-01dfb8d8/metadata.json#L62-L75>)：录制 90.43 秒、转码 11.49 秒、含准备与验片 110.21 秒，不能据此承诺快于实时。
+- [零时长样片](<../.tmp/gameplay-capture/runs/20261122-145715-gameplay-capture-3318d27e/synthetic-pulse.mp4>)实录由正式 Track Handoff 起片（开头仍能看到转场用的出场页），不含试听时间，保留完整结算揭晓但不额外留屏；23.95 秒，全片解码通过。两个运行都使用 `--disable-vsync --audio-driver Dummy`，解码后仍匹配录制源音轨，[自定义版](<../.tmp/gameplay-capture/runs/20261122-145246-gameplay-capture-01dfb8d8/audio-evidence.json>)与[零时长版](<../.tmp/gameplay-capture/runs/20261122-145715-gameplay-capture-3318d27e/audio-evidence.json>)的曲首曲尾采样均未测出累积漂移、转场未测出试听串音。未测无窗口 GPU 渲染、系统环回或长歌吞吐。
+- 新录制参数无引擎回归 3 项、既有菜单录制门禁 6 项、`git diff --check` 通过。本轮未接 UV 导出菜单。
+
+### 2026-11-22 · 正式游戏场景视频原型
+
+- [样片工具](<../tools/gameplay-capture/README.md>)在隔离 Windows Godot 4.7.1 Mono / Vulkan Forward Mobile 工程中用自造 strict v2 谱、合成音乐和原创封面跑过正式试听、Track Handoff、Auto 与完整结算。68 Perfect、Ω、1,000,000 分；没有成绩文件。最后计分音符在 15.625 秒，18.25 秒音频自然结束后才触发结果前奏；评级完整揭晓后留屏两秒。[窗口日志](<../.tmp/gameplay-capture/runs/20261122-142621-gameplay-capture-5c2c5f6d/player.log>) · [成片](<../.tmp/gameplay-capture/runs/20261122-142621-gameplay-capture-5c2c5f6d/synthetic-pulse.mp4>)。
+- 最终 MP4 为 28.50 秒、1920×1080@60、48 kHz 立体声，全片解码通过。抽看试听、转场、游玩和结算相关帧；[音频比对](<../.tmp/gameplay-capture/runs/20261122-142621-gameplay-capture-5c2c5f6d/audio-evidence.json>)在前段和后段对照原音轨，相对游玩起声观测帧均为 −10.625 ms，未在采样窗测到累积漂移；转场与结算测量窗未检出音乐残留。这不等于其他媒体、长谱或真实设备的同步保证。非图形全量 `python -B tools/verify.py --no-restore` 退出 0；未接 UV UI、未验证最终打包或用户验收。
+
 ### 2026-11-22 · 制谱器：原地切换放置预览类型
 
 - Godot 4.7.1 `--headless --quit-after 300 --path editor -- --verify-gestures` 退出 0。新增用例验证 `3/16` 悬停时不挪鼠标从 Tap 切到 Hold、再切 Drag：保留精确头点，按新类型生成或清除尾点，可直接点击放置；切换类型仍取消调宽或待选尾点的草稿，不误提交。[原生手势日志](<../.tmp/hover-type-native.log#L14>)。`python -B tools/verify.py --no-restore` 退出 0，[全仓日志](<../.tmp/hover-type-verify.log>)。未做可见窗口输入实测或重新打包。

@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:DynamiteUniverse.Editor.Shell"
+        x:Class="DynamiteUniverse.Editor.Shell.VideoExport.VideoExportProgressDialog"
+        Width="540" MinWidth="460" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" Title="{local:Tr VideoExport.Title}"
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}"
+        FontFamily="{DynamicResource OfficialFont}">
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="14" Margin="22,18" KeyboardNavigation.TabNavigation="Cycle">
+    <TextBlock Classes="section" FontSize="20" Text="{local:Tr VideoExport.Title}" />
+    <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" ColumnSpacing="6">
+      <Border BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="7"><TextBlock x:Name="PrepareStep" TextWrapping="Wrap" /></Border>
+      <Border Grid.Column="1" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="7"><TextBlock x:Name="RenderStep" TextWrapping="Wrap" /></Border>
+      <Border Grid.Column="2" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="7"><TextBlock x:Name="EncodeStep" TextWrapping="Wrap" /></Border>
+      <Border Grid.Column="3" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="7"><TextBlock x:Name="ValidateStep" TextWrapping="Wrap" /></Border>
+    </Grid>
+    <StackPanel Grid.Row="2" Spacing="8">
+      <TextBlock x:Name="Status" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      <ProgressBar x:Name="ProgressValue" IsIndeterminate="True" Minimum="0" Maximum="100"
+                   AutomationProperties.Name="{local:Tr VideoExport.PhaseProgress}" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="3" MaxHeight="150" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <SelectableTextBlock x:Name="Detail" Classes="caption" TextWrapping="Wrap" />
+    </ScrollViewer>
+    <Button x:Name="ActionButton" Grid.Row="4" HorizontalAlignment="Right" IsCancel="True"
+            Content="{local:Tr Create.Cancel}" Click="ActionClicked" />
+  </Grid>
+</Window>

@@ -71,7 +71,8 @@ public partial class TransitionDirector : Node
 
     public override void _Ready()
     {
-        GameSession.EnsureInit();
+        if (!Video.VideoCaptureInvocation.IsDedicatedBuild)
+            GameSession.EnsureInit();
 
         _layer = new CanvasLayer { Layer = UiLayout.TransitionLayer };
         AddChild(_layer);

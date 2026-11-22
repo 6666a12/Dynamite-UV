@@ -13,7 +13,7 @@ internal sealed class SongPlayback
     {
         _player = new AudioStreamPlayer
         {
-            Stream = Res.LoadAudio(audioPath),
+            Stream = Video.VideoCaptureAudio.Load(audioPath),
             Bus = "Music",
         };
         parent.AddChild(_player);
@@ -21,8 +21,13 @@ internal sealed class SongPlayback
         Clock = new SongClock();
         if (verification is { FixedClockEnabled: true } fixedVerification)
             Clock.EnableFixedFrameClock(fixedVerification.FixedFps);
+        else if (Video.VideoCaptureInvocation.Active)
+            Clock.EnableMovieClock(Video.VideoCaptureInvocation.FramesPerSecond);
+        else if (OS.HasFeature("editor") && OS.HasFeature("movie") &&
+            Array.Exists(OS.GetCmdlineUserArgs(), arg => arg == "--chart-capture-prototype"))
+            Clock.EnableMovieClock();
         Clock.Attach(_player);
-        Clock.UserOffsetMs = userOffsetMs;
+        Clock.UserOffsetMs = Clock.MovieClockEnabled ? 0 : userOffsetMs;
         parent.AddChild(Clock);
     }
 
@@ -35,11 +40,16 @@ internal sealed class SongPlayback
         chartEnd, _player.Stream?.GetLength() ?? 0, Clock.UserOffsetMs / 1000.0, TracksNaturalEnd);
 
     public bool HasNaturallyEnded => TracksNaturalEnd && Clock.IsPlaying && !_player.Playing;
+    public bool IsAudioPlaying => _player.Playing;
 
     public void Play(double startSecond) => Clock.Play(startSecond);
     public void Pause() => Clock.Pause();
     public void Resume() => Clock.Resume();
     public void Seek(double second) => Clock.Seek(second);
-    public void AdvanceFixedFrame() => Clock.AdvanceFixedFrame();
+    public void AdvanceFrame(double delta)
+    {
+        Clock.AdvanceFixedFrame();
+        Clock.AdvanceMovieFrame(delta);
+    }
     public double GetSongTime() => Clock.GetSongTime();
 }

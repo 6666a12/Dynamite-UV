@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | 已确认的 Windows 制谱器测试基线 | [ZIP](<../builds/editor-test-20261112.zip>) · [解压目录](<../builds/editor-test-20261112-uninstall/>) | `windows-x64-test-v1`，未签名，不等于获准公开发行。保留其 [PCK 来源](<../builds/editor-candidate-20261111-transport/>)。 |
 | 较新的 Windows 制谱器候选 | [v2.1 原候选](<../builds/win-custom-expr-20261120-d13d0c4e/>) · [v2.1 审查修复候选](<../builds/win-v21-fix-20261120-2034/>) | 仍未替代 11 月 12 日基线。验包清单引用前一候选的 `scratch` 和修复候选的 `src`，不能只留下 ZIP、拆走这些目录。 |
+| Windows 视频导出内测候选 | [流式导出 ZIP](<../builds/DynaMakerUV-video-streaming-win-x64.zip>) · [构建目录](<../builds/win-video-streaming-20261122/>) | 无中间 AVI、外置 FFmpeg；仅 Windows 内测，不替代固定测试基线。上一份 [AVI 磁盘门槛修正版](<../builds/DynaMakerUV-video-export-win-x64-low-space.zip>) 留作对照。 |
 | 正式客户端菜单证据 | [整理后的实录、截图与证据](<../builds/official-v3-migration/>) · [早期原始录屏与日志](<../builds/formal-ui-migration/>) | 11 月 21 日菜单迁移的 Windows 验证，早于后续审查修复；不是 APK 或 Android 实测。 |
 | 其他历史验证 | [65 条曲线的复测包](<../builds/qa-6047a15-curves/>) · [持久化专项](<../builds/persistence-lifecycle-20261111-final/>) | 旧候选、日志及仍有文档引用的证据保留原位。 |
 

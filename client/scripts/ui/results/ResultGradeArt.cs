@@ -14,12 +14,15 @@ internal sealed class ResultGradeArt
     public bool Ready => !_pending;
     public Texture2D Still => _still;
 
-    public ResultGradeArt(string grade, bool animate)
+    public ResultGradeArt(string grade, bool animate, bool synchronous = false)
     {
         var key = ScoreStoreCore.GradeAssetKey(grade);
         _still = GD.Load<Texture2D>($"res://assets/results/grades/{key}.png");
         _path = $"res://assets/results/grades/{key}_entry.png";
-        if (animate)
+        if (!animate) return;
+        if (synchronous)
+            LoadAtlas(ResourceLoader.Load<Texture2D>(_path));
+        else
             _pending = ResourceLoader.LoadThreadedRequest(_path, "Texture2D") == Error.Ok;
     }
 
@@ -29,7 +32,12 @@ internal sealed class ResultGradeArt
         var status = ResourceLoader.LoadThreadedGetStatus(_path);
         if (status == ResourceLoader.ThreadLoadStatus.InProgress) return;
         _pending = false;
-        if (status == ResourceLoader.ThreadLoadStatus.Loaded && ResourceLoader.LoadThreadedGet(_path) is Texture2D atlas)
+        LoadAtlas(status == ResourceLoader.ThreadLoadStatus.Loaded ? ResourceLoader.LoadThreadedGet(_path) as Texture2D : null);
+    }
+
+    private void LoadAtlas(Texture2D? atlas)
+    {
+        if (atlas is not null)
             _frame = new AtlasTexture { Atlas = atlas, Region = new Rect2(0, 0, 512, 512), FilterClip = true };
         else
             GD.PushWarning($"Result grade animation unavailable: {_path}; using static grade.");

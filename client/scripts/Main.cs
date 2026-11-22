@@ -16,6 +16,8 @@ public partial class Main : Node2D
 
 	public override void _Ready()
 	{
+		if (Video.VideoCaptureInvocation.IsDedicatedBuild)
+			return; // The capture autoload checks isolation before loading any profile.
 		GameSession.EnsureInit();
 		GD.Print($"Dynamite Universe running on Godot {Engine.GetVersionInfo()["string"]}");
 

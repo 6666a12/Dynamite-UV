@@ -24,6 +24,28 @@ public partial class SongClock : Node
     private double _fixedFrameStepSec;
     private double _fixedFramePosition;
 
+    private bool _movieClock;
+    private double _moviePosition;
+    private int _movieFramesPerSecond;
+    private ulong _movieElapsedFrames;
+    private ulong _movieStartedFrame;
+    public bool MovieClockEnabled => _movieClock;
+
+    // The development recorder mixes one audio block per movie frame. Use the same simulation
+    // delta, without real-device latency or the wall-clock age of the last audio mix.
+    public void EnableMovieClock(int framesPerSecond = 0)
+    {
+        _movieClock = true;
+        _movieFramesPerSecond = framesPerSecond;
+    }
+
+    public void AdvanceMovieFrame(double delta)
+    {
+        if (!_movieClock || !_playing || Engine.GetProcessFrames() == _movieStartedFrame) return;
+        if (_movieFramesPerSecond > 0) _movieElapsedFrames++;
+        else _moviePosition += delta; // Keep the editor-only legacy prototype clock.
+    }
+
     /// <summary>用户校准值（毫秒，对应规格书 §8.4 touchOffset），正数 = 判定时间后移。</summary>
     public double UserOffsetMs { get; set; }
 
@@ -74,6 +96,17 @@ public partial class SongClock : Node
             _fixedFramePosition = fromSec;
             return;
         }
+        if (_movieClock)
+        {
+            if (_movieFramesPerSecond > 0)
+            {
+                _movieElapsedFrames = (ulong)Math.Max(0, Math.Round(fromSec * _movieFramesPerSecond,
+                    MidpointRounding.AwayFromZero));
+                _moviePosition = _movieElapsedFrames / (double)_movieFramesPerSecond;
+            }
+            else _moviePosition = fromSec;
+            _movieStartedFrame = Engine.GetProcessFrames();
+        }
         if (_manualFallback)
         {
             _fallbackBaseSec = fromSec;
@@ -122,6 +155,10 @@ public partial class SongClock : Node
         if (_fixedFrameEnabled)
         {
             pos = _fixedFramePosition;
+        }
+        else if (_movieClock)
+        {
+            pos = _movieFramesPerSecond > 0 ? _movieElapsedFrames / (double)_movieFramesPerSecond : _moviePosition;
         }
         else if (_manualFallback || _player == null)
         {

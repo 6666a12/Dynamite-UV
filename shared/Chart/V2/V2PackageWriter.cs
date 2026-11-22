@@ -107,9 +107,13 @@ public static class V2PackageWriter
         }
     }
 
-    public static V2PackageWriteResult Create(V2PackageCreateRequest request)
+    /// <summary>Creates and verifies a new package. Cancellation is observed until publication,
+    /// and an optional host disk guard runs before each bounded media write.</summary>
+    public static V2PackageWriteResult Create(V2PackageCreateRequest request,
+        CancellationToken cancellationToken = default, Action<int>? beforeMediaWrite = null)
     {
         ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
         var destination = RequireDirectoryPath(request.DestinationDirectory,
             "destination package directory");
         ValidateNewDestination(destination, request.AllowEmptyDestination);
@@ -120,10 +124,13 @@ public static class V2PackageWriter
         try
         {
             Directory.CreateDirectory(staging);
-            CopyExternalResources(staging, resources);
+            CopyExternalResources(staging, resources, cancellationToken, beforeMediaWrite);
+            cancellationToken.ThrowIfCancellationRequested();
             WriteJsonFiles(staging, request.Pack, request.Charts);
             var verified = VerifyStaging(staging, request.Pack, request.AudioProbe);
-            PublishNewPackage(staging, destination);
+            cancellationToken.ThrowIfCancellationRequested(); // Publication is the commit point.
+            if (request.AllowEmptyDestination) PublishNewPackage(staging, destination);
+            else Directory.Move(staging, destination); // Never claim a competing directory.
             return new V2PackageWriteResult(destination, verified);
         }
         catch
@@ -546,14 +553,28 @@ public static class V2PackageWriter
         }
     }
 
-    private static void CopyExternalResources(string staging,
-        IReadOnlyList<V2ExternalResourceMapping> resources)
+    private static void CopyExternalResources(string staging, IReadOnlyList<V2ExternalResourceMapping> resources,
+        CancellationToken cancellationToken, Action<int>? beforeMediaWrite)
     {
+        if (resources.Count == 0) return;
+        var buffer = new byte[1024 * 1024];
         foreach (var resource in resources)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var target = Resolve(staging, resource.PackageRelativePath, requireFile: false);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(resource.ExternalSourcePath, target, overwrite: false);
+            // Copy bytes, not file attributes: the staged copy and its cleanup belong to the writer.
+            using var input = new FileStream(resource.ExternalSourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 0);
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var read = input.Read(buffer);
+                if (read == 0) break;
+                beforeMediaWrite?.Invoke(read);
+                cancellationToken.ThrowIfCancellationRequested();
+                output.Write(buffer.AsSpan(0, read));
+            }
         }
     }
 

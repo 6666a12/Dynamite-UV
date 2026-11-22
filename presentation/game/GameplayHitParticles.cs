@@ -37,7 +37,7 @@ public partial class GameplayHitParticles : Node2D
     }
 
     public void ResetFor(Vector2 position, float rotation, Color accent,
-        HitEffectKind kind, float strength, UiMotionMode mode, bool prewarm = false)
+        HitEffectKind kind, float strength, UiMotionMode mode, bool prewarm = false, uint? captureSeed = null)
     {
         ResetForPool();
         Position = position;
@@ -57,7 +57,7 @@ public partial class GameplayHitParticles : Node2D
         spark.ProcessMaterial = HitParticleAssets.SparkMaterial(tinted);
         spark.VisibilityRect = prewarm ? HitParticleAssets.PrewarmCullRect : HitParticleAssets.BurstCullRect;
         spark.Visible = true;
-        spark.Restart();
+        HitParticleAssets.RestartForEmission(spark, captureSeed);
         spark.Emitting = true;
         var ember = _emitters[1];
         ember.Visible = mode == UiMotionMode.Full;
@@ -66,7 +66,7 @@ public partial class GameplayHitParticles : Node2D
             ember.Amount = Mathf.Max(3, Mathf.RoundToInt(EmberFullCount * Mathf.Clamp(strength, 0.5f, 1.2f)));
             ember.ProcessMaterial = HitParticleAssets.EmberMaterial(tinted);
             ember.VisibilityRect = spark.VisibilityRect;
-            ember.Restart();
+            HitParticleAssets.RestartForEmission(ember, HitParticleAssets.EmberSeed(captureSeed));
             ember.Emitting = true;
         }
         SetProcess(true);
@@ -110,12 +110,13 @@ public partial class GameplayHitParticles : Node2D
         if (_prewarm) QueueFree();
     }
 
-    public static void Prewarm(Node parent)
+    public static void Prewarm(Node parent, bool deterministicCapture = false)
     {
         if (parent == null) return;
         var burst = CreatePooled(parent);
         burst.ResetFor(new Vector2(-2000f, -2000f), 0f, NoteVisualSpec.Tap,
-            HitEffectKind.Tap, 1f, UiMotionMode.Full, prewarm: true);
+            HitEffectKind.Tap, 1f, UiMotionMode.Full, prewarm: true,
+            captureSeed: deterministicCapture ? 0x2CE1BA61u : null);
     }
 
     private void AddEmitter(string name, Texture2D texture, float lifetime)
@@ -193,7 +194,7 @@ public partial class GameplaySustainParticles : Node2D
     }
 
     public void ResetFor(float rotation, HitEffectKind kind, UiMotionMode mode,
-        float headSpanPx, bool prewarm = false)
+        float headSpanPx, bool prewarm = false, uint? captureSeed = null)
     {
         ResetForPool();
         Rotation = rotation;
@@ -220,6 +221,11 @@ public partial class GameplaySustainParticles : Node2D
             _liveEmitters++;
         }
         _prewarmRemaining = prewarm ? 0.4 : 0.0;
+        if (captureSeed is not null)
+        {
+            HitParticleAssets.RestartForEmission(spark, captureSeed);
+            if (_full) HitParticleAssets.RestartForEmission(ember, HitParticleAssets.EmberSeed(captureSeed));
+        }
         SetEmitting(true);
         SetProcess(true);
     }
@@ -340,6 +346,20 @@ internal static class HitParticleAssets
     public const int LayerSustainSpark = 2;
     public const int LayerSustainEmber = 3;
     public const float TintWeight = 0.60f;
+
+    internal static uint? EmberSeed(uint? seed) => seed ^ 0xA511E9B3u;
+
+    internal static void RestartForEmission(GpuParticles2D emitter, uint? captureSeed)
+    {
+        if (captureSeed is { } seed)
+        {
+            emitter.UseFixedSeed = true;
+            emitter.Seed = seed;
+            emitter.FixedFps = 60;
+            emitter.Restart(keepSeed: true);
+        }
+        else emitter.Restart();
+    }
 
     // 接触头宽度量化步长：材质按桶缓存，宽度小幅变化不会新建材质。
     public const float BoxBucketPx = 24f;

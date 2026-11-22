@@ -63,7 +63,9 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `EditorAutoTimeline` / `EditorAutoPreview` | JudgePlan 上的可 seek 事件游标 / 编辑器 Auto 视觉生命周期、当前持续状态恢复、CPU/GPU 暂停 | `EditorPreviewController` 仍负责音频与 IPC；`EditorStagePreview` 保留静态编辑视图、选择、手势和舞台布局 |
 | `EditorPreviewHud` | 独立Auto计分快照、seek重建、编辑态最小HUD与游戏效果预览模式；共用presentation/game/hud展示对象 | Shell传曲名/难度与模式意图；Controller持有音频和时钟，不写成绩、不新增Storyboard语义 |
 | `SustainOutline` | 连接体侧边和真实控制节点端边，按运行时IsShapeSample隐藏细分横线 | 两端renderer持有几何、裁剪和池生命周期；shared保留曲线/判定权威 |
-| `EditorDocumentSession` | 当前文档、草稿资源、打开/创建/新增差分/保存用例 | shell 的对话框、消息和页流 |
+| `EditorDocumentSession` / `EditorExportSnapshot` | 当前文档、草稿资源与文件用例；视频导出冻结当前差分和已解析媒体，不确认保存版本 | Shell 保留菜单、模态状态和路径偏好；shared writer 验证隔离快照 |
+| `VideoExportFlow` / `VideoExportService` / `VideoExportStream` | 模态设置与取消 / 快照、目标盘校验和原子提交 / 监督 Godot 与 FFmpeg、核对流状态 | 不复用或控制编辑舞台；FFmpeg 由用户安装 |
+| `VideoCaptureRuntime` / `UVVideoStream` | 专用游戏进程驱动正式选曲、交接和 Auto 结算 / Windows 原生队列、声画封装和本机管道 | 共享渲染器只在录制时启用固定帧时钟与种子；不写正常游戏设置或成绩 |
 | `SongBrowseState` | 本地选曲浏览状态 | UI 动画、列表投影与 START 会话提交 |
 | `presentation/game/hud/GameplayHud` / `GameplayHudHeader` | 下方 HUD 与顶部装配，读取真实快照；`GameplayHudPlate` 拥有形状/文本/输入和 `HudLightState` 包络，`GameplayBleedBar` + `BleedHudState` 拥有血量显示插值 | 场景保留判定/血量/分数权威、既有暂停/失败回调和帧顺序；展示不计算损伤或演示统计，见 [HUD v8](<gameplay-hud-v8.md>) |
 | `GameplayProgressState` / `GameplayProgressBar` / `JudgmentLineTimeline` | 顶部进度比例与成就退化、移动端点绘制 / 三轨只读活跃区间与启灯采样 | 场景提供歌曲有效时间/结束口径/判定计数；公共舞台只接收亮度，镜像映射不改变判定；见 [HUD 调整](gameplay-hud-v8.md) |

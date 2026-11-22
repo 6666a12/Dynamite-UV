@@ -29,8 +29,9 @@ def verify_capture(avi):
         raise RuntimeError(f'Recorded file lacks an AVI RIFF header: {avi}')
 
 
-def stage(suite):
-    run=ROOT/'.tmp/production-migration-qa/runs'/(dt.datetime.now().strftime('%Y%m%d-%H%M%S-')+suite+'-'+uuid.uuid4().hex[:8]);run.mkdir(parents=True);p=run/'client';p.mkdir()
+def stage(suite, *, output_root=ROOT/'.tmp/production-migration-qa/runs',
+          driver=HERE/'qa_driver.gd', populate=fixture.create_songs):
+    run=output_root/(dt.datetime.now().strftime('%Y%m%d-%H%M%S-')+suite+'-'+uuid.uuid4().hex[:8]);run.mkdir(parents=True);p=run/'client';p.mkdir()
     print('RUN:',run,flush=True)
     # Tight whitelist: never walk client/testdata; no whole .godot/imported or mono cache copy.
     for sub in ['scenes','scripts','shaders']:
@@ -56,9 +57,9 @@ def stage(suite):
     for name in sorted(files):dlls[name]=sha(capture(CLIENT,b/name,p))
     user_name='du-migration-qa-'+run.name
     proj=(CLIENT/'project.godot').read_text(encoding='utf8')
-    (p/'project.godot').write_text(staged_project_text(proj,user_name),encoding='utf8');shutil.copy2(HERE/'qa_driver.gd',p/'qa_driver.gd')
+    (p/'project.godot').write_text(staged_project_text(proj,user_name),encoding='utf8');shutil.copy2(driver,p/'qa_driver.gd')
     for folder in ['roaming','local','temp','home','frames']:(run/folder).mkdir()
-    user=run/'roaming'/user_name;user.mkdir();fixture.create_songs(user)
+    user=run/'roaming'/user_name;user.mkdir();populate(user)
     (run/'manifest.json').write_text(json.dumps({'suite':suite,'source':str(CLIENT),'dllSha256':dlls,'officialAssetsSha256':asset_hashes,'formalTransitionSHA256':sha(CLIENT/'scripts/ui/transitions/TransitionDirector.cs'),'testdata':False,'user':str(user),'note':'local developer QA only; binaries copied from already-built formal Debug output'},indent=2),encoding='utf8');return run,p,user
 
 def go(args,suite):

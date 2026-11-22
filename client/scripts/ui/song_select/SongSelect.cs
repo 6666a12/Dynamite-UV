@@ -19,6 +19,30 @@ public partial class SongSelect : Node2D
     private int _packIdx => _browse.PackIndex;
     private int _diffIdx => _browse.DifficultyIndex;
     private bool _localTransitionBusy;
+    private bool _skipVideoPreview;
+
+    internal bool VideoCaptureReadyToStart => !_startBtn.Disabled;
+    internal ulong? VideoCapturePreviewStartFrame => _previewPlayer.CaptureStartFrame;
+
+    internal void PrepareVideoCapture(string chartId, bool preview)
+    {
+        VerifyVideoCaptureSelection(chartId);
+        _skipVideoPreview = !preview;
+        OnRowPressed(_packIdx);
+    }
+
+    internal void StartVideoCapture(string chartId)
+    {
+        VerifyVideoCaptureSelection(chartId);
+        CommitAndStart();
+    }
+
+    private void VerifyVideoCaptureSelection(string chartId)
+    {
+        if (!Video.VideoCaptureInvocation.Active || CurrentPack is not { } pack ||
+            _diffIdx < 0 || _diffIdx >= pack.Charts.Count || pack.Charts[_diffIdx].ChartId != chartId)
+            throw new InvalidOperationException($"Song Select did not restore the requested chart '{chartId}'");
+    }
     private Node2D _topRoot = null!;
     private Node2D _settingsRoot = null!;
     private Node2D _listRoot = null!;
@@ -43,7 +67,10 @@ public partial class SongSelect : Node2D
         AddChild(_listRoot);
         AddChild(_bottomRoot);
 
-        _previewPlayer = new SongPreviewPlayer(this, Res.LoadAudio);
+        var capture = Video.VideoCaptureInvocation.Active;
+        _skipVideoPreview = capture; // Only the deterministic expansion may start audition in the worker.
+        _previewPlayer = new SongPreviewPlayer(this, Video.VideoCaptureAudio.Load,
+            capture ? Video.VideoCaptureInvocation.FramesPerSecond : 0);
 
         BuildTopBar();
         BuildQuickSettings();

@@ -32,7 +32,7 @@ public sealed partial class GameplayNoteRenderer
         IReadOnlySet<int> syncAccentIds,
         IReadOnlyList<Note> notes, IReadOnlyDictionary<int, Note> noteById,
         IReadOnlyDictionary<int, double> runtimeNoteSeconds, IReadOnlyDictionary<int, SustainPath> paths,
-        VisualPoolPlanning.PeakCounts peaks, Func<int, SustainVisualSnapshot?> readSustain)
+        VisualPoolPlanning.PeakCounts peaks, Func<int, SustainVisualSnapshot?> readSustain, bool deterministicCapture = false)
     {
         _noteRoot = noteRoot;
         _chart = chart;
@@ -44,7 +44,7 @@ public sealed partial class GameplayNoteRenderer
         _runtimeNoteSeconds = runtimeNoteSeconds;
         _paths = paths;
         _readSustain = readSustain;
-        _effects = new(noteRoot, settings);
+        _effects = new(noteRoot, settings, deterministicCapture);
         foreach (var path in paths.Values)
             if (path.Kind == SustainKind.Hold) _holdTailIds.Add(path.End.Id);
         _fallSpeedMultiplier = (float)settings.FallSpeedMultiplier;

@@ -157,7 +157,7 @@ public partial class GameplayMain : Node2D
 
 		_onlineRun = new GameplayOnlineRun(_loaded, _verification is not null);
 		BuildStage();
-		GameplayHitParticles.Prewarm(_noteRoot);
+		GameplayHitParticles.Prewarm(_noteRoot, Video.VideoCaptureInvocation.Active);
 
 		_chart = _loaded.RuntimeChart;
 		var preset = _loaded.Preset;
@@ -186,7 +186,8 @@ public partial class GameplayMain : Node2D
 		_noteById = _notesByTime.ToDictionary(n => n.Id);
 		_noteRenderer = new GameplayNoteRenderer(_noteRoot, _chart, GameSession.Settings, _loaded.SyncAccentRuntimeIds,
 			_notesByTime, _noteById, _runtimeNoteSeconds, _plan.Sustains,
-			VisualPoolPlanning.Analyze(_plan.Units, _notesByTime, _plan.Sustains.Values), ReadSustainVisual);
+			VisualPoolPlanning.Analyze(_plan.Units, _notesByTime, _plan.Sustains.Values), ReadSustainVisual,
+			deterministicCapture: Video.VideoCaptureInvocation.Active);
 		GD.Print($"chart '{_chart.Title}' notes={_notesByTime.Count} " +
 				 $"units={_plan.Units.Count} headline={_plan.HeadlineUnitCount} " +
 				 $"theoreticalMax={_plan.TheoreticalMax} speed={GameSession.Settings.FallSpeedLevel}");
@@ -198,7 +199,8 @@ public partial class GameplayMain : Node2D
 		UpdateHud(0);
 		// 调试：DYNAMITE_UNIVERSE_START_SEC=起始秒（用于与录屏做同刻对比截图）
 		_startSecond = 0.0;
-		if (double.TryParse(System.Environment.GetEnvironmentVariable("DYNAMITE_UNIVERSE_START_SEC"),
+		if (!Video.VideoCaptureInvocation.Active &&
+			double.TryParse(System.Environment.GetEnvironmentVariable("DYNAMITE_UNIVERSE_START_SEC"),
 				out var envStart) && envStart > 0)
 			_startSecond = envStart;
 		_trace = _verification?.CreateTrace(_loaded);
@@ -219,6 +221,13 @@ public partial class GameplayMain : Node2D
 			$"ruleset={_run.RulesetId ?? "legacy-direct"} digest={_run.GameplayDigest ?? "none"}");
 		RefreshTitleTag();
 	}
+
+	internal bool VideoCaptureMusicStarted => _playbackStarted && _playback.IsAudioPlaying;
+	internal bool VideoCaptureMusicEnded => _playbackStarted && _playback.HasNaturallyEnded;
+	internal double VideoCaptureExpectedEnd => _progressEnd;
+	internal bool VideoCaptureResultStarted => _results.PreludeVisible;
+	internal bool VideoCaptureResultRevealed => _results.RevealComplete;
+	internal bool VideoCaptureAutoResult { get; private set; }
 
 	private void ApplyLoadedSelection(ChartPack pack, ChartDiff diff, LoadedChart loaded) =>
 		_run = GameplayRunContext.FromSelection(pack, diff, loaded);
@@ -252,7 +261,7 @@ public partial class GameplayMain : Node2D
 			_pointerBuffer.DiscardPending();
 			return;
 		}
-		_playback.AdvanceFixedFrame();
+		_playback.AdvanceFrame(delta);
 		var t = _playback.GetSongTime();
 		var currentBar = _noteRenderer.CurrentBarAt(t);
 

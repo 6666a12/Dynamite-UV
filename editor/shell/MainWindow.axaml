@@ -72,6 +72,8 @@
                   <Separator />
                   <MenuItem Header="{local:Tr File.Save}" InputGesture="Ctrl+S" Click="SaveClicked" />
                   <MenuItem Header="{local:Tr File.SaveAs}" InputGesture="Ctrl+Shift+S" Click="SaveAsClicked" />
+                  <Separator />
+                  <MenuItem x:Name="VideoExportMenuItem" Header="{local:Tr VideoExport.Menu}" Click="VideoExportClicked" />
                 </MenuFlyout>
               </Button.Flyout>
             </Button>

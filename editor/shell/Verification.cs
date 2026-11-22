@@ -50,6 +50,7 @@ internal static class Verification
             await AddDifficultyFormVerification.Run(Path.Combine(root, "difficulty-form"), Check);
             await WorkbenchModalVerification.Run(Path.Combine(root, "modal-host"), Check);
             await BpmImportVerification.Run(Path.Combine(root, "bpm-import"), Check);
+            await VerificationVideoExport.Run(Path.Combine(root, "video-export"), Check);
             PreviewClockVerification.Run(Check);
             await WorkbenchTimingKeysVerification.Run(Path.Combine(root, "timing-keys"), Check);
             await TimelineRhythmVerification.Run(Path.Combine(root, "rhythm-timeline"), Check);

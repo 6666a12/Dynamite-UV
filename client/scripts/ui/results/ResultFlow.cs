@@ -15,6 +15,9 @@ internal sealed class ResultFlow
     private readonly ResultScreen _screen;
     private readonly ResultRunSequence _sequence = new();
 
+    internal bool PreludeVisible => _prelude.IsVisibleInTree();
+    internal bool RevealComplete => _screen.RevealComplete;
+
     internal ResultFlow(Node host, Func<UiMotionProfile> motion)
     {
         _motion = motion;

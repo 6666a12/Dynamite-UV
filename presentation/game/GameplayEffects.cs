@@ -7,12 +7,19 @@ using static DynamiteUniverse.Game.GameplayRenderGeometry;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Owns hit/sustain effect pools and release tails; never mutates judgement state.</summary>
-internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings settings)
+internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings settings, bool deterministicCapture)
 {
     private readonly Node2D _noteRoot = noteRoot;
     private readonly GameplayRenderGeometry _geometry = new(settings.MirrorEnabled);
     private readonly IGameplayVisualSettings _settings = settings;
     private readonly Dictionary<int, ContactVisual> _contacts = new();
+    private uint _particleEvent;
+
+    // Per-stage counter resets when the renderer is built. No wall time, runtime object IDs or
+    // randomized .NET hashes enter the seed; all pool reuses get a distinct scheduled seed.
+    private uint? NextParticleSeed() => deterministicCapture
+        ? unchecked(0x352A23DFu + ++_particleEvent * 0x9E3779B9u)
+        : null;
     private sealed class ContactVisual
     {
         public required SustainPath Path;
@@ -167,7 +174,7 @@ internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings s
                 Track.Left => Mathf.Pi * 0.5f,
                 _ => -Mathf.Pi * 0.5f,
             }, state.Path.Kind == SustainKind.Hold ? HitEffectKind.Hold : HitEffectKind.Mixer,
-                particleMode, SustainSpanPx(state.Path.Track, bounds));
+                particleMode, SustainSpanPx(state.Path.Track, bounds), captureSeed: NextParticleSeed());
         }
         state.ContactParticles.Visible = true;
         state.ContactParticles.SetEmitting(true);
@@ -206,7 +213,7 @@ internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings s
             particles = _activeHitParticles[0];
             _activeHitParticles.RemoveAt(0);
         }
-        particles.ResetFor(position, rotation, accent, kind, strength, mode);
+        particles.ResetFor(position, rotation, accent, kind, strength, mode, captureSeed: NextParticleSeed());
         particles.GetParent().MoveChild(particles, -1);
         _activeHitParticles.Add(particles);
     }

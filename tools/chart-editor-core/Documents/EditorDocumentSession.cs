@@ -127,6 +127,14 @@ public sealed class EditorDocumentSession
         });
     }
 
+    /// <summary>Copies only the selected difficulty and resolved media, without saving or changing the live document.</summary>
+    public Task<EditorExportSnapshot> WriteExportSnapshotAsync(string destinationDirectory,
+        CancellationToken cancellationToken = default, Action<int>? beforeMediaWrite = null)
+    {
+        var document = Document ?? throw new InvalidOperationException("No open document to export.");
+        return EditorExportSnapshot.WriteAsync(document, Draft, destinationDirectory, cancellationToken, beforeMediaWrite);
+    }
+
     public string? ResolveDigestAudio()
     {
         if (Document is not { } document) return null;

@@ -22,6 +22,8 @@
 /client/builds/
 /editor/builds/
 /builds/
+# Temporary capture extension staged only by the Windows editor candidate build.
+/client/native/video_stream/
 *.apk
 *.aab
 *.apks

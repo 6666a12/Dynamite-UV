@@ -74,6 +74,32 @@ must be evaluated before making this a default. It uses size optimization withou
 for the first experiment. It does not change the game's renderer or official global
 templates. A matching managed/native API and actual HWND/GPU smoke remain mandatory.
 
+## Optional chart video export
+
+Add `--with-video-export --capture-native <native-build>` to a **new** local candidate to include `capture/`, a
+self-contained Windows export of the official game renderer with a streaming MovieWriter.
+Build the three native inputs with the [pinned Windows SDK recipe](<../gameplay-capture/native/README.md>).
+Rebuild older native outputs: the variant file now contains two lines (variant and
+linked DLL SHA-256). `--capture-qa` accepts a matching delay-injection DLL only under
+`.tmp/`; do not distribute it.
+
+The capture worker exports from a temporary project with only tracked source files,
+approved artwork (including executable and project icons), and fresh imports. The
+normal client tree and extension registry are not modified. The capture PCK is then
+audited entry by entry against staged inputs and remap targets. Both the editor and
+the finished capture EXE must report the pinned engine build via `--headless --version`
+(before scene initialization). This validates identity, not actual MovieWriter load or
+GPU runtime compatibility. The candidate records the worker version/hashes and external
+FFmpeg policy in `distribution.json`; it does not change Android packages or the pinned
+test profile.
+
+FFmpeg is not redistributed. To export, use an independently installed Windows
+build on PATH, or locate `ffmpeg.exe` in File → Export Chart Video. The selected
+codec needs `libx264`, `libx265` or `libsvtav1` respectively, plus the AAC encoder.
+If using a shared FFmpeg build, keep its own dependent DLLs beside it. End users
+do not need Python, the Godot editor or a developer checkout. Capture opens a
+GPU-backed game window; silent device output does not disable the MP4 audio mix.
+
 ## Verification and comparison
 
 ```powershell

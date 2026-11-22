@@ -19,6 +19,7 @@ config/icon="res://assets/icons/app-icon.png"
 [autoload]
 
 TransitionDirector="*res://scripts/ui/transitions/TransitionDirector.cs"
+VideoCaptureRuntime="*res://scripts/video/VideoCaptureRuntime.cs"
 
 [display]
 

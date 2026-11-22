@@ -3,7 +3,7 @@ extends SceneTree
 # Run from an empty project so source-tree shaders cannot mask missing PCK resources.
 func _initialize():
     var args = OS.get_cmdline_user_args()
-    if args.size() != 1 or not ProjectSettings.load_resource_pack(args[0]):
+    if args.size() < 1 or args.size() > 2 or not ProjectSettings.load_resource_pack(args[0]):
         push_error("Cannot mount exported stage PCK")
         quit(1)
         return
@@ -15,6 +15,17 @@ func _initialize():
         "res://assets/fonts/SpaceGrotesk-Bold.woff2": "Font",
     }
     var failed = false
+    if args.size() == 2:
+        var descriptor = "res://" + args[1]
+        var list = FileAccess.get_file_as_string("res://.godot/extension_list.cfg").strip_edges().split("\n")
+        if list != PackedStringArray([descriptor]) or not FileAccess.file_exists(descriptor):
+            push_error("Missing or unexpected capture extension list or descriptor")
+            failed = true
+        elif DirAccess.dir_exists_absolute("res://testdata") or ResourceLoader.exists("res://assets/models/detonation-orrery-mk2.glb"):
+            push_error("Developer-only material is present in the capture export")
+            failed = true
+        else:
+            print("PACK_CAPTURE_EXTENSION PASS ", descriptor)
     for path in required:
         if not ResourceLoader.exists(path, required[path]):
             push_error("Missing exported resource: " + path)

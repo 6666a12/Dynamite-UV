@@ -9,6 +9,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using DynamiteUniverse.ChartEditor.Core;
 using DynamiteUniverse.Shared.Chart.V2;
+using DynamiteUniverse.Editor.Shell.VideoExport;
 using SukiUI.ControlsAnimation;
 using SukiUI.Theme;
 using Ursa.Controls;
@@ -19,6 +20,7 @@ public sealed partial class MainWindow : Window
 {
     private static readonly int[] SnapSteps = { 1, 2, 4, 8, 12, 16, 24, 32, 48, 64 };
     private readonly GodotStageService _service = new();
+    private readonly VideoExportFlow _videoExport = new();
     private readonly EditorNoteClipboard _noteClipboard = new();
     private readonly EditorDocumentSession _session = new();
     private readonly StageView _stageView = new();
@@ -872,6 +874,9 @@ public sealed partial class MainWindow : Window
     private void DeleteChartClicked(object? sender, RoutedEventArgs e) => DeleteChart();
     private async void SaveClicked(object? sender, RoutedEventArgs e) => await SavePackage(false);
     private async void SaveAsClicked(object? sender, RoutedEventArgs e) => await SavePackage(true);
+    private async void VideoExportClicked(object? sender, RoutedEventArgs e) => await _videoExport.Show(this,
+        _session, _userStore, _text, () => _ioBusy || _closePending || ShortcutsVisible || _modal.IsOpen || _curves.BlockPending(),
+        busy => _ioBusy = busy, () => { _timingKeys.ResetHeld(); _clock.Pause(_service.TogglePlayback); }, Report);
     private void CopyNotesClicked(object? sender, RoutedEventArgs e) => HandleShortcut(Key.C, KeyModifiers.Control, null);
     private void PasteNotesClicked(object? sender, RoutedEventArgs e) => HandleShortcut(Key.V, KeyModifiers.Control, null);
     private void UndoClicked(object? sender, RoutedEventArgs e) => Undo();

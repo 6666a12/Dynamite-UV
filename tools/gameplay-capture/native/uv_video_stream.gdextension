@@ -1,0 +1,7 @@
+[configuration]
+entry_symbol = "uv_video_stream_init"
+compatibility_minimum = "4.7"
+reloadable = false
+
+[libraries]
+windows.x86_64 = "res://native/video_stream/uv_video_stream.dll"
