@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.Shared.Chart;
 
 namespace DynamiteUniverse.Editor.Shell.VideoExport;
 
@@ -9,40 +10,19 @@ internal sealed class VideoExportService
 {
     internal const int Fps = 60;
     internal const string PreferenceFile = "video-export.json";
-    internal sealed record Preferences(string FfmpegPath);
+    internal sealed record Preferences(string FfmpegPath, int FallSpeedLevel = GameplayFallSpeed.DefaultLevel);
 
-    public async Task<VideoExportCapabilities> ProbeAsync(string? configuredPath, CancellationToken token)
-    {
-        var executable = VideoExportEncoding.FindFfmpeg(configuredPath);
-        if (executable is null) return new(null, []);
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(8));
-        try
-        {
-            var result = await VideoExportProcess.Run(executable, ["-hide_banner", "-encoders"], null, null, timeout.Token);
-            if (result.ExitCode != 0) return new(executable, [], result.Diagnostic);
-            var codecs = VideoExportEncoding.Available(result.Output);
-            if (codecs.Length == 0) return new(executable, []);
-            bool passthrough = false, timeBase = false;
-            var help = await VideoExportProcess.Run(executable, ["-hide_banner", "-h", "full"], null, line =>
-            {
-                passthrough |= VideoExportEncoding.AdvertisesOption(line, "-fps_mode");
-                timeBase |= VideoExportEncoding.AdvertisesOption(line, "-enc_time_base");
-            }, timeout.Token);
-            return help.ExitCode == 0 && passthrough && timeBase
-                ? new(executable, codecs)
-                : new(executable, [], "Select a newer FFmpeg build with -fps_mode and -enc_time_base support.");
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
-        catch (OperationCanceledException) { return new(executable, [], "FFmpeg probe timed out."); }
-        catch (Exception error) when (error is IOException or System.ComponentModel.Win32Exception)
-        { return new(executable, [], error.Message); }
-    }
+    public Task<VideoExportCapabilities> ProbeAsync(string? rememberedPath, CancellationToken token) =>
+        FfmpegProbe.Auto(rememberedPath, token);
+
+    public Task<VideoExportCapabilities> ProbeExplicitAsync(string? executable, CancellationToken token) =>
+        FfmpegProbe.Explicit(executable, token);
 
     public async Task ExportAsync(EditorDocumentSession session, VideoExportOptions options,
         IProgress<VideoExportProgress> progress, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!GameplayFallSpeed.IsValid(options.FallSpeedLevel)) throw new ArgumentOutOfRangeException(nameof(options.FallSpeedLevel));
         var worker = FindCaptureExecutable() ?? throw new FileNotFoundException(
             "DynaMakerCapture.exe not found. Install a UV candidate that includes the video capture component.");
         var encoding = VideoExportEncoding.Resolve(options);
@@ -74,7 +54,7 @@ internal sealed class VideoExportService
             var preview = Math.Min(requestedPreview, ToFrames(Math.Min(60, snapshot.PreviewSeconds)));
             storage.CheckWriting();
             var partial = Path.Combine(temp.FullName, "output.mp4");
-            var capabilities = await ProbeAsync(options.FfmpegPath, token).ConfigureAwait(false);
+            var capabilities = await ProbeExplicitAsync(options.FfmpegPath, token).ConfigureAwait(false);
             if (capabilities.FfmpegPath is not { } ffmpeg || !capabilities.Codecs.Contains(options.Codec))
                 throw new IOException(capabilities.Error ?? $"FFmpeg does not provide {encoding.Encoder} and AAC.");
             progress.Report(new(VideoExportPhase.Render));
@@ -85,6 +65,7 @@ internal sealed class VideoExportService
                     ["DU_CAPTURE_CHART_ID"] = snapshot.ChartId,
                     ["DU_CAPTURE_PREVIEW_FRAMES"] = preview.ToString(CultureInfo.InvariantCulture),
                     ["DU_CAPTURE_RESULT_HOLD_FRAMES"] = resultHold.ToString(CultureInfo.InvariantCulture),
+                    ["DU_CAPTURE_FALL_SPEED_LEVEL"] = options.FallSpeedLevel.ToString(CultureInfo.InvariantCulture),
                 }, storage, token).ConfigureAwait(false);
             storage.CheckWriting();
             if (!File.Exists(partial) || !File.Exists(reportPath))
@@ -96,7 +77,7 @@ internal sealed class VideoExportService
             if (File.Exists(Path.Combine(user, "scores.json")) || File.Exists(Path.Combine(user, "settings.json")))
                 throw new InvalidDataException("The recording wrote scores or settings unexpectedly.");
             using var report = JsonDocument.Parse(await File.ReadAllTextAsync(reportPath, token).ConfigureAwait(false));
-            var (trim, frames) = VideoExportReport.Validate(report.RootElement, snapshot.ChartId, preview, resultHold);
+            var (trim, frames) = VideoExportReport.Validate(report.RootElement, snapshot.ChartId, preview, resultHold, options.FallSpeedLevel);
             if (stream.FirstSourceFrame != trim || stream.Frames != frames ||
                 stream.AudioSamplesPerChannel != (long)frames * VideoExportStream.AudioFramesPerVideoFrame ||
                 stream.MaxSlotsUsed is < 1 or > VideoExportStream.Slots)

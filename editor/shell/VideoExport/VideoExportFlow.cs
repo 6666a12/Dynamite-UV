@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using DynamiteUniverse.ChartEditor.Core;
+using DynamiteUniverse.Shared.Chart;
 
 namespace DynamiteUniverse.Editor.Shell.VideoExport;
 
@@ -20,17 +21,18 @@ internal sealed class VideoExportFlow
             var previewMaximum = chart.Preview?.DurationSec ?? document.Preview?.DurationSec ?? 0;
             var directory = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
             if (!Directory.Exists(directory)) directory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var saved = store.Load<VideoExportService.Preferences>(VideoExportService.PreferenceFile);
+            var speed = saved?.FallSpeedLevel is { } level && GameplayFallSpeed.IsValid(level) ? level : GameplayFallSpeed.DefaultLevel;
             var source = new VideoExportSource(document.Title, $"{chart.Difficulty} Lv {chart.Level?.ToString() ?? "—"}",
-                document.HasUnsavedChanges, previewMaximum, Path.Combine(directory, FileName(document.Title, chart.Id)));
-            var configured = store.Load<VideoExportService.Preferences>(VideoExportService.PreferenceFile)?.FfmpegPath;
-            var settings = new VideoExportSettingsDialog(text, source, configured, _service.ProbeAsync);
+                document.HasUnsavedChanges, previewMaximum, Path.Combine(directory, FileName(document.Title, chart.Id)), speed);
+            var settings = new VideoExportSettingsDialog(text, source, saved?.FfmpegPath, _service.ProbeAsync, _service.ProbeExplicitAsync);
             VideoExportOptions? options;
             try { options = await settings.ShowDialog<VideoExportOptions?>(owner); }
             finally { await settings.ProbeCleanup; }
             if (options is null) return;
             if (!ReferenceEquals(document, session.Document) || document.SelectedChartId != chart.Id || document.ChangeVersion != version)
                 throw new InvalidOperationException(text["VideoExport.SourceChanged"]);
-            store.Save(VideoExportService.PreferenceFile, new VideoExportService.Preferences(options.FfmpegPath));
+            store.Save(VideoExportService.PreferenceFile, new VideoExportService.Preferences(options.FfmpegPath, options.FallSpeedLevel));
             var task = new VideoExportProgressDialog(text,
                 (feedback, token) => _service.ExportAsync(session, options, feedback, token));
             if (await task.ShowDialog<bool>(owner)) report($"{text["VideoExport.Success"]} {options.OutputPath}");

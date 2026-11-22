@@ -138,8 +138,9 @@ public partial class VideoCaptureRuntime : Node
     private static int PrepareSelection(VideoCaptureInvocation invocation)
     {
         GameSession.EnsureInit();
-        // Force Auto in memory only. Do not persist the configuration or touch normal saves.
+        // Auto and note speed are private to this recording process, before the renderer is constructed.
         GameSession.Settings.AutoEnabled = true;
+        GameSession.Settings.FallSpeedLevel = invocation.FallSpeedLevel;
         if (GameSession.Packs.Count != 1 || GameSession.Packs[0] is not { IsV2: true } pack ||
             pack.ChartOf(invocation.ChartId) is not { } diff)
             throw new InvalidDataException($"chart '{invocation.ChartId}' was not found in the single strict V2 snapshot");
@@ -207,7 +208,8 @@ public partial class VideoCaptureRuntime : Node
     private void WriteReport(bool pass, string reason)
     {
         var invocation = _invocation!;
-        var report = new { version = 2, pass, reason, chartId = invocation.ChartId, autoResult = _autoResult,
+        var report = new { version = 3, pass, reason, chartId = invocation.ChartId, autoResult = _autoResult,
+            fallSpeedLevel = GameSession.Settings.FallSpeedLevel,
             trimFrame = _trimFrame, totalFrames = _totalFrames, frames = _marks,
             previewFrames = invocation.PreviewFrames, previewAvailableFrames = _previewAvailableFrames,
             recordedPreviewFrames = _recordedPreviewFrames,

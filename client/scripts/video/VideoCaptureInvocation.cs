@@ -1,11 +1,12 @@
 using System.Globalization;
+using DynamiteUniverse.Shared.Chart;
 using Godot;
 
 namespace DynamiteUniverse.Video;
 
 /// <summary>Export-only invocation and filesystem preflight. Never loads the normal game profile.</summary>
 internal sealed record VideoCaptureInvocation(string UserDirectory, string OutputDirectory, string ChartId,
-    int PreviewFrames, int ResultHoldFrames, GodotObject? StreamWriter)
+    int PreviewFrames, int ResultHoldFrames, int FallSpeedLevel, GodotObject? StreamWriter)
 {
     internal const int FramesPerSecond = VideoCaptureTiming.FramesPerSecond;
     internal static bool IsDedicatedBuild => OS.HasFeature("uv_video_capture");
@@ -35,8 +36,9 @@ internal sealed record VideoCaptureInvocation(string UserDirectory, string Outpu
             throw new InvalidDataException("DU_CAPTURE_CHART_ID is required");
         var preview = ReadFrames("DU_CAPTURE_PREVIEW_FRAMES");
         var hold = ReadFrames("DU_CAPTURE_RESULT_HOLD_FRAMES");
+        var speed = ReadFallSpeed(writer is null);
         Active = true;
-        return new(user, output, chart, preview, hold, writer);
+        return new(user, output, chart, preview, hold, speed, writer);
     }
 
     private static GodotObject? GetStreamWriter(string output)
@@ -74,6 +76,16 @@ internal sealed record VideoCaptureInvocation(string UserDirectory, string Outpu
         if (!Path.IsPathFullyQualified(value))
             throw new InvalidDataException($"{name} must be an absolute directory path");
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(value));
+    }
+
+    private static int ReadFallSpeed(bool legacyAvi)
+    {
+        const string name = "DU_CAPTURE_FALL_SPEED_LEVEL";
+        var value = OS.GetEnvironment(name);
+        if (legacyAvi && value.Length == 0) return GameplayFallSpeed.DefaultLevel;
+        if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var level) || !GameplayFallSpeed.IsValid(level))
+            throw new InvalidDataException($"{name} must be an integer in {GameplayFallSpeed.MinimumLevel}..{GameplayFallSpeed.MaximumLevel}");
+        return level;
     }
 
     private static int ReadFrames(string name)

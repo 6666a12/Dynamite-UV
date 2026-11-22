@@ -26,6 +26,7 @@ internal static class VerificationVideoExport
             await CancelProgress(owner, localizer, check);
             await LowSpace(owner, root, localizer, check);
             await VerificationVideoExportBoundaries.Run(root, localizer, check);
+            await VerificationFfmpegDiscovery.Run(root, check);
         }
         finally
         {
@@ -44,7 +45,8 @@ internal static class VerificationVideoExport
         string? probedPath = null;
         var dialog = new VideoExportSettingsDialog(text,
             new("Synthetic Pulse", "HARD Lv.8", true, 5, existing), ffmpeg,
-            (path, _) => { probedPath = path; return probe.Task; });
+            (path, _) => { probedPath = path; return probe.Task; },
+            (_, _) => throw new InvalidOperationException("Startup must use automatic detection."));
         var closed = dialog.ShowDialog<VideoExportOptions?>(owner);
         var start = Find<Button>(dialog, "StartButton");
         Dispatcher.UIThread.RunJobs();
@@ -71,6 +73,10 @@ internal static class VerificationVideoExport
         var hold = Find<NumericUpDown>(dialog, "ResultHoldValue");
         check("Video timings default to two seconds and bound the preview to the effective source",
             preview.Value == 2m && preview.Minimum == 0m && preview.Maximum == 5m && hold.Value == 2m && hold.Minimum == 0m);
+        var fallSpeed = Find<ComboBox>(dialog, "FallSpeedValue");
+        check("Video note speed offers 0.1x through 2.0x and defaults to 1.0x",
+            fallSpeed.Items.Count == 20 && fallSpeed.Items[0] is "0.1×" && fallSpeed.Items[19] is "2.0×" &&
+            fallSpeed.SelectedItem is "1.0×");
         Click(start);
         check("Video settings refuse to overwrite an existing destination", !closed.IsCompleted && dialog.IsVisible &&
             File.ReadAllText(existing) == "unchanged" && Find<TextBlock>(dialog, "OutputHint").Text == text["VideoExport.OutputExists"]);
@@ -79,24 +85,27 @@ internal static class VerificationVideoExport
         hold.Value = 0;
         Find<ComboBox>(dialog, "PresetValue").SelectedIndex = 2;
         crf.Value = 25;
+        fallSpeed.SelectedIndex = 16;
         Click(start);
         var selected = await closed.WaitAsync(Timeout);
-        check("Video settings preserve zero durations, the selected codec, speed, CRF and output", selected ==
-            new VideoExportOptions(newOutput, ffmpeg, "av1", "high", 25, 0, 0) && !File.Exists(newOutput));
+        check("Video settings preserve 1.7x note speed independently of encode speed and clip times", selected ==
+            new VideoExportOptions(newOutput, ffmpeg, "av1", "high", 25, 0, 0, 17) && !File.Exists(newOutput));
     }
 
     private static async Task LimitedSettings(Window owner, string root, WorkbenchLocalizer text, Action<string, bool> check)
     {
         var dialog = new VideoExportSettingsDialog(text,
-            new("演示谱", "普通", false, 0.75, Path.Combine(root, "无预热.mp4")), null,
-            (_, _) => Task.FromResult(new VideoExportCapabilities(Path.Combine(root, "ffmpeg.exe"), ["h264"])));
+            new("演示谱", "普通", false, 0.75, Path.Combine(root, "无预热.mp4"), 5), null,
+            (_, _) => Task.FromResult(new VideoExportCapabilities(Path.Combine(root, "ffmpeg.exe"), ["h264"])),
+            (_, _) => throw new InvalidOperationException("Startup must use automatic detection."));
         var closed = dialog.ShowDialog<VideoExportOptions?>(owner);
         Dispatcher.UIThread.RunJobs();
         var start = Find<Button>(dialog, "StartButton");
         var preview = Find<NumericUpDown>(dialog, "PreviewValue");
         check("Video settings open in Chinese and clamp the default to a short preview", dialog.Title == "导出谱面视频" &&
             start.Content is "开始导出" && !Find<TextBlock>(dialog, "UnsavedHint").IsVisible &&
-            preview.Value == .75m && preview.Maximum == .75m && start.IsEnabled);
+            preview.Value == .75m && preview.Maximum == .75m && start.IsEnabled &&
+            Find<ComboBox>(dialog, "FallSpeedValue").SelectedItem is "0.5×");
         Find<ComboBox>(dialog, "CodecValue").SelectedIndex = 2;
         check("A format missing in the selected FFmpeg build is not silently substituted", !start.IsEnabled &&
             Find<TextBlock>(dialog, "CodecHint").Text == text["VideoExport.CodecUnavailable"]);
@@ -114,7 +123,7 @@ internal static class VerificationVideoExport
                 try { await Task.Delay(System.Threading.Timeout.Infinite, token); }
                 finally { canceled.TrySetResult(); await cleaned.Task; }
                 throw new InvalidOperationException("The probe was not canceled.");
-            });
+            }, (_, _) => throw new InvalidOperationException("Startup must use automatic detection."));
         var closed = dialog.ShowDialog<VideoExportOptions?>(owner);
         Dispatcher.UIThread.RunJobs();
         dialog.Close();

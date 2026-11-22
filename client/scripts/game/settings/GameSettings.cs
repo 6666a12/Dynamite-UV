@@ -1,3 +1,4 @@
+using DynamiteUniverse.Shared.Chart;
 using DynamiteUniverse.Shared.Judge;
 using DynamiteUniverse.Ui;
 using Godot;
@@ -10,7 +11,7 @@ public sealed class GameSettings : IGameplayVisualSettings
     private const string SavePath = "user://settings.json";
 
     public int TimingOffsetMs { get; set; } = 0;
-    public int FallSpeedLevel { get; set; } = 10;
+    public int FallSpeedLevel { get; set; } = GameplayFallSpeed.DefaultLevel;
     public int MusicVolume { get; set; } = 80;
     public int HitVolume { get; set; } = 80;
     public int UiVolume { get; set; } = 80;
@@ -95,7 +96,7 @@ public sealed class GameSettings : IGameplayVisualSettings
     /// <summary>BLEED 的实际生效值：HARDCORE 强制开启（锁定态不改写持久化值）。</summary>
     public bool BleedEffective => GameplayMode == GameplayMode.Hardcore || BleedEnabled;
 
-    public double FallSpeedMultiplier => FallSpeedLevel / 10.0;
+    public double FallSpeedMultiplier => GameplayFallSpeed.Multiplier(FallSpeedLevel);
 
     public float NoteBrightnessScale => NoteBrightnessPercent / 100f;
 
@@ -106,7 +107,7 @@ public sealed class GameSettings : IGameplayVisualSettings
     public void ResetToDefaults()
     {
         TimingOffsetMs = 0;
-        FallSpeedLevel = 10;
+        FallSpeedLevel = GameplayFallSpeed.DefaultLevel;
         MusicVolume = 80;
         HitVolume = 80;
         UiVolume = 80;
@@ -190,7 +191,7 @@ public sealed class GameSettings : IGameplayVisualSettings
     {
         TimingOffsetMs = Math.Clamp(TimingOffsetMs, -300, 300);
         CalibrationTargetSamples = Ui.CalibrationStats.NormalizeTargetSamples(CalibrationTargetSamples);
-        FallSpeedLevel = Math.Clamp(FallSpeedLevel, 1, 20);
+        FallSpeedLevel = GameplayFallSpeed.Clamp(FallSpeedLevel);
         MusicVolume = Math.Clamp(MusicVolume, 0, 100);
         HitVolume = Math.Clamp(HitVolume, 0, 100);
         UiVolume = Math.Clamp(UiVolume, 0, 100);

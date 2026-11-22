@@ -33,6 +33,15 @@
           </Grid>
         </StackPanel>
         <Border Height="1" Background="{DynamicResource Line}" />
+        <Grid ColumnDefinitions="*,140" ColumnSpacing="14">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="cyan" Text="{local:Tr VideoExport.FallSpeed}" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="{local:Tr VideoExport.FallSpeedHint}" />
+          </StackPanel>
+          <ComboBox x:Name="FallSpeedValue" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                    SelectionChanged="OptionsChanged" AutomationProperties.Name="{local:Tr VideoExport.FallSpeed}" />
+        </Grid>
+        <Border Height="1" Background="{DynamicResource Line}" />
         <StackPanel Spacing="8">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <TextBlock Classes="cyan" Text="{local:Tr VideoExport.Video}" />

@@ -87,6 +87,11 @@ internal static class GameplayGeometryTests
             Math.Abs(VisualScrollMath.FallthroughSpeedPixelsPerSecond(
                 basePixelsPerSecond, 1.25, 0.5, 2.0) - 1282.5) < 1e-12,
             "per-note scroll multiplier compounds approach and fallthrough speed");
+        var recordedSpeed = GameplayFallSpeed.Multiplier(17);
+        Check(GameplayFallSpeed.Multiplier(GameplayFallSpeed.DefaultLevel) == 1 &&
+            Math.Abs(VisualScrollMath.DistancePixels(2, 1, basePixelsPerSecond, 1.25, recordedSpeed) - 2180.25) < 1e-12 &&
+            VisualScrollMath.DistancePixels(2, 2, basePixelsPerSecond, 1.25, recordedSpeed) == 0,
+            "recording note speed compounds authored scroll and leaves the strike at the same song second");
     }
 
     internal static void TestGameplayStageGeometry()

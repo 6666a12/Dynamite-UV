@@ -33,7 +33,7 @@ internal static class VerificationVideoExportBoundaries
     private static void CheckReports(Action<string, bool> check)
     {
         const string report = """
-            {"version":2,"pass":true,"autoResult":true,"chartId":"test", "previewFrames":2,
+            {"version":3,"pass":true,"autoResult":true,"chartId":"test", "previewFrames":2,"fallSpeedLevel":17,
              "previewAvailableFrames":1,"recordedPreviewFrames":1,"resultHoldFrames":0,
              "trimFrame":80,"totalFrames":601,
              "frames":{"preview-playing":92,"preview-ended":93,"start":93,"handoff":109,"result-revealed":600,"result-held":600}}
@@ -41,7 +41,7 @@ internal static class VerificationVideoExportBoundaries
         (int, int) Parse(string json, int preview = 2)
         {
             using var doc = JsonDocument.Parse(json);
-            return VideoExportReport.Validate(doc.RootElement, "test", preview, 0);
+            return VideoExportReport.Validate(doc.RootElement, "test", preview, 0, 17);
         }
         bool Rejects(string json)
         {
@@ -52,7 +52,9 @@ internal static class VerificationVideoExportBoundaries
         check("Recorder report rejects extra audition/reveal frames and old protocol",
             Rejects(report.Replace("ended\":93", "ended\":94", StringComparison.Ordinal)) &&
             Rejects(report.Replace("revealed\":600", "revealed\":599", StringComparison.Ordinal)) &&
-            Rejects(report.Replace("version\":2", "version\":1", StringComparison.Ordinal)));
+            Rejects(report.Replace("version\":3", "version\":2", StringComparison.Ordinal)));
+        check("Recorder report rejects a worker that did not use the selected note speed",
+            Rejects(report.Replace("fallSpeedLevel\":17", "fallSpeedLevel\":10", StringComparison.Ordinal)));
         var silent = report.Replace("previewFrames\":2", "previewFrames\":0", StringComparison.Ordinal)
             .Replace("Frames\":1", "Frames\":0", StringComparison.Ordinal)
             .Replace("trimFrame\":80", "trimFrame\":109", StringComparison.Ordinal)

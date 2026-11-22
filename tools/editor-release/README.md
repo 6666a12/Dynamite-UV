@@ -93,10 +93,16 @@ GPU runtime compatibility. The candidate records the worker version/hashes and e
 FFmpeg policy in `distribution.json`; it does not change Android packages or the pinned
 test profile.
 
-FFmpeg is not redistributed. To export, use an independently installed Windows
-build on PATH, or locate `ffmpeg.exe` in File → Export Chart Video. The selected
-codec needs `libx264`, `libx265` or `libsvtav1` respectively, plus the AAC encoder.
-If using a shared FFmpeg build, keep its own dependent DLLs beside it. End users
+FFmpeg is not redistributed or installed automatically. Discovery checks the last used
+path, `DYNA_FFMPEG`, the process/system/user PATH, then common WinGet, Scoop,
+Chocolatey and portable layouts (including `Program Files\ffmpeg`, `C:\ffmpeg` on
+systems where Windows lives on C:, and `ffmpeg.exe` beside the Shell). Incompatible
+candidates are skipped. To install on a machine with WinGet, one option is
+`winget install --id Gyan.FFmpeg -e`; a build extracted elsewhere can be found via
+Locate FFmpeg in File → Export Chart Video. The selected codec needs `libx264`,
+`libx265` or `libsvtav1` respectively, plus the AAC encoder. Discovery also checks
+for `-fps_mode` and `-enc_time_base` support. If using a shared FFmpeg build, keep
+its own dependent DLLs beside it. End users
 do not need Python, the Godot editor or a developer checkout. Capture opens a
 GPU-backed game window; silent device output does not disable the MP4 audio mix.
 

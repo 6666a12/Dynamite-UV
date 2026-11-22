@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using DynamiteUniverse.Shared.Chart;
 
 namespace DynamiteUniverse.Editor.Shell.VideoExport;
 
@@ -9,16 +10,17 @@ public sealed partial class VideoExportSettingsDialog : Window
 {
     private static readonly FilePickerFileType Mp4 = new("MPEG-4 (*.mp4)") { Patterns = ["*.mp4"] };
     private readonly IWorkbenchLocalizer _text;
-    private readonly Func<string?, CancellationToken, Task<VideoExportCapabilities>> _probe;
+    private readonly Func<string?, CancellationToken, Task<VideoExportCapabilities>> _probe, _probeExplicit;
     private VideoExportCapabilities? _capabilities;
     private CancellationTokenSource? _probeCancellation;
     internal Task ProbeCleanup { get; private set; } = Task.CompletedTask;
     private bool _ready, _closed, _pickerOpen;
 
     public VideoExportSettingsDialog(IWorkbenchLocalizer localizer, VideoExportSource source,
-        string? configuredFfmpegPath, Func<string?, CancellationToken, Task<VideoExportCapabilities>> probe)
+        string? configuredFfmpegPath, Func<string?, CancellationToken, Task<VideoExportCapabilities>> probe,
+        Func<string?, CancellationToken, Task<VideoExportCapabilities>> probeExplicit)
     {
-        (_text, _probe) = (localizer, probe);
+        (_text, _probe, _probeExplicit) = (localizer, probe, probeExplicit);
         AvaloniaXamlLoader.Load(this);
         C<TextBlock>("SourceText").Text = _text.Format("VideoExport.Source", source.Title, source.Difficulty);
         C<TextBlock>("UnsavedHint").IsVisible = source.HasUnsavedChanges;
@@ -29,6 +31,10 @@ public sealed partial class VideoExportSettingsDialog : Window
         preview.IsEnabled = preview.Maximum > 0;
         C<TextBlock>("PreviewHint").Text = _text.Format("VideoExport.PreviewHint", preview.Maximum);
         C<TextBox>("OutputValue").Text = source.SuggestedOutputPath;
+        var speed = C<ComboBox>("FallSpeedValue");
+        speed.ItemsSource = Enumerable.Range(GameplayFallSpeed.MinimumLevel, GameplayFallSpeed.MaximumLevel - GameplayFallSpeed.MinimumLevel + 1)
+            .Select(level => _text.Format("VideoExport.FallSpeedChoice", GameplayFallSpeed.Multiplier(level))).ToArray();
+        speed.SelectedIndex = GameplayFallSpeed.Clamp(source.FallSpeedLevel) - GameplayFallSpeed.MinimumLevel;
         _ready = true;
         ApplyCodec();
         Opened += (_, _) => StartProbe(configuredFfmpegPath);
@@ -38,15 +44,15 @@ public sealed partial class VideoExportSettingsDialog : Window
     private T C<T>(string name) where T : Control => this.FindControl<T>(name)!;
     private VideoExportCodec Codec => VideoExportChoices.Codecs[Math.Max(0, C<ComboBox>("CodecValue").SelectedIndex)];
 
-    private Task StartProbe(string? path) => ProbeCleanup = ProbeAsync(path);
+    private Task StartProbe(string? path, bool explicitPath = false) => ProbeCleanup = ProbeAsync(path, explicitPath);
 
-    private async Task ProbeAsync(string? path)
+    private async Task ProbeAsync(string? path, bool explicitPath)
     {
         using var cancellation = new CancellationTokenSource();
         _probeCancellation = cancellation;
         _capabilities = null;
         Refresh();
-        try { _capabilities = await _probe(path, cancellation.Token); }
+        try { _capabilities = await (explicitPath ? _probeExplicit : _probe)(path, cancellation.Token); }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception error) { _capabilities = new(null, [], error.Message); }
         finally
@@ -93,7 +99,7 @@ public sealed partial class VideoExportSettingsDialog : Window
         SetOutputHint(validOutput ? "" : _text["VideoExport.InvalidOutput"]);
         C<Button>("StartButton").IsEnabled = selected && !_pickerOpen && validOutput
             && C<NumericUpDown>("PreviewValue").Value is not null && C<NumericUpDown>("ResultHoldValue").Value is not null
-            && TryCrf(out _);
+            && C<ComboBox>("FallSpeedValue").SelectedIndex >= 0 && TryCrf(out _);
     }
 
     private bool TryOutput(out string output)
@@ -145,7 +151,7 @@ public sealed partial class VideoExportSettingsDialog : Window
             });
             if (files.Count == 0) return;
             using var file = files[0];
-            if (!_closed && file.TryGetLocalPath() is { } path) await StartProbe(path);
+            if (!_closed && file.TryGetLocalPath() is { } path) await StartProbe(path, explicitPath: true);
         }
         catch (Exception error) { if (!_closed) SetPickerError(error); }
         finally { _pickerOpen = false; if (!_closed) RefreshButtonsAfterPicker(); }
@@ -184,8 +190,10 @@ public sealed partial class VideoExportSettingsDialog : Window
         if (!Directory.Exists(Path.GetDirectoryName(output))) { SetOutputHint(_text["VideoExport.OutputDirectoryMissing"]); return; }
         if (File.Exists(output) || Directory.Exists(output)) { SetOutputHint(_text["VideoExport.OutputExists"]); return; }
         var preset = C<ComboBox>("PresetValue").SelectedIndex;
+        var speed = C<ComboBox>("FallSpeedValue").SelectedIndex + GameplayFallSpeed.MinimumLevel;
+        if (!GameplayFallSpeed.IsValid(speed)) return;
         Close(new VideoExportOptions(output, ffmpeg, Codec.Id, VideoExportChoices.Presets[Math.Max(0, preset)], crf,
-            (double)preview, (double)hold));
+            (double)preview, (double)hold, speed));
     }
 
     private void CancelClicked(object? sender, RoutedEventArgs e) => Close(null);

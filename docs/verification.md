@@ -55,6 +55,11 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-23 · 谱面视频：游戏内落速与 FFmpeg 自动发现
+
+- [非图形整仓回归](<../.tmp/video-fallspeed-ffmpeg-verify.log>)通过，覆盖 0.1×–2.0× 选项、默认和恢复、1.7× 与编码速度独立、worker 报告倍率不符或来自旧版本时拒绝发布，以及 FFmpeg 安装目录、路径优先级、失效回退和探测时限。[定向时序与投影测试](<../.tmp/video-fallspeed-focused.log>)也通过，并检查落速改变移动距离、不改变抵达判定线的音频时刻。本机 FFmpeg 的实际探测识别到 H.264、HEVC 和 AV1；包管理器布局使用测试夹具，未在其他电脑实测。
+- 未启动游戏实录，也未出包。录制报告升级到 v3，下次内测须配套构建 Shell 和 worker；旧内测包不会出现新落速选项。
+
 ### 2026-11-22 · 谱面视频：提交 `5dfb08b7` 审核后的源码修补
 
 - [非图形整仓回归](<../.tmp/ocr-fix-verify-complete.log>)退出 0。覆盖父进程退出后继承的输出句柄、关闭设置后等待探测清理、显式暂停覆盖未确认播放、快照写入中止/只读媒体/发布竞争，以及 v2 试听与结算报告。另跑 [Windows 录制时序和 junction 回归](<../client/tests/verify-video-capture.ps1>)；原生管道收尾测试连续通过 8 次，覆盖未读尾部、读完 EOF 和中途断开。

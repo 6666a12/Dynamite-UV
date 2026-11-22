@@ -50,18 +50,4 @@ internal sealed record VideoExportEncoding(string Encoder, string Tag, string Na
         return encoders.Contains("aac") ? Profiles.Where(item => encoders.Contains(item.Encoder)).Select(item => item.Id).ToArray() : [];
     }
 
-    public static string? FindFfmpeg(string? configuredPath)
-    {
-        if (!string.IsNullOrWhiteSpace(configuredPath))
-            return Path.IsPathFullyQualified(configuredPath) && File.Exists(configuredPath) ? configuredPath : null;
-        if (VideoExportProcess.IsDevelopmentOverride("DYNA_FFMPEG", out var dev)) return dev;
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
-        {
-            var candidateDirectory = directory.Trim().Trim('"');
-            if (!Path.IsPathFullyQualified(candidateDirectory)) continue;
-            var candidate = Path.Combine(candidateDirectory, "ffmpeg.exe");
-            if (File.Exists(candidate)) return candidate;
-        }
-        return null;
-    }
 }

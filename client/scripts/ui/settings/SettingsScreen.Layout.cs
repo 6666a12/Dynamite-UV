@@ -1,5 +1,6 @@
 using Godot;
 using DynamiteUniverse.Game;
+using DynamiteUniverse.Shared.Chart;
 using DynamiteUniverse.Shared.Judge;
 
 namespace DynamiteUniverse.Ui;
@@ -60,7 +61,7 @@ public partial class SettingsScreen
         AddStepper(Row(root,0,"判定偏移"),()=> $"{s.TimingOffsetMs:+0;-0;+0} ms",
             delta=>s.TimingOffsetMs=Math.Clamp(s.TimingOffsetMs+delta*TimingStepMs,-300,300),"JudgeOffset");
         AddStepper(Row(root,1,"音符落速"),()=> $"{s.FallSpeedMultiplier:F1}×",
-            delta=>s.FallSpeedLevel=Math.Clamp(s.FallSpeedLevel+delta,1,20),"FallSpeed");
+            delta=>s.FallSpeedLevel=GameplayFallSpeed.Clamp(s.FallSpeedLevel+delta),"FallSpeed");
         AddToggle(Row(root,2,"判定浮字"),()=>s.JudgeTextEnabled,()=>s.JudgeTextEnabled=!s.JudgeTextEnabled);
         AddSegments(Row(root,3,"判定模式"),ModeNames,()=> (int)s.GameplayMode,
             n=>s.GameplayMode=n==1?GameplayMode.Hardcore:GameplayMode.Standard,"Mode");

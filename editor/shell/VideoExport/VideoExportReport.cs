@@ -4,14 +4,17 @@ namespace DynamiteUniverse.Editor.Shell.VideoExport;
 
 internal static class VideoExportReport
 {
-    internal static (int Trim, int Frames) Validate(JsonElement report, string chart, int preview, int hold)
+    internal static (int Trim, int Frames) Validate(JsonElement report, string chart, int preview, int hold, int fallSpeedLevel)
     {
-        if (report.GetProperty("version").GetInt32() != 2)
+        if (report.GetProperty("version").GetInt32() != 3)
             throw new InvalidDataException("The recorder report version does not match this editor. Use the bundled recorder.");
         if (!report.GetProperty("pass").GetBoolean() || !report.GetProperty("autoResult").GetBoolean() ||
             report.GetProperty("chartId").GetString() != chart || report.GetProperty("previewFrames").GetInt32() != preview ||
             report.GetProperty("resultHoldFrames").GetInt32() != hold)
             throw new InvalidDataException("The worker did not confirm the selected difficulty, Auto result and durations.");
+
+        if (report.GetProperty("fallSpeedLevel").GetInt32() != fallSpeedLevel)
+            throw new InvalidDataException("The worker did not use the selected gameplay note speed.");
 
         var available = report.GetProperty("previewAvailableFrames").GetInt32();
         var recorded = report.GetProperty("recordedPreviewFrames").GetInt32();
