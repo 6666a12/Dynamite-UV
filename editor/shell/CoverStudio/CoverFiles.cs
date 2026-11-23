@@ -1,10 +1,13 @@
 using Avalonia;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using DynamiteUniverse.ChartEditor.Core;
 using DynamiteUniverse.Shared.Chart.V2;
 using SkiaSharp;
 
 namespace DynamiteUniverse.Editor.Shell;
+
+internal sealed class CoverDestinationException(string reason) : IOException(reason);
 
 internal static class CoverFiles
 {
@@ -35,7 +38,7 @@ internal static class CoverFiles
         return new Bitmap(content);
     }
 
-    public static byte[] Encode(CoverLayout layout, Bitmap? image, CoverCanvasMode mode)
+    public static SKBitmap Capture(CoverLayout layout, Bitmap? image, CoverCanvasMode mode)
     {
         var size = mode == CoverCanvasMode.CropPreview ? layout.Crop.Size : CoverLayout.WideSize;
         var canvas = new CoverCanvas();
@@ -44,15 +47,88 @@ internal static class CoverFiles
         canvas.Arrange(new Rect(size));
         using var render = new RenderTargetBitmap(new PixelSize((int)size.Width, (int)size.Height), new Vector(96, 96));
         render.Render(canvas);
-        using var output = new MemoryStream();
-        render.Save(output, PngBitmapEncoderOptions.Default);
-        return output.ToArray();
+        // Copy on the UI thread; the resulting Skia bitmap owns its pixels and does not reference any visual or source image.
+        var pixels = new SKBitmap(new SKImageInfo(render.PixelSize.Width, render.PixelSize.Height,
+            SKColorType.Bgra8888, SKAlphaType.Premul));
+        try
+        {
+            if (pixels.GetPixels() == IntPtr.Zero) throw new IOException("Cannot allocate cover pixels.");
+            using var target = new PixelBuffer(pixels, render.PixelSize);
+            render.CopyPixels(target);
+            return pixels;
+        }
+        catch { pixels.Dispose(); throw; }
     }
 
-    public static async Task SaveNewAsync(string path, byte[] bytes)
+    private sealed class PixelBuffer(SKBitmap pixels, PixelSize size) : ILockedFramebuffer
     {
-        // Do not overwrite source art, an existing package asset, or an unrelated file.
-        await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true);
-        await stream.WriteAsync(bytes);
+        public IntPtr Address => pixels.GetPixels();
+        public int RowBytes => pixels.RowBytes;
+        public PixelSize Size => size;
+        public Vector Dpi => new(96, 96);
+        public PixelFormat Format => PixelFormat.Bgra8888;
+        public AlphaFormat AlphaFormat => AlphaFormat.Premul;
+        public void Dispose() { } // The caller owns the pixel buffer independently.
+    }
+
+    public static string ValidateDestination(string path, string? packageDirectory)
+    {
+        path = Path.GetFullPath(path);
+        if (!string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase))
+            throw new CoverDestinationException("Cover.PngRequired");
+        var parent = Path.GetDirectoryName(path) ?? throw new IOException("Missing destination directory.");
+        RejectLinkedAncestors(parent);
+        if (packageDirectory is not null)
+        {
+            RejectLinkedAncestors(packageDirectory);
+            var relative = Path.GetRelativePath(packageDirectory, parent);
+            if (!Path.IsPathRooted(relative) && relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                throw new CoverDestinationException("Cover.OutsidePackage");
+        }
+        if (File.Exists(path) || Directory.Exists(path)) throw new CoverDestinationException("Cover.NewFile");
+        return path;
+    }
+
+    private static void RejectLinkedAncestors(string path)
+    {
+        for (DirectoryInfo? dir = new(path); dir is not null; dir = dir.Parent)
+        {
+            if (!dir.Exists) throw new DirectoryNotFoundException(dir.FullName);
+            if ((dir.Attributes & FileAttributes.ReparsePoint) != 0 || dir.LinkTarget is not null)
+                throw new CoverDestinationException("Cover.LinkedDirectory");
+        }
+    }
+
+    public static Task ExportAsync(string path, string? packageDirectory, SKBitmap pixels, CancellationToken token) =>
+        Task.Run(() => Publish(path, packageDirectory, stream =>
+        {
+            if (!pixels.Encode(stream, SKEncodedImageFormat.Png, 100)) throw new IOException("Could not encode PNG.");
+        }, token), token);
+
+    internal static void Publish(string path, string? packageDirectory, Action<Stream> write, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        path = ValidateDestination(path, packageDirectory);
+        var staging = Path.Combine(Path.GetDirectoryName(path)!, $".uv-cover-{Guid.NewGuid():N}.tmp");
+        var ownsStaging = false;
+        try
+        {
+            using (var stream = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                ownsStaging = true;
+                write(stream);
+            }
+            token.ThrowIfCancellationRequested();
+            ValidateDestination(path, packageDirectory);
+            File.Move(staging, path, overwrite: false);
+            ownsStaging = false;
+        }
+        finally
+        {
+            if (ownsStaging)
+                try { File.Delete(staging); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+        }
     }
 }

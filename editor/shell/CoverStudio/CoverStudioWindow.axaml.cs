@@ -26,6 +26,7 @@ public sealed partial class CoverStudioWindow : Window
     private bool _refreshing = true, _closed, _busy;
     private Gesture? _gesture;
     private CoverLayout? _beforeSlider;
+    private readonly CancellationTokenSource _lifetime = new();
     private CoverGuide[] _guides = [];
     private CoverLayout State => _history.Current;
     private bool Framing => FramingToggle.IsChecked == true;
@@ -55,12 +56,23 @@ public sealed partial class CoverStudioWindow : Window
         }
         ZoomSlider.AddHandler(PointerPressedEvent, (_, e) =>
         {
-            if (!_refreshing && _image is not null && e.GetCurrentPoint(ZoomSlider).Properties.IsLeftButtonPressed)
+            if (!_refreshing && !_busy && _image is not null && e.GetCurrentPoint(ZoomSlider).Properties.IsLeftButtonPressed)
+            {
+                StopDrag(commit: true);
+                CommitZoomSlider();
                 _beforeSlider = State;
+            }
         }, RoutingStrategies.Tunnel);
         ZoomSlider.AddHandler(PointerReleasedEvent, (_, _) => CommitZoomSlider(), RoutingStrategies.Tunnel, handledEventsToo: true);
         ZoomSlider.AddHandler(PointerCaptureLostEvent, (_, _) => CommitZoomSlider(), handledEventsToo: true);
-        Closed += (_, _) => { _closed = true; _image?.Dispose(); _image = null; };
+        Closed += (_, _) =>
+        {
+            _closed = true;
+            _lifetime.Cancel();
+            _lifetime.Dispose();
+            _image?.Dispose();
+            _image = null;
+        };
         ResetEditorFields();
         SetStatus("Cover.PickHint");
     }
@@ -68,6 +80,7 @@ public sealed partial class CoverStudioWindow : Window
     internal async Task LoadSourceAsync(string path)
     {
         if (_busy || _closed) return;
+        FinishPreviewEdits();
         _busy = true; Refresh();
         try
         {
@@ -179,13 +192,21 @@ public sealed partial class CoverStudioWindow : Window
         _refreshing = false;
     }
 
+    private void FinishPreviewEdits()
+    {
+        StopDrag(commit: true);
+        CommitZoomSlider();
+    }
+
     private void Change(CoverLayout next, bool list = false)
     {
+        // The command was calculated from the current preview; commit that preview before the command.
+        FinishPreviewEdits();
         _history.Change(next);
         Refresh(list);
     }
-    private void UndoClicked(object? sender, RoutedEventArgs e) { _history.Undo(); ResetEditorFields(); }
-    private void RedoClicked(object? sender, RoutedEventArgs e) { _history.Redo(); ResetEditorFields(); }
+    private void UndoClicked(object? sender, RoutedEventArgs e) { FinishPreviewEdits(); _history.Undo(); ResetEditorFields(); }
+    private void RedoClicked(object? sender, RoutedEventArgs e) { FinishPreviewEdits(); _history.Redo(); ResetEditorFields(); }
     private void ModeChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_refreshing || e.Source != Modes) return;
@@ -260,13 +281,14 @@ public sealed partial class CoverStudioWindow : Window
     {
         if (_busy || _gesture is not null || sender is not CoverCanvas canvas || canvas.Scale <= 0 ||
             !e.GetCurrentPoint(canvas).Properties.IsLeftButtonPressed || !canvas.ContainsImagePoint(e.GetPosition(canvas))) return;
+        CommitZoomSlider();
         CommitCopy();
         var p = canvas.ToLogical(e.GetPosition(canvas));
         if (canvas == _crop)
         {
             if (_image is null) return;
             var corner = new Point(State.Crop.Right, State.Crop.Bottom);
-            var resize = new Vector(p.X - corner.X, p.Y - corner.Y).Length * canvas.Scale <= 14;
+            var resize = new Vector(p.X - corner.X, p.Y - corner.Y).Length <= Math.Min(14 / canvas.Scale, State.Crop.Width * .45);
             if (!resize && !State.Crop.Contains(p)) return;
             _gesture = new(e.Pointer, canvas, resize ? GestureKind.CropSize : GestureKind.CropMove, p, State);
         }
@@ -370,7 +392,8 @@ public sealed partial class CoverStudioWindow : Window
                 Title = _text["Cover.Open"], AllowMultiple = false,
                 FileTypeFilter = [new(_text["Cover.Images"]) { Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp"] }],
             });
-            if (files.FirstOrDefault()?.TryGetLocalPath() is { } path) await LoadSourceAsync(path);
+            using var selected = files.FirstOrDefault();
+            if (selected?.TryGetLocalPath() is { } path) await LoadSourceAsync(path);
         }
         catch (Exception ex) { if (!_closed) ReportSourceError(ex); }
     }
@@ -380,28 +403,34 @@ public sealed partial class CoverStudioWindow : Window
     private async void ExportWideClicked(object? sender, RoutedEventArgs e) => await Export(CoverCanvasMode.WideImage, "cover-video.png");
     private async Task Export(CoverCanvasMode mode, string name)
     {
-        if (_busy || (mode != CoverCanvasMode.Overlay && _image is null)) return;
+        if (_closed || _busy || (mode != CoverCanvasMode.Overlay && _image is null)) return;
+        FinishPreviewEdits();
         CommitCopy();
         _busy = true; Refresh();
         try
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            using var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = _text["Cover.ExportTitle"], SuggestedFileName = name, DefaultExtension = "png",
                 FileTypeChoices = [new("PNG") { Patterns = ["*.png"] }], ShowOverwritePrompt = false,
             });
             if (_closed || file?.TryGetLocalPath() is not { } path) return;
-            if (_packageDirectory is { } root)
-            {
-                var relative = Path.GetRelativePath(root, path);
-                if (!Path.IsPathRooted(relative) && relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar))
-                { SetStatus("Cover.OutsidePackage"); return; }
-            }
-            if (File.Exists(path)) { SetStatus("Cover.NewFile"); return; }
-            await CoverFiles.SaveNewAsync(path, CoverFiles.Encode(State, _image, mode));
+            await WriteCoverAsync(path, mode);
             if (!_closed) SetStatus("Cover.Exported", Path.GetFileName(path));
         }
+        catch (CoverDestinationException ex) { if (!_closed) SetStatus(ex.Message); }
+        catch (OperationCanceledException) when (_closed) { }
         catch (Exception ex) { if (!_closed) SetStatus("Cover.ExportFailed", ex.Message); }
         finally { _busy = false; if (!_closed) Refresh(); }
+    }
+
+    internal async Task WriteCoverAsync(string path, CoverCanvasMode mode)
+    {
+        var token = _lifetime.Token;
+        // Avoid allocating a large image if the destination is already invalid. Recheck before publication.
+        path = await Task.Run(() => CoverFiles.ValidateDestination(path, _packageDirectory), token);
+        token.ThrowIfCancellationRequested();
+        using var pixels = CoverFiles.Capture(State, _image, mode);
+        await CoverFiles.ExportAsync(path, _packageDirectory, pixels, token);
     }
 }

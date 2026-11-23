@@ -70,7 +70,8 @@ internal sealed class CoverCanvas : Control
         }
 
         var preview = _mode is CoverCanvasMode.Layout or CoverCanvasMode.Framing;
-        if (preview) context.DrawRectangle(Mat, null, screen);
+        // A composed video cover includes its backdrop. Only the overlay exports with canvas alpha.
+        if (preview || _mode == CoverCanvasMode.WideImage) context.DrawRectangle(Mat, null, screen);
         using (context.PushTransform(Matrix.CreateScale(viewport.Scale, viewport.Scale) * Matrix.CreateTranslation(screen.X, screen.Y)))
         {
             if (_image is not null && _mode != CoverCanvasMode.Overlay)

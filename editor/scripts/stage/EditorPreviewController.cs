@@ -157,7 +157,13 @@ public partial class EditorPreviewController : Control
             case "workbenchModal":
                 _workbenchBlocked = root.GetProperty("blocked").GetBoolean();
                 _ipc.WorkbenchEpoch = root.GetProperty("epoch").GetInt64();
-                if (_workbenchBlocked) { _menu.Close(); _stage.CancelGesture(); SetPlaying(false); }
+                if (_workbenchBlocked)
+                {
+                    _menu.Close();
+                    _stage.CancelGesture();
+                    // Owned read-only cover tools block authoring, not the running preview clock.
+                    if (!root.TryGetProperty("pausePlayback", out var pausePlayback) || pausePlayback.GetBoolean()) SetPlaying(false);
+                }
                 break;
             case "load": Load(root, false); break;
             case "update": Load(root, true); break;

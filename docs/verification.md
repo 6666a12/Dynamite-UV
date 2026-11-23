@@ -55,10 +55,17 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-23 · 网站教程：谱面视频与封面制作
+
+- [中文](<../site/guide.html#export-video>)和[英文](<../site/en/guide.html#export-video>)教程补上录制组件、FFmpeg、游戏内音符落速和视频导出步骤，并新增[中文封面制作](<../site/guide.html#cover-studio>)、[英文封面制作](<../site/en/guide.html#cover-studio>)章节。`python -B tools/site/check.py`、网站回归（7 项）、`node --check site/assets/site.js` 和本轮差异检查通过。没有改截图或其他发布资产；未做浏览器目测或 GitHub Pages 部署。
+
+- 另通读并校订[英文首页](<../site/en/index.html>)和[英文教程](<../site/en/guide.html>)全部 11 章。只改文案，保留 HTML 结构、链接目标、元信息、代码示例和按键；站点检查、网站回归（7 项）、脚本语法和差异检查均通过，未部署。
+
 ### 2026-11-23 · 制谱器：封面制作
 
 - `python -B tools/verify.py --no-restore` 退出 0：项目结构、构建及全量非图形回归通过。封面专项以 Avalonia Headless 打开左侧扩展入口，验证独立工具窗、方形裁切与徽章拖动、撤销、宽幅取景隔离、实际斜边与中线吸附，以及 PNG 尺寸/像素/透明度和拒绝覆盖已有文件。当前谱面文档未被修改。见[封面专项日志](<../.tmp/cover-verify-all.log#L1229-L1242>)。
 - 界面收整后重跑 Shell 构建、架构门禁及 Avalonia Headless；额外验证工具按钮的垂直中心、徽章原位展开／折叠、底栏文字独立展开，以及画布外的留白使用窗口背景。[收整回归日志](<../.tmp/cover-layout-headless.log#L212-L219>)。
+- `cf1108f9` 审核修复后，`python -B tools/verify.py --no-restore` 再次退出 0。新增 [模态回归](<../.tmp/cover-review-fixes-verify.log#L1092-L1101>)覆盖浮动舞台锁和释放、代际隔离与播放时钟；[封面回归](<../.tmp/cover-review-fixes-verify.log#L1239-L1268>)覆盖曲绘自动载入、目录联接／符号链接别名、失败及取消清理、编码时新建同名文件、交错拖动和撤销、宽幅平移与透明源图的预览／导出像素一致性。
 - 未启动 Godot，未验证真实 Windows 文件选择器、不同 DPI 下的拖动手感，也未重新打包桌面候选版。
 
 ### 2026-11-23 · 谱面视频：游戏内落速与 FFmpeg 自动发现

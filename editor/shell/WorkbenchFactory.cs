@@ -38,7 +38,7 @@ public sealed class WorkbenchFactory : Factory
                 Dispatcher.UIThread.Post(() =>
                 {
                     _stageRestoreQueued = false;
-                    if (!IsShuttingDown) DockStage();
+                    if (!IsShuttingDown && !ModalActive) DockStage();
                 });
             }
             return false;

@@ -85,12 +85,12 @@ public sealed partial class MainWindow : Window
         LostFocus += (_, _) => _timingKeys.ResetHeld();
         _factory = new WorkbenchFactory(_stageView, _inspector, _tools, _timing);
         _modal = new(this, this.FindControl<Grid>("WorkbenchBody")!, this.FindControl<Border>("WorkbenchModalLayer")!,
-            this.FindControl<ContentControl>("WorkbenchModalSlot")!, _factory.FloatingWindows, (blocked, epoch) =>
+            this.FindControl<ContentControl>("WorkbenchModalSlot")!, _factory.FloatingWindows, (blocked, epoch, pausePlayback) =>
             {
                 if (blocked) _timingKeys.ResetHeld();
                 _factory.ModalActive = blocked;
                 _stageView.Host.SetOccluded(blocked || ShortcutsVisible);
-                _service.Send(new { command = "workbenchModal", blocked, epoch });
+                _service.Send(new { command = "workbenchModal", blocked, epoch, pausePlayback });
             });
         _curves = new(_inspector.Formula, _timing.Formula, this.FindControl<Button>("DiscardFormulaDrafts")!, _modal, _text, Report);
         _difficulty = new(_session, _modal, () => { RefreshDocument(); Report(_text.Format("Message.ChartAdded", CurrentDocument!.SelectedChartId)); });
@@ -151,7 +151,7 @@ public sealed partial class MainWindow : Window
         };
         _tools.AuthoringChanged += SendAuthoring;
         _tools.AddPanelRequested += AddPanel;
-        _tools.CoverStudioRequested += () => { if (!_ioBusy && !_closePending && !_modal.IsOpen && !ShortcutsVisible) CoverStudioFlow.Show(this, _session, _text, Report); };
+        _tools.CoverStudioRequested += async () => { if (!_ioBusy && !_closePending && !_modal.IsOpen && !ShortcutsVisible) await CoverStudioFlow.Show(_modal, _session, _text, Report); };
         _tools.Notice += _ => Report(_text["Message.WorkspaceNotice"]);
         _timing.RowSelectionChanged += selection =>
         {
@@ -303,11 +303,8 @@ public sealed partial class MainWindow : Window
     internal void ApplyCurveForVerification(V2PathCurve curve) => _inspector.SetCurveForVerification(curve);
     internal void SendInvalidAuthoringForVerification() =>
         _service.SetAuthoring("SELECT", "not-a-note-type", "Center", 1, 16);
-    internal void StageEventForVerification(string name, string json)
-    {
-        using var jsonDocument = JsonDocument.Parse(json);
-        StageEvent(new StageMessage(name, jsonDocument.RootElement.Clone()));
-    }
+    internal void StageEventForVerification(string name, string json, bool stampCurrentEpoch = true) =>
+        StageEvent(Verification.StageFixtureMessage(name, json, stampCurrentEpoch ? _modal.Epoch : null));
 
     private async Task CreatePackage(EditorCreateForm? form = null)
     {
@@ -420,7 +417,7 @@ public sealed partial class MainWindow : Window
                 _clock.ResetSession();
                 _loadedDocument = null;
                 _stageView.Host.SetGodotHandle((nint)data.GetProperty("hwnd").GetInt64(), TryGetPlatformHandle()?.Handle ?? 0);
-                _service.Send(new { command = "workbenchModal", blocked = _modal.IsOpen, epoch = _modal.Epoch });
+                _service.Send(new { command = "workbenchModal", blocked = _modal.IsOpen, epoch = _modal.Epoch, pausePlayback = _modal.PausePlayback });
                 _workspace.Ready();
                 _timingKeys.Sync();
                 SendDocument();

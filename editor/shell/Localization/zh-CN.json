@@ -328,6 +328,8 @@
   "Cover.Exported": "已导出 {0}",
   "Cover.OutsidePackage": "请选择当前谱包目录之外的位置。",
   "Cover.NewFile": "不会覆盖现有文件，请另取文件名。",
+  "Cover.PngRequired": "请使用以 .png 结尾的文件名。",
+  "Cover.LinkedDirectory": "请选择不经过目录链接或联接的位置。",
   "BpmImport.Title": "导入 BPM",
   "BpmImport.Target": "目标差分：{0}。将替换 BPM 表和音频偏移。音符、Scroll 和音频文件不变，但音符落在音频中的时间可能改变。",
   "BpmImport.NoFile": "请选择 Malody (.mc) 或 osu! (.osu) 谱面",

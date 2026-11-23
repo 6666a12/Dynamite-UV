@@ -18,7 +18,8 @@ ROUTES = ('index.html', 'guide.html')
 GUIDE_ANCHORS = {
     'prepare', 'workspace', 'panel-layout', 'tools-panel', 'new-package',
     'first-note', 'edit', 'inspector-panel', 'batch-panel', 'sustain',
-    'timing', 'timing-panel', 'preview', 'save', 'shortcuts', 'faq',
+    'timing', 'timing-panel', 'preview', 'export-video', 'save', 'cover-studio',
+    'shortcuts', 'faq',
 }
 
 

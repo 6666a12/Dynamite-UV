@@ -328,6 +328,8 @@
   "Cover.Exported": "Exported {0}",
   "Cover.OutsidePackage": "Choose a location outside the current package directory.",
   "Cover.NewFile": "Existing files are not overwritten. Choose a new filename.",
+  "Cover.PngRequired": "Choose a filename ending in .png.",
+  "Cover.LinkedDirectory": "Choose a destination outside linked directories.",
   "BpmImport.Title": "Import BPM",
   "BpmImport.Target": "Difficulty: {0}. This replaces its BPM timeline and audio offset. Notes, Scroll and audio files stay unchanged, but notes may play at different times.",
   "BpmImport.NoFile": "Select a Malody (.mc) or osu! (.osu) chart",

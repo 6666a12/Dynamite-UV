@@ -31,7 +31,9 @@
       <a href="#sustain"><span>06</span>画一根两拍的长条</a>
       <a href="#timing"><span>07</span>对齐节拍与视觉变速</a><a class="subchapter" href="#timing-panel">增删 BPM 和 Scroll 事件</a>
       <a class="subchapter" href="#custom-expr">用自定义公式写缓动</a>
-      <a href="#preview"><span>08</span>试听与检查</a><a href="#save"><span>09</span>保存、备份与管理差分</a><a href="#shortcuts"><span>10</span>快捷键速查</a><a href="#faq"><span>11</span>遇到问题时</a>
+      <a href="#preview"><span>08</span>试听与检查</a><a class="subchapter" href="#export-video">导出谱面视频</a>
+      <a href="#save"><span>09</span>保存、备份与管理差分</a><a class="subchapter" href="#cover-studio">制作方形封面和投稿图</a>
+      <a href="#shortcuts"><span>10</span>快捷键速查</a><a href="#faq"><span>11</span>遇到问题时</a>
     </nav>
     <div class="sidebar-foot"><a href="index.html">返回项目首页</a><a href="https://github.com/6666a12/Dynamite-UV/issues">反馈教程或软件问题 ↗</a></div>
   </aside>
@@ -182,6 +184,15 @@
       <h3>在舞台空白处点右键</h3><p>菜单刚打开时，当前轨道和音量都不变，也不会预选左轨。要换放置面，把指针移到左、中、右的对应区域即可；要调预览音乐，在音量行上横移，左端是 0%，右端是 100%。这两项都不用按鼠标。</p>
       <p>点七种音符中的一种会进入 PLACE，也可以点 SELECT、PATH 或命中特效档位（关闭、精简、完整）。工具选择会同步到侧栏，菜单保持打开。音量和特效只影响编辑器预览。用键盘时，按 <kbd>Tab</kbd> 或 <kbd>Shift+Tab</kbd> 开始导航。按 Esc、再点右键或点菜单外都能关闭，不会落音符。有手势未完成时，右键先取消手势，不打开菜单；PAN 和删除不在菜单里。</p>
       <div class="practice"><h3>从小节 1 的单点，听到小节 3 的长条</h3><ul><li>回到小节 1 稍前，听那声较高的节拍，看第一颗是否同时到线。接下来的四拍是否间距均匀？复制过去的一组有没有叠在原处？</li><li>长条到了转折看不清，可以按 S 把音乐放慢，看头、拐点和尾是否都在预想的拍上。检查完用 W 回到 <strong>RATE ×1.0</strong>，再按原速听一遍。</li><li>再看两条侧轨，有没有音符被挡住，或路径突然伸到屏外？自动预览会替你接住音符，不写玩家成绩，也不能证明手指实际跟得上。</li></ul></div>
+      <div id="export-video" class="guide-subsection" data-keywords="录制 导出谱面视频 MP4 1080p60 FFmpeg WinGet 编码 H.264 HEVC AV1 游戏内音符落速 评级 留屏">
+        <h3>导出谱面视频</h3>
+        <p>需要带录制组件的 Windows 制谱器。导出的是当前差分的游戏画面，不是编辑器窗口。已应用但尚未保存的改动也会录进去；导出不会保存谱包或写入成绩。</p>
+        <ol class="step-list">
+          <li><strong class="step-title">选好差分，再打开「文件 → 导出谱面视频…」。</strong><p>制谱器会在本机查找兼容的 FFmpeg，不会自动下载。没找到的话，可以用 WinGet 安装，或点「定位 FFmpeg…」选择已有的 <code>ffmpeg.exe</code>。</p></li>
+          <li><strong class="step-title">设置试听、评级留屏和落速。</strong><p>「试听时长」最多能填当前差分的试听片段长度，填 0 就跳过。「评级留屏」从评级揭晓后开始计时，填 0 也会播完整段揭晓动画。「游戏内音符落速」可选 0.1× 到 2.0×，每档 0.1×；第一次默认 1.0×，之后沿用上次开始导出时的选择。它只影响成片里音符移动的快慢，不改音乐、判定、成片时长或游戏设置。工作台里按 Q / E 调的预览流速对成片也没有影响。</p></li>
+          <li><strong class="step-title">给 MP4 取个新文件名，点「开始导出」。</strong><p>默认用 H.264，编码速度为「中」。如果本机的 FFmpeg 支持，也可以选 HEVC 或 AV1。录制时会打开单独的游戏窗口，音乐和特效直接录进视频，不从扬声器播放。成片是 1920×1080、60 fps 的 MP4。可以中途取消，已有文件不会被覆盖。</p></li>
+        </ol>
+      </div>
     </section>
 
     <section id="save" class="guide-section" data-keywords="保存 另存为 打开 备份 分享 退出 目录包 strict v2 差分 难度 复制 删除 重排 替换音频 试听 封面">
@@ -196,6 +207,16 @@
       <p>在「文件 → 谱面包 / 差分设置」中，上半部改整个包的 ID、曲名、曲师、默认音频、封面和试听区间；下半部改当前差分的 ID、包内谱面文件名、难度、等级或不定级、谱师和音频偏移。多个谱师可用英文逗号分隔。试听输入的是<strong>起点和时长，单位秒</strong>，不是起止两个时间。比如从第 2 秒开始试听 4 秒，填 <code>2</code> 和 <code>4</code>。</p>
       <p>只有这张差分需要另一段试听或另一版音乐？勾选相应的「当前差分覆盖…」。勾选音频覆盖后点「替换」选择文件，再应用；取消覆盖则回到包的默认设置。点「应用设置」把这一组改动一起提交。换过的音频可立即预览，成功保存后才从包内读；在这之前保留所选的外部文件。</p>
       <div class="callout warning"><p class="callout-title">替换媒体前备一份完整谱包</p><p>先保存并复制整个包，或另存到空目录后在副本里改。跨过保存再撤销，不一定能找回旧音频或封面的内容。编辑器读写本地 strict v2 目录包。</p></div>
+      <div id="cover-studio" class="guide-subsection" data-keywords="封面制作 方形 裁切 曲绘 投稿 16:9 菱形 徽章 底栏 透明叠层 PNG">
+        <h3>制作方形封面和 16:9 投稿图</h3>
+        <p>打开或新建谱包后，在左侧点「工具 → 扩展 → ＋ 封面制作」。工具窗会带入曲名、曲师、谱师、差分和已有曲绘。如果你刚换过曲绘，还没保存，窗口会先用新图。也可以点「选择本地图像…」，挑一张静态 PNG、JPEG 或 WebP。关窗后不会保留这次排版。</p>
+        <ol class="step-list">
+          <li><strong class="step-title">方形封面：在原图上取景。</strong><p>拖方框内部换位置，拖右下角改大小。用方向键微调，按住 Shift 可以一次多移一些。选好后点「导出方形 PNG」。导出的边长就是裁切框在原图上的像素边长，不会放大。</p></li>
+          <li><strong class="step-title">投稿图：先调底图，再排徽章。</strong><p>打开「调整曲绘取景」，拖动或缩放底图。100% 时，曲绘按原比例铺满画布；改宽幅取景不会动到方形裁切。关掉取景模式后，可以单独拖动菱形。到「中心元素」里选要显示的徽章，也可以改底栏文字，或勾选「显示细顶栏」。打开「对齐吸附」时，拖到模板中轴、其他菱形的中心线或斜边附近会吸附；按住 Alt 可暂时关掉吸附。</p></li>
+          <li><strong class="step-title">导出整张图，或只保留叠层。</strong><p>「导出投稿 PNG」把曲绘和版式合成一张 1920×1080 的图。曲绘的透明区域用预览里同样的底色填上。只想把文字和徽章叠到另一个视频上，就点「导出透明叠层 PNG」，不用先选曲绘。</p></li>
+        </ol>
+        <p>请选择谱包外的普通目录，避开目录联接和符号链接。导出不会覆盖已有文件，也不会改谱包。要把方形 PNG 用作选曲封面，回到「文件 → 谱面包 / 差分设置」替换封面，再保存谱包。</p>
+      </div>
     </section>
 
     <section id="shortcuts" class="guide-section" data-keywords="快捷键 键盘 hotkey F1 ctrl shift Z X A D W S Q E 1 2 3 4 5 6 7">
@@ -221,7 +242,7 @@
         <details><summary>有音符，为什么舞台上看不到，或框选不到？</summary><p>回到「属性 → 定位 Note / 节点」，按 ID 与时间选它；核对轨道、中心、宽度和风险提示。音符可能已经过线、离屏，或视图被 PAN 移远。框选只取当前轨、按头部时间和中心算范围。别先在原处重复放一颗。</p></details>
         <details><summary>音乐不响，或每一拍好像都提前了？</summary><p>在舞台空白处点右键，确认音乐预览音量没有调到 0，再核对当前差分是否覆盖了包音频。只滚动或拖时间轴是定位，按空格才开播。若是拍点偏差，先恢复音乐倍率 1.0，按<a href="#timing">对轨步骤</a>分别检查偏移和 BPM。</p></details>
         <details><summary>能直接打开 ZIP 谱包吗？</summary><p>不能。若 ZIP 里已经是完整的 strict v2 谱包，先解压，再选包含包信息、谱面和音频的目录。</p></details>
-        <details><summary>波形、对象磁吸和 Storyboard 在哪里开？</summary><p>音频分析面板可以打开，但没有真实波形；已有对轨可从<a href="#import-bpm">插件 → 导入 BPM</a>导入。对象磁吸已停用，放置时的对齐标记只是提示，时间吸附和位置网格仍可用。Storyboard、游戏完整 HUD 预览和自动录制没有可用的制谱入口；也没有公开插件安装流程。</p></details>
+        <details><summary>波形、对象磁吸和 Storyboard 在哪里开？</summary><p>音频分析面板可以打开，但没有真实波形；已有对轨可从<a href="#import-bpm">插件 → 导入 BPM</a>导入。对象磁吸已停用，放置时的对齐标记只是提示，时间吸附和位置网格仍可用。工作台还没有 Storyboard、完整游戏 HUD 预览或公开的插件安装入口。要录制游戏画面，见<a href="#export-video">导出谱面视频</a>。</p></details>
         <details><summary>撤销更换音频，能找回保存前的文件吗？</summary><p>不能指望撤销恢复已被换掉的旧媒体。去替换前的备份取原文件，再在包或差分设置中选回。</p></details>
         <details><summary>怎样反馈一个能重现的问题？</summary><p>到 <a href="https://github.com/6666a12/Dynamite-UV/issues">GitHub Issues</a> 写明版本、从哪个界面开始、按了什么、预期和实际各是什么，附完整报错。截图先遮去私人路径；如需附谱包，请用能公开的音频和封面，或用本页的节拍做最小例子。</p></details>
       </div>

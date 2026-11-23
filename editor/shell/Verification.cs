@@ -49,6 +49,7 @@ internal static class Verification
             await CustomCurveVerification.Run(Path.Combine(root, "custom-curves"), Check);
             await AddDifficultyFormVerification.Run(Path.Combine(root, "difficulty-form"), Check);
             await WorkbenchModalVerification.Run(Path.Combine(root, "modal-host"), Check);
+            await CoverStudioModalVerification.Run(Path.Combine(root, "cover-modal"), Check);
             await BpmImportVerification.Run(Path.Combine(root, "bpm-import"), Check);
             await VerificationVideoExport.Run(Path.Combine(root, "video-export"), Check);
             PreviewClockVerification.Run(Check);
@@ -56,7 +57,8 @@ internal static class Verification
             await TimelineRhythmVerification.Run(Path.Combine(root, "rhythm-timeline"), Check);
             StageLaunchVerification.Run(Path.Combine(root, "launch"), Check);
             await ReplacementGuardVerification.Run(Path.Combine(root, "replacement"), Check);
-            CreatePackage(source);
+            var coverRoot = Path.Combine(root, "cover-studio");
+            CreatePackage(source, CoverStudioVerification.CreateSource(coverRoot));
             await ProjectStartVerification.Run(Path.Combine(root, "start-page"), source, Check);
             window.Show();
             await window.OpenPackageForVerification(source);
@@ -84,7 +86,7 @@ internal static class Verification
                 Check($"Restore remains idempotent after close cycle {cycle + 1}",
                     ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window));
             }
-            await CoverStudioVerification.Run(window, window.CurrentDocument!, Path.Combine(root, "cover-studio"), Check);
+            await CoverStudioVerification.Run(window, window.CurrentDocument!, coverRoot, Check);
             WorkspaceVerification.Run(window, Check);
             await WorkbenchPersistenceVerification.Run(Path.Combine(root, "persistence"), source, Check);
             Check("Q/E changes preview speed", window.ShortcutForVerification(Key.E) && window.PlayerSpeed == 1.1);
@@ -668,7 +670,15 @@ internal static class Verification
         Dispatcher.UIThread.RunJobs();
     }
 
-    internal static void CreatePackage(string destination)
+    internal static StageMessage StageFixtureMessage(string name, string json, long? epoch)
+    {
+        // A normal fixture event models new native input. Explicit old or absent epochs stay testable.
+        var payload = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+        if (epoch is { } value && !payload.ContainsKey("workbenchEpoch")) payload["workbenchEpoch"] = value;
+        return new StageMessage(name, System.Text.Json.JsonSerializer.SerializeToElement(payload));
+    }
+
+    internal static void CreatePackage(string destination, string? cover = null)
     {
         var root = Path.GetDirectoryName(destination)!;
         Directory.CreateDirectory(root);
@@ -677,7 +687,7 @@ internal static class Verification
         var session = new EditorDocumentSession();
         var document = session.CreateDraft(new EditorProjectDraftRequest(
             "shell-fixture", "Shell Fixture", "Community", "main", V2Difficulty.Hard,
-            null, 12, false, "Verification", 150, 0, 16, audio, null));
+            null, 12, false, "Verification", 150, 0, 16, audio, cover));
         document.Execute(new AddNoteCommand(new EditableNote
         {
             Id = "fixture-note", Type = V2NoteType.Tap, Track = EditorTrack.Center,
