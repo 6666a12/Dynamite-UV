@@ -46,6 +46,7 @@
       <Border Height="1" Background="{DynamicResource Line}" Margin="0,8" />
       <TextBlock Classes="section" Text="{local:Tr Tools.Extensions}" Margin="4,4,0,8" />
       <u:IconButton Content="{local:Tr Tools.AudioAnalysis}" HorizontalAlignment="Stretch" Click="AddPanelClicked" animations:SukiPressMotion.Enable="True" />
+      <u:IconButton x:Name="CoverStudioButton" Content="{local:Tr Cover.Entry}" HorizontalAlignment="Stretch" Click="CoverStudioClicked" animations:SukiPressMotion.Enable="True" />
       <TextBlock Classes="caption" Text="{local:Tr Tools.PluginHint}" TextWrapping="Wrap" Margin="4,4" />
     </StackPanel>
   </ScrollViewer>

@@ -12,6 +12,7 @@ public sealed partial class ToolsView : UserControl
     public event Action<string>? ToolSelected;
     public event Action? AuthoringChanged;
     public event Action? AddPanelRequested;
+    public event Action? CoverStudioRequested;
     public event Action<string>? Notice;
 
     public V2NoteType PlacementType => (V2NoteType)this.FindControl<ComboBox>("PlacementTypeChoice")!.SelectedIndex;
@@ -73,5 +74,6 @@ public sealed partial class ToolsView : UserControl
 
     private void OnAuthoringChanged(object? sender, RoutedEventArgs e) => AuthoringChanged?.Invoke();
     private void AddPanelClicked(object? sender, RoutedEventArgs e) => AddPanelRequested?.Invoke();
+    private void CoverStudioClicked(object? sender, RoutedEventArgs e) => CoverStudioRequested?.Invoke();
     private void NoticeClicked(object? sender, RoutedEventArgs e) => Notice?.Invoke("WorkspaceNotice");
 }

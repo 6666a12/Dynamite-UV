@@ -55,6 +55,12 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-23 · 制谱器：封面制作
+
+- `python -B tools/verify.py --no-restore` 退出 0：项目结构、构建及全量非图形回归通过。封面专项以 Avalonia Headless 打开左侧扩展入口，验证独立工具窗、方形裁切与徽章拖动、撤销、宽幅取景隔离、实际斜边与中线吸附，以及 PNG 尺寸/像素/透明度和拒绝覆盖已有文件。当前谱面文档未被修改。见[封面专项日志](<../.tmp/cover-verify-all.log#L1229-L1242>)。
+- 界面收整后重跑 Shell 构建、架构门禁及 Avalonia Headless；额外验证工具按钮的垂直中心、徽章原位展开／折叠、底栏文字独立展开，以及画布外的留白使用窗口背景。[收整回归日志](<../.tmp/cover-layout-headless.log#L212-L219>)。
+- 未启动 Godot，未验证真实 Windows 文件选择器、不同 DPI 下的拖动手感，也未重新打包桌面候选版。
+
 ### 2026-11-23 · 谱面视频：游戏内落速与 FFmpeg 自动发现
 
 - [非图形整仓回归](<../.tmp/video-fallspeed-ffmpeg-verify.log>)通过，覆盖 0.1×–2.0× 选项、默认和恢复、1.7× 与编码速度独立、worker 报告倍率不符或来自旧版本时拒绝发布，以及 FFmpeg 安装目录、路径优先级、失效回退和探测时限。[定向时序与投影测试](<../.tmp/video-fallspeed-focused.log>)也通过，并检查落速改变移动距离、不改变抵达判定线的音频时刻。本机 FFmpeg 的实际探测识别到 H.264、HEVC 和 AV1；包管理器布局使用测试夹具，未在其他电脑实测。

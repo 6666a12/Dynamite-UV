@@ -84,6 +84,7 @@ internal static class Verification
                 Check($"Restore remains idempotent after close cycle {cycle + 1}",
                     ReferenceEquals(TopLevel.GetTopLevel(window.Stage), window));
             }
+            await CoverStudioVerification.Run(window, window.CurrentDocument!, Path.Combine(root, "cover-studio"), Check);
             WorkspaceVerification.Run(window, Check);
             await WorkbenchPersistenceVerification.Run(Path.Combine(root, "persistence"), source, Check);
             Check("Q/E changes preview speed", window.ShortcutForVerification(Key.E) && window.PlayerSpeed == 1.1);

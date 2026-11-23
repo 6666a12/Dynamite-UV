@@ -151,6 +151,7 @@ public sealed partial class MainWindow : Window
         };
         _tools.AuthoringChanged += SendAuthoring;
         _tools.AddPanelRequested += AddPanel;
+        _tools.CoverStudioRequested += () => { if (!_ioBusy && !_closePending && !_modal.IsOpen && !ShortcutsVisible) CoverStudioFlow.Show(this, _session, _text, Report); };
         _tools.Notice += _ => Report(_text["Message.WorkspaceNotice"]);
         _timing.RowSelectionChanged += selection =>
         {
