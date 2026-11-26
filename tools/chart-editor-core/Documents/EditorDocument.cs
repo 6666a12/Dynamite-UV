@@ -157,6 +157,7 @@ public sealed class EditorDocument
     private readonly Stack<EditorHistoryEntry> _redo = new();
     private int _historyPosition;
     private int _savedHistoryPosition;
+    private bool _hasUnsavedMediaSettings;
     private int _nextId = 1;
     // Lazily rebuilt note/node ID cache. Every mutation entry point (Execute/Undo/Redo and
     // InsertChart/RemoveChart) invalidates it; never mutate note/node IDs outside those paths.
@@ -389,6 +390,25 @@ public sealed class EditorDocument
         UpdateDirtyState();
     }
 
+    internal void ApplyPackageSettings(IEditorCommand? media, IEditorCommand? history)
+    {
+        if (media is null)
+        {
+            if (history is not null) Execute(history);
+            return;
+        }
+
+        EndChartOffsetNudge();
+        var chartId = SelectedChartId;
+        // Apply and validate the exact requested combination, rolling back both on failure.
+        // Only the authoring part is retained after the transaction succeeds.
+        ExecuteValidated(history is null ? media : new CompositeEditorCommand(media, history));
+        if (history is not null) RecordCommand(history, chartId);
+        _hasUnsavedMediaSettings = true;
+        ChangeVersion++;
+        UpdateDirtyState();
+    }
+
     private void ExecuteValidated(IEditorCommand command)
     {
         var owner = SelectedChart;
@@ -481,7 +501,9 @@ public sealed class EditorDocument
         PackageDirectory = Path.GetFullPath(directory);
         SourceFormatMinor = savedMinor;
         IsUnpersisted = false;
-        _savedHistoryPosition = ChangeVersion == version ? _historyPosition : -1;
+        var savedCurrentVersion = ChangeVersion == version;
+        _savedHistoryPosition = savedCurrentVersion ? _historyPosition : -1;
+        if (savedCurrentVersion) _hasUnsavedMediaSettings = false;
         UpdateDirtyState();
     }
 
@@ -493,11 +515,12 @@ public sealed class EditorDocument
         SourceFormatMinor = FormatMinor;
         IsUnpersisted = false;
         _savedHistoryPosition = _historyPosition;
+        _hasUnsavedMediaSettings = false;
         UpdateDirtyState();
     }
 
-    private void UpdateDirtyState() =>
-        HasUnsavedChanges = IsUnpersisted || _historyPosition != _savedHistoryPosition || _activeOffsetNudge?.HasChange == true;
+    private void UpdateDirtyState() => HasUnsavedChanges = IsUnpersisted || _hasUnsavedMediaSettings ||
+        _historyPosition != _savedHistoryPosition || _activeOffsetNudge?.HasChange == true;
 
     internal EditableNote RequireNote(string id) => SelectedChart.Notes.Single(note => note.Id == id);
     internal EditablePathNode RequirePathNode(string noteId, string nodeId) =>

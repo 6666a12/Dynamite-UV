@@ -35,7 +35,7 @@ internal sealed class VideoExportFlow
             store.Save(VideoExportService.PreferenceFile, new VideoExportService.Preferences(options.FfmpegPath, options.FallSpeedLevel));
             var task = new VideoExportProgressDialog(text,
                 (feedback, token) => _service.ExportAsync(session, options, feedback, token));
-            if (await task.ShowDialog<bool>(owner)) report($"{text["VideoExport.Success"]} {options.OutputPath}");
+            if (await task.ShowDialog<bool>(owner)) report(text.Format("VideoExport.SavedPath", options.OutputPath));
         }
         catch (Exception error) { report(text.Format("Message.FileError", error.Message)); }
         finally { setBusy(false); }

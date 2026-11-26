@@ -1,0 +1,637 @@
+"""Dynamite Universe icon generator -- v2.
+
+Family: cyan note material on a deep navy plate, one pink accent, plus the
+light and charge the name promises: additive light streaks and electric arcs.
+  game   -- three notes in the fall, each trailing light, hero note arcing
+  editor -- the same material shaped into an authored path over a light grid
+
+Light is ADDITIVE (added to RGB, not alpha-blended): a translucent bright
+colour over near-black reads as grey, which is exactly what killed the first
+pass. Solid shapes stay alpha-blended; light goes through `additive()`.
+
+Shape-first art: no fonts, no external assets, no imports, no image input.
+4x supersample for solid geometry, LANCZOS down to 1024, light added at 1024.
+Run: python -B design/app-icons-v2/build_icons.py
+"""
+
+from __future__ import annotations
+
+import json
+import io
+import math
+import os
+import random
+
+import numpy as np
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
+
+W = 1024
+SS = 4
+S = W * SS
+OUT = os.path.dirname(os.path.abspath(__file__))
+
+BG_TOP = (15, 25, 50)
+BG_BOT = (5, 8, 16)
+CYAN_XHI = (216, 252, 255)
+CYAN_HI = (140, 238, 255)
+CYAN = (66, 214, 236)
+CYAN_MID = (36, 172, 212)
+CYAN_LO = (16, 96, 142)
+PINK_HI = (255, 184, 224)
+PINK = (242, 104, 174)
+PINK_LO = (190, 42, 114)
+WHITE = (250, 254, 255)
+INK = (9, 20, 38)
+
+ANGLE = -16.0
+
+
+def sc(v):
+    return v * SS
+
+
+def box(x0, y0, x1, y1):
+    return [sc(x0), sc(y0), sc(x1), sc(y1)]
+
+
+def gradient(c0, c1, angle_deg=90.0, n=512):
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    a = math.radians(angle_deg)
+    t = xx * math.cos(a) + yy * math.sin(a)
+    t = (t - t.min()) / max(t.max() - t.min(), 1e-6)
+    c0, c1 = np.array(c0, np.float32), np.array(c1, np.float32)
+    rgb = c0[None, None] * (1 - t[..., None]) + c1[None, None] * t[..., None]
+    img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+    return img.resize((S, S), Image.BILINEAR)
+
+
+# --------------------------------------------------------------------------
+# the two compositing modes
+# --------------------------------------------------------------------------
+
+def paint(img, mask, color, alpha=1.0):
+    """Alpha blend (solid shapes)."""
+    lay = Image.new("RGBA", img.size, (*color[:3], int(round(255 * alpha))))
+    img.alpha_composite(Image.composite(lay, Image.new("RGBA", img.size, (0, 0, 0, 0)), mask))
+
+
+def paint_grad(img, mask, grad, alpha=1.0):
+    lay = Image.composite(grad, Image.new("RGBA", img.size, (0, 0, 0, 0)), mask)
+    if alpha < 1.0:
+        lay.putalpha(lay.getchannel("A").point(lambda v: int(v * alpha)))
+    img.alpha_composite(lay)
+
+
+def glow(img, mask, color, radius, alpha):
+    paint(img, mask.filter(ImageFilter.GaussianBlur(radius)), color, alpha)
+
+
+def additive(img, mask, color, intensity):
+    """Screen-like addition. Bright light on a dark plate must add, never blend."""
+    base = np.asarray(img.convert("RGB"), np.float32)
+    m = np.asarray(mask, np.float32) / 255.0
+    if img.getchannel("A").getextrema() != (255, 255):
+        # respect the layer's own coverage (adaptive foreground)
+        m = m * (np.asarray(img.getchannel("A"), np.float32) / 255.0)
+    c = np.array(color[:3], np.float32)
+    out = base + (m[..., None] * c[None, None, :]) * intensity
+    rgb = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+    rgb.putalpha(img.getchannel("A"))
+    return rgb
+
+
+# --------------------------------------------------------------------------
+# masks (design units, supersampled)
+# --------------------------------------------------------------------------
+
+def layer():
+    return Image.new("RGBA", (S, S), (0, 0, 0, 0))
+
+
+def m_circle(cx, cy, r):
+    m = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(m).ellipse(box(cx - r, cy - r, cx + r, cy + r), fill=255)
+    return m
+
+
+def m_rrect(cx, cy, hl, hw, r):
+    m = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(m).rounded_rectangle(box(cx - hl, cy - hw, cx + hl, cy + hw),
+                                        radius=sc(max(0.0, min(r, hw, hl))), fill=255)
+    return m
+
+
+def m_poly(points):
+    m = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(m).polygon([(sc(x), sc(y)) for x, y in points], fill=255)
+    return m
+
+
+def m_polyline(points, width):
+    """Thick stroke stamped from discs: ImageDraw.line leaves joint spikes."""
+    m = Image.new("L", (S, S), 0)
+    d = ImageDraw.Draw(m)
+    rr = sc(width / 2)
+    step = max(0.5, width * 0.20)
+    for i in range(len(points) - 1):
+        x0, y0 = points[i]
+        x1, y1 = points[i + 1]
+        n = max(1, int(math.hypot(x1 - x0, y1 - y0) / step))
+        for k in range(n + 1):
+            t = k / n
+            px, py = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+            d.ellipse([sc(px) - rr, sc(py) - rr, sc(px) + rr, sc(py) + rr], fill=255)
+    return m
+
+
+def rot(mask, cx, cy, deg):
+    return mask.rotate(deg, resample=Image.BICUBIC, center=(sc(cx), sc(cy)))
+
+
+# --------------------------------------------------------------------------
+# light masks at output resolution (1024), added after downsampling
+# --------------------------------------------------------------------------
+
+def axis_ramp(cx, cy, half, angle, power=1.5):
+    """Alpha 255 at the centre of the streak, falling to 0 at both ends."""
+    yy, xx = np.mgrid[0:W, 0:W].astype(np.float32)
+    a = math.radians(angle)
+    t = ((xx - cx) * math.cos(a) + (yy - cy) * math.sin(a)) / max(half, 1e-6)
+    v = np.clip(1.0 - np.abs(t), 0.0, 1.0) ** power
+    return Image.fromarray((v * 255).astype(np.uint8), "L")
+
+
+def streak_mask(cx, cy, length, thickness, angle, taper=0.55):
+    """Tapered light streak: wide near the head, pointed at the tail."""
+    half = length / 2
+    a = math.radians(angle)
+    ca, sa = math.cos(a), math.sin(a)
+    nx, ny = -sa, ca
+    w = thickness / 2
+    pts = []
+    steps = 24
+    # one side, head -> tail
+    for i in range(steps + 1):
+        t = i / steps
+        d = half - 2 * half * t
+        ww = w * (1.0 - taper * t)
+        pts.append((cx + d * ca + nx * ww, cy + d * sa + ny * ww))
+    # other side, tail -> head
+    for i in range(steps, -1, -1):
+        t = i / steps
+        d = half - 2 * half * t
+        ww = w * (1.0 - taper * t)
+        pts.append((cx + d * ca - nx * ww, cy + d * sa - ny * ww))
+    m = Image.new("L", (W, W), 0)
+    ImageDraw.Draw(m).polygon([(x, y) for x, y in pts], fill=255)
+    return ImageChops.multiply(m, axis_ramp(cx, cy, half, angle, power=1.3))
+
+
+def burst_mask(cx, cy, rays, r0=96.0, power=1.2):
+    """Tapered rays from a point; alpha falls off with radius."""
+    m = Image.new("L", (W, W), 0)
+    d = ImageDraw.Draw(m)
+    far = 1.0
+    for ang, r1, w in rays:
+        far = max(far, r1)
+        a = math.radians(ang)
+        ca, sa = math.cos(a), math.sin(a)
+        nx, ny = -sa, ca
+        d.polygon([(cx + r0 * ca + nx * w / 2, cy + r0 * sa + ny * w / 2),
+                   (cx + r1 * ca, cy + r1 * sa),
+                   (cx + r0 * ca - nx * w / 2, cy + r0 * sa - ny * w / 2)], fill=255)
+    yy, xx = np.mgrid[0:W, 0:W].astype(np.float32)
+    dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+    t = np.clip((far - dist) / max(far - r0, 1e-6), 0.0, 1.0) ** power
+    return ImageChops.multiply(m, Image.fromarray((t * 255).astype(np.uint8), "L"))
+
+
+def disc_falloff(cx, cy, r):
+    yy, xx = np.mgrid[0:W, 0:W].astype(np.float32)
+    d = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2) / max(r, 1e-6)
+    v = np.clip(1.0 - d, 0.0, 1.0) ** 2.0
+    return Image.fromarray((v * 255).astype(np.uint8), "L")
+
+
+def arc_points(p0, p1, amp, segs, seed, branch=None):
+    rnd = random.Random(seed)
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    n = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / n, dx / n
+    pts = [p0]
+    for i in range(1, segs):
+        t = i / segs
+        off = rnd.uniform(-amp, amp) * (1.0 - abs(2 * t - 1) * 0.7)
+        pts.append((p0[0] + dx * t + nx * off, p0[1] + dy * t + ny * off))
+    pts.append(p1)
+    out = [pts]
+    if branch is not None:
+        idx, reach, ang = branch
+        bx, by = pts[idx]
+        out.append([(bx, by),
+                    (bx + reach * 0.5 * math.cos(math.radians(ang)) + rnd.uniform(-18, 18),
+                     by + reach * 0.5 * math.sin(math.radians(ang)) + rnd.uniform(-18, 18)),
+                    (bx + reach * math.cos(math.radians(ang)),
+                     by + reach * math.sin(math.radians(ang)))])
+    return out
+
+
+def bolt_mask(polylines, width):
+    m = Image.new("L", (W, W), 0)
+    d = ImageDraw.Draw(m)
+    for pts in polylines:
+        d.line([(x, y) for x, y in pts], fill=255, width=int(width), joint="curve")
+        r = width / 2
+        for x, y in (pts[0], pts[-1]):
+            d.ellipse([x - r, y - r, x + r, y + r], fill=255)
+    return m
+
+
+# --------------------------------------------------------------------------
+# plates
+# --------------------------------------------------------------------------
+
+def base_plate():
+    img = gradient(BG_TOP, BG_BOT, 90)
+    hatch = Image.new("L", (S, S), 0)
+    d = ImageDraw.Draw(hatch)
+    for i in range(-int(W), int(W * 2), 58):
+        d.line([(sc(i), sc(-70)), (sc(i + W + 140), sc(W + 70))], fill=255, width=max(1, int(sc(1.4))))
+    paint(img, hatch, (255, 255, 255), 0.030)
+    return img
+
+
+def vignette(img):
+    glow(img, ImageChops.invert(m_circle(512, 512, 700)), (0, 0, 0), 150, 0.40)
+
+
+def game_plate():
+    img = base_plate()
+    vignette(img)
+    return img
+
+
+def editor_plate():
+    img = base_plate()
+    glow(img, m_circle(512, 512, 420), CYAN, 190, 0.06)
+    vignette(img)
+    grip = Image.new("L", (S, S), 0)
+    d = ImageDraw.Draw(grip)
+    for i in range(1, 6):
+        x = 512 - 400 + i * (800 / 6)
+        d.line([(sc(x), sc(148)), (sc(x), sc(876))], fill=255, width=max(1, int(sc(2.0))))
+    for i in range(1, 4):
+        y = 512 - 280 + i * (560 / 4)
+        d.line([(sc(112), sc(y)), (sc(912), sc(y))], fill=255, width=max(1, int(sc(2.0))))
+    fade = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(fade).rectangle(box(96, 132, 928, 892), fill=255)
+    grip = ImageChops.multiply(grip, fade.filter(ImageFilter.GaussianBlur(sc(26))))
+    paint(img, grip, CYAN_XHI, 0.10)
+    return img
+
+
+# --------------------------------------------------------------------------
+# note material (solid, alpha-blended, at supersample)
+# --------------------------------------------------------------------------
+
+def note_bar(g, cx, cy, length, thickness, angle=ANGLE, head="pink", alpha=1.0,
+             core=True, do_glow=0.42, shade=(CYAN_XHI, CYAN_MID)):
+    hl, hw = length / 2, thickness / 2
+    ch = thickness * 0.34
+    pts = [(cx - hl + ch, cy - hw), (cx + hl - ch, cy - hw), (cx + hl, cy),
+           (cx + hl - ch, cy + hw), (cx - hl + ch, cy + hw), (cx - hl, cy)]
+    body = rot(m_poly(pts), cx, cy, angle)
+    if do_glow:
+        glow(g, body, CYAN_XHI, 26, do_glow * alpha)
+    paint_grad(g, body, gradient(shade[0], shade[1], 90 + angle), alpha)
+    if core:
+        c = rot(m_rrect(cx, cy, hl - ch * 2.0, thickness * 0.095, thickness * 0.095), cx, cy, angle)
+        paint(g, ImageChops.multiply(c, body), WHITE, 0.95 * alpha)
+    if head:
+        x0 = cx + hl - max(ch, thickness * 0.74)
+        hpts = [(x0, cy - hw), (cx + hl - ch, cy - hw), (cx + hl, cy),
+                (cx + hl - ch, cy + hw), (x0, cy + hw)]
+        cap = ImageChops.multiply(rot(m_poly(hpts), cx, cy, angle), body)
+        pal = (PINK_HI, PINK_LO) if head == "pink" else (CYAN_XHI, CYAN_HI)
+        glow(g, cap, PINK if head == "pink" else CYAN_HI, 18, 0.52 * alpha)
+        paint_grad(g, cap, gradient(*pal, 90 + angle), alpha)
+    return body
+
+
+# --------------------------------------------------------------------------
+# game
+# --------------------------------------------------------------------------
+
+FAR = (352, 250, 340, 100)
+MID = (446, 470, 452, 118)
+HERO = (612, 706, 584, 184)
+
+
+def tail_of(note, back=0.0):
+    cx, cy, length, _ = note
+    a = math.radians(ANGLE)
+    return (cx - (length / 2 - back) * math.cos(a), cy - (length / 2 - back) * math.sin(a))
+
+
+def head_of(note, back=0.0):
+    cx, cy, length, _ = note
+    a = math.radians(ANGLE)
+    return (cx + (length / 2 - back) * math.cos(a), cy + (length / 2 - back) * math.sin(a))
+
+
+def glyph_game():
+    g = layer()
+    note_bar(g, FAR[0], FAR[1], FAR[2], FAR[3], alpha=0.40, head=None, core=False, do_glow=0.0)
+    note_bar(g, MID[0], MID[1], MID[2], MID[3], head="cyan", alpha=0.74, do_glow=0.24)
+    note_bar(g, HERO[0], HERO[1], HERO[2], HERO[3], head="pink", alpha=1.0, do_glow=0.55)
+    return g
+
+
+def light_game(master):
+    a = math.radians(ANGLE)
+    ca, sa = math.cos(a), math.sin(a)
+
+    # ambient pool: the whole fall is lit, strongest toward the hero
+    hx, hy = head_of(HERO)
+    master = additive(master, disc_falloff(hx - 60, hy, 520), CYAN_HI, 0.13)
+
+    # wake: one soft luminescent cone behind each note, blurred so it reads as
+    # light and never as another bar
+    for note, strength, spread in ((FAR, 0.16, 1.0), (MID, 0.26, 1.2), (HERO, 0.46, 1.5)):
+        tx, ty = tail_of(note, back=-6)
+        length = note[2] * 1.45 * spread
+        w = note[3] * 1.9
+        m = streak_mask(tx - ca * length / 2, ty - sa * length / 2, length, w, ANGLE, taper=0.92)
+        m = m.filter(ImageFilter.GaussianBlur(w * 0.34))
+        master = additive(master, m, CYAN_XHI, strength)
+
+    # the hit: a soft hot core on the hero's leading edge plus a 4-point flare.
+    # No spiky triangles: those read as shards at icon size.
+    master = additive(master, disc_falloff(hx, hy, 150), WHITE, 0.62)
+    master = additive(master, disc_falloff(hx, hy, 62), WHITE, 0.95)
+    star = Image.new("L", (W, W), 0)
+    sd = ImageDraw.Draw(star)
+    for i in range(4):
+        ang = ANGLE + 40 + i * 90
+        r_in, r_out, wd = 26.0, 148.0, 16.0
+        ca2, sa2 = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+        nx2, ny2 = -sa2, ca2
+        sd.polygon([(hx + r_in * ca2 + nx2 * wd / 2, hy + r_in * sa2 + ny2 * wd / 2),
+                    (hx + r_out * ca2, hy + r_out * sa2),
+                    (hx + r_in * ca2 - nx2 * wd / 2, hy + r_in * sa2 - ny2 * wd / 2)], fill=255)
+    star = star.filter(ImageFilter.GaussianBlur(2.2))
+    master = additive(master, star, WHITE, 0.55)
+
+    # charge: bolts emerging from inside the note bodies so they read as
+    # discharge off the note, not as loose scratches in the dark
+    start = tail_of(HERO, back=70)
+    bolts = arc_points((start[0], start[1] + 6), (250, 944),
+                       amp=26, segs=10, seed=3, branch=(6, 96, 116))
+    master = additive(master, bolt_mask(bolts, 13).filter(ImageFilter.GaussianBlur(9)), CYAN_HI, 0.30)
+    master = additive(master, bolt_mask(bolts, 4.5), CYAN_XHI, 0.75)
+
+    start2 = tail_of(MID, back=56)
+    bolts2 = arc_points((start2[0], start2[1] + 4), (168, 556),
+                        amp=18, segs=8, seed=9)
+    master = additive(master, bolt_mask(bolts2, 10).filter(ImageFilter.GaussianBlur(7)), CYAN_HI, 0.24)
+    master = additive(master, bolt_mask(bolts2, 3.4), CYAN_XHI, 0.62)
+
+    # the far note gets only an ambient lift, no wake: a blurred wedge behind
+    # it read as a stray grey shard against the plate
+    fx, fy = FAR[0], FAR[1]
+    master = additive(master, disc_falloff(fx - 40, fy + 10, 300), CYAN_HI, 0.05)
+    return master
+
+
+# --------------------------------------------------------------------------
+# editor
+# --------------------------------------------------------------------------
+
+def cubic(p0, p1, p2, p3, steps=72):
+    out = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        out.append((u ** 3 * p0[0] + 3 * u ** 2 * t * p1[0] + 3 * u * t ** 2 * p2[0] + t ** 3 * p3[0],
+                    u ** 3 * p0[1] + 3 * u ** 2 * t * p1[1] + 3 * u * t ** 2 * p2[1] + t ** 3 * p3[1]))
+    return out
+
+
+P0, P1, P2, P3 = (262, 780), (352, 300), (676, 746), (772, 262)
+
+
+def glyph_editor():
+    g = layer()
+    pts = cubic(P0, P1, P2, P3)
+    ribbon = m_polyline(pts, 146)
+    glow(g, ribbon, CYAN_XHI, 34, 0.42)
+    paint_grad(g, ribbon, gradient(CYAN_XHI, CYAN_MID, 78))
+    paint(g, ImageChops.multiply(m_polyline(pts, 20), ribbon), WHITE, 0.72)
+
+    t = 0.5
+    u = 1 - t
+    nx = u ** 3 * P0[0] + 3 * u ** 2 * t * P1[0] + 3 * u * t ** 2 * P2[0] + t ** 3 * P3[0]
+    ny = u ** 3 * P0[1] + 3 * u ** 2 * t * P1[1] + 3 * u * t ** 2 * P2[1] + t ** 3 * P3[1]
+    dx = 3 * u ** 2 * (P1[0] - P0[0]) + 6 * u * t * (P2[0] - P1[0]) + 3 * t ** 2 * (P3[0] - P2[0])
+    dy = 3 * u ** 2 * (P1[1] - P0[1]) + 6 * u * t * (P2[1] - P1[1]) + 3 * t ** 2 * (P3[1] - P2[1])
+    n = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / n, dy / n
+    reach = 236.0
+    handles = ((nx - ux * reach, ny - uy * reach), (nx + ux * reach, ny + uy * reach))
+
+    paint(g, m_polyline(list(handles), 15), CYAN_XHI, 0.72)
+    for hx, hy in handles:
+        glow(g, m_circle(hx, hy, 48), PINK, 20, 0.60)
+        paint_grad(g, m_circle(hx, hy, 48), gradient(PINK_HI, PINK_LO, 90))
+        paint(g, m_circle(hx, hy, 19), INK, 0.88)
+
+    node = m_poly([(nx, ny - 132), (nx + 132, ny), (nx, ny + 132), (nx - 132, ny)])
+    glow(g, node, WHITE, 34, 0.62)
+    paint_grad(g, node, gradient(CYAN_XHI, CYAN_HI, 90))
+    paint(g, m_poly([(nx, ny - 60), (nx + 60, ny), (nx, ny + 60), (nx - 60, ny)]), INK, 0.45)
+    return g, (nx, ny), pts
+
+
+def light_editor(master, node, pts):
+    nx, ny = node
+    # Soft halo behind the node only. Hard-edged rays read as grey shards on a
+    # dark plate, so the light here is graded, never geometric.
+    master = additive(master, disc_falloff(nx, ny, 340), CYAN_HI, 0.26)
+    master = additive(master, disc_falloff(nx, ny, 150), WHITE, 0.22)
+    # light running the length of the authored path, brighter mid-span
+    for i in range(0, len(pts) - 1, 4):
+        x0, y0 = pts[i]
+        x1, y1 = pts[min(i + 4, len(pts) - 1)]
+        ang = math.degrees(math.atan2(y1 - y0, x1 - x0))
+        seg = math.hypot(x1 - x0, y1 - y0)
+        t = i / max(len(pts) - 1, 1)
+        strength = 0.10 + 0.10 * math.sin(math.pi * t)
+        m = streak_mask((x0 + x1) / 2, (y0 + y1) / 2, seg * 2.6, 46.0, ang, taper=0.55)
+        m = m.filter(ImageFilter.GaussianBlur(9))
+        master = additive(master, m, CYAN_XHI, strength)
+    # one quiet arc leaving the path's start
+    bolts = arc_points((P0[0] + 4, P0[1] - 8), (176, 948), amp=15, segs=7, seed=11)
+    master = additive(master, bolt_mask(bolts, 11).filter(ImageFilter.GaussianBlur(8)), CYAN_HI, 0.28)
+    master = additive(master, bolt_mask(bolts, 3.6), CYAN_XHI, 0.80)
+    return master
+
+
+# --------------------------------------------------------------------------
+# composition + output
+# --------------------------------------------------------------------------
+
+def compose(build_glyph, make_plate, light):
+    img = make_plate()
+    out = build_glyph()
+    if light is None:
+        glyph = out
+        img.alpha_composite(glyph)
+        return img.resize((W, W), Image.LANCZOS)
+    glyph, extra = out
+    img.alpha_composite(glyph)
+    master = img.resize((W, W), Image.LANCZOS)
+    return light(master, *extra) if isinstance(extra, tuple) else light(master)
+
+
+def rounded(img):
+    n = img.width
+    m = Image.new("L", (n, n), 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, n - 1, n - 1], radius=n * 0.2237, fill=255)
+    out = img.copy()
+    out.putalpha(m)
+    return out
+
+
+def circular(img):
+    n = img.width
+    m = Image.new("L", (n, n), 0)
+    ImageDraw.Draw(m).ellipse([0, 0, n - 1, n - 1], fill=255)
+    out = img.copy()
+    out.putalpha(m)
+    return out
+
+
+def safe_alpha(img, threshold=200):
+    a = np.asarray(img.getchannel("A"), np.float32)
+    ys, xs = np.nonzero(a >= threshold)
+    if xs.size == 0:
+        return 0.0
+    r = np.sqrt((xs - (img.width - 1) / 2) ** 2 + (ys - (img.height - 1) / 2) ** 2)
+    return float(r.max() / (img.width / 2))
+
+
+def adaptive_foreground(glyph):
+    """108dp canvas: the glyph is re-scaled into the 66dp safe circle."""
+    full = glyph.resize((W, W), Image.LANCZOS) if glyph.width != W else glyph
+    ratio = safe_alpha(full, 40)
+    scale = min(1.0, 0.545 / ratio) if ratio > 0 else 1.0
+    side = int(W * scale)
+    inner = full.resize((side, side), Image.LANCZOS)
+    canvas = Image.new("RGBA", (W, W), (0, 0, 0, 0))
+    off = (W - side) // 2
+    canvas.alpha_composite(inner, (off, off))
+    return canvas
+
+
+def mono(src):
+    small = src.resize((W, W), Image.LANCZOS) if src.width != W else src
+    alpha = small.getchannel("A").point(lambda v: 255 if v > 24 else 0)
+    out = Image.new("RGBA", (W, W), (0, 0, 0, 0))
+    out.putalpha(alpha)
+    return out
+
+
+def launcher_sheet(items, path):
+    cell = 150
+    sheet = Image.new("RGBA", (2 * (cell * 3 + 46) + 24, 2 * cell + 96), (18, 20, 26, 255))
+    d = ImageDraw.Draw(sheet)
+    for col, (rgb, label) in enumerate((((12, 14, 20, 255), "dark wallpaper"),
+                                        ((206, 210, 220, 255), "light wallpaper"))):
+        x0 = 12 + col * (cell * 3 + 46)
+        d.text((x0, 8), label, fill=(210, 214, 224, 255))
+        sheet.alpha_composite(Image.new("RGBA", (cell * 3, 2 * cell), rgb), (x0, 30))
+        for i, (caption, img) in enumerate(items):
+            gx, gy = (i % 3) * cell + 16, (i // 3) * cell + 14
+            sheet.alpha_composite(rounded(img).resize((118, 118), Image.LANCZOS), (x0 + gx, 30 + gy))
+            d.text((x0 + gx, 30 + gy + 120), caption, fill=(140, 148, 166, 255))
+    sheet.save(path)
+
+
+def adaptive_background(make_plate, size=432):
+    """Opaque square plate with no glyph: the Android adaptive background layer."""
+    full = make_plate().resize((W, W), Image.LANCZOS)
+    return full.resize((size, size), Image.LANCZOS).convert("RGBA")
+
+
+def ico_bytes(master, sizes=(256, 128, 64, 48, 32, 24, 16)):
+    buf = io.BytesIO()
+    master.save(buf, format="ICO", sizes=[(s, s) for s in sizes])
+    return buf.getvalue()
+
+
+def main():
+    report = {"candidates": {}}
+    masters = {}
+    glyphs = {}
+
+    glyph, node, pts = glyph_editor()
+    spec = {
+        "game": (lambda: (glyph_game(), None), game_plate, light_game),
+        "editor": (lambda: (glyph, (node, pts)), editor_plate, light_editor),
+    }
+    for name, (build, plate_fn, light) in spec.items():
+        master = compose(build, plate_fn, light)
+        masters[name] = master
+        stem = os.path.join(OUT, name)
+        master.save(f"{stem}-1024.png")
+        for size in (512, 192, 96, 48, 32):
+            master.resize((size, size), Image.LANCZOS).save(f"{stem}-{size}.png")
+        rounded(master).save(f"{stem}-rounded.png")
+        circular(master).save(f"{stem}-circle.png")
+        glyphs[name] = build()[0]
+        glyphs[name].save(f"{stem}-glyph.png")
+        fg = adaptive_foreground(glyphs[name])
+        fg.save(f"{stem}-adaptive-fg.png")
+        mono(glyphs[name]).save(f"{stem}-mono.png")
+        # Android adaptive layers are 432x432 in the export preset
+        fg.resize((432, 432), Image.LANCZOS).save(f"{stem}-adaptive-fg-432.png")
+        adaptive_background(plate_fn, 432).save(f"{stem}-adaptive-bg-432.png")
+        mono(glyphs[name]).resize((432, 432), Image.LANCZOS).save(f"{stem}-adaptive-mono-432.png")
+        # Windows ico: multi-size container for the desktop export preset
+        buf = io.BytesIO()
+        master.save(buf, format="ICO", sizes=[(s, s) for s in (256, 128, 64, 48, 32, 24, 16)])
+        with open(f"{stem}.ico", "wb") as fh:
+            fh.write(buf.getvalue())
+        report["candidates"][name] = {
+            "fg_safe_ratio": round(safe_alpha(fg), 3),
+            "fg_safe_limit": 0.611,
+            "mono_ink_ratio": round(float(np.asarray(mono(glyphs[name]).getchannel("A")).astype(bool).mean()), 4),
+        }
+
+    cw, ch = 268, 336
+    sheet = Image.new("RGBA", (len(spec) * cw + 16, ch + 34), (22, 24, 30, 255))
+    d = ImageDraw.Draw(sheet)
+    for i, name in enumerate(spec):
+        x = 8 + i * cw
+        d.text((x + 4, 6), name, fill=(214, 220, 232, 255))
+        big = masters[name]
+        sheet.alpha_composite(big.resize((236, 236), Image.LANCZOS), (x + 4, 28))
+        for j, size in enumerate((64, 48, 32)):
+            sheet.alpha_composite(big.resize((size, size), Image.LANCZOS), (x + 6 + j * 48, 272))
+            d.text((x + 6 + j * 48, 310), str(size), fill=(130, 138, 156, 255))
+    sheet.save(os.path.join(OUT, "compare.png"))
+
+    items = []
+    for name, master in masters.items():
+        items.append((f"{name} 192", master))
+        items.append((f"{name} 96", master.resize((96, 96), Image.LANCZOS)))
+        items.append((f"{name} 48", master.resize((48, 48), Image.LANCZOS)))
+    launcher_sheet(items, os.path.join(OUT, "launcher-context.png"))
+
+    with open(os.path.join(OUT, "icons-validation.json"), "w", encoding="utf-8") as fh:
+        json.dump(report, fh, indent=2, ensure_ascii=False)
+    print(json.dumps(report, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

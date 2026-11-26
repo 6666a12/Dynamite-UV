@@ -49,6 +49,7 @@ internal static class SaveInteractionVerification
             check("Ctrl+S from text input writes to disk", ReadSpeed() == 1.7 && !document.HasUnsavedChanges);
 
             window.ApplySpeedForVerification(1.8);
+            var firstAudio = ReplacePackageAudio("first.wav", 1);
             interceptor.SetValue(null, (Action<string>)(_ =>
             {
                 arrived.Set();
@@ -60,14 +61,35 @@ internal static class SaveInteractionVerification
             window.Close();
             check("Window cannot close while save is publishing", window.IsVisible);
             window.ApplySpeedForVerification(1.9);
+            var secondAudio = ReplacePackageAudio("second.wav", 2);
             resume.Set();
             await WaitForSave(window);
             interceptor.SetValue(null, null);
             check("Save snapshot does not mark concurrent edit saved", ReadSpeed() == 1.8 &&
                 document.SelectedChart.Notes[0].ScrollSpeedMultiplier == 1.9 && document.HasUnsavedChanges);
+            check("Saving a media snapshot leaves a newer replacement pending at the same slot",
+                File.ReadAllBytes(Path.Combine(source, document.Audio!)).SequenceEqual(File.ReadAllBytes(firstAudio)) &&
+                document.PendingResourceReplacements.Single().ExternalSourcePath == secondAudio);
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForSave(window);
             check("Second save publishes edits made during first save", ReadSpeed() == 1.9 && !document.HasUnsavedChanges);
+            check("Saving the current media snapshot clears its pending import and dirty state",
+                File.ReadAllBytes(Path.Combine(source, document.Audio!)).SequenceEqual(File.ReadAllBytes(secondAudio)) &&
+                document.PendingResourceReplacements.Count == 0 && !document.HasUnsavedChanges);
+
+            string ReplacePackageAudio(string file, byte lastByte)
+            {
+                var path = Path.Combine(root, file);
+                var bytes = File.ReadAllBytes(Path.Combine(root, "fixture.wav"));
+                bytes[^1] = lastByte;
+                File.WriteAllBytes(path, bytes);
+                var chart = document.SelectedChart;
+                window.ApplyPackageSettingsForVerification(new EditorPackageSettingsRequest(document.PackId, document.Title,
+                    document.Artist, chart.Id, chart.File, chart.Difficulty, chart.DifficultyKey, chart.Level, chart.Unrated,
+                    chart.Charters, chart.AudioOffsetSec, document.Preview, chart.Preview, path, null, null, false, false));
+                return path;
+            }
+
             window.ApplySpeedForVerification(2.0);
             window.ClosePromptForVerification = () => Task.FromResult(UnsavedCloseChoice.Cancel);
             window.Close();

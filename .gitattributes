@@ -1,0 +1,10 @@
+# Preserve the checkout bytes recorded in release/asset-provenance.json.
+/client/assets/licenses/*.txt text eol=lf
+/client/assets/licenses/SpaceGrotesk-OFL-1.1.txt text eol=crlf
+/client/assets/results/background_*.svg text eol=crlf
+/tools/grade-assets/build_runtime_outcomes.py text eol=lf
+/tools/synth_hitsounds.py text eol=lf
+
+# Byte-for-byte archival evidence, including the original Mk VI CRLF bytes.
+/release/provenance-sources/*.py.txt -text
+/release/provenance-sources/build_orrery_mk6-a42b8791.py.txt whitespace=cr-at-eol

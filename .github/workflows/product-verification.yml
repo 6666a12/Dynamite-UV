@@ -1,0 +1,44 @@
+name: Product verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The verify script checks working-tree whitespace, not committed changes.
+      - name: Check pull request whitespace
+        if: github.event_name == 'pull_request'
+        run: git diff --check HEAD^1 HEAD --
+      # Branch creation and force pushes may not have a reachable previous tip.
+      # Manual runs have no event base; all three still run the product checks.
+      - name: Check push whitespace
+        if: github.event_name == 'push' && !github.event.created && !github.event.forced
+        env:
+          BASE_SHA: ${{ github.event.before }}
+        run: git diff --check $env:BASE_SHA HEAD --
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+      - name: Run non-graphical product checks
+        run: python -B tools/verify.py

@@ -143,9 +143,11 @@ public sealed partial class AddDifficultyForm : UserControl
                 ? _text.Format("AddForm.ImportAudio", recording, sourceFile)
                 : _text.Format("AddForm.EffectiveAudio", recording);
         C<Grid>("PreviewFields").IsVisible = PreviewEnabled;
-        C<TextBlock>("PreviewInfo").Text = PreviewEnabled
-            ? (TryPreview(out var p) ? _text.Format("AddForm.PreviewCustom", p.StartSec, p.DurationSec) : _text["AddForm.BadPreview"])
+        var previewInfo = C<TextBlock>("PreviewInfo");
+        previewInfo.Text = PreviewEnabled
+            ? (TryPreview(out _) ? "" : _text["AddForm.BadPreview"])
             : (_document.Preview is { } pack ? _text.Format("AddForm.PreviewPack", pack.StartSec, pack.DurationSec) : _text["AddForm.PreviewDefault"]);
+        previewInfo.IsVisible = !string.IsNullOrEmpty(previewInfo.Text);
     }
 
     private static bool Number(string? text, out double number) =>

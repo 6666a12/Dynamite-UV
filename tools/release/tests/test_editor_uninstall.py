@@ -41,6 +41,35 @@ class PortableUninstallTests(unittest.TestCase):
             self.assertFalse((root / 'Uninstall.cmd').exists())
             self.assertEqual((root / 'shell/my-chart.json').read_text(), 'user chart')
 
+    def test_without_get_file_hash(self):
+        with tempfile.TemporaryDirectory(prefix='uninstall-no-hash-cmdlet-') as temp:
+            root = Path(temp) / 'package'; root.mkdir()
+            manifest = self.package(root)
+            (root / 'shell/modified.dll').write_bytes(b'user file')
+            manifest_path = root / 'files.sha256.json'
+            manifest['shell/modified.dll'] = hashlib.sha256(b'original packaged file').hexdigest()
+            manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
+            # Hide just the failing cmdlet; keep the rest of Windows PowerShell intact.
+            runner = Path(temp) / 'without-hash.ps1'
+            runner.write_text("""param([string]$Uninstaller, [string]$Mode)
+function global:UnavailableFileHash { throw 'Get-FileHash is unavailable in this fixture.' }
+Set-Alias -Name Get-FileHash -Value UnavailableFileHash -Scope Global
+$flags = @{}
+$flags[$Mode] = $true
+& $Uninstaller @flags
+exit $LASTEXITCODE
+""", encoding='ascii')
+            for mode in ('CheckOnly', 'ConfirmRemoval'):
+                with self.subTest(mode=mode):
+                    result = subprocess.run(['powershell.exe', '-NoProfile', '-File', str(runner),
+                                             str(root / 'uninstall.ps1'), mode],
+                                            capture_output=True, text=True, errors='replace', timeout=40)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn('UNINSTALL CHECK PASS' if mode == 'CheckOnly' else 'UNINSTALL COMPLETE',
+                                  result.stdout)
+                    self.assertEqual((root / 'shell/app.dll').exists(), mode == 'CheckOnly')
+                    self.assertEqual((root / 'shell/modified.dll').read_bytes(), b'user file')
+
     def test_modified_file_preserved(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); self.package(root)

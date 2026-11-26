@@ -40,19 +40,49 @@ internal static class AddDifficultyFormVerification
             var dismissals = 0;
             form.DismissRequested += () => dismissals++;
             var confirm = Control<Button>("AddButton");
-            check("Difficulty sheet keeps its action row in a 390px window", confirm.TranslatePoint(new Point(0, 0), window) is { } p &&
-                p.Y >= 0 && p.Y + confirm.Bounds.Height <= window.Bounds.Height + 1 && confirm.Bounds.Height > 0);
+            var cancel = Control<Button>("CancelButton");
+            var feedback = Control<TextBlock>("Feedback");
+            var feedbackViewport = Control<ScrollViewer>("FeedbackViewport");
+            window.UpdateLayout();
+            var confirmPosition = confirm.TranslatePoint(default, window);
+            var cancelPosition = cancel.TranslatePoint(default, window);
+            check("Difficulty sheet has no second card and keeps both footer actions in a 390 DIP window", form.Content is Grid &&
+                confirmPosition is { } p && cancelPosition is { } q && p.Y >= 0 && p.Y + confirm.Bounds.Height <= window.Bounds.Height + 1 &&
+                Math.Abs(p.Y - q.Y) < 1 && Math.Abs(p.X - q.X - cancel.Bounds.Width - 8) < 1 &&
+                confirm.TranslatePoint(default, form) is { } local && Math.Abs(local.X + confirm.Bounds.Width - form.Bounds.Width) < 1 &&
+                confirm.Bounds.Height == 36 && cancel.Bounds.Height == 36 && confirm.Classes.Contains("accent") && !cancel.Classes.Contains("accent"));
+            check("Difficulty identity inputs use the same 32 DIP height", Control<TextBox>("ChartIdValue").Bounds.Height == 32 &&
+                Control<ComboBox>("DifficultyChoice").Bounds.Height == 32 && Control<NumericUpDown>("LevelValue").Bounds.Height == 32);
+            feedback.Text = string.Join("\n", Enumerable.Repeat("Difficulty form feedback", 12));
+            window.UpdateLayout();
+            check("Long difficulty feedback scrolls without shifting the action row", feedbackViewport.Bounds.Height == 32 &&
+                feedbackViewport.Extent.Height > feedbackViewport.Viewport.Height && confirmPosition is not null &&
+                confirmPosition == confirm.TranslatePoint(default, window) && cancelPosition == cancel.TranslatePoint(default, window));
+            feedback.Text = "";
             check("Difficulty sheet defaults to current timing and chart preview without Scroll", Control<ComboBox>("TimingChoice").SelectedIndex == 1 &&
                 Control<CheckBox>("CopyScroll").IsChecked == false && Control<CheckBox>("PreviewOverride").IsChecked == true && Control<TextBox>("PreviewLength").Text == "3");
             WorkbenchLocalizer.Shared.SetLanguage("zh-CN");
-            check("Difficulty sheet localizes the reference and preview", Control<TextBlock>("ReferenceInfo").Text!.Contains("参考差分") &&
-                Control<TextBlock>("PreviewInfo").Text!.Contains("播放 3 秒"));
+            var text = WorkbenchLocalizer.Shared;
+            check("Difficulty sheet localizes the reference without echoing valid custom preview fields", text.CurrentLanguage == "zh-CN" &&
+                Control<TextBlock>("ReferenceInfo").Text == text.Format("AddForm.Reference", reference.Id, reference.Bpms.Count, "0.25") &&
+                Control<TextBox>("PreviewStart").Text == "2" && Control<TextBox>("PreviewLength").Text == "3" &&
+                !Control<TextBlock>("PreviewInfo").IsVisible);
+            Set("PreviewLength", "0");
+            Dispatcher.UIThread.RunJobs();
+            check("Invalid custom preview still displays an inline error", Control<TextBlock>("PreviewInfo").IsVisible &&
+                Control<TextBlock>("PreviewInfo").Text == text["AddForm.BadPreview"]);
+            Set("PreviewLength", "3");
             Set("ChartIdValue", "fresh");
             Control<ComboBox>("DifficultyChoice").SelectedIndex = (int)V2Difficulty.Custom;
             Set("CustomKeyValue", "Alt cut");
             Control<ComboBox>("AudioChoice").SelectedIndex = (int)DifficultyAudioSource.External;
             Set("AudioPathValue", shortWav);
             Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var path = Control<TextBox>("AudioPathValue");
+            var browse = Control<Grid>("FileField").Children.OfType<Button>().Single();
+            check("External audio path and its inline button use the same 32 DIP height", path.Bounds.Height == 32 &&
+                browse.Bounds.Height == 32 && Math.Abs(path.Bounds.Y - browse.Bounds.Y) < 1);
             await form.SubmitAsync();
             check("New recording requires a timing choice before probing", !form.Added && dismissals == 0 &&
                 Control<ComboBox>("TimingChoice").SelectedIndex == 0 && Control<TextBlock>("Feedback").Text!.Contains("对轨"));

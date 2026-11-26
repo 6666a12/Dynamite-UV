@@ -1,11 +1,14 @@
 using System.Globalization;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using DynamiteUniverse.ChartEditor.Core;
 using DynamiteUniverse.Shared.Chart.V2;
 
 namespace DynamiteUniverse.Editor.Shell;
+
+internal sealed record TimingEventRow(string Bar, string Value, string Curve = "", V2ScrollCurve? CurveKind = null, bool IsTail = false);
 
 /// <summary>
 /// Timing editor for the selected difficulty. BPM/Scroll requests go to the workbench;
@@ -19,7 +22,9 @@ public sealed partial class TimingView : UserControl
     private EditorDocument? _document;
     private double _currentBar;
     private ExactBarTime? _exactPlayhead;
+    private enum Area { Offset, Bpm, Scroll }
     private bool _updating;
+    private readonly Dictionary<Area, Control> _invalidFields = [];
     private double? _loadedBpm;
     private decimal? _displayedBpm;
     private double? _loadedScroll;
@@ -34,6 +39,8 @@ public sealed partial class TimingView : UserControl
         AvaloniaXamlLoader.Load(this);
         Formula.AttachChoice(this.FindControl<ComboBox>("ScrollCurveChoice")!);
         _text.LanguageChanged += OnLanguageChanged;
+        Tabs.SelectionChanged += (_, _) => UpdateEventTab();
+        UpdateEventTab();
         UpdateView();
     }
 
@@ -59,7 +66,16 @@ public sealed partial class TimingView : UserControl
     private EditableChart? Chart => _document?.SelectedChart;
     private ListBox BpmListBox => this.FindControl<ListBox>("BpmList")!;
     private ListBox ScrollListBox => this.FindControl<ListBox>("ScrollList")!;
-    private TextBlock ErrorBlock => this.FindControl<TextBlock>("TimingError")!;
+    private TabStrip Tabs => this.FindControl<TabStrip>("EventTabs")!;
+
+    private void UpdateEventTab()
+    {
+        var showScroll = Tabs.SelectedIndex == 1;
+        this.FindControl<Grid>("BpmHeader")!.IsVisible = !showScroll;
+        this.FindControl<Grid>("ScrollHeader")!.IsVisible = showScroll;
+        this.FindControl<ScrollViewer>("BpmPage")!.IsVisible = !showScroll;
+        this.FindControl<ScrollViewer>("ScrollPage")!.IsVisible = showScroll;
+    }
 
     private string? _offsetChartId, _offsetShown;
     private ChartOffsetNudge? _offsetNudge;
@@ -72,8 +88,8 @@ public sealed partial class TimingView : UserControl
         _offsetNudge ??= _document.BeginChartOffsetNudge();
         try { if (!_offsetNudge.Step(direction * (fine ? .001 : .010))) return false; }
         catch (Exception ex) when (ex is ArithmeticException or ArgumentException or InvalidOperationException)
-        { EndOffsetNudge(); ShowError(ex.Message); return false; }
-        UpdateOffset(false); ClearError(); OffsetPreviewChanged?.Invoke(); return true;
+        { EndOffsetNudge(); ShowError(Area.Offset, ex.Message); return false; }
+        UpdateOffset(false); ClearError(Area.Offset); OffsetPreviewChanged?.Invoke(); return true;
     }
 
     private void UpdateOffset(bool replaceDraft)
@@ -91,20 +107,25 @@ public sealed partial class TimingView : UserControl
     {
         if (_document is null) return;
         EndOffsetNudge();
-        var input = this.FindControl<TextBox>("OffsetMsInput")!.Text?.Trim();
+        var field = this.FindControl<TextBox>("OffsetMsInput")!;
+        var input = field.Text?.Trim();
+        ClearError(Area.Offset);
         if (input == _offsetShown) return; // Do not round-trip a previously loaded binary64 value.
         if (!ChartOffsetUnits.TryParseMilliseconds(input, out var seconds))
-        { ShowError(_text["Timing.Error.InvalidOffset"]); return; }
+        { ShowError(Area.Offset, _text["Timing.Error.InvalidOffset"], field); return; }
         var changed = seconds != _document.SelectedChart.AudioOffsetSec;
         if (changed) _document.Execute(new EditChartOffsetCommand(seconds));
-        UpdateOffset(true); ClearError(); if (changed) OffsetPreviewChanged?.Invoke();
+        UpdateOffset(true); if (changed) OffsetPreviewChanged?.Invoke();
     }
 
     private void OnLanguageChanged()
     {
         UpdatePlayheadCaption();
         UpdateOffset(false);
-        ClearError();
+        foreach (var item in ScrollListBox.Items.OfType<ListBoxItem>())
+            if (item.Content is TimingEventRow row) item.Content = row with { Curve = CurveLabel(row.CurveKind, row.IsTail) };
+        UpdateEditTargets();
+        ClearErrors();
     }
 
     private void UpdatePlayheadCaption()
@@ -116,6 +137,10 @@ public sealed partial class TimingView : UserControl
 
     private void UpdateView()
     {
+        // Restore a selection brought in by a command/undo, but an ordinary refresh must not
+        // change the tab the author chose when the selected event has not changed.
+        var beforeBpm = SelectedBpmTime;
+        var beforeScroll = SelectedScrollTime;
         _updating = true;
         try
         {
@@ -126,9 +151,9 @@ public sealed partial class TimingView : UserControl
         {
             _updating = false;
         }
-        RestoreSelection();
+        RestoreSelection(beforeBpm, beforeScroll);
         UpdateEnabledState();
-        ClearError();
+        ClearErrors();
     }
 
     private void FillBpmList()
@@ -142,7 +167,8 @@ public sealed partial class TimingView : UserControl
                 list.Items.Add(new ListBoxItem
                 {
                     Tag = bpm.Time,
-                    Content = $"{ExactBarTimeText.Format(bpm.Time)}  ·  {bpm.Bpm.ToString("0.###", CultureInfo.InvariantCulture)}",
+                    Content = new TimingEventRow(ExactBarTimeText.Format(bpm.Time), bpm.Bpm.ToString("G", CultureInfo.InvariantCulture)),
+                    ContentTemplate = list.ItemTemplate,
                 });
             }
         }
@@ -152,37 +178,62 @@ public sealed partial class TimingView : UserControl
     {
         var list = ScrollListBox;
         list.Items.Clear();
-        if (Chart is { } chart)
+        var events = Chart?.ScrollSpeeds.OrderBy(item => item.Time).ToArray() ?? [];
+        for (var index = 0; index < events.Length; index++)
         {
-            foreach (var scroll in chart.ScrollSpeeds.OrderBy(item => item.Time))
+            var scroll = events[index];
+            var tail = index == events.Length - 1;
+            list.Items.Add(new ListBoxItem
             {
-                list.Items.Add(new ListBoxItem
-                {
-                    Tag = scroll.Time,
-                    Content = $"{ExactBarTimeText.Format(scroll.Time)}  ·  ×{scroll.Value.ToString("0.##", CultureInfo.InvariantCulture)}",
-                });
-            }
+                Tag = scroll.Time,
+                Content = new TimingEventRow(ExactBarTimeText.Format(scroll.Time), "×" + scroll.Value.ToString("G", CultureInfo.InvariantCulture),
+                    CurveLabel(scroll.CurveToNext, tail), scroll.CurveToNext, tail),
+                ContentTemplate = list.ItemTemplate,
+            });
         }
+        this.FindControl<TextBlock>("ScrollEmpty")!.IsVisible = events.Length == 0;
+        list.IsVisible = events.Length != 0;
     }
 
-    private void RestoreSelection()
+    private string CurveLabel(V2ScrollCurve? curve, bool tail) => tail ? "—" : curve switch
+    {
+        null or V2ScrollCurve.Linear => _text["Inspector.Linear"],
+        V2ScrollCurve.Custom => _text["Curve.Custom"],
+        _ => _text[$"Inspector.{curve}"],
+    };
+
+    private void RestoreSelection(ExactBarTime? beforeBpm, ExactBarTime? beforeScroll)
     {
         if (_document?.Selection is not { } selection || Chart is null) return;
         var list = selection.Kind == EditorSelectionKind.Bpm ? BpmListBox
             : selection.Kind == EditorSelectionKind.Scroll ? ScrollListBox : null;
         if (list is null || !ExactBarTimeText.TryParse(selection.Id, out var time)) return;
-        foreach (var item in list.Items.OfType<ListBoxItem>())
+        var row = list.Items.OfType<ListBoxItem>().FirstOrDefault(item => Equals(item.Tag, time));
+        if (row is null) return;
+        var same = selection.Kind == EditorSelectionKind.Bpm ? beforeBpm == time : beforeScroll == time;
+        _updating = true;
+        try
         {
-            if (item.Tag is ExactBarTime itemTime && itemTime == time)
-            {
-                list.SelectedItem = item;
-                break;
-            }
+            list.SelectedItem = row;
+            if (selection.Kind == EditorSelectionKind.Bpm) LoadBpm(time);
+            else LoadScroll(time);
         }
+        finally { _updating = false; }
+        if (!same) Tabs.SelectedIndex = selection.Kind == EditorSelectionKind.Bpm ? 0 : 1;
     }
+
+    private void UpdateEditTargets()
+    {
+        this.FindControl<TextBlock>("BpmEditTarget")!.Text = EditTarget(SelectedBpmTime);
+        this.FindControl<TextBlock>("ScrollEditTarget")!.Text = EditTarget(SelectedScrollTime);
+    }
+
+    private string EditTarget(ExactBarTime? time) => time is { } selected
+        ? _text.Format("Timing.EditTarget", ExactBarTimeText.Format(selected)) : _text["Timing.EventInputs"];
 
     private void UpdateEnabledState()
     {
+        UpdateEditTargets();
         var hasDocument = Chart is not null;
         var bpmTime = SelectedBpmTime;
         var scrollTime = SelectedScrollTime;
@@ -222,15 +273,31 @@ public sealed partial class TimingView : UserControl
     private ExactBarTime? SelectedScrollTime =>
         ScrollListBox.SelectedItem is ListBoxItem { Tag: ExactBarTime time } ? time : null;
 
+    private void LoadBpm(ExactBarTime time)
+    {
+        if (Chart?.Bpms.SingleOrDefault(item => item.Time == time) is not { } bpm) return;
+        this.FindControl<TextBox>("BpmTimeValue")!.Text = ExactBarTimeText.Format(time);
+        _loadedBpm = bpm.Bpm;
+        _displayedBpm = DisplayValue(bpm.Bpm);
+        this.FindControl<NumericUpDown>("BpmValueInput")!.Value = _displayedBpm;
+    }
+
+    private void LoadScroll(ExactBarTime time)
+    {
+        if (Chart?.ScrollSpeeds.SingleOrDefault(item => item.Time == time) is not { } scroll) return;
+        this.FindControl<TextBox>("ScrollTimeValue")!.Text = ExactBarTimeText.Format(time);
+        _loadedScroll = scroll.Value;
+        _displayedScroll = DisplayValue(scroll.Value);
+        this.FindControl<NumericUpDown>("ScrollValueInput")!.Value = _displayedScroll;
+    }
+
     private void BpmSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_updating) return;
-        if (SelectedBpmTime is { } time && Chart?.Bpms.SingleOrDefault(item => item.Time == time) is { } bpm)
+        if (SelectedBpmTime is { } time)
         {
-            this.FindControl<TextBox>("BpmTimeValue")!.Text = ExactBarTimeText.Format(time);
-            _loadedBpm = bpm.Bpm;
-            _displayedBpm = DisplayValue(bpm.Bpm);
-            this.FindControl<NumericUpDown>("BpmValueInput")!.Value = _displayedBpm;
+            LoadBpm(time);
+            Tabs.SelectedIndex = 0;
             if (_document?.Selection is not { Kind: EditorSelectionKind.Bpm, Id: var current } || current != ExactBarTimeText.Format(time))
                 RowSelectionChanged?.Invoke(new EditorSelection(EditorSelectionKind.Bpm, ExactBarTimeText.Format(time)));
         }
@@ -240,18 +307,16 @@ public sealed partial class TimingView : UserControl
         }
         ClearOtherTimingSelection(ScrollListBox);
         UpdateEnabledState();
-        ClearError();
+        ClearError(Area.Bpm);
     }
 
     private void ScrollSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_updating) return;
-        if (SelectedScrollTime is { } time && Chart?.ScrollSpeeds.SingleOrDefault(item => item.Time == time) is { } scroll)
+        if (SelectedScrollTime is { } time)
         {
-            this.FindControl<TextBox>("ScrollTimeValue")!.Text = ExactBarTimeText.Format(time);
-            _loadedScroll = scroll.Value;
-            _displayedScroll = DisplayValue(scroll.Value);
-            this.FindControl<NumericUpDown>("ScrollValueInput")!.Value = _displayedScroll;
+            LoadScroll(time);
+            Tabs.SelectedIndex = 1;
             if (_document?.Selection is not { Kind: EditorSelectionKind.Scroll, Id: var current } || current != ExactBarTimeText.Format(time))
                 RowSelectionChanged?.Invoke(new EditorSelection(EditorSelectionKind.Scroll, ExactBarTimeText.Format(time)));
         }
@@ -261,7 +326,7 @@ public sealed partial class TimingView : UserControl
         }
         ClearOtherTimingSelection(BpmListBox);
         UpdateEnabledState();
-        ClearError();
+        ClearError(Area.Scroll);
     }
 
     internal void ClearRowSelection()
@@ -283,56 +348,58 @@ public sealed partial class TimingView : UserControl
 
     private void AddBpm(object? sender, RoutedEventArgs e)
     {
-        if (!RequireDocument() || !TryReadTime(this.FindControl<TextBox>("BpmTimeValue")!, out var time)) return;
+        if (!RequireDocument(Area.Bpm) || !TryReadTime(Area.Bpm, "BpmTimeValue", out var time)) return;
         if (!TryReadBpm(out var bpm)) return;
-        Raise(new AddBpmCommand(time, bpm));
+        Raise(Area.Bpm, new AddBpmCommand(time, bpm));
     }
 
     private void ApplyBpm(object? sender, RoutedEventArgs e)
     {
-        if (!RequireDocument() || SelectedBpmTime is not { } original) return;
-        if (!TryReadTime(this.FindControl<TextBox>("BpmTimeValue")!, out var time)) return;
+        if (!RequireDocument(Area.Bpm) || SelectedBpmTime is not { } original) return;
+        if (!TryReadTime(Area.Bpm, "BpmTimeValue", out var time)) return;
         if (!TryReadBpm(out var bpm, preserveLoaded: true)) return;
-        Raise(new EditBpmCommand(original, time, bpm));
+        Raise(Area.Bpm, new EditBpmCommand(original, time, bpm));
     }
 
     private void DeleteBpm(object? sender, RoutedEventArgs e)
     {
-        if (!RequireDocument() || SelectedBpmTime is not { } time) return;
-        Raise(new DeleteBpmCommand(time));
+        if (!RequireDocument(Area.Bpm) || SelectedBpmTime is not { } time) return;
+        Raise(Area.Bpm, new DeleteBpmCommand(time));
     }
 
     private void AddScroll(object? sender, RoutedEventArgs e)
     {
-        if (!RequireDocument() || !TryReadTime(this.FindControl<TextBox>("ScrollTimeValue")!, out var time)) return;
+        if (!RequireDocument(Area.Scroll) || !TryReadTime(Area.Scroll, "ScrollTimeValue", out var time)) return;
         if (!TryReadScrollValue(out var value) || !TryReadCurve(time, out var curve) || !Formula.TryReadInput(out var expr)) return;
-        if (Raise(new AddScrollCommand(time, value, curve, expr)) is { } error) ShowError(error);
+        Raise(Area.Scroll, new AddScrollCommand(time, value, curve, expr));
     }
 
     private void ApplyScroll(object? sender, RoutedEventArgs e)
     {
-        if (!RequireDocument() || SelectedScrollTime is not { } original) return;
-        if (!TryReadTime(this.FindControl<TextBox>("ScrollTimeValue")!, out var time)) return;
+        if (!RequireDocument(Area.Scroll) || SelectedScrollTime is not { } original) return;
+        if (!TryReadTime(Area.Scroll, "ScrollTimeValue", out var time)) return;
         if (!TryReadScrollValue(out var value, preserveLoaded: true) || !TryReadCurve(time, out var curve)) return;
-        Formula.Submit(expr => Raise(new EditScrollCommand(original, time, value, curve, expr)));
+        Formula.Submit(expr => Raise(Area.Scroll, new EditScrollCommand(original, time, value, curve, expr)));
     }
 
     private void DeleteScroll(object? sender, RoutedEventArgs e)
     {
-        if (!RequireDocument() || SelectedScrollTime is not { } time) return;
-        Raise(new DeleteScrollCommand(time));
+        if (!RequireDocument(Area.Scroll) || SelectedScrollTime is not { } time) return;
+        Raise(Area.Scroll, new DeleteScrollCommand(time));
     }
 
-    private bool RequireDocument()
+    private bool RequireDocument(Area area)
     {
+        ClearError(area);
         if (Chart is not null) return true;
-        ShowError(_text["Timing.Error.NoDocument"]);
+        ShowError(area, _text["Timing.Error.NoDocument"]);
         return false;
     }
 
     /// <summary>Empty time fields use the playhead anchor; continuous time is explicitly rounded on commit only.</summary>
-    private bool TryReadTime(TextBox field, out ExactBarTime time)
+    private bool TryReadTime(Area area, string fieldName, out ExactBarTime time)
     {
+        var field = this.FindControl<TextBox>(fieldName)!;
         if (string.IsNullOrWhiteSpace(field.Text))
         {
             if (_exactPlayhead is { } anchor) { time = anchor; return true; }
@@ -340,7 +407,7 @@ public sealed partial class TimingView : UserControl
                 return true;
         }
         else if (ExactBarTimeText.TryParse(field.Text, out time)) return true;
-        ShowError(_text["Timing.Error.InvalidTime"]);
+        ShowError(area, _text["Timing.Error.InvalidTime"], field);
         return false;
     }
 
@@ -351,52 +418,77 @@ public sealed partial class TimingView : UserControl
 
     private bool TryReadBpm(out double bpm, bool preserveLoaded = false)
     {
-        var input = this.FindControl<NumericUpDown>("BpmValueInput")!.Value;
+        var field = this.FindControl<NumericUpDown>("BpmValueInput")!;
+        var input = field.Value;
         bpm = preserveLoaded && _loadedBpm is { } original && input == _displayedBpm
             ? original : (double)(input ?? 0m);
         if (double.IsFinite(bpm) && bpm > 0) return true;
-        ShowError(_text["Timing.Error.InvalidBpm"]);
+        ShowError(Area.Bpm, _text["Timing.Error.InvalidBpm"], field);
         return false;
     }
 
     private bool TryReadScrollValue(out double value, bool preserveLoaded = false)
     {
-        var input = this.FindControl<NumericUpDown>("ScrollValueInput")!.Value;
+        var field = this.FindControl<NumericUpDown>("ScrollValueInput")!;
+        var input = field.Value;
         value = preserveLoaded && _loadedScroll is { } original && input == _displayedScroll
             ? original : (double)(input ?? 0m);
         if (double.IsFinite(value) && value is > 0 and <= 64) return true;
-        ShowError(_text["Timing.Error.InvalidScroll"]);
+        ShowError(Area.Scroll, _text["Timing.Error.InvalidScroll"], field);
         return false;
     }
 
     private bool TryReadCurve(ExactBarTime time, out V2ScrollCurve? curve)
     {
-        var tag = (this.FindControl<ComboBox>("ScrollCurveChoice")!.SelectedItem as ComboBoxItem)?.Tag as string;
+        var field = this.FindControl<ComboBox>("ScrollCurveChoice")!;
+        var tag = (field.SelectedItem as ComboBoxItem)?.Tag as string;
         curve = Enum.TryParse<V2ScrollCurve>(tag, out var selected) ? selected : null;
         if (Chart?.ScrollSpeeds.Any(item => item.Time > time) != true)
         {
-            if (curve == V2ScrollCurve.Custom) { ShowError(_text["Curve.Tail"]); return false; }
+            if (curve == V2ScrollCurve.Custom) { ShowError(Area.Scroll, _text["Curve.Tail"], field); return false; }
             curve = null;
         }
         return true;
     }
 
-    private string? Raise(IEditorCommand command)
+    private string? Raise(Area area, IEditorCommand command)
     {
-        ClearError();
-        return CommandRequested is null ? _text["Timing.Error.NoDocument"] : CommandRequested(command);
+        var error = CommandRequested is { } submit ? submit(command) : _text["Timing.Error.NoDocument"];
+        if (error is not null) ShowError(area, error, report: false);
+        return error;
     }
 
-    private void ShowError(string message)
+    private TextBlock ErrorBlock(Area area) => this.FindControl<TextBlock>($"{area}Error")!;
+
+    private void ShowError(Area area, string message, Control? field = null, bool report = true)
     {
-        ErrorBlock.Text = message;
-        ErrorBlock.IsVisible = true;
-        ErrorRequested?.Invoke(message);
+        var block = ErrorBlock(area);
+        block.Text = message;
+        block.IsVisible = true;
+        if (field is not null)
+        {
+            _invalidFields[area] = field;
+            field.Classes.Add("invalid");
+            if (field.IsEffectivelyVisible && field.IsEnabled) field.Focus();
+        }
+        // Add stays at the top even in a short dock. Reveal its error without asking the
+        // author to find the editing area manually, while keeping any focused field editable.
+        if (block.IsEffectivelyVisible) block.BringIntoView();
+        if (report) ErrorRequested?.Invoke(message);
     }
 
-    private void ClearError()
+    private void ClearError(Area area)
     {
-        ErrorBlock.Text = string.Empty;
-        ErrorBlock.IsVisible = false;
+        if (_invalidFields.Remove(area, out var field)) field.Classes.Remove("invalid");
+        var block = ErrorBlock(area);
+        block.Text = string.Empty;
+        block.IsVisible = false;
+    }
+
+    private void ClearErrors()
+    {
+        ClearError(Area.Offset);
+        ClearError(Area.Bpm);
+        ClearError(Area.Scroll);
     }
 }

@@ -7,7 +7,7 @@
       "sha256": "877ceefff4544346e01dc361398a973424f06beda36ce7294c1f70a3501e8774",
       "kind": "project-generated-model",
       "source": "Clean-room Blender 5.2 export from design/home-orrery-v6/detonation-orrery-mk6.blend (git-ignored local design source, not shipped); 3756 triangles, 14 materials, one 4 s clip, no embedded images",
-      "generator": "design/home-orrery-v6/build_orrery_mk6.py",
+      "generator": "release/provenance-sources/build_orrery_mk6-a42b8791.py.txt",
       "generatorSha256": "a42b8791cfe35803f34323146afdbcc5a05b11d8d30cca3c33318076566f279e"
     },
     {
@@ -455,7 +455,7 @@
       "sha256": "68159827e41a22d7e35641991bfd6abeb3b77036341c22f4e3831d66501226f8",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (game icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     },
     {
@@ -463,7 +463,7 @@
       "sha256": "8ecb9611c4c538491c26b79597b1dad3d6e1525d8d3bc424440159dc88925536",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (game icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     },
     {
@@ -471,7 +471,7 @@
       "sha256": "311218a5f1fa40aaf2354307e89321d69e277e840ae21eca0eab8238d1efcc89",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (game icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     },
     {
@@ -479,7 +479,7 @@
       "sha256": "6b628164fb1d18391d6860ed64c99e46b22bff4470805ff1a2f8ee1dd94fba19",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (game icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     },
     {
@@ -487,7 +487,7 @@
       "sha256": "9358809f15e7e7d71fc35656b7687086009d17a5e5ea819d37069681f7484f93",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (game icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     },
     {
@@ -495,7 +495,7 @@
       "sha256": "472e8b004d18247b037e303831c81f5840e92dc87ccc34ac59170211eb0193d5",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (editor icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     },
     {
@@ -503,7 +503,7 @@
       "sha256": "b1ce960f0faebc2508315a11b35eaa685367ecd7584383c1b8aaa4b0d7115021",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (editor icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     },
     {
@@ -511,7 +511,7 @@
       "sha256": "472e8b004d18247b037e303831c81f5840e92dc87ccc34ac59170211eb0193d5",
       "kind": "project-generated-ui-asset",
       "source": "Clean-room original icon set: programme-generated from the project's own note material, HomePalette brand colours and stage grid; no original-game pixels (editor icon)",
-      "generator": "design/app-icons-v2/build_icons.py",
+      "generator": "release/provenance-sources/build_icons-95ed9f94.py.txt",
       "generatorSha256": "95ed9f94b8ff74ed25cecd5a30e2fd0bd36453d575e4430e9cc32c2577a88ca2"
     }
   ],

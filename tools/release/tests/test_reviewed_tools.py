@@ -27,11 +27,32 @@ class ReviewedToolTests(unittest.TestCase):
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text('GameSession', encoding='utf-8')
-            policy = dict(projects={}, source_roots=['presentation'], pure_roots=[], file_limits={},
-                          partial_class_limits={}, default_file_limit=100,
+            policy = dict(projects={}, source_roots=['presentation'], pure_roots=[],
                           source_boundaries=[dict(files=['presentation/**/*.cs'], forbidden='GameSession', reason='forbidden')])
             errors, _, _ = checker.inspect(root, policy)
             self.assertEqual(len(errors), 3)
+
+    def test_architecture_source_sizes_are_informational(self):
+        checker = load('architecture_check', 'tools/architecture/check.py')
+        policy = json.loads(checker.POLICY.read_text(encoding='utf-8'))
+        policy.update(projects={}, source_roots=['presentation'])
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game = root / 'presentation/game'
+            game.mkdir(parents=True)
+            for name, length in [('GameplayNoteRenderer.cs', 1100), ('GameplayNoteRenderer.Draw.cs', 200)]:
+                (game / name).write_text('public partial class GameplayNoteRenderer {}\n' + '// filler\n' * (length - 1),
+                                         encoding='utf-8')
+            errors, sizes, totals = checker.inspect(root, policy)
+            self.assertEqual(errors, [])
+            self.assertEqual(sizes[0], (1100, 'presentation/game/GameplayNoteRenderer.cs'))
+            self.assertEqual(totals['GameplayNoteRenderer'], 1300)
+
+            # The same large source still fails if it crosses a real dependency boundary.
+            draw = game / 'GameplayNoteRenderer.Draw.cs'
+            draw.write_text('using Alias = JudgeEngine;\n' + draw.read_text(encoding='utf-8'), encoding='utf-8')
+            errors, _, _ = checker.inspect(root, policy)
+            self.assertTrue(any('render components must not depend' in error for error in errors))
 
     def test_pack_media_cannot_overwrite_chart(self):
         with tempfile.TemporaryDirectory() as folder:

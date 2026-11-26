@@ -1,0 +1,1076 @@
+"""Detonation Orrery Mk VI — "Flux Sigil", folded mechanical cage.
+
+Three C3 orbit planes keep the original emblem's order, but each is built as a
+solid folded beam with a recessed spine, end housings, and a narrow live inlay.
+Different radii, bowed sections, and independent slow precession make the front,
+middle, and rear mechanisms occlude one another instead of collapsing to lines.
+
+The centre is an upright cut crystal inside a segmented gimbal cradle. Cyan is
+the structural light, pink marks the charged end nodes, and violet is reserved
+for three small locks. Every visible mesh is opaque, untextured PBR; only the
+poster/preview compositor adds a restrained FogGlow and radial backdrop.
+
+Run:  /z/blender/blender -b --factory-startup --python build_orrery_mk6.py -- [opts]
+Opts:
+  --still F --az A --el E --name N   one inspection still from an arbitrary view
+  --percent P / --samples S          still quality (default 100 / 96)
+  --poster                           render poster.png
+  --video                            render preview.mp4 (4 s, 24 fps, 96 frames)
+  --no-glb                           skip GLB export
+  --roundtrip                        re-import the GLB and render it without post
+  --check                            framing / loop seam / normals / GLB stats
+"""
+
+import json
+import math
+import struct
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+import bmesh
+import bpy
+from mathutils import Matrix, Vector
+
+ROOT = Path(r"D:\Workspace\Dynamix\community\design\home-orrery-v6")
+BLEND = ROOT / "detonation-orrery-mk6.blend"
+GLB = ROOT / "detonation-orrery-mk6.glb"
+POSTER = ROOT / "poster.png"
+VIDEO = ROOT / "preview.mp4"
+DRAFT = ROOT / "draft"
+
+FPS = 24
+END = 97                 # frame 97 reproduces frame 1 -> 96 frames = 4.0 s
+RES_X, RES_Y = 900, 830
+TAU = math.tau
+DEG = math.pi / 180.0
+CAM_DIST = 10.5
+CAM_EL = 18.0
+POSTER_AZ, POSTER_EL = 22.0, 18.0
+
+argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+
+
+def arg(name, default=None):
+    if name in argv:
+        i = argv.index(name)
+        if i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+            return argv[i + 1]
+        return True
+    return default
+
+
+PERCENT = int(arg("--percent", 100))
+SAMPLES = int(arg("--samples", 96))
+WANT_POSTER = bool(arg("--poster", False))
+WANT_VIDEO = bool(arg("--video", False))
+WANT_GLB = not bool(arg("--no-glb", False))
+WANT_ROUNDTRIP = bool(arg("--roundtrip", False))
+WANT_CHECK = bool(arg("--check", False))
+STILL_FRAME = int(arg("--still", 13))
+STILL_AZ = float(arg("--az", 0.0))
+STILL_EL = float(arg("--el", CAM_EL))
+STILL_NAME = str(arg("--name", "still"))
+POSTER_FRAME = int(arg("--frame", 13))
+
+# ---------------------------------------------------------------------------
+# orbit planes
+# ---------------------------------------------------------------------------
+TILT = 52.0
+TILT_WOBBLE = 4.0
+AZ_WOBBLE = 5.0
+PLANE_AZ = (0.0, 120.0, 240.0)
+PLANE_R = (1.68, 2.06, 2.42)
+PLANE_SPIN = (0.0, 120.0, -120.0)       # slow counter-rotation; inner cradle holds
+PLANE_SPIN_AMP = (5.0, 6.0, 4.0)
+PLANE_SPIN_CYC = (1, 1, 1)
+
+SPAN = 88.0
+STEPS = 4
+RAIL_W, RAIL_T = 0.135, 0.105
+INLAY_W, INLAY_T = 0.018, 0.014
+INLAY_LIFT = 0.122
+SPINE_DROP = 0.20
+ARC_BOW = 0.16
+
+CORE_R = 0.46
+CORE_LEN = 1.62
+HOT_R = 0.105
+HOT_LEN = 0.82
+HOT_Y = -0.38
+
+SHOCK_R = (1.02,)
+SHOCK_TILT = (66.0,)
+SHOCK_AZ = (32.0,)
+CORE_TILT = 14.0
+
+PULSE_Y_OFF = 0.050
+
+# ---------------------------------------------------------------------------
+# scene
+# ---------------------------------------------------------------------------
+bpy.ops.wm.read_factory_settings(use_empty=True)
+scene = bpy.context.scene
+scene.render.engine = "BLENDER_EEVEE"
+scene.render.resolution_x = RES_X
+scene.render.resolution_y = RES_Y
+scene.render.resolution_percentage = 100
+scene.render.fps = FPS
+scene.frame_start = 1
+scene.frame_end = END
+scene.render.image_settings.media_type = "IMAGE"
+scene.render.image_settings.file_format = "PNG"
+scene.render.image_settings.color_mode = "RGB"
+scene.render.image_settings.compression = 40
+scene.view_settings.view_transform = "AgX"
+scene.view_settings.look = "AgX - Punchy"
+scene.view_settings.exposure = 0.30
+scene.eevee.taa_render_samples = 48
+scene.eevee.use_raytracing = True
+scene.eevee.use_shadows = True
+
+# backdrop: dark, but with a soft radial cyan veil behind the sigil, the same
+# idea as the note halo (bright centre, fast falloff, dark rim)
+world = bpy.data.worlds.new("DU Void Mk VI")
+scene.world = world
+world.use_nodes = True
+wn = world.node_tree.nodes
+wl = world.node_tree.links
+wn.clear()
+w_out = wn.new("ShaderNodeOutputWorld")
+w_bg = wn.new("ShaderNodeBackground")
+w_bg.inputs["Strength"].default_value = 1.0
+w_coord = wn.new("ShaderNodeTexCoord")
+w_sep = wn.new("ShaderNodeSeparateXYZ")
+w_comb = wn.new("ShaderNodeCombineXYZ")
+w_len = wn.new("ShaderNodeVectorMath")
+w_len.operation = "LENGTH"
+w_ramp = wn.new("ShaderNodeValToRGB")
+cr = w_ramp.color_ramp
+cr.elements[0].position = 0.0
+cr.elements[0].color = (0.085, 0.180, 0.290, 1)
+cr.elements[1].position = 0.48
+cr.elements[1].color = (0.004, 0.008, 0.018, 1)
+mid = cr.elements.new(0.17)
+mid.color = (0.020, 0.048, 0.086, 1)
+far = cr.elements.new(0.30)
+far.color = (0.008, 0.016, 0.032, 1)
+wl.new(w_coord.outputs["Generated"], w_sep.inputs["Vector"])
+wl.new(w_sep.outputs["X"], w_comb.inputs["X"])
+wl.new(w_sep.outputs["Y"], w_comb.inputs["Y"])
+wl.new(w_comb.outputs["Vector"], w_len.inputs[0])
+wl.new(w_len.outputs["Value"], w_ramp.inputs["Fac"])
+wl.new(w_ramp.outputs["Color"], w_bg.inputs["Color"])
+wl.new(w_bg.outputs["Background"], w_out.inputs["Surface"])
+
+
+# ---------------------------------------------------------------------------
+# materials — opaque metal carries the form; emission only marks live surfaces
+# ---------------------------------------------------------------------------
+def mat_pbr(name, base, metallic, roughness, emission=None, strength=0.0,
+            spec=0.5):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+
+    def put(key, value):
+        sock = bsdf.inputs.get(key)
+        if sock is not None:
+            sock.default_value = value
+
+    put("Base Color", (*base, 1.0))
+    put("Metallic", metallic)
+    put("Roughness", roughness)
+    put("Specular IOR Level", spec)
+    if emission is not None:
+        put("Emission Color", (*emission, 1.0))
+        put("Emission Strength", strength)
+    mat.use_backface_culling = True
+    return mat
+
+
+CORE_SHELL = mat_pbr("Core Crystal", (0.025, 0.32, 0.43), 0.62, 0.28,
+                     (0.015, 0.38, 0.55), 0.65)
+CORE_MID = mat_pbr("Core Cut Cyan", (0.055, 0.50, 0.62), 0.48, 0.25,
+                   (0.025, 0.56, 0.72), 0.95)
+CORE_DARK = mat_pbr("Core Cut Shadow", (0.018, 0.065, 0.095), 0.72, 0.32)
+CORE_HOT = mat_pbr("Nucleus Hot", (0.08, 0.62, 0.74), 0.30, 0.24,
+                   (0.08, 0.82, 1.0), 2.40)
+RAIL = mat_pbr("Rail Cyan", (0.035, 0.20, 0.27), 0.52, 0.31,
+               (0.018, 0.20, 0.29), 0.32)
+RAIL_TOP = mat_pbr("Rail Bevel", (0.065, 0.40, 0.49), 0.50, 0.27,
+                   (0.030, 0.36, 0.47), 0.60)
+RAIL_BACK = mat_pbr("Rail Recessed Spine", (0.018, 0.055, 0.078), 0.68, 0.36)
+RAIL_JOINT = mat_pbr("Rail End Housing", (0.038, 0.105, 0.135), 0.70, 0.29)
+RAIL_EDGE = mat_pbr("Rail Inlay", (0.10, 0.75, 0.88), 0.20, 0.24,
+                    (0.06, 0.82, 1.0), 2.80)
+SHOCK = mat_pbr("Gimbal Dark", (0.018, 0.065, 0.085), 0.78, 0.32)
+PINK = mat_pbr("Node Pink", (0.58, 0.025, 0.20), 0.35, 0.25,
+               (1.0, 0.035, 0.32), 2.20)
+VIOLET = mat_pbr("Node Violet", (0.24, 0.08, 0.46), 0.42, 0.28,
+                 (0.48, 0.12, 1.0), 1.20)
+PULSE_C = mat_pbr("Flux Cyan", (0.16, 0.82, 0.92), 0.20, 0.22,
+                  (0.10, 0.88, 1.0), 3.20)
+PULSE_P = mat_pbr("Flux Pink", (0.76, 0.045, 0.28), 0.20, 0.22,
+                  (1.0, 0.07, 0.42), 2.80)
+
+
+# ---------------------------------------------------------------------------
+# mesh helpers
+# ---------------------------------------------------------------------------
+def mesh_object(name, verts, faces, mat):
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    me.validate(verbose=False)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(ob)
+    me.materials.append(mat)
+    return ob
+
+
+def empty(name, parent=None, loc=(0, 0, 0), rot=(0, 0, 0)):
+    ob = bpy.data.objects.new(name, None)
+    ob.empty_display_size = 0.4
+    bpy.context.collection.objects.link(ob)
+    ob.parent = parent
+    ob.location = loc
+    ob.rotation_mode = "XYZ"
+    ob.rotation_euler = rot
+    return ob
+
+
+# Ten-section folded beam: low crest, one bevel step per side, sharp waist,
+# flat back. The front breaks into planes instead of reading as one card.
+PROFILE = ((0.00, -1.00), (0.55, -0.72), (0.88, -0.22), (1.00, 0.30),
+           (0.55, 0.86), (0.00, 1.00), (-0.55, 0.86), (-1.00, 0.30),
+           (-0.88, -0.22), (-0.55, -0.72))
+
+
+def taper(u, edge, floor):
+    s = min(u, 1.0 - u) / edge
+    return floor + (1.0 - floor) * min(1.0, max(0.0, s))
+
+
+def loft_band(name, pts, half_w, half_t, mat, crest=(0.0, 0.0, 1.0),
+              edge=0.14, floor=0.5, twist=0.0, closed=False, prof=PROFILE,
+              bevel_mat=None):
+    """Loft a chamfered rail along `pts`.
+
+    `crest` is the direction the ridge faces (the plane normal here), `twist`
+    rotates the section about the path, and `bevel_mat` paints the four front
+    facets so the cut reads by value as well as by light.
+    """
+    crest_v = Vector(crest).normalized()
+    n = len(pts)
+    tangents = []
+    for i in range(n):
+        if closed:
+            a, b = pts[(i - 1) % n], pts[(i + 1) % n]
+        else:
+            a, b = pts[max(i - 1, 0)], pts[min(i + 1, n - 1)]
+        t = b - a
+        tangents.append(t.normalized() if t.length > 1e-9 else Vector((0, 0, 1)))
+    verts, faces = [], []
+    m = len(prof)
+    for i, p in enumerate(pts):
+        t = tangents[i]
+        side = t.cross(crest_v)
+        if side.length < 1e-6:
+            side = Vector((1, 0, 0))
+        side.normalize()
+        up = crest_v.copy()
+        u = i / (n - 1) if n > 1 else 0.0
+        s = 1.0 if closed else taper(u, edge, floor)
+        ang = twist * DEG * (u - 0.5)
+        if abs(ang) > 1e-9:
+            rot = Matrix.Rotation(ang, 3, t)
+            side = (rot @ side).normalized()
+            up = (rot @ up).normalized()
+        for a, b in prof:
+            verts.append(tuple(p + side * (a * half_w * s) + up * (-b * half_t * s)))
+    ring = n if closed else n - 1
+    for i in range(ring):
+        j = (i + 1) % n
+        for k in range(m):
+            k2 = (k + 1) % m
+            faces.append((i * m + k, i * m + k2, j * m + k2, j * m + k))
+    if not closed:
+        faces.append(tuple(range(m - 1, -1, -1)))
+        base = (n - 1) * m
+        faces.append(tuple(base + k for k in range(m)))
+    ob = mesh_object(name, verts, faces, mat)
+    if bevel_mat is not None:
+        ob.data.materials.append(bevel_mat)
+        top_i = len(ob.data.materials) - 1
+        body = ring * m
+        for poly in ob.data.polygons:
+            if poly.index < body and poly.index % m in (0, 1, m - 2, m - 1):
+                poly.material_index = top_i
+    return ob
+
+
+def local_arc(center_deg, span_deg, radius, steps, bow=0.0, z_bow=0.0, z0=0.0):
+    """Arc in the local XY plane of an orbit rig; local +Z is the plane normal."""
+    out = []
+    for i in range(steps + 1):
+        u = i / steps
+        a = (center_deg + span_deg * (u - 0.5)) * DEG
+        r = radius + bow * math.sin(math.pi * u)
+        out.append(Vector((r * math.cos(a), r * math.sin(a),
+                           z0 + z_bow * math.sin(math.pi * u))))
+    return out
+
+
+def bipyramid(name, radius, length, mat, sides=8, axis="Y", spin=0.0):
+    verts, faces = [], []
+    for k in range(sides):
+        a = TAU * k / sides + spin * DEG
+        if axis == "Z":
+            verts.append((radius * math.cos(a), radius * math.sin(a), 0.0))
+        else:
+            verts.append((radius * math.cos(a), 0.0, radius * math.sin(a)))
+    tip = (Vector((0.0, 0.0, length * 0.5)) if axis == "Z"
+           else Vector((0.0, -length * 0.5, 0.0)))
+    head = len(verts)
+    verts.append(tuple(tip))
+    tail = len(verts)
+    verts.append(tuple(-tip))
+    for k in range(sides):
+        k2 = (k + 1) % sides
+        faces.append((head, k, k2))
+        faces.append((tail, k2, k))
+    return mesh_object(name, verts, faces, mat)
+
+
+def hinge(name, radius, depth, mat, sides=6):
+    verts = []
+    for z in (-depth * 0.5, depth * 0.5):
+        for k in range(sides):
+            a = TAU * k / sides
+            verts.append((radius * math.cos(a), radius * math.sin(a), z))
+    faces = [tuple(range(sides - 1, -1, -1)), tuple(range(sides, sides * 2))]
+    for k in range(sides):
+        k2 = (k + 1) % sides
+        faces.append((k, k2, sides + k2, sides + k))
+    return mesh_object(name, verts, faces, mat)
+
+
+def cut_crystal(name, radius, length, mat, sides=6):
+    verts = []
+    for z, r in ((-length * 0.19, radius * 0.82),
+                 (length * 0.19, radius * 0.82)):
+        for k in range(sides):
+            a = TAU * k / sides + 30.0 * DEG
+            verts.append((r * math.cos(a), r * math.sin(a), z))
+    lower = len(verts)
+    verts.append((0.0, 0.0, -length * 0.5))
+    upper = len(verts)
+    verts.append((0.0, 0.0, length * 0.5))
+    faces = []
+    for k in range(sides):
+        k2 = (k + 1) % sides
+        faces.extend(((lower, k2, k), (k, k2, sides + k2, sides + k),
+                      (upper, sides + k, sides + k2)))
+    ob = mesh_object(name, verts, faces, mat)
+    ob.data.materials.append(CORE_MID)
+    ob.data.materials.append(CORE_DARK)
+    for poly in ob.data.polygons:
+        facet = (poly.index // 3) % 3
+        poly.material_index = (0, 1, 2)[facet]
+    return ob
+
+
+# ---------------------------------------------------------------------------
+# hierarchy
+# ---------------------------------------------------------------------------
+rig = empty("Mk6 rig")
+cage = empty("Cage", rig)
+planes = []
+for k in range(3):
+    precess = empty(f"Plane {k + 1} precess", cage, rot=(0.0, PLANE_AZ[k] * DEG, 0.0))
+    tilt = empty(f"Plane {k + 1} tilt", precess, rot=(TILT * DEG, 0.0, 0.0))
+    spin = empty(f"Plane {k + 1} spin", tilt)
+    planes.append({"precess": precess, "tilt": tilt, "spin": spin,
+                   "r": PLANE_R[k]})
+    for i in range(3):
+        center = 90.0 + 120.0 * i
+        r = PLANE_R[k]
+        body = loft_band(f"P{k + 1} rail {i + 1}",
+                         local_arc(center, SPAN, r, STEPS, bow=0.025, z_bow=ARC_BOW),
+                         RAIL_W, RAIL_T, RAIL, edge=0.20, floor=0.62,
+                         twist=10.0, bevel_mat=RAIL_TOP)
+        body.parent = spin
+        spine = loft_band(f"P{k + 1} spine {i + 1}",
+                          local_arc(center, SPAN * 0.96, r, STEPS,
+                                    bow=0.025, z_bow=ARC_BOW, z0=-SPINE_DROP),
+                          RAIL_W * 0.68, RAIL_T * 0.60, RAIL_BACK,
+                          edge=0.12, floor=0.72)
+        spine.parent = spin
+        inlay = loft_band(f"P{k + 1} inlay {i + 1}",
+                          local_arc(center, SPAN * 0.70, r + 0.008, STEPS - 1,
+                                    bow=0.025, z_bow=ARC_BOW, z0=INLAY_LIFT),
+                          INLAY_W, INLAY_T, RAIL_EDGE, edge=0.12, floor=0.68)
+        inlay.parent = spin
+        for end, u in enumerate((0.0, 1.0)):
+            a = (center + SPAN * (u - 0.5)) * DEG
+            housing = hinge(f"P{k + 1} housing {i + 1}{end + 1}", 0.145, 0.32,
+                            RAIL_JOINT)
+            housing.parent = spin
+            housing.location = (r * math.cos(a), r * math.sin(a), -0.065)
+            cap = hinge(f"P{k + 1} end cap {i + 1}{end + 1}", 0.082, 0.028,
+                        RAIL_TOP)
+            cap.parent = spin
+            cap.location = (r * math.cos(a), r * math.sin(a), 0.107)
+
+for k in range(3):
+    for i in range(3):
+        node = bipyramid(f"Node {k + 1}{i + 1}", 0.060 if k < 2 else 0.078,
+                         0.13 if k < 2 else 0.18, PINK, sides=6)
+        node.parent = planes[k]["spin"]
+        a = (90.0 + 120.0 * i + SPAN * 0.36) * DEG
+        node.location = ((PLANE_R[k] + 0.01) * math.cos(a),
+                         (PLANE_R[k] + 0.01) * math.sin(a), INLAY_LIFT + 0.055)
+        node.rotation_euler = (math.pi / 2, 0, 0)
+
+for i in range(3):
+    stud = bipyramid(f"Stud {i + 1}", 0.062, 0.16, VIOLET, sides=6)
+    stud.parent = planes[1]["spin"]
+    a = (90.0 + 120.0 * i - SPAN * 0.34) * DEG
+    stud.location = ((PLANE_R[1] + 0.012) * math.cos(a),
+                     (PLANE_R[1] + 0.012) * math.sin(a), INLAY_LIFT + 0.05)
+    stud.rotation_euler = (math.pi / 2, 0, 0)
+
+# --- upright reactor and a separate segmented mechanical gimbal --------------
+core_grp = empty("Core", rig)
+core_tilt = empty("Core tilt", core_grp,
+                  rot=(CORE_TILT * DEG, -18.0 * DEG, -10.0 * DEG))
+shell = cut_crystal("Core crystal", CORE_R, CORE_LEN, CORE_SHELL)
+shell.parent = core_tilt
+
+hot = bipyramid("Nucleus Hot", HOT_R, HOT_LEN, CORE_HOT, sides=6, axis="Z")
+hot.parent = core_tilt
+hot.location = (0.0, HOT_Y, 0.0)
+
+gimbal_rigs = []
+pre = empty("Gimbal precess", core_grp, rot=(0.0, SHOCK_AZ[0] * DEG, 0.0))
+tl = empty("Gimbal tilt", pre, rot=((90.0 - SHOCK_TILT[0]) * DEG, 0.0, 0.0))
+for i in range(3):
+    center = 30.0 + 120.0 * i
+    ring = loft_band(f"Gimbal segment {i + 1}",
+                     local_arc(center, 82.0, SHOCK_R[0], 3, z_bow=0.07),
+                     0.065, 0.055, SHOCK, edge=0.16, floor=0.72,
+                     bevel_mat=RAIL)
+    ring.parent = tl
+    live = loft_band(f"Gimbal live {i + 1}",
+                     local_arc(center, 26.0, SHOCK_R[0] + 0.006, 1, z0=0.068),
+                     0.016, 0.012, RAIL_EDGE, edge=0.20, floor=0.70)
+    live.parent = tl
+gimbal_rigs.append(tl)
+
+# --- flux packets ----------------------------------------------------------
+pulses = []
+for k in range(3):
+    for i in range(3):
+        center = 90.0 + 120.0 * i
+        tones = (("pink", PULSE_P),) if k == 2 else (("cyan", PULSE_C),)
+        for tone, mat in tones:
+            p = bipyramid(f"Flux {tone} {k + 1}{i + 1}", 0.048, 0.24, mat, sides=6)
+            p.parent = planes[k]["spin"]
+            p.rotation_mode = "QUATERNION"
+            pulses.append((p, k, center))
+
+
+def pulse_point(k, center_deg, u):
+    a = (center_deg + SPAN * (u - 0.5)) * DEG
+    r = PLANE_R[k] + 0.025 * math.sin(math.pi * u) + 0.008
+    z = ARC_BOW * math.sin(math.pi * u) + RAIL_T + PULSE_Y_OFF
+    return Vector((r * math.cos(a), r * math.sin(a), z))
+
+
+# ---------------------------------------------------------------------------
+# animation
+# ---------------------------------------------------------------------------
+def keys(ob, path, frames_values, interp="LINEAR"):
+    bpy.context.preferences.edit.keyframe_new_interpolation_type = interp
+    for frame, value in frames_values:
+        setattr(ob, path, value)
+        ob.keyframe_insert(data_path=path, frame=frame)
+
+
+def spin_about(ob, axis, base_deg, net_deg, amp_deg, cycles, phase, steps=48):
+    """Rotation about one local axis. net_deg is a whole multiple of the
+    layer's symmetry and the sine runs whole cycles, so pose and velocity match
+    at frame 1 and frame 97."""
+    out = []
+    for i in range(steps + 1):
+        t = i / steps
+        ang = (base_deg + net_deg * t + amp_deg *
+               math.sin(TAU * cycles * t + phase)) * DEG
+        e = [0.0, 0.0, 0.0]
+        e[axis] = ang
+        out.append((round(1 + (END - 1) * t), tuple(e)))
+    keys(ob, "rotation_euler", out, "LINEAR")
+
+
+def wobble_axis(ob, axis, base_deg, amp_deg, cycles, phase, steps=48):
+    out = []
+    for i in range(steps + 1):
+        t = i / steps
+        ang = (base_deg + amp_deg * math.sin(TAU * cycles * t + phase)) * DEG
+        e = [0.0, 0.0, 0.0]
+        e[axis] = ang
+        out.append((round(1 + (END - 1) * t), tuple(e)))
+    keys(ob, "rotation_euler", out, "LINEAR")
+
+
+def periodic_scale(ob, profile, steps=48):
+    out = []
+    for i in range(steps + 1):
+        t = i / steps
+        v = profile(t % 1.0)
+        s = v if isinstance(v, tuple) else (v, v, v)
+        out.append((round(1 + (END - 1) * t), s))
+    keys(ob, "scale", out, "LINEAR")
+
+
+# three planes: same shape, 120 deg phase apart, so the cage stays balanced
+for k, pl in enumerate(planes):
+    ph = k * TAU / 3.0
+    wobble_axis(pl["precess"], 1, PLANE_AZ[k], AZ_WOBBLE, 1, ph)
+    wobble_axis(pl["tilt"], 0, TILT, TILT_WOBBLE, 1, ph + 1.2)
+    spin_about(pl["spin"], 2, 0.0, PLANE_SPIN[k], PLANE_SPIN_AMP[k],
+               PLANE_SPIN_CYC[k], ph)
+
+spin_about(shell, 2, 0.0, 360.0, 0.0, 1, 0.0)
+
+beats = [(1, 1.0), (9, 1.055), (17, 0.985), (25, 1.035), (33, 0.990),
+         (41, 1.045), (49, 1.0), (57, 1.055), (65, 0.985), (73, 1.035),
+         (81, 0.990), (89, 1.045), (END, 1.0)]
+keys(shell, "scale", [(f, (v, v, v)) for f, v in beats], "BEZIER")
+keys(hot, "scale", [(f, (v ** 1.7, v ** 1.7, v ** 1.7)) for f, v in beats], "BEZIER")
+
+periodic_scale(gimbal_rigs[0],
+               lambda u: 0.98 + 0.04 * (0.5 - 0.5 * math.cos(TAU * 3 * u)))
+
+
+def charge_profile(u):
+    if u < 0.68:
+        return 1.0 + 0.38 * (u / 0.68) ** 1.6
+    if u < 0.78:
+        return 1.38 - 0.48 * ((u - 0.68) / 0.10)
+    return 0.90 + 0.10 * ((u - 0.78) / 0.22)
+
+
+for k in range(3):
+    for i in range(3):
+        node = bpy.data.objects.get(f"Node {k + 1}{i + 1}")
+        if node is None:
+            continue
+        periodic_scale(node, lambda u, k=k: charge_profile((u + k / 3.0) % 1.0))
+
+for idx, (p, k, center) in enumerate(pulses):
+    loc_keys, rot_keys, scale_keys = [], [], []
+    steps = 72
+    off = 0.0 if "cyan" in p.name else 0.5
+    prev_q = None
+    for i in range(steps + 1):
+        t = i / steps
+        frame = round(1 + (END - 1) * t)
+        u = (t + off) % 1.0
+        pa = pulse_point(k, center, u)
+        loc_keys.append((frame, pa))
+        tangent = (pulse_point(k, center, min(1.0, u + 0.01)) -
+                   pulse_point(k, center, max(0.0, u - 0.01)))
+        if tangent.length < 1e-7:
+            tangent = Vector((0, 0, 1))
+        q = tangent.normalized().to_track_quat("Z", "Y")
+        if prev_q is not None and q.dot(prev_q) < 0.0:
+            q.negate()
+        prev_q = q
+        rot_keys.append((frame, tuple(q)))
+        env = min(1.0, u / 0.12, (1.0 - u) / 0.12)
+        s = 0.12 + 0.88 * max(0.0, env) ** 0.6
+        scale_keys.append((frame, (s, s, s)))
+    keys(p, "location", loc_keys, "LINEAR")
+    keys(p, "rotation_quaternion", rot_keys, "LINEAR")
+    keys(p, "scale", scale_keys, "LINEAR")
+
+
+# ---------------------------------------------------------------------------
+# camera & lights
+# ---------------------------------------------------------------------------
+def track(obj, target=(0, 0, 0)):
+    obj.rotation_euler = (Vector(target) - obj.location).to_track_quat("-Z", "Y").to_euler()
+
+
+def place_camera(cam, az_deg, el_deg, dist=CAM_DIST):
+    az, el = az_deg * DEG, el_deg * DEG
+    cam.location = (dist * math.cos(el) * math.sin(az),
+                    -dist * math.cos(el) * math.cos(az),
+                    dist * math.sin(el))
+    track(cam)
+
+
+bpy.ops.object.camera_add(location=(0.0, -CAM_DIST, 0.0))
+camera = bpy.context.object
+camera.name = "Homepage camera"
+camera.data.lens = 58
+camera.data.sensor_width = 36
+place_camera(camera, POSTER_AZ, POSTER_EL)
+scene.camera = camera
+
+
+def area(name, loc, energy, color, size, size_y=None):
+    bpy.ops.object.light_add(type="AREA", location=loc)
+    light = bpy.context.object
+    light.name = name
+    light.data.energy = energy
+    light.data.color = color
+    light.data.shape = "DISK" if size_y is None else "RECTANGLE"
+    light.data.size = size
+    if size_y is not None:
+        light.data.size_y = size_y
+    track(light)
+    return light
+
+
+area("Key cyan", (-6.5, -7.5, 6.5), 900, (0.62, 0.84, 1.0), 3.0)
+area("Cold top", (0.5, 1.5, 8.5), 520, (0.48, 0.82, 1.0), 7.0, size_y=2.0)
+area("Violet fill", (7.5, -5.0, -3.5), 180, (0.40, 0.24, 1.0), 5.0)
+area("Pink rim", (4.0, 7.5, -3.0), 380, (1.0, 0.16, 0.42), 4.0, size_y=7.0)
+
+comp = bpy.data.node_groups.new("DU Comp Mk VI", "CompositorNodeTree")
+comp.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+scene.compositing_node_group = comp
+rl = comp.nodes.new("CompositorNodeRLayers")
+glare = comp.nodes.new("CompositorNodeGlare")
+glare.inputs["Type"].default_value = "Fog Glow"
+glare.inputs["Quality"].default_value = "High"
+glare.inputs["Threshold"].default_value = 0.90
+glare.inputs["Smoothness"].default_value = 0.30
+glare.inputs["Size"].default_value = 0.42
+glare.inputs["Strength"].default_value = 0.38
+glare.inputs["Saturation"].default_value = 1.06
+out_node = comp.nodes.new("NodeGroupOutput")
+comp.links.new(rl.outputs["Image"], glare.inputs["Image"])
+comp.links.new(glare.outputs[0], out_node.inputs[0])
+
+scene["concept"] = "Dynamite Universe / Detonation Orrery Mk VI (three-plane Flux Sigil)"
+scene["symmetry"] = "3 tilted C3 orbit planes on distinct axes, 120 deg phase"
+scene["clean_room"] = True
+scene["loop_seconds"] = 4.0
+scene.frame_set(POSTER_FRAME)
+
+
+def join_by_material():
+    animated = {ob.name for ob in scene.objects
+                if ob.animation_data and ob.animation_data.action}
+    buckets = {}
+    for ob in list(scene.objects):
+        if ob.type != "MESH" or ob.name in animated:
+            continue
+        mat = ob.data.materials[0].name if ob.data.materials else ""
+        buckets.setdefault((ob.parent.name if ob.parent else "", mat), []).append(ob)
+    merged = 0
+    for (parent, mat), obs in buckets.items():
+        if len(obs) < 2:
+            continue
+        bpy.ops.object.select_all(action="DESELECT")
+        for ob in obs:
+            ob.select_set(True)
+        bpy.context.view_layer.objects.active = obs[0]
+        bpy.ops.object.join()
+        joined = bpy.context.view_layer.objects.active
+        joined.name = f"{mat} batch"
+        merged += 1
+    print(f"JOIN merged {merged} material batches, "
+          f"mesh objects now {sum(1 for o in scene.objects if o.type == 'MESH')}")
+
+
+join_by_material()
+bpy.ops.wm.save_as_mainfile(filepath=str(BLEND))
+print(f"SAVED {BLEND}")
+
+
+# ---------------------------------------------------------------------------
+# checks
+# ---------------------------------------------------------------------------
+def framing_report():
+    from bpy_extras.object_utils import world_to_camera_view
+    deps = bpy.context.evaluated_depsgraph_get()
+    worst = (0, 0.0, 0.0)
+    for frame in (1, 13, 25, 37, 49, 61, 73, 85, 96):
+        scene.frame_set(frame)
+        deps.update()
+        xmin = ymin = 9e9
+        xmax = ymax = -9e9
+        dmin, dmax = 9e9, -9e9
+        for ob in scene.objects:
+            if ob.type != "MESH":
+                continue
+            ev = ob.evaluated_get(deps)
+            me = ev.to_mesh()
+            mw = ev.matrix_world
+            for v in me.vertices:
+                co = mw @ v.co
+                ndc = world_to_camera_view(scene, camera, co)
+                xmin, xmax = min(xmin, ndc.x), max(xmax, ndc.x)
+                ymin, ymax = min(ymin, ndc.y), max(ymax, ndc.y)
+                dmin, dmax = min(dmin, co.y), max(dmax, co.y)
+            ev.to_mesh_clear()
+        print(f"FRAME {frame:3d} ndc_x[{xmin:.3f},{xmax:.3f}] ndc_y[{ymin:.3f},{ymax:.3f}] "
+              f"fill={(xmax - xmin):.3f}x{(ymax - ymin):.3f} depth_y[{dmin:.2f},{dmax:.2f}]")
+        if xmax - xmin > worst[1]:
+            worst = (frame, xmax - xmin, ymax - ymin)
+    print(f"FRAME widest fill={worst[1]:.3f}x{worst[2]:.3f} at frame {worst[0]} "
+          f"(safe if < 0.94)")
+    scene.frame_set(POSTER_FRAME)
+
+
+def seam_report():
+    import numpy as np
+    tmp = DRAFT / "_seam"
+    tmp.mkdir(parents=True, exist_ok=True)
+    scene.render.resolution_percentage = 50
+    scene.eevee.taa_render_samples = 32
+    scene.render.image_settings.media_type = "IMAGE"
+    scene.render.image_settings.file_format = "PNG"
+    frames = []
+    for frame in (1, END):
+        scene.frame_set(frame)
+        path = tmp / f"seam_{frame}.png"
+        scene.render.filepath = str(path)
+        bpy.ops.render.render(write_still=True)
+        img = bpy.data.images.load(str(path))
+        frames.append(np.array(img.pixels[:], dtype=np.float32))
+        bpy.data.images.remove(img)
+    diff = np.abs(frames[0] - frames[1])
+    print(f"SEAM frame1 vs frame{END}: max={diff.max():.5f} mean={diff.mean():.6f} "
+          f"pixels_over_2%={(diff > 0.02).mean() * 100:.4f}%")
+    scene.render.resolution_percentage = 100
+    scene.eevee.taa_render_samples = SAMPLES
+    scene.frame_set(POSTER_FRAME)
+
+
+def axis_report():
+    """The three orbit planes must keep three different normals all loop long."""
+    import numpy as np
+    world_z = Vector((0, 0, 1))
+    for frame in (1, 25, 49, 73):
+        scene.frame_set(frame)
+        deps = bpy.context.evaluated_depsgraph_get()
+        deps.update()
+        normals = []
+        for k in range(3):
+            ob = bpy.data.objects[f"Plane {k + 1} spin"]
+            n = (ob.matrix_world.to_3x3() @ world_z).normalized()
+            normals.append(n)
+        angles = [math.degrees(math.acos(max(-1.0, min(1.0, normals[i].dot(normals[j])))))
+                  for i, j in ((0, 1), (0, 2), (1, 2))]
+        cam = math.degrees(math.acos(max(-1.0, min(1.0,
+                    normals[0].dot(Vector((0, -1, 0))))))) if False else 0.0
+        print(f"AXES frame {frame:3d} normals="
+              f"{[tuple(round(c, 2) for c in n) for n in normals]} "
+              f"pairwise={[round(a, 1) for a in angles]}")
+    scene.frame_set(POSTER_FRAME)
+
+
+def extent_report():
+    deps = bpy.context.evaluated_depsgraph_get()
+    deps.update()
+    lo = Vector((9e9, 9e9, 9e9))
+    hi = Vector((-9e9, -9e9, -9e9))
+    tris = 0
+    for ob in scene.objects:
+        if ob.type != "MESH":
+            continue
+        ev = ob.evaluated_get(deps)
+        me = ev.to_mesh()
+        me.calc_loop_triangles()
+        tris += len(me.loop_triangles)
+        for v in me.vertices:
+            co = ev.matrix_world @ v.co
+            for i in range(3):
+                lo[i] = min(lo[i], co[i])
+                hi[i] = max(hi[i], co[i])
+        ev.to_mesh_clear()
+    size = hi - lo
+    print(f"SIZE x={size.x:.3f} y={size.y:.3f} z={size.z:.3f} "
+          f"depth_ratio={size.y / size.x:.3f} tris={tris}")
+    scene.frame_set(POSTER_FRAME)
+
+
+def verify_report():
+    problems = []
+    tex = 0
+    for ob in scene.objects:
+        if ob.type != "MESH":
+            continue
+        me = ob.data
+        if me.uv_layers:
+            problems.append(f"{ob.name}: UV layer")
+        vol = 0.0
+        for poly in me.polygons:
+            vs = [me.vertices[i].co for i in poly.vertices]
+            for i in range(1, len(vs) - 1):
+                vol += vs[0].dot(vs[i].cross(vs[i + 1])) / 6.0
+        if vol <= 0.0 and me.materials and me.materials[0].blend_method == "OPAQUE":
+            problems.append(f"{ob.name}: volume {vol:.5f} (normals inward)")
+    for mat in bpy.data.materials:
+        if not mat.use_nodes:
+            continue
+        for nd in mat.node_tree.nodes:
+            if nd.type == "TEX_IMAGE":
+                tex += 1
+    if tex:
+        problems.append(f"{tex} image texture node(s)")
+    print(f"VERIFY textures={tex} problems={len(problems)} {problems[:6]}")
+    print(f"VERIFY materials={len(bpy.data.materials)}")
+
+
+# ---------------------------------------------------------------------------
+# render / export
+# ---------------------------------------------------------------------------
+def render_still(path, percent=100, samples=96, frame=None, az=None, el=None):
+    DRAFT.mkdir(parents=True, exist_ok=True)
+    scene.render.resolution_percentage = percent
+    scene.eevee.taa_render_samples = samples
+    scene.render.image_settings.media_type = "IMAGE"
+    scene.render.image_settings.file_format = "PNG"
+    if az is not None or el is not None:
+        place_camera(camera, az if az is not None else 0.0,
+                     el if el is not None else CAM_EL)
+    if frame is not None:
+        scene.frame_set(frame)
+    scene.render.filepath = str(path)
+    started = time.time()
+    bpy.ops.render.render(write_still=True)
+    print(f"STILL {Path(path).name} in {time.time() - started:.1f}s")
+
+
+def export_glb():
+    class _ExportTempDir:
+        def __init__(self, *args, **kwargs):
+            self.path = ROOT / "gltf-temp"
+            self.path.mkdir(parents=True, exist_ok=True)
+            self.name = str(self.path)
+
+        def __enter__(self):
+            return self.name
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            for child in self.path.iterdir():
+                if child.is_file():
+                    child.unlink()
+            return False
+
+        def cleanup(self):
+            self.__exit__(None, None, None)
+
+    tempfile.TemporaryDirectory = _ExportTempDir
+    bpy.ops.export_scene.gltf(
+        filepath=str(GLB),
+        export_format="GLB",
+        export_materials="EXPORT",
+        export_texcoords=False,
+        export_normals=True,
+        export_tangents=False,
+        export_apply=True,
+        export_cameras=False,
+        export_lights=False,
+        export_animations=True,
+        # ACTIVE_ACTIONS merges every object's action into one clip named
+        # "Animation"; SCENE mode would emit one clip per object, unusable as a
+        # single Godot AnimationPlayer resource.
+        export_animation_mode="ACTIVE_ACTIONS",
+        export_anim_slide_to_zero=True,
+        export_frame_range=True,
+        export_bake_animation=True,
+        export_optimize_animation_size=False,
+        export_yup=True,
+        export_extras=True,
+    )
+
+
+def report_glb():
+    raw = GLB.read_bytes()
+    length = struct.unpack("<I", raw[12:16])[0]
+    doc = json.loads(raw[20:20 + length])
+    acc = doc["accessors"]
+    tris = 0
+    for mesh in doc["meshes"]:
+        for prim in mesh["primitives"]:
+            if "indices" in prim:
+                tris += acc[prim["indices"]]["count"] // 3
+            else:
+                tris += acc[prim["attributes"]["POSITION"]]["count"] // 3
+    prims = sum(len(m["primitives"]) for m in doc["meshes"])
+    with_normals = sum(1 for m in doc["meshes"] for p in m["primitives"]
+                       if "NORMAL" in p["attributes"])
+    anims = doc.get("animations", [])
+    durations = [max(acc[s["input"]]["max"][0] for s in a["samplers"]
+                     if acc[s["input"]].get("max")) for a in anims]
+    print(f"GLB bytes={len(raw)} meshes={len(doc['meshes'])} nodes={len(doc['nodes'])} "
+          f"prims={prims} tris={tris} materials={len(doc.get('materials', []))}")
+    print(f"GLB animations={len(anims)} names={[a.get('name') for a in anims]} "
+          f"durations={[round(d, 4) for d in durations]}")
+    print(f"GLB normals={with_normals}/{prims} images={len(doc.get('images', []))} "
+          f"uvs={sum(1 for m in doc['meshes'] for p in m['primitives'] if 'TEXCOORD_0' in p['attributes'])} "
+          f"ext={doc.get('extensionsUsed')}")
+    blended = [m.get("name") for m in doc.get("materials", [])
+               if m.get("alphaMode") == "BLEND"]
+    print(f"GLB blended={blended}")
+
+
+def roundtrip():
+    """Import the GLB into an empty scene and render the hero view without post."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    rt = bpy.context.scene
+    rt.render.engine = "BLENDER_EEVEE"
+    rt.render.resolution_x, rt.render.resolution_y = RES_X, RES_Y
+    rt.render.resolution_percentage = 100
+    rt.eevee.taa_render_samples = 64
+    rt.eevee.use_raytracing = True
+    rt.eevee.use_shadows = True
+    rt.view_settings.view_transform = "AgX"
+    rt.view_settings.look = "AgX - Punchy"
+    rt.view_settings.exposure = 0.30
+    rt.render.image_settings.media_type = "IMAGE"
+    rt.render.image_settings.file_format = "PNG"
+    rt.render.fps = FPS
+    rt.world = bpy.data.worlds.new("RT void")
+    rt.world.use_nodes = True
+    rt.world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.012, 0.022, 0.042, 1)
+    rt.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 1.0
+    bpy.ops.import_scene.gltf(filepath=str(GLB))
+
+    front = Vector((0, -1, 0))
+    for ob in rt.objects:
+        if ob.type != "MESH" or not ob.data.materials:
+            continue
+        hot_slots = [i for i, m in enumerate(ob.data.materials)
+                     if m and "hot" in m.name.lower()]
+        if not hot_slots:
+            continue
+        co = [ob.matrix_world @ ob.data.vertices[v].co
+              for poly in ob.data.polygons if poly.material_index in hot_slots
+              for v in poly.vertices]
+        if not co:
+            continue
+        c = sum(co, Vector()) / len(co)
+        axis = max(range(3), key=lambda i: abs(c[i]))
+        front = Vector((0.0, 0.0, 0.0))
+        front[axis] = 1.0 if c[axis] > 0 else -1.0
+        break
+    print(f"RT front axis={tuple(front)}")
+
+    lo = Vector((9e9, 9e9, 9e9))
+    hi = Vector((-9e9, -9e9, -9e9))
+    for ob in rt.objects:
+        if ob.type != "MESH":
+            continue
+        for v in ob.data.vertices:
+            c = ob.matrix_world @ v.co
+            for i in range(3):
+                lo[i] = min(lo[i], c[i])
+                hi[i] = max(hi[i], c[i])
+    centre = (lo + hi) * 0.5
+    span = max(hi - lo)
+    dist = 2.30 * span
+    right = Vector((-front.y, front.x, 0.0))
+    cam_loc = (centre + front * (dist * 0.88) + right * (dist * 0.36) +
+               Vector((0, 0, dist * 0.32)))
+    print(f"RT bounds={[round(x, 2) for x in (hi - lo)]} dist={dist:.2f}")
+    bpy.ops.object.camera_add(location=cam_loc)
+    cam = bpy.context.object
+    cam.data.lens = 58
+    cam.data.sensor_width = 36
+    cam.rotation_euler = (centre - cam_loc).to_track_quat("-Z", "Y").to_euler()
+    rt.camera = cam
+    rt.frame_start, rt.frame_end = 1, END
+    flip = -1.0 if front.y > 0 else 1.0
+    for name, loc, energy, color, size in (
+        ("K", (-6.5, -7.5, 6.5), 900, (0.62, 0.84, 1.0), 3.0),
+        ("T", (0.5, 1.5, 8.5), 520, (0.48, 0.82, 1.0), 7.0),
+        ("V", (7.5, -5.0, -3.5), 180, (0.40, 0.24, 1.0), 5.0),
+        ("R", (4.0, 7.5, -3.0), 380, (1.0, 0.16, 0.42), 4.0),
+    ):
+        loc = (loc[0], loc[1] * flip, loc[2])
+        bpy.ops.object.light_add(type="AREA", location=loc)
+        li = bpy.context.object
+        li.name = name
+        li.data.energy = energy
+        li.data.color = color
+        li.data.size = size
+        li.rotation_euler = (-Vector(loc)).to_track_quat("-Z", "Y").to_euler()
+    tris = 0
+    for ob in rt.objects:
+        if ob.type == "MESH":
+            ob.data.calc_loop_triangles()
+            tris += len(ob.data.loop_triangles)
+    print(f"RT tris={tris}")
+    for frame in (1, 25, 49, 73):
+        rt.frame_set(frame)
+        path = DRAFT / f"roundtrip_{frame:03d}.png"
+        rt.render.filepath = str(path)
+        bpy.ops.render.render(write_still=True)
+        print(f"RT STILL {path.name}")
+
+
+if arg("--still") is not None:
+    render_still(DRAFT / f"{STILL_NAME}.png", PERCENT, SAMPLES,
+                 STILL_FRAME, STILL_AZ, STILL_EL)
+
+if WANT_GLB:
+    export_glb()
+    report_glb()
+
+if WANT_CHECK:
+    framing_report()
+    seam_report()
+    axis_report()
+    extent_report()
+    verify_report()
+
+if WANT_POSTER:
+    place_camera(camera, POSTER_AZ, POSTER_EL)
+    scene.render.resolution_percentage = 100
+    scene.eevee.taa_render_samples = SAMPLES
+    scene.render.image_settings.media_type = "IMAGE"
+    scene.render.image_settings.file_format = "PNG"
+    scene.frame_set(POSTER_FRAME)
+    scene.render.filepath = str(POSTER)
+    started = time.time()
+    bpy.ops.render.render(write_still=True)
+    print(f"POSTER {POSTER} in {time.time() - started:.1f}s")
+
+if WANT_VIDEO:
+    place_camera(camera, POSTER_AZ, POSTER_EL)
+    scene.render.resolution_percentage = int(arg("--video-percent", 100))
+    scene.eevee.taa_render_samples = int(arg("--video-samples", 32))
+    scene.render.image_settings.media_type = "VIDEO"
+    scene.render.image_settings.file_format = "FFMPEG"
+    scene.render.ffmpeg.format = "MPEG4"
+    scene.render.ffmpeg.codec = "H264"
+    scene.render.ffmpeg.constant_rate_factor = "HIGH"
+    scene.render.ffmpeg.ffmpeg_preset = "GOOD"
+    scene.render.ffmpeg.gopsize = FPS
+    scene.render.ffmpeg.audio_codec = "NONE"
+    scene.render.filepath = str(VIDEO.with_suffix(""))
+    scene.frame_end = END - 1
+    started = time.time()
+    bpy.ops.render.render(animation=True)
+    for produced in ROOT.glob("preview*.mp4"):
+        if produced != VIDEO:
+            produced.replace(VIDEO)
+    print(f"VIDEO {VIDEO} in {time.time() - started:.1f}s")
+
+if WANT_ROUNDTRIP:
+    roundtrip()

@@ -37,6 +37,22 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
   </Style>
+  <Style Selector="Button.context-help">
+    <Setter Property="Foreground" Value="{DynamicResource Dim}" />
+  </Style>
+  <Style Selector="Button.context-help:pointerover, Button.context-help:focus-visible">
+    <Setter Property="Foreground" Value="{DynamicResource Cyan}" />
+  </Style>
+  <Style Selector="ToolTip.context-help">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{DynamicResource Raised}" BorderBrush="{DynamicResource Line}"
+                BorderThickness="1" CornerRadius="4" Padding="7,4">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
   <Style Selector="Button.active, u|IconButton.active">
     <Setter Property="Foreground" Value="{DynamicResource Cyan}" />
     <Setter Property="Background" Value="#14273D" />
@@ -76,6 +92,120 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
     <Setter Property="MinHeight" Value="32" />
     <Setter Property="CornerRadius" Value="2" />
+  </Style>
+  <!-- Scoped to the workbench groups and forms; inline help keeps its own style. -->
+  <Style Selector=".workbench-sidebar TextBlock.eyebrow, .workbench-form TextBlock.eyebrow">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="#AAB7D7" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector=".workbench-sidebar TextBlock.section">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+  </Style>
+  <Style Selector="TextBox.workbench-field, ComboBox.workbench-field, NumericUpDown.workbench-field">
+    <Setter Property="MinHeight" Value="32" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="BorderBrush" Value="#52638B" />
+  </Style>
+  <Style Selector="TextBox.workbench-field, NumericUpDown.workbench-field /template/ TextBox">
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBox.workbench-field:read-only:not(:disabled)">
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+  </Style>
+  <Style Selector="NumericUpDown.workbench-field /template/ TextBox">
+    <Setter Property="BorderBrush" Value="#52638B" />
+  </Style>
+  <Style Selector="TextBox.workbench-field:focus, ComboBox.workbench-field:focus, NumericUpDown.workbench-field:focus-within /template/ TextBox">
+    <Setter Property="BorderBrush" Value="{DynamicResource Cyan}" />
+  </Style>
+  <Style Selector="Button.workbench-field, Button.form-action, Button.tool-mode, Button.primary, Button.secondary, Button.danger">
+    <Setter Property="MinHeight" Value="32" />
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderBrush" Value="#3A4A70" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid>
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True" />
+          <Border Name="PART_WorkbenchFocus" IsHitTestVisible="False" BorderThickness="1" CornerRadius="2" Margin="2" />
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.form-action">
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="MinWidth" Value="92" />
+  </Style>
+  <Style Selector="Button.tool-mode">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="Padding" Value="9,4" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="Button.tool-mode TextBlock.mode-label"><Setter Property="FontSize" Value="12" /></Style>
+  <Style Selector="Button.workbench-field:pointerover, Button.form-action:pointerover, Button.tool-mode:pointerover, Button.secondary:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Hover}" />
+    <Setter Property="BorderBrush" Value="#6E83B2" />
+  </Style>
+  <Style Selector="Button.current-mode">
+    <Setter Property="Background" Value="#142D43" />
+    <Setter Property="BorderBrush" Value="#43839C" />
+  </Style>
+  <Style Selector="Button.current-mode:pointerover">
+    <Setter Property="Background" Value="#1D4057" />
+    <Setter Property="BorderBrush" Value="#6BACC4" />
+  </Style>
+  <Style Selector="Button.current-mode TextBlock.mode-label">
+    <Setter Property="Foreground" Value="{DynamicResource Cyan}" />
+  </Style>
+  <Style Selector="Button.current-mode PathIcon"><Setter Property="Foreground" Value="{DynamicResource Cyan}" /></Style>
+  <Style Selector="Button.tool-entry"><Setter Property="HorizontalContentAlignment" Value="Left" /></Style>
+  <Style Selector="Button.current-mode Border.mode-indicator"><Setter Property="Background" Value="{DynamicResource Cyan}" /></Style>
+  <Style Selector="Button.danger">
+    <Setter Property="Foreground" Value="#FF9BBE" />
+    <Setter Property="BorderBrush" Value="#79506E" />
+  </Style>
+  <Style Selector="Button.danger:pointerover">
+    <Setter Property="Background" Value="#352134" />
+    <Setter Property="BorderBrush" Value="#FF9BBE" />
+  </Style>
+  <Style Selector="Button.workbench-field:pressed, Button.form-action:pressed, Button.tool-mode:pressed, Button.secondary:pressed, Button.danger:pressed">
+    <Setter Property="Background" Value="#263752" />
+  </Style>
+  <Style Selector="Button.primary">
+    <Setter Property="Foreground" Value="{DynamicResource Bg}" />
+    <Setter Property="Background" Value="{DynamicResource Cyan}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Cyan}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.primary:pointerover">
+    <Setter Property="Background" Value="#86EEFF" />
+    <Setter Property="BorderBrush" Value="#86EEFF" />
+  </Style>
+  <Style Selector="Button.primary:pressed">
+    <Setter Property="Background" Value="#21BBCD" />
+    <Setter Property="BorderBrush" Value="#21BBCD" />
+  </Style>
+  <Style Selector="Button.workbench-field:disabled, Button.form-action:disabled, Button.primary:disabled, Button.danger:disabled, Button.secondary:disabled">
+    <Setter Property="Background" Value="#141D31" />
+    <Setter Property="BorderBrush" Value="#303B58" />
+    <Setter Property="Foreground" Value="#8190B1" />
+  </Style>
+  <Style Selector="Button:focus-visible /template/ Border#PART_WorkbenchFocus">
+    <Setter Property="BorderBrush" Value="#F1F5FF" />
+  </Style>
+  <Style Selector="Button.primary:focus-visible /template/ Border#PART_WorkbenchFocus">
+    <Setter Property="BorderBrush" Value="{DynamicResource Bg}" />
   </Style>
   <!-- ComboBox snapshots a ComboBoxItem's Content into SelectionBoxItem. Bind the
        selected label to the live item instead, without cycling selection or firing edits. -->

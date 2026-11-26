@@ -94,7 +94,7 @@ public sealed partial class CoverStudioWindow : Window
             _history.Reset(next);
             ResetEditorFields();
             previous?.Dispose();
-            SetStatus("Cover.Ready");
+            CoverStatus.Text = null;
         }
         catch (Exception ex) { if (!_closed) SetStatus("Cover.LoadFailed", ex.Message); }
         finally { _busy = false; if (!_closed) Refresh(); }
@@ -176,7 +176,7 @@ public sealed partial class CoverStudioWindow : Window
         FramingToggle.IsEnabled = _image is not null;
         SnapToggle.IsEnabled = !Framing;
         Recenter.IsEnabled = !Framing && State.Badges.Count(b => !b.Icon && b.Visible) <= 6;
-        WideHint.Text = _text[Framing ? "Cover.FrameHelp" : "Cover.DragHelp"];
+        WideHelp.Text = _text[Framing ? "Cover.FrameHelp" : "Cover.DragHelp"];
         var crop = State.Crop;
         SourceName.Text = _image is null ? _text["Cover.NoSource"] : $"{Path.GetFileName(_source)} · {ImageSize.Width} × {ImageSize.Height}";
         CropReadout.Text = _image is null ? "—" : $"X {crop.X:0}   Y {crop.Y:0}   {crop.Width:0} × {crop.Height:0} px";
@@ -261,7 +261,7 @@ public sealed partial class CoverStudioWindow : Window
         if (CustomHex.Text is not { Length: 7 } hex || !hex.StartsWith('#') || !Color.TryParse(hex, out var color))
         { SetStatus("Cover.HexHint"); return; }
         Change(State.ChangeBadge(b.Id, badge => badge with { Color = color }), list: true);
-        SetStatus("Cover.Ready");
+        CoverStatus.Text = null;
     }
     private void CopyChanged(object? sender, RoutedEventArgs e) => CommitCopy();
     private void CommitCopy()

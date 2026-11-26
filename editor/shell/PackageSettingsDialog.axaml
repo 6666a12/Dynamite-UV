@@ -2,124 +2,166 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:DynamiteUniverse.Editor.Shell"
         x:Class="DynamiteUniverse.Editor.Shell.PackageSettingsDialog"
-        Width="780" Height="900" MinHeight="640"
+        Classes="workbench-form" Width="780" Height="900" MinHeight="640"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}"
         FontFamily="{DynamicResource OfficialFont}">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="18">
-    <StackPanel Spacing="5">
-      <TextBlock Classes="section" FontSize="20" Text="{local:Tr Settings.Title}" />
-      <TextBlock Classes="caption" TextWrapping="Wrap" Text="{local:Tr Settings.Subtitle}" />
-    </StackPanel>
-    <ScrollViewer Grid.Row="1">
-      <StackPanel Spacing="18">
-        <StackPanel Spacing="12">
-          <TextBlock Classes="cyan" Text="{local:Tr Create.PackageSection}" />
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-            <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.PackId}" />
-              <TextBox x:Name="PackIdValue" />
+  <Window.Styles>
+    <Style Selector="TextBlock#PackPreviewStartLabel">
+      <Setter Property="Text" Value="{local:Tr Settings.PreviewStart}" />
+    </Style>
+    <Style Selector="TextBlock#PackPreviewStartLabel.preview-unset">
+      <Setter Property="Text" Value="{local:Tr Settings.PreviewStartUnset}" />
+    </Style>
+    <Style Selector="TextBlock#PackPreviewDurationLabel">
+      <Setter Property="Text" Value="{local:Tr Settings.PreviewDuration}" />
+    </Style>
+    <Style Selector="TextBlock#PackPreviewDurationLabel.preview-unset">
+      <Setter Property="Text" Value="{local:Tr Settings.PreviewDurationUnset}" />
+    </Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="12">
+    <TextBlock Classes="section" FontSize="20" Text="{local:Tr Settings.Title}" />
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="12" Margin="0,0,10,4">
+        <Border Classes="panel" Padding="12">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="section" Text="{local:Tr Settings.PackageDefaults}" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.PackId}" />
+                <TextBox x:Name="PackIdValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.PackId}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.Title}" />
+                <TextBox x:Name="TitleValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.Title}" />
+              </StackPanel>
+            </Grid>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Artist}" />
+              <TextBox x:Name="ArtistValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.Artist}" />
             </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Title}" />
-              <TextBox x:Name="TitleValue" />
-            </StackPanel>
-          </Grid>
-          <StackPanel Spacing="5">
-            <TextBlock Classes="eyebrow" Text="{local:Tr Create.Artist}" />
-            <TextBox x:Name="ArtistValue" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+              <StackPanel Spacing="4">
+                <TextBlock x:Name="PackPreviewStartLabel" Classes="eyebrow" />
+                <NumericUpDown x:Name="PackPreviewStartValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Settings.PreviewStart}" Minimum="0" Maximum="86400" Increment="0.1" FormatString="0.###" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock x:Name="PackPreviewDurationLabel" Classes="eyebrow" />
+                <NumericUpDown x:Name="PackPreviewDurationValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Settings.PreviewDuration}" Minimum="0.001" Maximum="86400" Increment="1" FormatString="0.###" />
+              </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PackAudio}" />
+                <TextBox x:Name="PackAudioPathValue" Classes="workbench-field" IsReadOnly="True" AutomationProperties.Name="{local:Tr Settings.PackAudio}" PlaceholderText="{local:Tr Settings.NotSet}" />
+              </StackPanel>
+              <Button x:Name="ReplacePackAudioButton" Grid.Column="1" Classes="workbench-field" Content="{local:Tr Settings.Replace}" VerticalAlignment="Bottom" Click="BrowsePackAudio" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.Cover}" />
+                <TextBox x:Name="PackCoverPathValue" Classes="workbench-field" IsReadOnly="True" AutomationProperties.Name="{local:Tr Create.Cover}" />
+              </StackPanel>
+              <Button Grid.Column="1" Classes="workbench-field" Content="{local:Tr Settings.Replace}" VerticalAlignment="Bottom" Click="BrowsePackCover" />
+            </Grid>
           </StackPanel>
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        </Border>
+        <Border Classes="panel" Padding="12">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="section" Text="{local:Tr Settings.CurrentDifficulty}" />
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <TextBlock x:Name="TargetChartIdLabel" Classes="caption" VerticalAlignment="Center" Text="{local:Tr Settings.TargetChartId}" />
+                <TextBlock x:Name="TargetChartId" Grid.Column="1" FontWeight="SemiBold" TextWrapping="Wrap" />
+              </Grid>
+            </StackPanel>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.ChartId}" />
+                <TextBox x:Name="ChartIdValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.ChartId}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Settings.ChartFile}" />
+                <TextBox x:Name="ChartFileValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Settings.ChartFile}" />
+              </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.Difficulty}" />
+                <ComboBox x:Name="DifficultyChoice" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.Difficulty}" HorizontalAlignment="Stretch" SelectionChanged="DifficultyChanged">
+                  <ComboBoxItem Content="CASUAL" /><ComboBoxItem Content="NORMAL" /><ComboBoxItem Content="HARD" />
+                  <ComboBoxItem Content="MEGA" /><ComboBoxItem Content="GIGA" /><ComboBoxItem Content="TECH" />
+                  <ComboBoxItem Content="CUSTOM" />
+                </ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.Charter}" />
+                <TextBox x:Name="ChartersValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.Charter}" />
+              </StackPanel>
+            </Grid>
+            <StackPanel x:Name="CustomKeyField" Spacing="4">
+              <TextBlock Classes="eyebrow" Text="{local:Tr Create.CustomKey}" />
+              <TextBox x:Name="CustomKeyValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.CustomKey}" MaxLength="24" />
+            </StackPanel>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.Level}" />
+                <NumericUpDown x:Name="LevelValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.Level}" Minimum="1" Maximum="99" Increment="1" />
+                <CheckBox x:Name="UnratedValue" Content="{local:Tr Create.Unrated}" IsCheckedChanged="UnratedChanged" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock Classes="eyebrow" Text="{local:Tr Create.Offset}" />
+                <NumericUpDown x:Name="OffsetValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Create.Offset}" Minimum="-600" Maximum="600" Increment="0.01" FormatString="0.###" />
+              </StackPanel>
+            </Grid>
+            <Border Height="1" Background="{DynamicResource Line}" />
             <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PreviewStart}" />
-              <NumericUpDown x:Name="PackPreviewStartValue" Minimum="0" Maximum="86400" Increment="0.1" FormatString="0.###" />
+              <CheckBox x:Name="ChartPreviewEnabledValue" Content="{local:Tr Settings.ChartPreviewOverride}" IsCheckedChanged="ChartPreviewChanged" />
+              <StackPanel x:Name="InheritedPreviewFields" Spacing="4">
+                <TextBlock x:Name="InheritedPreviewSource" Classes="caption" Text="{local:Tr Settings.InheritedPreview}" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PreviewStart}" />
+                    <TextBox x:Name="InheritedPreviewStartValue" Classes="workbench-field" IsReadOnly="True" AutomationProperties.Name="{local:Tr Settings.PreviewStart}" PlaceholderText="{local:Tr Settings.NotSet}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PreviewDuration}" />
+                    <TextBox x:Name="InheritedPreviewDurationValue" Classes="workbench-field" IsReadOnly="True" AutomationProperties.Name="{local:Tr Settings.PreviewDuration}" PlaceholderText="{local:Tr Settings.NotSet}" />
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+              <Grid x:Name="ChartPreviewFields" ColumnDefinitions="*,*" ColumnSpacing="12" IsVisible="False">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="eyebrow" Text="{local:Tr Settings.ChartPreviewStart}" />
+                  <NumericUpDown x:Name="ChartPreviewStartValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Settings.ChartPreviewStart}" Minimum="0" Maximum="86400" Increment="0.1" FormatString="0.###" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock Classes="eyebrow" Text="{local:Tr Settings.ChartPreviewDuration}" />
+                  <NumericUpDown x:Name="ChartPreviewDurationValue" Classes="workbench-field" AutomationProperties.Name="{local:Tr Settings.ChartPreviewDuration}" Minimum="0.001" Maximum="86400" Increment="1" FormatString="0.###" />
+                </StackPanel>
+              </Grid>
             </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PreviewDuration}" />
-              <NumericUpDown x:Name="PackPreviewDurationValue" Minimum="0.001" Maximum="86400" Increment="1" FormatString="0.###" />
-            </StackPanel>
-          </Grid>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PackAudio}" />
-              <TextBox x:Name="PackAudioPathValue" IsReadOnly="True" />
+              <CheckBox x:Name="ChartAudioEnabledValue" Content="{local:Tr Settings.ChartAudioOverride}" IsCheckedChanged="ChartAudioChanged" />
+              <StackPanel x:Name="InheritedAudioFields" Spacing="4">
+                <TextBlock x:Name="InheritedAudioSource" Classes="caption" Text="{local:Tr Settings.InheritedAudio}" TextWrapping="Wrap" />
+                <TextBox x:Name="InheritedAudioPathValue" Classes="workbench-field" IsReadOnly="True" AutomationProperties.Name="{local:Tr Settings.InheritedAudio}" PlaceholderText="{local:Tr Settings.NotSet}" />
+              </StackPanel>
+              <Grid x:Name="ChartAudioFields" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="False">
+                <TextBox x:Name="ChartAudioPathValue" Classes="workbench-field" IsReadOnly="True" AutomationProperties.Name="{local:Tr Settings.ChartAudioOverride}" PlaceholderText="{local:Tr Settings.NotSet}" />
+                <Button Grid.Column="1" Classes="workbench-field" Content="{local:Tr Settings.Replace}" Click="BrowseChartAudio" />
+              </Grid>
             </StackPanel>
-            <Button Grid.Column="1" Content="{local:Tr Settings.Replace}" VerticalAlignment="Bottom" Click="BrowsePackAudio" />
-          </Grid>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Cover}" />
-              <TextBox x:Name="PackCoverPathValue" IsReadOnly="True" />
-            </StackPanel>
-            <Button Grid.Column="1" Content="{local:Tr Settings.Replace}" VerticalAlignment="Bottom" Click="BrowsePackCover" />
-          </Grid>
-        </StackPanel>
-        <Border Height="1" Background="{DynamicResource Line}" />
-        <StackPanel Spacing="12">
-          <TextBlock Classes="cyan" Text="{local:Tr Create.ChartSection}" />
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-            <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.ChartId}" />
-              <TextBox x:Name="ChartIdValue" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Settings.ChartFile}" />
-              <TextBox x:Name="ChartFileValue" />
-            </StackPanel>
-          </Grid>
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-            <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Difficulty}" />
-              <ComboBox x:Name="DifficultyChoice" HorizontalAlignment="Stretch" SelectionChanged="DifficultyChanged">
-                <ComboBoxItem Content="CASUAL" /><ComboBoxItem Content="NORMAL" /><ComboBoxItem Content="HARD" />
-                <ComboBoxItem Content="MEGA" /><ComboBoxItem Content="GIGA" /><ComboBoxItem Content="TECH" />
-                <ComboBoxItem Content="CUSTOM" />
-              </ComboBox>
-            </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Charter}" />
-              <TextBox x:Name="ChartersValue" />
-            </StackPanel>
-          </Grid>
-          <StackPanel x:Name="CustomKeyField" Spacing="5">
-            <TextBlock Classes="eyebrow" Text="{local:Tr Create.CustomKey}" />
-            <TextBox x:Name="CustomKeyValue" MaxLength="24" />
           </StackPanel>
-          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
-            <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Level}" />
-              <NumericUpDown x:Name="LevelValue" Minimum="1" Maximum="99" Increment="1" />
-            </StackPanel>
-            <CheckBox x:Name="UnratedValue" Grid.Column="1" Content="{local:Tr Create.Unrated}" VerticalAlignment="Bottom" Margin="0,0,0,8" IsCheckedChanged="UnratedChanged" />
-            <StackPanel Grid.Column="2" Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Create.Offset}" />
-              <NumericUpDown x:Name="OffsetValue" Minimum="-600" Maximum="600" Increment="0.01" FormatString="0.###" />
-            </StackPanel>
-          </Grid>
-          <CheckBox x:Name="ChartPreviewEnabledValue" Content="{local:Tr Settings.ChartPreviewOverride}" IsCheckedChanged="ChartPreviewChanged" />
-          <Grid x:Name="ChartPreviewFields" ColumnDefinitions="*,*" ColumnSpacing="12">
-            <StackPanel Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PreviewStart}" />
-              <NumericUpDown x:Name="ChartPreviewStartValue" Minimum="0" Maximum="86400" Increment="0.1" FormatString="0.###" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="5">
-              <TextBlock Classes="eyebrow" Text="{local:Tr Settings.PreviewDuration}" />
-              <NumericUpDown x:Name="ChartPreviewDurationValue" Minimum="0.001" Maximum="86400" Increment="1" FormatString="0.###" />
-            </StackPanel>
-          </Grid>
-          <CheckBox x:Name="ChartAudioEnabledValue" Content="{local:Tr Settings.ChartAudioOverride}" IsCheckedChanged="ChartAudioChanged" />
-          <Grid x:Name="ChartAudioFields" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <TextBox x:Name="ChartAudioPathValue" IsReadOnly="True" VerticalAlignment="Bottom" />
-            <Button Grid.Column="1" Content="{local:Tr Settings.Replace}" Click="BrowseChartAudio" />
-          </Grid>
-        </StackPanel>
+        </Border>
         <TextBlock x:Name="ErrorText" Classes="pink" TextWrapping="Wrap" IsVisible="False" />
       </StackPanel>
     </ScrollViewer>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-      <TextBlock Classes="caption" VerticalAlignment="Center" Text="{local:Tr Settings.UndoHint}" TextWrapping="Wrap" Margin="0,0,16,0" />
-      <Button Grid.Column="1" Content="{local:Tr Create.Cancel}" Classes="ghost" Click="Cancel" />
-      <Button Grid.Column="2" Content="{local:Tr Settings.Apply}" Classes="accent" Click="Confirm" />
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBlock x:Name="UndoHint" Classes="caption" VerticalAlignment="Center" Text="{local:Tr Settings.UndoHint}" TextWrapping="Wrap" Margin="0,0,8,0" />
+      <Button Grid.Column="1" Content="{local:Tr Create.Cancel}" Classes="form-action secondary" Click="Cancel" />
+      <Button Grid.Column="2" Content="{local:Tr Settings.Apply}" Classes="form-action primary accent" Click="Confirm" />
     </Grid>
   </Grid>
 </Window>

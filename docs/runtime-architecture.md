@@ -141,7 +141,7 @@ HUD v8 的 `GameplayHudHeader` 装配统计/暂停/血条；`GameplayHudPlate` �
 editor 使用 ChartEditor.Core 和 Presentation 程序集，已移除所有 client 源码链接。
 
 Godot 页面分部文件仍共享宿主状态，不能以单个入口变短认定整个类已解耦。
-`tools/architecture/check.py` 同时检查依赖方向、显式源码链接、文件长度和主要分部类总量；
+[结构检查](<../tools/architecture/check.py>)检查依赖方向和显式源码链接；行数只在可选报告中展示，不是门禁。
 [统一非图形回归](verification.md#非图形复验命令)在此基础上构建游戏与两套编辑器宿主，运行核心、编辑器、网络、Shell 无窗口及发布工具回归，最后检查 diff；真实数据库和窗口专项另行执行。
 
 第二轮中 GameplayMain 把渲染与特效生命周期交给 `GameplayNoteRenderer` / `GameplayEffects`，
@@ -151,5 +151,5 @@ Godot 页面分部文件仍共享宿主状态，不能以单个入口变短认�
 早期画布已退役；当时的草稿保存修正见 [第二轮行为核对](<archive/reports/2026-10-25-modularization-phase2.md>)。
 
 第三轮的公共视觉、HUD、音源、独立控件、editor 页面与画布模型见 [第三轮行为核对](<archive/reports/2026-10-25-modularization-phase3.md>)。
-控件通过 provider 获取当前动效/落速，不保存全局会话；公共视觉无应用级依赖。源码/分部类预算同时收紧。
+控件通过 provider 获取当前动效/落速，不保存全局会话；公共视觉无应用级依赖。
 无窗口前后轨迹与桌面程序集发布验证不替代 APK 导出和设备视觉、触控、声音验收。

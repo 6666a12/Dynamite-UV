@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -17,11 +18,13 @@ public sealed partial class PackageSettingsDialog : Window
     {
         Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp" },
     };
+    private static readonly V2Preview PreviewInputDefaults = new(0, 15);
     private readonly IWorkbenchLocalizer _text = WorkbenchLocalizer.Shared;
     private readonly Dictionary<string, (double Original, decimal? Displayed)> _numbers = new();
     private readonly EditableChart _chart;
     private readonly V2Preview? _packPreview;
     private bool _packPreviewEdited;
+    private bool _chartPreviewInitialized;
     private string? _packAudioSource;
     private string? _packCoverSource;
     private string? _chartAudioSource;
@@ -40,13 +43,16 @@ public sealed partial class PackageSettingsDialog : Window
         this.FindControl<TextBox>("ArtistValue")!.Text = document.Artist;
         this.FindControl<TextBox>("PackAudioPathValue")!.Text = document.Audio ?? "";
         this.FindControl<TextBox>("PackCoverPathValue")!.Text = document.Cover ?? "";
-        var packPreview = document.Preview ?? new V2Preview(0, 15);
         _packPreview = document.Preview;
-        LoadNumber("PackPreviewStartValue", packPreview.StartSec);
-        LoadNumber("PackPreviewDurationValue", packPreview.DurationSec);
+        var packDraft = _packPreview ?? PreviewInputDefaults;
+        LoadNumber("PackPreviewStartValue", packDraft.StartSec);
+        LoadNumber("PackPreviewDurationValue", packDraft.DurationSec);
+        UpdatePackPreviewPresentation();
+        UpdateInheritedAudio();
         this.FindControl<NumericUpDown>("PackPreviewStartValue")!.ValueChanged += PackPreviewEdited;
         this.FindControl<NumericUpDown>("PackPreviewDurationValue")!.ValueChanged += PackPreviewEdited;
 
+        this.FindControl<TextBlock>("TargetChartId")!.Text = _chart.Id;
         this.FindControl<TextBox>("ChartIdValue")!.Text = _chart.Id;
         this.FindControl<TextBox>("ChartFileValue")!.Text = _chart.File;
         this.FindControl<ComboBox>("DifficultyChoice")!.SelectedIndex = (int)_chart.Difficulty;
@@ -57,11 +63,14 @@ public sealed partial class PackageSettingsDialog : Window
         LoadNumber("OffsetValue", _chart.AudioOffsetSec);
         this.FindControl<TextBox>("ChartAudioPathValue")!.Text = _chart.Audio ?? "";
         this.FindControl<CheckBox>("ChartAudioEnabledValue")!.IsChecked = _chart.Audio is not null;
-        var chartPreview = _chart.Preview ?? packPreview;
-        this.FindControl<CheckBox>("ChartPreviewEnabledValue")!.IsChecked = _chart.Preview is not null;
-        LoadNumber("ChartPreviewStartValue", chartPreview.StartSec);
-        LoadNumber("ChartPreviewDurationValue", chartPreview.DurationSec);
+        if (_chart.Preview is { } chartPreview)
+        {
+            InitializeChartPreviewDraft(chartPreview);
+            this.FindControl<CheckBox>("ChartPreviewEnabledValue")!.IsChecked = true;
+        }
         UpdateOptionalFields();
+        UpdateChartPreviewOverride();
+        UpdateChartAudioOverride();
     }
 
     public EditorPackageSettingsRequest? Result { get; private set; }
@@ -100,14 +109,26 @@ public sealed partial class PackageSettingsDialog : Window
     /// metadata, and submitting it would fabricate a preview (and can fail the next save's
     /// resolved-preview duration check on short audio). Only an explicit edit is submitted.
     /// </summary>
-    private V2Preview? ReadPackPreview()
+    private V2Preview? ReadPackPreview() =>
+        _packPreview is null && !_packPreviewEdited ? null : Preview("PackPreview");
+
+    private void PackPreviewEdited(object? sender, NumericUpDownValueChangedEventArgs e)
     {
-        var value = Preview("PackPreview");
-        return _packPreview is null && !_packPreviewEdited ? null : value;
+        _packPreviewEdited = true;
+        UpdatePackPreviewPresentation();
     }
 
-    private void PackPreviewEdited(object? sender, NumericUpDownValueChangedEventArgs e) =>
-        _packPreviewEdited = true;
+    private void UpdatePackPreviewPresentation()
+    {
+        var preview = ReadPackPreview();
+        this.FindControl<TextBlock>("PackPreviewStartLabel")!.Classes.Set("preview-unset", preview is null);
+        this.FindControl<TextBlock>("PackPreviewDurationLabel")!.Classes.Set("preview-unset", preview is null);
+        this.FindControl<TextBox>("InheritedPreviewStartValue")!.Text = preview?.StartSec.ToString("R", CultureInfo.CurrentCulture);
+        this.FindControl<TextBox>("InheritedPreviewDurationValue")!.Text = preview?.DurationSec.ToString("R", CultureInfo.CurrentCulture);
+    }
+
+    private void UpdateInheritedAudio() => this.FindControl<TextBox>("InheritedAudioPathValue")!.Text =
+        this.FindControl<TextBox>("PackAudioPathValue")!.Text;
 
     private void LoadNumber(string name, double value)
     {
@@ -133,7 +154,7 @@ public sealed partial class PackageSettingsDialog : Window
         try
         {
             Result = BuildRequest();
-            if (Result.Charters.Count == 0) throw new InvalidOperationException(_text["Create.Charter"]);
+            if (Result.Charters.Count == 0) throw new InvalidOperationException(_text["Settings.CharterRequired"]);
             if (this.FindControl<CheckBox>("ChartAudioEnabledValue")!.IsChecked == true &&
                 _chart.Audio is null && _chartAudioSource is null)
                 throw new InvalidOperationException(_text["Settings.ChartAudioRequired"]);
@@ -152,10 +173,31 @@ public sealed partial class PackageSettingsDialog : Window
             this.FindControl<ComboBox>("DifficultyChoice")!.SelectedIndex == (int)V2Difficulty.Custom;
         this.FindControl<NumericUpDown>("LevelValue")!.IsEnabled =
             this.FindControl<CheckBox>("UnratedValue")!.IsChecked != true;
-        this.FindControl<Grid>("ChartPreviewFields")!.IsEnabled =
-            this.FindControl<CheckBox>("ChartPreviewEnabledValue")!.IsChecked == true;
-        this.FindControl<Grid>("ChartAudioFields")!.IsEnabled =
-            this.FindControl<CheckBox>("ChartAudioEnabledValue")!.IsChecked == true;
+    }
+
+    private void InitializeChartPreviewDraft(V2Preview preview)
+    {
+        LoadNumber("ChartPreviewStartValue", preview.StartSec);
+        LoadNumber("ChartPreviewDurationValue", preview.DurationSec);
+        _chartPreviewInitialized = true;
+    }
+
+    private void UpdateChartPreviewOverride()
+    {
+        var enabled = this.FindControl<CheckBox>("ChartPreviewEnabledValue")!.IsChecked == true;
+        // Seed once from the visible package defaults (or an input suggestion only). Unchecking
+        // switches to inheritance without replacing the draft or sending it in a request.
+        if (enabled && !_chartPreviewInitialized)
+            InitializeChartPreviewDraft(ReadPackPreview() ?? PreviewInputDefaults);
+        this.FindControl<Grid>("ChartPreviewFields")!.IsVisible = enabled;
+        this.FindControl<StackPanel>("InheritedPreviewFields")!.IsVisible = !enabled;
+    }
+
+    private void UpdateChartAudioOverride()
+    {
+        var enabled = this.FindControl<CheckBox>("ChartAudioEnabledValue")!.IsChecked == true;
+        this.FindControl<Grid>("ChartAudioFields")!.IsVisible = enabled;
+        this.FindControl<StackPanel>("InheritedAudioFields")!.IsVisible = !enabled;
     }
 
     private async Task PickFile(string kind, FilePickerFileType filter)
@@ -167,19 +209,30 @@ public sealed partial class PackageSettingsDialog : Window
             Title = _text["Create.Browse"],
         });
         if (files.Count == 0) return;
-        var path = files[0].Path.LocalPath;
+        SetPickedSource(kind, files[0].Path.LocalPath);
+    }
+
+    private void SetPickedSource(string kind, string path)
+    {
         switch (kind)
         {
-            case "packAudio": _packAudioSource = path; this.FindControl<TextBox>("PackAudioPathValue")!.Text = path; break;
+            case "packAudio":
+                _packAudioSource = path;
+                this.FindControl<TextBox>("PackAudioPathValue")!.Text = path;
+                UpdateInheritedAudio();
+                break;
             case "packCover": _packCoverSource = path; this.FindControl<TextBox>("PackCoverPathValue")!.Text = path; break;
             default: _chartAudioSource = path; this.FindControl<TextBox>("ChartAudioPathValue")!.Text = path; break;
         }
     }
 
+    internal void PickAudioForVerification(bool packDefault, string path) =>
+        SetPickedSource(packDefault ? "packAudio" : "chartAudio", path);
+
     private void DifficultyChanged(object? sender, SelectionChangedEventArgs e) => UpdateOptionalFields();
     private void UnratedChanged(object? sender, RoutedEventArgs e) => UpdateOptionalFields();
-    private void ChartPreviewChanged(object? sender, RoutedEventArgs e) => UpdateOptionalFields();
-    private void ChartAudioChanged(object? sender, RoutedEventArgs e) => UpdateOptionalFields();
+    private void ChartPreviewChanged(object? sender, RoutedEventArgs e) => UpdateChartPreviewOverride();
+    private void ChartAudioChanged(object? sender, RoutedEventArgs e) => UpdateChartAudioOverride();
     private async void BrowsePackAudio(object? sender, RoutedEventArgs e) => await PickFile("packAudio", AudioFiles);
     private async void BrowsePackCover(object? sender, RoutedEventArgs e) => await PickFile("packCover", ImageFiles);
     private async void BrowseChartAudio(object? sender, RoutedEventArgs e) => await PickFile("chartAudio", AudioFiles);

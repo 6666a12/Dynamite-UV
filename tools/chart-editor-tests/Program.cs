@@ -24,6 +24,7 @@ internal static class Program
             if (args.SequenceEqual(["--timing-import"])) { TimingFileImportTests.Run(); return 0; }
             if (args.SequenceEqual(["--video-export-snapshot"])) { EditorExportSnapshotTests.Run(); return 0; }
             EditorDifficultyWorkflowTests.Run();
+            EditorMediaHistoryTests.Run();
             if (args.SequenceEqual(["--difficulty-workflow"])) return 0;
             TimingFileImportTests.Run();
             StepPathTests.Run();

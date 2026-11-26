@@ -29,7 +29,9 @@ public sealed partial class VideoExportSettingsDialog : Window
         preview.Maximum = (decimal)Math.Clamp(max, 0, (double)VideoExportChoices.MaximumSegmentSeconds);
         preview.Value = Math.Min(2m, preview.Maximum);
         preview.IsEnabled = preview.Maximum > 0;
-        C<TextBlock>("PreviewHint").Text = _text.Format("VideoExport.PreviewHint", preview.Maximum);
+        C<TextBlock>("PreviewHint").Text = preview.IsEnabled
+            ? _text.Format("VideoExport.PreviewHint", preview.Maximum)
+            : _text["VideoExport.PreviewUnavailable"];
         C<TextBox>("OutputValue").Text = source.SuggestedOutputPath;
         var speed = C<ComboBox>("FallSpeedValue");
         speed.ItemsSource = Enumerable.Range(GameplayFallSpeed.MinimumLevel, GameplayFallSpeed.MaximumLevel - GameplayFallSpeed.MinimumLevel + 1)

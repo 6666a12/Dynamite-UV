@@ -55,6 +55,39 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-26 · Windows CI 的便携版卸载回归
+
+- 提交 `a1407b0` 的 [Windows 产品验证](https://github.com/6666a12/Dynamite-UV/actions/runs/45812877119/job/139884977858#step:7:1) 在发布工具测试中失败：卸载脚本所在的 Windows PowerShell 无法解析 `Get-FileHash`。在测试进程内屏蔽该命令，[修改前预检和卸载都失败](<../.tmp/portable-uninstall-before.log>)；改用 .NET 流式 SHA-256 后，[卸载专项 5 项通过](<../.tmp/portable-uninstall-after.log>)，预检和删除前的校验均保留，已修改文件和额外谱面仍保留。Windows 本地用 Python 3.12.13 按 CI 命令运行[完整非图形验证](<../.tmp/portable-uninstall-verify.log#L1603-L1624>)通过（含 72 项发布工具测试）；未重跑远端 CI 或更新既有候选包。
+
+### 2026-11-26 · 制谱器第二批排版与编辑状态
+
+- [Shell Release 构建](<../.tmp/ui-layout-second-build.log>)和 [Shell 无窗口回归](<../.tmp/ui-layout-second-headless.log>)通过。对轨断言覆盖实际鼠标切换标签、固定偏移与新增入口、事件表列对齐、精确小节/数值、行选择/滚动位置与草稿保留、局部校验和尾段限制；属性断言覆盖空选的真实风险、父/节点身份、Hold 尾节点只读、批量操作和选择切换后的公式恢复；包设置覆盖真正继承值、未设置、暂时关/开覆盖保留输入以及未更改数值的原始精度。结构、差异、站点静态检查与 7 项网站测试通过。
+- 预览来自当前控件：[工作台侧栏](<../tmp_shots/ui-layout-second-pass/workbench-layout.png>)、[Scroll 标签页](<../tmp_shots/ui-layout-second-pass/timing-scroll.png>)、[包与差分设置](<../tmp_shots/ui-layout-second-pass/package-settings.png>)。未启动可见窗口、Godot 或重新出包，未做系统 DPI 或真实文件选择器验收。
+
+### 2026-11-26 · 制谱器首批排版整理
+
+- [Shell Release 构建](<../.tmp/ui-layout-release-build.log#L16-L30>)与 [Shell 无窗口回归](<../.tmp/ui-layout-headless.log>)退出 0；构建 0 错误，保留 10 条既有警告。回归覆盖中英文等宽工具网格与窄栏回单列、选中与键盘焦点、32 DIP 字段和 36 DIP 底栏、表单错误不移动按钮，以及属性几何、类型/轨道、流速的操作边界。架构与 diff 检查通过。
+- `DYNA_WORKBENCH_LAYOUT_PREVIEW` 可从无窗口回归输出[侧栏组合](<../tmp_shots/ui-layout-first-pass/workbench-layout.png>)、[添加差分](<../tmp_shots/ui-layout-first-pass/add-difficulty-layout.png>)和 [BPM 导入](<../tmp_shots/ui-layout-first-pass/bpm-import-layout.png>)的真实 Avalonia 控件渲染。图片用合成谱面，不覆盖 Windows 原生窗口、Godot 舞台或系统 DPI 的实机表现；未打开可见窗口或重新出包。
+
+### 2026-11-26 · 制谱器行内悬停帮助
+
+- [Shell Release 构建与无窗口回归](<../.tmp/ui-inline-help-headless.log#L326-L333>)退出 0。验证标题与 `ⓘ` 同行、不点击即可悬停显示、移出立即关闭、紧凑提示框边角与图标对齐、中英文即时切换、空格打开和 Esc 关闭。封面工具栏原有操作控件仍垂直对齐。架构检查、站点检查、7 项网站测试及差异检查通过；未打开可见窗口或重新出包。
+
+### 2026-11-26 · 制谱器双语文案清理
+
+- [Release 全量非图形验证](<../.tmp/ui-copy-verify-release.log#L1653>)退出 0。三端编译 0 错误（Shell 保留 10 条既有警告）；核心、制谱、回环网络、商店、Shell 无窗口、71 项发布工具、4 项录制构建和 6 项录制门禁通过。初次 Debug 验证遇到正在运行的未保存草稿占用可执行文件，改用 Release 构建，没有关闭或操作该窗口。
+- [Shell 无窗口回归](<../.tmp/ui-copy-verify-release.log#L1360-L1367>)覆盖 `ⓘ` 的鼠标/键盘打开、正文和无障碍名称随语种更新、零风险不显示说明、包试听未设置及显式修改后的标签和提交值；另覆盖添加差分的试听输入错误、封面帮助随模式切换和视频无试听时的提示；去掉最后一处底栏调试输出后，[Shell Release 构建与无窗口回归](<../.tmp/ui-copy-shell-headless.log>)再次退出 0。两份教程的站点检查和 7 项网站测试通过；核对本地化键、格式参数及既有操作控件的尺寸位置未变。未启动可见窗口或 Godot、做 DPI/实机验收或出包。
+
+### 2026-11-26 · 制谱器媒体撤销边界与 Windows 产品 CI
+
+- [制谱器专项](<../tools/chart-editor-tests/Documents/EditorMediaHistoryTests.cs>)和 `python -B tools/verify.py --no-restore` 退出 0。核心验证媒体独立 dirty、混合设置原子回滚、撤销与重做保留媒体、保存并重开的录音和封面字节、差分创建/复制重做后的录音。[Shell 无窗口回归](<../editor/shell/SaveInteractionVerification.cs>)另验证后台保存捕获旧快照时，同一包内路径的新媒体在下一次保存才生效；设置页的 Ctrl+Z/Y 不改媒体。三端 Debug 构建 0 错误（Shell 10 条既有警告）；71 项发布工具、4 项录制构建和 6 项录制门禁通过。未启动 Godot 或出包。
+- [产品验证工作流](<../.github/workflows/product-verification.yml>)的 YAML 与 PowerShell 静态检查通过；[来源快照](<../release/provenance-sources/README.md>)和[换行属性](<../.gitattributes>)使干净检出不依赖本机设计目录，并保持原有 SHA-256。Windows 换行设置下的隔离 Git 检出通过发布工具和录制检查（1 项可选本地参考跳过），关闭自动换行后发布合同也通过。本项隔离验证用本机 Python 3.14，未运行 GitHub 托管工作流或冷还原 .NET 依赖，也未改 Pages、提交或推送。
+
+### 2026-11-26 · 取消源码行数门禁
+
+- `python -B tools/architecture/check.py --report` 和 `python -B tools/verify.py --no-restore` 退出 0。结构检查覆盖 484 个 C# 文件，保留项目依赖、源码链接和显式源码边界。新增[回归](<../tools/release/tests/test_reviewed_tools.py>)用 1100 行单文件和 1300 行类族验证大小只作统计，再引入渲染对判定的禁止依赖，验证仍报错。
+- 三端本机 Debug 增量构建均为 0 错误；核心、制谱、回环网络、商店、Shell 无窗口及 Python 回归（71 项发布工具、4 项录制构建、6 项录制门禁）通过。未启动 Godot、连接 PostgreSQL、导出或接入 GitHub Actions。媒体替换不进入撤销历史只记录为后续交互方向，未改变制谱器行为。
+
 ### 2026-11-23 · 网站教程：谱面视频与封面制作
 
 - [中文](<../site/guide.html#export-video>)和[英文](<../site/en/guide.html#export-video>)教程补上录制组件、FFmpeg、游戏内音符落速和视频导出步骤，并新增[中文封面制作](<../site/guide.html#cover-studio>)、[英文封面制作](<../site/en/guide.html#cover-studio>)章节。`python -B tools/site/check.py`、网站回归（7 项）、`node --check site/assets/site.js` 和本轮差异检查通过。没有改截图或其他发布资产；未做浏览器目测或 GitHub Pages 部署。
@@ -452,9 +485,9 @@ git diff --check
 dotnet run --project tools/core-tests/CoreTests.csproj -- --dev-testdata client/testdata/packs
 ```
 
-- 结构门禁只证明依赖/源码链接/行数预算，不是语义、编译、行为或性能证明。
+- 结构门禁只检查项目依赖、源码链接和显式源码边界，不是语义、编译、行为或性能证明；行数仅是可选统计。
 - `.tmp/modularize*/` 的快照/探针被忽略，可能不随克隆取得，不能当成已接入 CI 的稳定回归入口。涉及行为变化时应补版本化用例，不能只引用旧 headless 哈希。
-- 严禁为通过检查而放宽源码预算、发布白名单、品牌历史允许计数或把内部语料变为默认依赖。
+- 严禁为通过检查而放宽发布白名单、品牌历史允许计数或把内部语料变为默认依赖。
 
 ## 谱包保存/读取专项复验
 

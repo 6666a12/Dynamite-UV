@@ -32,7 +32,8 @@ public static class EditorPackageSettings
         var chart = document.Charts.SingleOrDefault(item => item.Id == originalChartId)
             ?? throw new KeyNotFoundException($"Chart '{originalChartId}' is not open.");
         if (document.SelectedChartId != originalChartId) document.SelectChart(originalChartId);
-        var commands = new List<IEditorCommand>();
+        var media = new List<IEditorCommand>();
+        var history = new List<IEditorCommand>();
 
         // Disabling a chart audio override must win over a staged replacement source: the dialog
         // can carry a browsed source while the checkbox is unchecked, and the user asked to
@@ -44,43 +45,51 @@ public static class EditorPackageSettings
         if (request.PackAudioSource is { } packAudio)
         {
             var slot = EditorMediaSlots.AudioDestination(document, null, packAudio);
-            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, false, slot, packAudio));
+            media.Add(new ReplaceChartResourceCommand(originalChartId, true, false, slot, packAudio));
             reserved.Add(slot);
         }
         if (request.PackCoverSource is { } packCover)
         {
             var slot = document.Cover ?? $"cover{Path.GetExtension(packCover).ToLowerInvariant()}";
-            commands.Add(new ReplaceChartResourceCommand(originalChartId, true, true, slot, packCover));
+            media.Add(new ReplaceChartResourceCommand(originalChartId, true, true, slot, packCover));
             reserved.Add(slot);
         }
         if (!request.ClearChartAudio && request.ChartAudioSource is { } chartAudio)
-            commands.Add(new ReplaceChartResourceCommand(originalChartId, false, false,
+            media.Add(new ReplaceChartResourceCommand(originalChartId, false, false,
                 EditorMediaSlots.AudioDestination(document, chart, chartAudio, reserved: reserved), chartAudio));
 
-        if (clearAudio || clearPreview)
-            commands.Add(new ClearChartOverridesCommand(originalChartId, clearAudio, clearPreview));
+        if (clearAudio)
+            media.Add(new ClearChartOverridesCommand(originalChartId, clearAudio: true, clearPreview: false));
+        if (clearPreview)
+            history.Add(new ClearChartOverridesCommand(originalChartId, clearAudio: false, clearPreview: true));
 
         if (document.PackId != request.PackId || document.Title != request.Title || document.Artist != request.Artist)
-            commands.Add(new EditPackMetadataCommand(request.PackId, request.Title, request.Artist));
+            history.Add(new EditPackMetadataCommand(request.PackId, request.Title, request.Artist));
         if (request.PackPreview is { } packPreview && document.Preview != packPreview)
-            commands.Add(new EditPreviewCommand(true, null, packPreview.StartSec, packPreview.DurationSec));
+            history.Add(new EditPreviewCommand(true, null, packPreview.StartSec, packPreview.DurationSec));
 
         var level = request.Unrated ? null : request.Level;
         var difficultyKey = request.Difficulty == V2Difficulty.Custom ? request.DifficultyKey : null;
         if (chart.Difficulty != request.Difficulty || chart.DifficultyKey != difficultyKey ||
             chart.Level != level || chart.Unrated != request.Unrated || !chart.Charters.SequenceEqual(request.Charters))
-            commands.Add(new EditChartDetailsCommand(originalChartId, request.Difficulty, difficultyKey,
+            history.Add(new EditChartDetailsCommand(originalChartId, request.Difficulty, difficultyKey,
                 level, request.Unrated, request.Charters));
         if (chart.AudioOffsetSec != request.AudioOffsetSec)
-            commands.Add(new EditChartOffsetCommand(request.AudioOffsetSec));
+            history.Add(new EditChartOffsetCommand(request.AudioOffsetSec));
         if (!request.ClearChartPreview && request.ChartPreview is { } chartPreview && chart.Preview != chartPreview)
-            commands.Add(new EditPreviewCommand(false, originalChartId, chartPreview.StartSec, chartPreview.DurationSec));
+            history.Add(new EditPreviewCommand(false, originalChartId, chartPreview.StartSec, chartPreview.DurationSec));
         if (chart.Id != request.ChartId || chart.File != request.ChartFile)
-            commands.Add(new RenameChartCommand(originalChartId, request.ChartId, request.ChartFile));
+            history.Add(new RenameChartCommand(originalChartId, request.ChartId, request.ChartFile));
 
-        if (commands.Count == 0) return false;
-        document.Execute(commands.Count == 1 ? commands[0] : new CompositeEditorCommand(commands.ToArray()));
+        if (media.Count == 0 && history.Count == 0) return false;
+        document.ApplyPackageSettings(Batch(media), Batch(history));
         return true;
     }
 
+    private static IEditorCommand? Batch(List<IEditorCommand> commands) => commands.Count switch
+    {
+        0 => null,
+        1 => commands[0],
+        _ => new CompositeEditorCommand(commands.ToArray()),
+    };
 }

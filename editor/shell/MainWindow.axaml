@@ -47,7 +47,6 @@
     <Border x:Name="StartPage" Grid.Row="1" Background="#202328">
       <StackPanel Width="420" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
         <TextBlock Text="{local:Tr Start.Title}" FontSize="26" FontWeight="SemiBold" />
-        <TextBlock Classes="caption" Text="{local:Tr Start.Description}" FontSize="14" TextWrapping="Wrap" />
         <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
           <Button x:Name="StartOpenButton" Classes="accent" Content="{local:Tr File.Open}" Click="OpenClicked" ToolTip.Tip="Ctrl+O" />
           <Button x:Name="StartNewButton" Content="{local:Tr File.New}" Click="NewClicked" ToolTip.Tip="Ctrl+N" />
@@ -133,7 +132,6 @@
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock x:Name="StatusText" Classes="caption" VerticalAlignment="Center" Text="{local:Tr Status.Ready}" TextTrimming="CharacterEllipsis" />
         <Button x:Name="DiscardFormulaDrafts" Grid.Column="1" Classes="ghost" IsVisible="False" Padding="4,0" MinHeight="0" Content="{local:Tr Curve.DiscardAll}" />
-        <TextBlock x:Name="NativeText" IsVisible="False" Grid.Column="2" Classes="cyan" VerticalAlignment="Center" FontSize="10" Text="{local:Tr Status.NativeWaiting}" />
       </Grid>
     </Border>
     <Border x:Name="ShortcutOverlay" Grid.Row="0" Grid.RowSpan="3" IsVisible="False" Background="#E6080C18" ZIndex="100" Padding="24">
@@ -142,7 +140,6 @@
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel>
               <TextBlock Classes="section" Text="{local:Tr Help.Title}" FontSize="20" />
-              <TextBlock Classes="caption" Text="{local:Tr Help.Subtitle}" TextWrapping="Wrap" Margin="0,5,0,0" />
             </StackPanel>
             <Button Grid.Column="1" Content="{local:Tr Help.Close}" Classes="ghost" Click="ShortcutsClicked" VerticalAlignment="Top" />
           </Grid>
@@ -182,10 +179,8 @@
               </Grid>
               <TextBlock Classes="caption" Text="{local:Tr Help.ExtraNotes}" TextWrapping="Wrap" />
               <TextBlock Classes="caption" Text="{local:Tr Help.CoreExtras}" TextWrapping="Wrap" />
-              <TextBlock Classes="caption" Text="{local:Tr Help.Note}" TextWrapping="Wrap" />
             </StackPanel>
           </ScrollViewer>
-          <TextBlock Grid.Row="2" Classes="caption" Text="DYNAMAKER UV  /  EDITOR" HorizontalAlignment="Right" />
         </Grid>
       </Border>
     </Border>

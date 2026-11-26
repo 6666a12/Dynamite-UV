@@ -2,9 +2,11 @@
              xmlns:local="using:DynamiteUniverse.Editor.Shell" x:Class="DynamiteUniverse.Editor.Shell.CustomCurveEditor">
   <StackPanel Spacing="5">
     <StackPanel x:Name="FormulaFields" Spacing="5" IsVisible="False">
-      <TextBlock Classes="eyebrow" Text="{local:Tr Curve.Formula}" />
-      <TextBox x:Name="ExpressionInput" PlaceholderText="t*t*(3-2*t)" />
-      <TextBlock Classes="caption" Text="{local:Tr Curve.Hint}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <TextBlock Classes="eyebrow" Text="{local:Tr Curve.Formula}" VerticalAlignment="Center" />
+        <local:ContextHelpButton Text="{local:Tr Curve.Hint}" />
+      </StackPanel>
+      <TextBox x:Name="ExpressionInput" Classes="workbench-field" PlaceholderText="t*t*(3-2*t)" />
       <Border Classes="panel" Padding="5" Background="{DynamicResource Bg}">
         <local:CurvePlot x:Name="PreviewPlot" Height="75" />
       </Border>

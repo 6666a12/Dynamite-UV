@@ -84,6 +84,8 @@ internal static class WorkspaceVerification
             check($"Mouse selects {toolName} tool", window.CurrentTool == toolName);
         }
         VerifyLabels(window, check);
+        VerifyContextHelp(window, check);
+        VerifyPreviewLabels(window, check);
         var dialog = new CreateChartDialog();
         dialog.Show();
         Dispatcher.UIThread.RunJobs();
@@ -103,6 +105,91 @@ internal static class WorkspaceVerification
             check("Mouse cancels create without result", !dialog.IsVisible && dialog.Result is null);
         }
         finally { dialog.Close(); }
+    }
+
+    private static void VerifyContextHelp(MainWindow window, Action<string, bool> check)
+    {
+        var text = WorkbenchLocalizer.Shared;
+        var language = text.CurrentLanguage;
+        var button = window.GetVisualDescendants().OfType<ContextHelpButton>()
+            .Single(b => b.IsEffectivelyVisible && b.Text == text["Tools.GestureHint"]);
+        try
+        {
+            check("Zero chart risks leave no permanent risk summary",
+                !window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Name == "ChartRiskSummary" && t.IsEffectivelyVisible));
+            check("Placement help sits directly after its heading", button.Parent is StackPanel heading &&
+                heading.Orientation == Avalonia.Layout.Orientation.Horizontal && heading.Children[0] is TextBlock title &&
+                title.Text == text["Tools.Placement"]);
+            var position = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(position);
+            Dispatcher.UIThread.RunJobs();
+            check("Mouse hover opens help without clicking", ToolTip.GetIsOpen(button));
+            var tip = (ToolTip)ToolTip.GetTip(button)!;
+            if (TopLevel.GetTopLevel(tip) is not null)
+            {
+                var corner = tip.PointToScreen(default);
+                var anchor = button.PointToScreen(new Point(0, button.Bounds.Height));
+                check("Compact tooltip aligns its top-left corner with the icon", corner.X == anchor.X &&
+                    corner.Y == anchor.Y + 2 && tip.Bounds.Width is > 0 and <= 232);
+            }
+            else check("Compact tooltip aligns its top-left corner with the icon", false);
+            foreach (var locale in new[] { "zh-CN", "en" })
+            {
+                text.SetLanguage(locale);
+                Dispatcher.UIThread.RunJobs();
+                check($"Context help body and accessible name update ({locale})",
+                    tip.Content is TextBlock body && body.Text == text["Tools.GestureHint"] &&
+                    Avalonia.Automation.AutomationProperties.GetName(button) == text["Help.Context"] &&
+                    Avalonia.Automation.AutomationProperties.GetHelpText(button) == body.Text);
+            }
+            window.MouseMove(new Point(1, 1));
+            Dispatcher.UIThread.RunJobs();
+            check("Help hides on mouse exit", !ToolTip.GetIsOpen(button));
+            button.Focus();
+            window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
+            window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
+            Dispatcher.UIThread.RunJobs();
+            check("Keyboard opens placement help", ToolTip.GetIsOpen(button));
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            window.KeyRelease(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Dispatcher.UIThread.RunJobs();
+            check("Escape dismisses help without moving focus", !ToolTip.GetIsOpen(button) && button.IsFocused);
+        }
+        finally
+        {
+            ToolTip.SetIsOpen(button, false);
+            text.SetLanguage(language);
+        }
+    }
+
+    private static void VerifyPreviewLabels(MainWindow window, Action<string, bool> check)
+    {
+        var text = WorkbenchLocalizer.Shared;
+        var language = text.CurrentLanguage;
+        var settings = new PackageSettingsDialog(window.CurrentDocument!);
+        settings.Show();
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            var packLabel = settings.FindControl<TextBlock>("PackPreviewStartLabel")!;
+            foreach (var locale in new[] { "zh-CN", "en" })
+            {
+                text.SetLanguage(locale);
+                Dispatcher.UIThread.RunJobs();
+                check($"Unset package preview is labelled without submitting a placeholder ({locale})",
+                    packLabel.Text == text["Settings.PreviewStartUnset"] && settings.RequestForVerification().PackPreview is null &&
+                    settings.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == text["Settings.ChartPreviewStart"]));
+            }
+            settings.FindControl<NumericUpDown>("PackPreviewStartValue")!.Value = 0.5m;
+            Dispatcher.UIThread.RunJobs();
+            check("Explicit preview edit updates the label and submits the entered value",
+                packLabel.Text == text["Settings.PreviewStart"] && settings.RequestForVerification().PackPreview?.StartSec == 0.5);
+        }
+        finally
+        {
+            settings.Close();
+            text.SetLanguage(language);
+        }
     }
 
     private static void VerifyDockButton(MainWindow window, Action<string, bool> check)
@@ -142,8 +229,15 @@ internal static class WorkspaceVerification
 
     private static void VerifyLabels(MainWindow window, Action<string, bool> check)
     {
+        // Hidden editors no longer have active selection presenters. Test the visible editors
+        // in their real selection context, not an empty Inspector with controls mounted for testing.
+        var previous = window.SelectedNoteId;
+        window.SelectNoteForVerification(window.CurrentDocument!.SelectedChart.Notes.First().Id);
+        window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
         var choices = window.GetVisualDescendants().OfType<ComboBox>()
-            .Where(choice => choice.Classes.Contains("localized")).ToArray();
+            .Where(choice => choice.IsEffectivelyVisible && choice.Classes.Contains("localized")).ToArray();
+        check("Language regression reaches the actual note type and track editors",
+            choices.Any(choice => choice.Name == "NoteTypeChoice") && choices.Any(choice => choice.Name == "TrackChoice"));
         var originals = choices.Select(choice => choice.SelectedIndex).ToArray();
         // Pending, unapplied choices must survive a language switch too.
         foreach (var choice in choices) choice.SelectedIndex = Math.Min(1, choice.ItemCount - 1);
@@ -175,6 +269,7 @@ internal static class WorkspaceVerification
             foreach (var choice in choices) choice.SelectionChanged -= Changed;
             for (var i = 0; i < choices.Length; i++) choices[i].SelectedIndex = originals[i];
             text.SetLanguage(original);
+            window.SelectNoteForVerification(previous ?? "");
             Dispatcher.UIThread.RunJobs();
         }
         foreach (var chrome in window.GetVisualDescendants().OfType<Dock.Avalonia.Controls.ToolChromeControl>())

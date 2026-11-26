@@ -110,15 +110,19 @@ public sealed partial class InspectorView : UserControl
         ApplyNoteKind(null, new RoutedEventArgs());
     }
 
+    private T C<T>(string name) where T : Control => this.FindControl<T>(name)!;
+    private bool IsMultiple => _ids.Count > 1;
     private EditableNote? SelectedNote => _document?.SelectedChart.Notes.SingleOrDefault(note => note.Id == _primary);
-    private EditablePathNode? SelectedNode => _document?.Selection is { Kind: EditorSelectionKind.PathNode, Id: { } id }
+    private EditablePathNode? SelectedNode => !IsMultiple && _document?.Selection is { Kind: EditorSelectionKind.PathNode, Id: { } id }
         ? SelectedNote?.Nodes.SingleOrDefault(node => node.Id == id) : null;
-    private bool CanEditCurve => SelectedNote is { Type: V2NoteType.Hold or V2NoteType.Mixer } note &&
-        (SelectedNode is null || SelectedNode != note.Nodes[^1]);
+    private static bool IsTail(EditableNote? note, EditablePathNode? node) =>
+        node is not null && note is { Nodes.Count: > 0 } && node == note.Nodes[^1];
+    private bool CanEditCurve => !IsMultiple && SelectedNote is { Type: V2NoteType.Hold or V2NoteType.Mixer } note &&
+        !IsTail(note, SelectedNode);
     private bool CanEditHoldJudge => SelectedNote is { Type: V2NoteType.Hold } note &&
-        SelectedNode is not null && SelectedNode != note.Nodes[^1];
-    /// <summary>Geometry, track and type edits target one parent Note only; path-node and multi selections stay read-only.</summary>
-    private bool CanEditGeometry => SelectedNote is not null && _ids.Count <= 1;
+        SelectedNode is { } node && !IsTail(note, node);
+    // A lone path node has editable geometry; type and track belong to its parent and are edited on the parent selection.
+    private bool CanEditGeometry => !IsMultiple && SelectedNote is not null;
     private bool CanEditKind => CanEditGeometry && SelectedNode is null;
     private bool _refreshingObjects;
     public event Action<string, string?>? LocateRequested;
@@ -127,60 +131,73 @@ public sealed partial class InspectorView : UserControl
     {
         var note = SelectedNote;
         var node = SelectedNode;
-        this.FindControl<TextBlock>("NoteTitle")!.Text = _ids.Count > 1
-            ? _text.Format("Inspector.Notes", _ids.Count)
-            : node?.Id ?? (_primary is null ? _text["Inspector.NoSelection"] : _primary);
-        var track = note?.Track switch
-        {
-            EditorTrack.Left => "Inspector.LeftStage",
-            EditorTrack.Right => "Inspector.RightStage",
-            EditorTrack.Center => "Inspector.CenterStage",
-            _ => null,
-        };
-        this.FindControl<TextBlock>("NoteMeta")!.Text = _ids.Count > 1 || track is null ? "" :
-            _text[track] + (node is null ? "" : " · " + _text["Inspector.PathNode"]);
-        UpdateSpatialWarnings();
+        var type = note is null ? "" : _text[$"Inspector.{note.Type}"];
+        C<TextBlock>("NoteTitle").Text = IsMultiple ? _text.Format("Inspector.Notes", _ids.Count) :
+            note is null ? _text["Inspector.NoSelection"] : node is null ? type :
+            _text[IsTail(note, node) ? "Inspector.TailNode" : "Inspector.PathNode"];
+        var meta = C<TextBlock>("NoteMeta");
+        meta.IsVisible = CanEditGeometry;
+        meta.Text = note is not null && meta.IsVisible
+            ? (node is null ? "" : type + " · ") + _text[$"Inspector.{note.Track}Stage"] : "";
+        C<TextBlock>("NoteIdLabel").Text = _text[node is null ? "Inspector.NoteId" : "Inspector.ParentNoteId"];
+        UpdateSpatialWarnings(node?.Id);
     }
 
     private void UpdateInspector()
     {
         var note = SelectedNote;
         var node = SelectedNode;
-        var multiple = _ids.Count > 1;
-        this.FindControl<StackPanel>("SinglePanel")!.IsVisible = !multiple;
-        this.FindControl<StackPanel>("SinglePathPanel")!.IsVisible = !multiple;
-        this.FindControl<Expander>("ExistingBatchTools")!.IsExpanded = !multiple;
-        var batch = this.FindControl<SelectionInspectorView>("BatchInspector")!;
-        batch.IsVisible = multiple;
+        var single = CanEditGeometry;
+        var kind = CanEditKind;
+        var outgoing = CanEditCurve;
+        var judge = CanEditHoldJudge;
+        var tail = IsTail(note, node);
+        C<StackPanel>("IdentityPanel").IsVisible = single;
+        C<StackPanel>("NodeIdentity").IsVisible = node is not null;
+        C<TextBox>("NoteIdValue").Text = single ? note?.Id : "";
+        C<TextBox>("NodeIdValue").Text = node?.Id ?? "";
+        C<StackPanel>("LocatePanel").IsVisible = !IsMultiple;
+        C<StackPanel>("SinglePanel").IsVisible = single;
+        C<StackPanel>("KindPanel").IsVisible = kind;
+        C<StackPanel>("SinglePathPanel").IsVisible = outgoing || tail;
+        C<StackPanel>("CurvePanel").IsVisible = outgoing;
+        C<TextBlock>("TailCurveState").IsVisible = tail;
+        C<StackPanel>("HoldJudgePanel").IsVisible = judge;
+        C<StackPanel>("HoldTailJudgeState").IsVisible = tail && note?.Type == V2NoteType.Hold;
+        var nudge = C<Expander>("ExistingBatchTools");
+        nudge.IsVisible = note is not null;
+        nudge.IsExpanded = single;
+        var batch = C<SelectionInspectorView>("BatchInspector");
+        batch.IsVisible = IsMultiple;
         batch.Show(_document, _ids);
         UpdateLocalizedLabels();
-        this.FindControl<Border>("SelectionBadge")!.IsVisible = note is not null;
-        this.FindControl<TextBox>("BarTimeValue")!.Text = note is null ? "" : ExactBarTimeText.Format(node?.Time ?? note.Time);
-        this.FindControl<TextBox>("WidthValue")!.Text = (node?.Width ?? note?.Width)?.ToString("R", CultureInfo.InvariantCulture) ?? "";
-        this.FindControl<TextBox>("PositionValue")!.Text = (node?.Center ?? note?.Center)?.ToString("R", CultureInfo.InvariantCulture) ?? "";
+        C<StackPanel>("SpeedPanel").IsVisible = note is not null;
+        C<TextBlock>("ParentSpeedHint").IsVisible = node is not null;
+        C<TextBox>("BarTimeValue").Text = note is null ? "" : ExactBarTimeText.Format(node?.Time ?? note.Time);
+        C<TextBox>("WidthValue").Text = (node?.Width ?? note?.Width)?.ToString("R", CultureInfo.InvariantCulture) ?? "";
+        C<TextBox>("PositionValue").Text = (node?.Center ?? note?.Center)?.ToString("R", CultureInfo.InvariantCulture) ?? "";
         _loadedSpeed = note?.ScrollSpeedMultiplier ?? 1.0;
-        var speedControl = this.FindControl<NumericUpDown>("SpeedValue")!;
+        var speedControl = C<NumericUpDown>("SpeedValue");
         speedControl.Value = (decimal)Math.Clamp(_loadedSpeed, (double)speedControl.Minimum, (double)speedControl.Maximum);
         _displayedSpeed = speedControl.Value;
-        this.FindControl<ComboBox>("NoteTypeChoice")!.SelectedIndex = note is null ? 0 : (int)note.Type;
-        this.FindControl<ComboBox>("TrackChoice")!.SelectedIndex = note is null ? (int)EditorTrack.Center : (int)note.Track;
-        var curve = node?.CurveToNext ?? (node is null ? note?.CurveToNext : null) ?? V2PathCurve.Linear;
-        Formula.ShowTarget(_document, CanEditCurve && !multiple ? node?.Key ?? note?.Key : null, node?.Id ?? note?.Id,
+        C<ComboBox>("NoteTypeChoice").SelectedIndex = note is null ? 0 : (int)note.Type;
+        C<ComboBox>("TrackChoice").SelectedIndex = note is null ? (int)EditorTrack.Center : (int)note.Track;
+        var curve = (node is null ? note?.CurveToNext : node.CurveToNext) ?? V2PathCurve.Linear;
+        // Binding no outgoing target hides the editor, but its per-point draft remains owned by Formula.
+        Formula.ShowTarget(_document, outgoing ? node?.Key ?? note?.Key : null, node?.Id ?? note?.Id,
             curve.ToString(), node is null ? note?.CustomExpr : node.CustomExpr);
-        this.FindControl<ComboBox>("CurveChoice")!.IsEnabled = CanEditCurve;
-        this.FindControl<Button>("ApplyCurveButton")!.IsEnabled = CanEditCurve;
-        this.FindControl<StackPanel>("HoldJudgePanel")!.IsVisible = note?.Type == V2NoteType.Hold && node is not null;
-        this.FindControl<CheckBox>("HoldJudgeValue")!.IsChecked = node?.Judge == true;
-        this.FindControl<CheckBox>("HoldJudgeValue")!.IsEnabled = CanEditHoldJudge;
-        this.FindControl<Button>("ApplyHoldJudgeButton")!.IsEnabled = CanEditHoldJudge;
-        this.FindControl<TextBox>("BarTimeValue")!.IsEnabled = CanEditGeometry;
-        this.FindControl<TextBox>("WidthValue")!.IsEnabled = CanEditGeometry;
-        this.FindControl<TextBox>("PositionValue")!.IsEnabled = CanEditGeometry;
-        this.FindControl<Button>("ApplyGeometryButton")!.IsEnabled = CanEditGeometry;
-        this.FindControl<ComboBox>("NoteTypeChoice")!.IsEnabled = CanEditKind;
-        this.FindControl<ComboBox>("TrackChoice")!.IsEnabled = CanEditKind;
-        this.FindControl<Button>("ApplyNoteKindButton")!.IsEnabled = CanEditKind;
-        this.FindControl<TextBlock>("GeometryLockedHint")!.IsVisible = note is not null && !CanEditGeometry;
+        C<ComboBox>("CurveChoice").IsEnabled = outgoing;
+        C<Button>("ApplyCurveButton").IsEnabled = outgoing;
+        C<CheckBox>("HoldJudgeValue").IsChecked = node?.Judge == true;
+        C<CheckBox>("HoldJudgeValue").IsEnabled = judge;
+        C<Button>("ApplyHoldJudgeButton").IsEnabled = judge;
+        C<TextBox>("BarTimeValue").IsEnabled = single;
+        C<TextBox>("WidthValue").IsEnabled = single;
+        C<TextBox>("PositionValue").IsEnabled = single;
+        C<Button>("ApplyGeometryButton").IsEnabled = single;
+        C<ComboBox>("NoteTypeChoice").IsEnabled = kind;
+        C<ComboBox>("TrackChoice").IsEnabled = kind;
+        C<Button>("ApplyNoteKindButton").IsEnabled = kind;
         ClearGeometryError();
     }
 
@@ -195,27 +212,29 @@ public sealed partial class InspectorView : UserControl
             LocateRequested?.Invoke(target.NoteId, target.NodeId);
     }
 
-    private void UpdateSpatialWarnings()
+    private void UpdateSpatialWarnings(string? selectedNodeId)
     {
-        var objects = this.FindControl<ComboBox>("ObjectChoice")!;
+        var objects = C<ComboBox>("ObjectChoice");
         _refreshingObjects = true;
         try
         {
             var targets = new List<ObjectTarget>();
-            var overflow = 0; var invisible = 0; var unreachable = 0;
+            var overflow = 0; var invisible = 0; var unreachable = 0; var numeric = 0;
             var selectedLines = new List<string>();
-            foreach (var item in _document?.SelectedChart.Notes ?? Enumerable.Empty<EditableNote>())
+            var chart = _document?.SelectedChart;
+            foreach (var item in chart?.Notes ?? Enumerable.Empty<EditableNote>())
             {
-                var report = EditorSpatialAnalysis.Analyze(item, _document!.SelectedChart.CurveCache);
+                var report = EditorSpatialAnalysis.Analyze(item, chart!.CurveCache);
                 var risk = report.Risks;
                 if (risk.HasFlag(EditorSpatialRisk.RecommendedOverflow)) overflow++;
                 if (risk.HasFlag(EditorSpatialRisk.Invisible)) invisible++;
                 if (risk.HasFlag(EditorSpatialRisk.Unreachable)) unreachable++;
+                if (risk.HasFlag(EditorSpatialRisk.NumericRange)) numeric++;
                 var marker = risk == EditorSpatialRisk.None ? "" : "⚠ ";
                 targets.Add(new(item.Id, null, $"{marker}{item.Id} · {ExactBarTimeText.Format(item.Time)}"));
                 targets.AddRange(item.Nodes.Select(n => new ObjectTarget(item.Id, n.Id,
                     $"  {n.Id} · {ExactBarTimeText.Format(n.Time)}")));
-                if (!_ids.Contains(item.Id)) continue;
+                if (IsMultiple || item.Id != _primary) continue;
                 if (risk.HasFlag(EditorSpatialRisk.RecommendedOverflow)) selectedLines.Add(_text["Risk.Overflow"]);
                 if (risk.HasFlag(EditorSpatialRisk.Invisible)) selectedLines.Add(_text["Risk.Invisible"]);
                 if (risk.HasFlag(EditorSpatialRisk.Unreachable)) selectedLines.Add(_text[item.Type switch
@@ -226,10 +245,20 @@ public sealed partial class InspectorView : UserControl
                 if (report.PathSampled) selectedLines.Add(_text["Risk.Sampled"]);
             }
             objects.ItemsSource = targets;
-            objects.SelectedItem = targets.FirstOrDefault(t => t.NoteId == _primary && t.NodeId == SelectedNode?.Id);
-            this.FindControl<TextBlock>("SpatialWarnings")!.Text = string.Join("\n", selectedLines.Distinct());
-            this.FindControl<TextBlock>("ChartRiskSummary")!.Text = _document is null ? "" :
-                _text.Format("Risk.Summary", overflow, invisible, unreachable) + "\n" + _text["Risk.Scope"];
+            objects.IsEnabled = targets.Count > 0;
+            objects.SelectedItem = targets.FirstOrDefault(t => t.NoteId == _primary && t.NodeId == selectedNodeId);
+            var selectedWarnings = C<TextBlock>("SpatialWarnings");
+            selectedWarnings.Text = string.Join("\n", selectedLines);
+            selectedWarnings.IsVisible = selectedLines.Count > 0;
+            var chartRisks = new List<string>();
+            if (overflow > 0) chartRisks.Add(_text.Format("Risk.ChartOverflow", overflow));
+            if (invisible > 0) chartRisks.Add(_text.Format("Risk.ChartInvisible", invisible));
+            if (unreachable > 0) chartRisks.Add(_text.Format("Risk.ChartUnreachable", unreachable));
+            if (numeric > 0) chartRisks.Add(_text.Format("Risk.ChartNumeric", numeric));
+            var summary = C<TextBlock>("ChartRiskSummary");
+            summary.IsVisible = chartRisks.Count > 0;
+            summary.Text = summary.IsVisible ? _text.Format("Risk.Chart", string.Join(" · ", chartRisks)) : "";
+            C<StackPanel>("RiskSection").IsVisible = summary.IsVisible || selectedWarnings.IsVisible;
         }
         finally { _refreshingObjects = false; }
     }

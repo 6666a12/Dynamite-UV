@@ -2,14 +2,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:DynamiteUniverse.Editor.Shell"
              x:Class="DynamiteUniverse.Editor.Shell.BpmImportForm"
-             MaxHeight="680" KeyboardNavigation.TabNavigation="Cycle">
-  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
-    <StackPanel Spacing="6">
+             Classes="workbench-form" MaxHeight="680" KeyboardNavigation.TabNavigation="Cycle">
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+    <StackPanel Spacing="4">
       <TextBlock Classes="section" Text="{local:Tr BpmImport.Title}" FontSize="20" />
       <TextBlock x:Name="Target" Classes="caption" TextWrapping="Wrap" />
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,6,0,0">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,8,0,0">
         <TextBlock x:Name="FileName" Text="{local:Tr BpmImport.NoFile}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-        <Button x:Name="BrowseButton" Grid.Column="1" Content="{local:Tr Create.Browse}" Click="BrowseClicked" />
+        <Button x:Name="BrowseButton" Grid.Column="1" Classes="workbench-field" Content="{local:Tr Create.Browse}" Click="BrowseClicked" />
       </Grid>
     </StackPanel>
     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
@@ -19,9 +19,9 @@
         <TextBlock x:Name="SourceAudio" Classes="caption" TextWrapping="Wrap" />
         <TextBlock x:Name="Offset" TextWrapping="Wrap" />
         <Grid x:Name="ManualOffsetPanel" IsVisible="False" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <TextBox x:Name="ManualOffset" PlaceholderText="{local:Tr BpmImport.OffsetInput}"
+          <TextBox x:Name="ManualOffset" Classes="workbench-field" PlaceholderText="{local:Tr BpmImport.OffsetInput}"
                    AutomationProperties.Name="{local:Tr BpmImport.OffsetInput}" TextChanged="OffsetChanged" />
-          <Button Grid.Column="1" Content="{local:Tr BpmImport.KeepOffset}" Click="KeepOffsetClicked" />
+          <Button Grid.Column="1" Classes="workbench-field" Content="{local:Tr BpmImport.KeepOffset}" Click="KeepOffsetClicked" />
         </Grid>
         <TextBlock x:Name="Warning" Classes="pink" TextWrapping="Wrap" />
         <Grid ColumnDefinitions="*,*,*,*" Margin="8,4,22,0">
@@ -49,12 +49,12 @@
       </StackPanel>
     </ScrollViewer>
     <StackPanel Grid.Row="2" Spacing="8">
-      <ScrollViewer MaxHeight="74">
-        <TextBlock x:Name="Feedback" Classes="pink" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      <ScrollViewer x:Name="FeedbackViewport" Height="32" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <TextBlock x:Name="Feedback" Classes="pink" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
       </ScrollViewer>
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button Content="{local:Tr Create.Cancel}" Click="CancelClicked" />
-        <Button x:Name="ApplyButton" IsEnabled="False" Content="{local:Tr BpmImport.Apply}" Classes="accent" Click="ApplyClicked" />
+        <Button x:Name="CancelButton" Classes="form-action secondary" Content="{local:Tr Create.Cancel}" Click="CancelClicked" />
+        <Button x:Name="ApplyButton" Classes="form-action primary accent" IsEnabled="False" Content="{local:Tr BpmImport.Apply}" Click="ApplyClicked" />
       </StackPanel>
     </StackPanel>
   </Grid>

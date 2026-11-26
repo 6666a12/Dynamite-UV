@@ -28,8 +28,10 @@ internal static class EditorMediaOwnershipTests
         Apply(d,Settings(d) with {ChartAudioSource=newAudio}); var detached = d.SelectedChart.Audio!;
         Check(!string.Equals(shared,detached,StringComparison.OrdinalIgnoreCase) && detached!="audio/copy.wav", "copy-on-write avoids original and unrelated user file");
         d.SelectChart("hard"); Check(File.ReadAllBytes(session.ResolveDigestAudio()!).SequenceEqual(File.ReadAllBytes(oldAudio)), "unmodified original previews original bytes");
-        d.Undo(); Check(d.SelectedChartId=="copy" && d.SelectedChart.Audio==shared && !d.PendingResourceReplacements.Any(),"undo private replacement restores shared reference");
-        d.Redo(); Check(d.SelectedChart.Audio==detached && session.ResolveDigestAudio()==newAudio, "redo private replacement restores independent source");
+        d.Undo(); Check(d.SelectedChartId=="hard" && d.Charts.All(chart=>chart.Id!="copy") && !d.PendingResourceReplacements.Any(),
+            "undo removes the copied chart, not its later recording replacement");
+        d.Redo(); Check(d.SelectedChartId=="copy" && d.SelectedChart.Audio==detached && session.ResolveDigestAudio()==newAudio,
+            "redo of the copy preserves the latest independent recording");
         session.Save(dir); d=session.Open(dir); var copy = d.Charts.Single(c=>c.Id=="copy");
         Check(File.ReadAllBytes(Path.Combine(dir,d.SelectedChart.Audio!)).SequenceEqual(File.ReadAllBytes(oldAudio)) &&
               File.ReadAllBytes(Path.Combine(dir,copy.Audio!)).SequenceEqual(File.ReadAllBytes(newAudio)) &&

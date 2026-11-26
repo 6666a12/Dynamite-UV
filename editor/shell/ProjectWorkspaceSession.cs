@@ -20,7 +20,7 @@ internal sealed class ProjectWorkspaceSession(Window window, WorkbenchLayoutSess
         if (_hasProject) return;
         _hasProject = true;
         Find<Border>("StartPage").IsVisible = false;
-        foreach (var name in new[] { "ProjectWorkspace", "ProjectHeading", "ProjectSave", "NativeText" })
+        foreach (var name in new[] { "ProjectWorkspace", "ProjectHeading", "ProjectSave" })
             Find<Control>(name).IsVisible = true;
         AttachIfReady();
     }

@@ -22,7 +22,7 @@ Dynamix 风格的 **clean-room 社区音游重实现**。游戏可离线游玩�
 | 模块 | 已可使用 | 边界 |
 | --- | --- | --- |
 | [游戏](docs/handoff.md#21-游戏) | 首页 → 选曲/试听 → 三轨游玩 → 结算；支持 Hold/Mixer、校准、Mirror/Auto、BLEED 血条。Standard 与 Hardcore 分开保存本机最佳成绩。 | 选曲筛选/排序仍是占位，Hit/UI 与结果音效不完整；BLEED 失败仍复用普通结算页。低端性能未验收，专项暂缓。 |
-| [Windows 制谱器](docs/dyna-maker-uv.md) | Avalonia 工作台嵌入 Godot 舞台；可新建、打开、保存 strict v2 目录谱包，编辑 Note、路径及 BPM/Scroll，并播放预览。Scroll、Hold、Mixer 支持[谱面 v2.1 自定义缓动](docs/chart-format-v2.1.md)；只有需要新格式的谱才提示升级。 | `windows-x64-test-v1` 是已确认的[测试包基线](docs/verification.md#当前-windows-编辑器测试包基线)，不是公开发行批准。只读写本地目录包，不直接读写 ZIP；真实波形、Storyboard 不列当前目标。 |
+| [Windows 制谱器](docs/dyna-maker-uv.md) | Avalonia 工作台嵌入 Godot 舞台；可新建、打开、保存 strict v2 目录谱包，编辑 Note、路径及 BPM/Scroll，并播放预览。Scroll、Hold、Mixer 支持[谱面 v2.1 自定义缓动](docs/chart-format-v2.1.md)；只有需要新格式的谱才提示升级。 | `windows-x64-test-v1` 是已确认的[测试包基线](docs/verification.md#当前-windows-编辑器测试包基线)，不是公开发行批准。只读写本地目录包，不直接读写 ZIP；[内置音频分析台和 Agent](<docs/editor-roadmap.md>)暂不实现，Storyboard 不列首版目标。 |
 | [网络服务](server/README.md) | 游戏可注册/登录、从谱面商店首次下载安装、上传符合条件的本局成绩；管理员可发布/下架谱包。离线游玩不要求账号。 | 属于开发阶段，生产部署未验收；暂无更新/删除已安装谱包、排行榜、段位或多人联机。 |
 | [项目网站](docs/website.md) | 中英文首页和制谱教程共用工作台截图与练习音频。 | Pages 工作流只发布网页；本地检查不证明网站已经上线，也不代表游戏或制谱器已公开发行。 |
 
@@ -57,6 +57,8 @@ python -B tools/verify.py
 ```
 
 [统一脚本](tools/verify.py)运行结构检查、游戏及制谱器构建、核心/编辑器/网络回归、Shell 无窗口回归、发布工具测试与差异检查。真实 PostgreSQL、Godot 窗口与导出验包不在默认流程内；分项操作见[验证说明](docs/verification.md#非图形复验命令)。
+[Product verification](<.github/workflows/product-verification.yml>)在 GitHub 托管 Windows 上复用同一脚本，支持推送到 `main`、目标为 `main` 的 PR 和手动运行，结果见仓库的 **Actions** 页。它不出包、不部署；尚待托管环境首次运行确认。
+
 普通修改后不代替用户启动游戏目测；确需运行时使用 Mono 版并先结束残留 Godot。
 
 ## 发布边界

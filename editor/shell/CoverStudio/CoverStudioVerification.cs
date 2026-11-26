@@ -139,7 +139,12 @@ internal static class CoverStudioVerification
             check("Second undo restores the pre-drag position", x.Value == (decimal)initial.X);
 
             var frameToggle = window.FindControl<ToggleButton>("FramingToggle")!;
+            var help = window.FindControl<ContextHelpButton>("WideHelp")!;
+            var text = WorkbenchLocalizer.Shared;
+            var layoutHelp = help.Text;
             frameToggle.IsChecked = true;
+            check("Wide cover help follows the active editing mode", layoutHelp == text["Cover.DragHelp"] &&
+                help.Text == text["Cover.FrameHelp"]);
             window.FindControl<Slider>("ZoomSlider")!.Value = 130;
             var sample = new Point(1020, 300);
             var beforePan = PreviewPixel(window, wide, sample);

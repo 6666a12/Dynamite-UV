@@ -75,11 +75,9 @@ public sealed class PreparedDifficulty
         if (!EditorMediaSlots.Available(_owner, occupied, _chart.File) ||
             (_importsAudio && !EditorMediaSlots.Available(_owner, occupied, _relativeAudio)))
             throw new IOException("目标文件已存在，请重新确认 / A destination is now in use.");
-        IEditorCommand add = new AddChartCommand(_chart);
-        if (_importsAudio)
-            add = new CompositeEditorCommand(add, new ReplaceChartResourceCommand(_chart.Id, false, false,
-                _relativeAudio, AudioPath));
-        _owner.Execute(add);
+        _owner.Execute(_importsAudio
+            ? new AddChartCommand(_chart, new V2ExternalResourceMapping(AudioPath, _relativeAudio))
+            : new AddChartCommand(_chart));
     }
 }
 

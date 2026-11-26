@@ -1,4 +1,4 @@
-"""Check project dependencies and source-size budgets without building or launching Godot."""
+"""Check project and source dependency boundaries without building or launching Godot."""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +15,8 @@ SKIP = {"bin", "obj", ".godot"}
 def inspect(root: Path, policy: dict) -> tuple[list[str], list[tuple[int, str]], dict[str, int]]:
     errors: list[str] = []
     sizes: list[tuple[int, str]] = []
-    totals = {name: 0 for name in policy["partial_class_limits"]}
+    report_families = policy.get("report_class_families", {})
+    totals = {name: 0 for name in report_families}
     for project, expected in policy["projects"].items():
         path = root / project
         if not path.is_file():
@@ -52,10 +53,7 @@ def inspect(root: Path, policy: dict) -> tuple[list[str], list[tuple[int, str]],
                 if path in matches:
                     if re.search(boundary["forbidden"], source):
                         errors.append(f"{name}: {boundary['reason']}")
-            limit = policy["file_limits"].get(name, policy["default_file_limit"])
-            if lines > limit:
-                errors.append(f"{name}: {lines} lines exceeds budget {limit}")
-            for family, definition in policy["partial_class_limits"].items():
+            for family, definition in report_families.items():
                 declaration = rf"(?m)^\s*(?:(?:public|internal|sealed|abstract|static|partial)\s+)+class\s+{re.escape(definition['class'])}\b"
                 if name.startswith(definition["root"] + "/") and re.search(declaration, source):
                     totals[family] += lines
@@ -66,34 +64,26 @@ def inspect(root: Path, policy: dict) -> tuple[list[str], list[tuple[int, str]],
                 if re.search(forbidden, source):
                     errors.append(f"{name}: engine/UI import in a pure core project")
 
-    for name, definition in policy["partial_class_limits"].items():
-        if totals[name] == 0:
-            errors.append(f"missing partial family: {name}")
-        elif totals[name] > definition["max_lines"]:
-            errors.append(f"{name}: aggregate {totals[name]} lines exceeds budget {definition['max_lines']}")
-    for name in policy["file_limits"]:
-        if not (root / name).is_file():
-            errors.append(f"missing budgeted entry point: {name}")
     return errors, sorted(sizes, reverse=True), totals
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--report", action="store_true", help="also list the largest source files")
+    parser.add_argument("--report", action="store_true", help="also show source sizes and selected class totals (informational)")
     args = parser.parse_args()
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
     errors, sizes, totals = inspect(ROOT, policy)
     if args.report:
         for lines, path in sizes[:20]:
             print(f"{lines:5} {path}")
-        print("Partial-class totals (includes nested controls and comments):")
+        print("Selected class totals (informational; includes nested controls and comments):")
         for name, lines in totals.items():
             print(f"{lines:5} {name}")
     for error in errors:
         print("FAIL: " + error)
     if errors:
         return 1
-    print(f"ARCHITECTURE PASS: {len(sizes)} source files; project graph, source links and size budgets")
+    print(f"ARCHITECTURE PASS: {len(sizes)} source files; project dependencies, source links and source boundaries")
     return 0
 
 

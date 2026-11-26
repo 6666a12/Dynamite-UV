@@ -59,6 +59,8 @@ internal static class Verification
             await ReplacementGuardVerification.Run(Path.Combine(root, "replacement"), Check);
             var coverRoot = Path.Combine(root, "cover-studio");
             CreatePackage(source, CoverStudioVerification.CreateSource(coverRoot));
+            TimingPanelVerification.Run(source, Check);
+            PackageSettingsVerification.Run(Check);
             await ProjectStartVerification.Run(Path.Combine(root, "start-page"), source, Check);
             window.Show();
             await window.OpenPackageForVerification(source);
@@ -88,6 +90,7 @@ internal static class Verification
             }
             await CoverStudioVerification.Run(window, window.CurrentDocument!, coverRoot, Check);
             WorkspaceVerification.Run(window, Check);
+            WorkbenchLayoutVerification.Run(window.CurrentDocument!, Check);
             await WorkbenchPersistenceVerification.Run(Path.Combine(root, "persistence"), source, Check);
             Check("Q/E changes preview speed", window.ShortcutForVerification(Key.E) && window.PlayerSpeed == 1.1);
             Check("W/S changes playback rate", window.ShortcutForVerification(Key.W) &&
@@ -329,8 +332,7 @@ internal static class Verification
             window.FindControl<ComboBox>("LanguageChoice")!.SelectedIndex = 1;
             Dispatcher.UIThread.RunJobs();
             Check("Chinese updates live controls", window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "文件") &&
-                window.GetVisualDescendants().OfType<ComboBox>().Any(choice => choice.Classes.Contains("localized") &&
-                    choice.GetVisualDescendants().OfType<TextBlock>().Any(label => label.Text == "线性")));
+                window.GetVisualDescendants().OfType<InspectorView>().Single().FindControl<TextBlock>("NoteTitle")!.Text == "单点");
             window.FindControl<ComboBox>("LanguageChoice")!.SelectedIndex = 0;
             Dispatcher.UIThread.RunJobs();
             Check("English restores live controls", window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "FILE"));
@@ -558,21 +560,29 @@ internal static class Verification
             Check("Delete difficulty keeps the package valid", window.CurrentDocument.Charts.Count == 2);
             window.ShortcutForVerification(Key.Z, KeyModifiers.Control);
 
+            var replacementCover = CoverStudioVerification.CreateSource(Path.Combine(root, "settings-cover"));
+            var replacementRecording = Path.Combine(root, "settings-recording.wav");
+            WriteWave(replacementRecording);
             var settings = new EditorPackageSettingsRequest("renamed-pack", "Renamed Package", "New Artist",
                 "renamed", "charts/renamed.json", V2Difficulty.Giga, null, 15, false, ["Community", "Reviewer"], .25,
-                new V2Preview(1, 8), new V2Preview(2, 4), null, null, null, false, false);
+                new V2Preview(1, 8), new V2Preview(2, 4), null, replacementCover, replacementRecording, false, false);
             window.ApplyPackageSettingsForVerification(settings);
             Check("Package settings apply metadata, identity, timing and previews", window.CurrentDocument.PackId == "renamed-pack" &&
                 window.CurrentDocument.SelectedChartId == "renamed" && window.CurrentDocument.SelectedChart.Level == 15 &&
                 window.CurrentDocument.SelectedChart.AudioOffsetSec == .25 && window.CurrentDocument.Preview == new V2Preview(1, 8) &&
                 window.CurrentDocument.SelectedChart.Preview == new V2Preview(2, 4));
             window.ShortcutForVerification(Key.Z, KeyModifiers.Control);
-            Check("One undo restores the complete settings batch", window.CurrentDocument.PackId == "new-pack" &&
+            Check("Ctrl+Z restores metadata and timing, but not the recording or cover", window.CurrentDocument.PackId == "new-pack" &&
                 window.CurrentDocument.SelectedChartId == "main-copy" && window.CurrentDocument.SelectedChart.AudioOffsetSec == 0 &&
-                window.CurrentDocument.Preview is null && window.CurrentDocument.SelectedChart.Preview is null);
+                window.CurrentDocument.Preview is null && window.CurrentDocument.SelectedChart.Preview is null &&
+                window.CurrentDocument.PendingResourceReplacements.Any(map => map.PackageRelativePath == window.CurrentDocument.Cover &&
+                    map.ExternalSourcePath == replacementCover) &&
+                window.CurrentDocument.PendingResourceReplacements.Any(map => map.PackageRelativePath == window.CurrentDocument.SelectedChart.Audio &&
+                    map.ExternalSourcePath == replacementRecording));
             window.ShortcutForVerification(Key.Y, KeyModifiers.Control);
-            Check("Redo restores the complete settings batch", window.CurrentDocument.SelectedChartId == "renamed" &&
-                window.CurrentDocument.SelectedChart.Difficulty == V2Difficulty.Giga);
+            Check("Ctrl+Y restores editable settings without touching media changes", window.CurrentDocument.SelectedChartId == "renamed" &&
+                window.CurrentDocument.SelectedChart.Difficulty == V2Difficulty.Giga &&
+                window.CurrentDocument.PendingResourceReplacements.Any(map => map.ExternalSourcePath == replacementRecording));
             var settingsDialog = new PackageSettingsDialog(window.CurrentDocument);
             settingsDialog.Show();
             Dispatcher.UIThread.RunJobs();

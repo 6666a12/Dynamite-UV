@@ -10,25 +10,34 @@ public sealed class AddChartCommand(EditableChart chart, int? index = null) : IE
     private string? _previousSelectedChartId;
     private int _index;
     private bool _executed;
+    private V2ExternalResourceMapping? _detachedAudio;
+
+    internal AddChartCommand(EditableChart chart, V2ExternalResourceMapping audio) : this(chart) => _detachedAudio = audio;
 
     public void Execute(EditorDocument document)
     {
         _previousSelectedChartId ??= document.SelectedChartId;
         _index = _executed ? _index : _requestedIndex ?? document.Charts.Count;
         document.InsertChart(_index, _chart);
-        try { EditorChartCommandRules.Validate(document, _chart.Id); }
+        try
+        {
+            EditorChartCommandRules.Validate(document, _chart.Id);
+            if (_detachedAudio is { } audio) EditorMediaSlots.StageChartImport(document, audio);
+        }
         catch
         {
             document.Charts.RemoveAt(_index);
             throw;
         }
         document.SelectChart(_chart.Id);
+        _detachedAudio = null;
         _executed = true;
     }
 
     public void Undo(EditorDocument document)
     {
-        document.RemoveChart(_chart.Id);
+        _chart.Audio = document.RemoveChart(_chart.Id).Chart.Audio;
+        _detachedAudio = EditorMediaSlots.DetachUnusedPendingAudio(document, _chart.Audio);
         document.SelectChart(_previousSelectedChartId ?? throw new InvalidOperationException("Add chart command has not executed."));
     }
 }
@@ -41,6 +50,7 @@ public sealed class CopyChartCommand(string sourceChartId, string chartId, strin
     private EditableChart? _copy;
     private string? _previousSelectedChartId;
     private int _index;
+    private V2ExternalResourceMapping? _detachedAudio;
 
     public void Execute(EditorDocument document)
     {
@@ -60,19 +70,25 @@ public sealed class CopyChartCommand(string sourceChartId, string chartId, strin
         _index = _index == 0 && _requestedIndex is null ? document.Charts.Count : _index;
         if (_requestedIndex is not null) _index = _requestedIndex.Value;
         document.InsertChart(_index, _copy);
-        try { EditorChartCommandRules.Validate(document, _copy.Id); }
+        try
+        {
+            EditorChartCommandRules.Validate(document, _copy.Id);
+            if (_detachedAudio is { } audio) EditorMediaSlots.StageChartImport(document, audio);
+        }
         catch
         {
             document.Charts.RemoveAt(_index);
             throw;
         }
         document.SelectChart(_copy.Id);
+        _detachedAudio = null;
     }
 
     public void Undo(EditorDocument document)
     {
         if (_copy is null) throw new InvalidOperationException("Copy chart command has not executed.");
-        document.RemoveChart(_copy.Id);
+        _copy.Audio = document.RemoveChart(_copy.Id).Chart.Audio;
+        _detachedAudio = EditorMediaSlots.DetachUnusedPendingAudio(document, _copy.Audio);
         document.SelectChart(_previousSelectedChartId ?? throw new InvalidOperationException("Copy chart command has not executed."));
     }
 }

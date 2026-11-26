@@ -164,17 +164,17 @@ public sealed class ClearChartOverridesCommand(string chartId, bool clearAudio, 
         Apply(document, chart, _oldAudio, _oldPreview);
     }
 
-    private static void Apply(EditorDocument document, EditableChart chart, string? audio, V2Preview? preview)
+    private void Apply(EditorDocument document, EditableChart chart, string? audio, V2Preview? preview)
     {
         var oldAudio = chart.Audio;
         var oldPreview = chart.Preview;
-        chart.Audio = audio;
-        chart.Preview = preview;
+        if (clearAudio) chart.Audio = audio;
+        if (clearPreview) chart.Preview = preview;
         try { EditorChartCommandRules.Validate(document, chart.Id); }
         catch
         {
-            chart.Audio = oldAudio;
-            chart.Preview = oldPreview;
+            if (clearAudio) chart.Audio = oldAudio;
+            if (clearPreview) chart.Preview = oldPreview;
             throw;
         }
     }

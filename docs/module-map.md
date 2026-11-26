@@ -110,7 +110,7 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 
 ## 文件职责导航
 
-当前文件与整个分部类的规模以 `python -B tools/architecture/check.py --report` 输出为准，预算以 `tools/architecture/policy.json` 为准；不在导航页复制易过期的“当前行数”表。行数包含空行、注释与内部类，只用于限制重新增长，不是模块化评分。历史拆分规模与行为证据见前述归档报告。
+需要定位大型文件时，可用 `python -B tools/architecture/check.py --report` 查看文件及选定类族的行数。统计包含空行、注释与内部类，仅供导航，不设上限，也不是模块化评分。历史拆分规模与行为证据见前述归档报告。
 
 对既往进程与剩余大文件的分析见 [2026-10-26 模块化复审](<archive/reports/2026-10-26-modularity-review.md>)。其中旧 Editor 页面和画布建议仅是历史记录，不再作为当前对象边界。
 
@@ -137,7 +137,7 @@ Godot 场景绑定继续使用原入口文件及类名。以下分部文件用�
 | `WorkbenchTimeline` / `TimelineRhythmData` / `TimelineTrackLayout` / `TimelineView` | 当前差分录音时长与小节换算；按轨投影真实起音、长条及判定刻痕；布局索引、可见区几何；Avalonia 绘制及冻结拖动。控件只请求导航，预览时钟仍由 Godot 持有。 |
 | `StageFrameDispatch` / `WorkbenchPreviewClock` | 有序投递原生输入与播放边界，同一段待显示帧只保留最后一帧；显示舞台确认的秒数/小节，并区分暂停和主动向后跳转。两者都不启动计时器或控制音频资源。 |
 | `EditorBarGuideGrid` / `EditorBarGuides` | 在已有 BPM/Scroll 映射上采样固定分度，再在编辑态按轨裁剪、分层绘制和标注。各轨显示档位由 Shell 会话保存，既不生成 Note，也不改变吸附 |
-| `tools/chart-editor-core/Documents/` | 文档、会话、创建/打开/保存、Digest 与校验；`EditorGameplayDigest.cs` 为纯核心服务，`EditorPackageSettings.cs` 把包/差分设置与资源替换组成一次可撤销事务 |
+| `tools/chart-editor-core/Documents/` | 文档、会话、创建/打开/保存、Digest 与校验；`EditorGameplayDigest.cs` 为纯核心服务，`EditorPackageSettings.cs` 原子应用包/差分设置，只有非媒体改动进入谱面历史；会话继续负责显式保存 |
 | `tools/chart-editor-core/Canvas/` | 现行舞台使用的坐标和时间换算、放置草稿、路径投影与文档命令适配。手势接线以 `editor/scripts/stage/EditorStageAuthoring.cs` 与 Shell 命令入口为准 |
 | `EditorCommands.cs` | `IEditorCommand` 与组合事务；具体命令位于 `Commands/`，命名空间/API 保持 |
 
@@ -163,9 +163,9 @@ Godot 场景绑定继续使用原入口文件及类名。以下分部文件用�
 
 | 对象 | 当前边界与验证（非排期） |
 | --- | --- |
-| 制谱器工作台 | Shell/Core 已接文件、差分和编辑命令，舞台保留放置、SELECT、PATH、PAN 与播放预览。同差分 `update` 仍传完整 Chart 快照，不是逐 Note 差量协议。偏好与 Dock 布局已持久化，合并 Windows 包已有固定测试基线；真实波形不是当前目标。长谱性能未验收，跨保存撤销的历史媒体恢复仍有缺口。见[制谱器说明](dyna-maker-uv.md) |
+| 制谱器工作台 | Shell/Core 已接文件、差分和编辑命令，舞台保留放置、SELECT、PATH、PAN 与播放预览。同差分 `update` 仍传完整 Chart 快照，不是逐 Note 差量协议。偏好与 Dock 布局已持久化，合并 Windows 包已有固定测试基线。长谱性能未验收。[内置音频分析台和 Agent](<editor-roadmap.md>)不在当前开发范围。现有能力见[制谱器说明](<dyna-maker-uv.md>) |
 | SongSelect | 视口、滚动、卡片动画/展示、详情代际、浏览和试听已独立；列表触摸已改按可见控件的实际矩形命中，涵盖展开卡占位、过滤和滚动；真实设备手势仍需专项验收 |
-| GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定（分部类预算余量以结构报告为准，新阶段应继续落在 `ui/results/` 或纯对象） |
+| GameplayMain | 暂停、结束双锁存、结果前奏与结算页已独立，成绩快照/保存仍由场景按既有顺序拥有；不为缩短行数引入保存接口或重排音频、输入和判定；结算新增阶段应继续落在 `ui/results/` 或纯对象 |
 
 上述拆分不授权顺带更改 JudgeEngine、v2 读写、判定窗口、时钟公式、成绩身份或客户端布局数值。
 继续拆分以状态拥有者、输入输出、生命周期和回归证据为完成标准，不以一个文件缩短或新增 partial 为完成标准。
@@ -179,8 +179,7 @@ python -B tools/verify.py --no-restore
 python -B tools/architecture/check.py --report
 ```
 
-结构门禁同时限制项目引用、源码链接、单文件与整个分部类总量；策略详见
-`tools/architecture/README.md`。总行数含空行、注释与内部类，属于粗粒度工程预算，不能代替职责评审。
+结构门禁检查项目引用、源码链接、包依赖和显式源码边界，见[结构检查说明](<../tools/architecture/README.md>)。行数只在 `--report` 中展示，不阻塞验证。
 
 最近执行、历史构建与设备边界统一见 [验证状态](<verification.md>)；不在本页重复累加结果。
 输入缓冲回归覆盖同帧短 Hold、多指、跨轨、未知 Move 与清理；loader 回归覆盖迟到结果、单并发、失败、取消与 Dispose。

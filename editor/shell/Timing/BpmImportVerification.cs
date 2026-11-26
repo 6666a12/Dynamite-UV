@@ -1,4 +1,5 @@
 using System.Text;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -60,10 +61,25 @@ internal static class BpmImportVerification
             var form = Open();
             check("Plugins → Import BPM opens the localized workbench sheet", layer.IsVisible &&
                 Equals(item.Header, WorkbenchLocalizer.Shared["BpmImport.Title"]) && !Apply(form).IsEnabled);
+            var apply = Apply(form);
+            var cancel = form.FindControl<Button>("CancelButton")!;
+            var feedbackViewport = form.FindControl<ScrollViewer>("FeedbackViewport")!;
+            window.UpdateLayout();
+            var applyPosition = apply.TranslatePoint(default, window);
+            var cancelPosition = cancel.TranslatePoint(default, window);
+            check("BPM import uses the shared card and a right-aligned 36 DIP action row", layer.Child is Border { Child: ContentControl cardSlot } &&
+                ReferenceEquals(cardSlot, slot) && form.Content is Grid && apply.TranslatePoint(default, form) is { } p &&
+                Math.Abs(p.X + apply.Bounds.Width - form.Bounds.Width) < 1 && applyPosition is { } a && cancelPosition is { } c &&
+                Math.Abs(a.Y - c.Y) < 1 && Math.Abs(a.X - c.X - cancel.Bounds.Width - 8) < 1 &&
+                apply.Bounds.Height == 36 && cancel.Bounds.Height == 36 && apply.Classes.Contains("accent") && !cancel.Classes.Contains("accent") &&
+                form.FindControl<Button>("BrowseButton")!.Bounds.Height == 32);
             await Load(form, "bad.osu", "not timing data");
+            window.UpdateLayout();
             check("Invalid timing leaves the sheet open and the document untouched", layer.IsVisible &&
                 !Apply(form).IsEnabled && !string.IsNullOrEmpty(form.FindControl<TextBlock>("Feedback")!.Text) &&
                 document.ChangeVersion == initialVersion);
+            check("The BPM import error appears in the fixed feedback slot without moving either action", feedbackViewport.Bounds.Height == 32 &&
+                applyPosition is not null && applyPosition == apply.TranslatePoint(default, window) && cancelPosition == cancel.TranslatePoint(default, window));
             await Load(form, "timing.osu", Osu);
             var snap = form.FindControl<CheckBox>("Snap")!;
             var displayed = form.FindControl<ListBox>("Points")!;
@@ -101,6 +117,10 @@ internal static class BpmImportVerification
             check("Malody without BGM cannot apply until an audio offset is explicitly chosen", !Apply(form).IsEnabled &&
                 !form.FindControl<CheckBox>("Snap")!.IsVisible);
             var entry = form.FindControl<TextBox>("ManualOffset")!;
+            var keep = form.FindControl<Grid>("ManualOffsetPanel")!.Children.OfType<Button>().Single();
+            window.UpdateLayout();
+            check("Manual offset and its inline button use the same 32 DIP height", entry.Bounds.Height == 32 &&
+                keep.Bounds.Height == 32 && Math.Abs(entry.Bounds.Y - keep.Bounds.Y) < 1);
             entry.Text = "invalid";
             check("An invalid manual offset cannot apply", !Apply(form).IsEnabled);
             entry.Text = "1e300";
@@ -117,6 +137,19 @@ internal static class BpmImportVerification
             var expected = V2JsonEncoder.EncodeChart(document.BuildChartSnapshot(chart.Id));
             await window.SavePackageForVerification();
             var reopened = await new EditorDocumentSession().OpenAsync(pack);
+            if (WorkbenchLayoutVerification.PreviewRequested)
+            {
+                var text = WorkbenchLocalizer.Shared;
+                var language = text.CurrentLanguage;
+                try
+                {
+                    text.SetLanguage("zh-CN");
+                    await Load(Open(), "timing.osu", Osu.Replace("333.3333333333333", "400", StringComparison.Ordinal));
+                    WorkbenchLayoutVerification.Capture(window, (Border)layer.Child!, "bpm-import-layout.png");
+                    window.ShortcutForVerification(Key.Escape);
+                }
+                finally { text.SetLanguage(language); }
+            }
             check("Imported timing round-trips through a strict package without affecting other charts", !document.HasUnsavedChanges &&
                 expected.SequenceEqual(V2JsonEncoder.EncodeChart(reopened.BuildChartSnapshot(chart.Id))) &&
                 other.SequenceEqual(V2JsonEncoder.EncodeChart(reopened.BuildChartSnapshot("other"))));

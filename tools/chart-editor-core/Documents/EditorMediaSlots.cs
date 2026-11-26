@@ -54,6 +54,26 @@ internal static class EditorMediaSlots
         return document.PackageDirectory is not { } root || !Path.Exists(Path.Combine(root, slot));
     }
 
+    // Structural undo can remove a chart, not revert its recording. Set aside only its
+    // current pending import (a reference, not old media bytes), and never detach a shared slot.
+    internal static V2ExternalResourceMapping? DetachUnusedPendingAudio(EditorDocument document, string? slot)
+    {
+        if (slot is null || document.GetPendingResource(slot) is not { } source ||
+            Paths.Equals(slot, document.Audio) || Paths.Equals(slot, document.Cover) ||
+            document.Charts.Any(chart => Paths.Equals(slot, chart.Audio))) return null;
+        document.RemovePendingResource(slot);
+        return new(source, slot);
+    }
+
+    internal static void StageChartImport(EditorDocument document, V2ExternalResourceMapping import)
+    {
+        if (!File.Exists(import.ExternalSourcePath))
+            throw new FileNotFoundException("External resource does not exist.", import.ExternalSourcePath);
+        if (document.GetPendingResource(import.PackageRelativePath) is { } existing && !Paths.Equals(existing, import.ExternalSourcePath))
+            throw new IOException($"The recording slot is already in use: {import.PackageRelativePath}");
+        document.SetPendingResource(import.PackageRelativePath, import.ExternalSourcePath);
+    }
+
     internal static V2ExternalResourceMapping[] ReferencedMappings(V2Pack pack,
         IEnumerable<V2ExternalResourceMapping> mappings)
     {

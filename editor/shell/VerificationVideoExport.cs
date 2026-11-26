@@ -72,7 +72,8 @@ internal static class VerificationVideoExport
         var preview = Find<NumericUpDown>(dialog, "PreviewValue");
         var hold = Find<NumericUpDown>(dialog, "ResultHoldValue");
         check("Video timings default to two seconds and bound the preview to the effective source",
-            preview.Value == 2m && preview.Minimum == 0m && preview.Maximum == 5m && hold.Value == 2m && hold.Minimum == 0m);
+            preview.Value == 2m && preview.Minimum == 0m && preview.Maximum == 5m && hold.Value == 2m && hold.Minimum == 0m &&
+            Find<TextBlock>(dialog, "PreviewHint").Text == text.Format("VideoExport.PreviewHint", 5m));
         var fallSpeed = Find<ComboBox>(dialog, "FallSpeedValue");
         check("Video note speed offers 0.1x through 2.0x and defaults to 1.0x",
             fallSpeed.Items.Count == 20 && fallSpeed.Items[0] is "0.1×" && fallSpeed.Items[19] is "2.0×" &&
@@ -126,6 +127,10 @@ internal static class VerificationVideoExport
             }, (_, _) => throw new InvalidOperationException("Startup must use automatic detection."));
         var closed = dialog.ShowDialog<VideoExportOptions?>(owner);
         Dispatcher.UIThread.RunJobs();
+        var previewHint = Find<TextBlock>(dialog, "PreviewHint");
+        check("Unavailable preview stays disabled at zero with a visible explanation",
+            Find<NumericUpDown>(dialog, "PreviewValue") is { IsEnabled: false, Value: 0m } &&
+            previewHint.IsVisible && previewHint.Text == text["VideoExport.PreviewUnavailable"]);
         dialog.Close();
         try
         {

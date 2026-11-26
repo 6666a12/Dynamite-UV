@@ -77,6 +77,21 @@ internal static class WorkbenchModalVerification
             Press(Key.Z, RawInputModifiers.Control, PhysicalKey.Z);
             check("One workbench undo removes the new difficulty and restores its reference", doc.Charts.Count == count && doc.SelectedChartId == original);
             window.LayoutFactory.DockStage();
+            if (WorkbenchLayoutVerification.PreviewRequested)
+            {
+                var text = WorkbenchLocalizer.Shared;
+                var language = text.CurrentLanguage;
+                try
+                {
+                    text.SetLanguage("zh-CN");
+                    add.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                    if (slot.Content is not AddDifficultyForm)
+                        throw new InvalidOperationException("The difficulty preview did not open its sheet");
+                    WorkbenchLayoutVerification.Capture(window, (Border)layer.Child!, "add-difficulty-layout.png");
+                    Press(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape);
+                }
+                finally { text.SetLanguage(language); }
+            }
         }
         finally
         {

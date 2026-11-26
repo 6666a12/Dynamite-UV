@@ -12,6 +12,15 @@ function Assert-RegularPath([string]$path) {
         $item = if ($item -is [IO.DirectoryInfo]) { $item.Parent } else { $item.Directory }
     }
 }
+function Get-Sha256Hex([string]$path) {
+    # Use the .NET Framework implementation directly; Get-FileHash may not be available.
+    $stream = [IO.File]::OpenRead($path)
+    try {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try { return [BitConverter]::ToString($sha256.ComputeHash($stream)).Replace('-', '') }
+        finally { $sha256.Dispose() }
+    } finally { $stream.Dispose() }
+}
 try {
     Assert-RegularPath $root
     Assert-RegularPath $manifestPath
@@ -42,7 +51,7 @@ try {
         if (-not (Test-Path -LiteralPath $path)) { continue }
         Assert-RegularPath $path
         if (-not [IO.File]::Exists($path)) { throw "Expected a file: $relative" }
-        $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+        $hash = (Get-Sha256Hex $path)
         if ($hash -ine $entry.Value) { Write-Output "PRESERVED modified file: $relative"; $preserved++; continue }
         $files.Add($path)
     }
@@ -67,7 +76,7 @@ try {
         if (-not [IO.File]::Exists($path)) { continue }
         Assert-RegularPath $path
         $relative = $path.Substring($root.Length + 1).Replace('\', '/')
-        if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $manifest.$relative) {
+        if ((Get-Sha256Hex $path) -ine $manifest.$relative) {
             Write-Output "PRESERVED changed file: $relative"; $preserved++; continue
         }
         Remove-Item -LiteralPath $path -Force

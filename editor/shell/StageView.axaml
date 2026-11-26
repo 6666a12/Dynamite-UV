@@ -8,7 +8,6 @@
     <Border Grid.Row="0" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="12,5">
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
         <TextBlock Classes="cyan" Text="{local:Tr Stage.Live}" VerticalAlignment="Center" FontSize="11" />
-        <TextBlock Grid.Column="1" Classes="caption" Text="{local:Tr Stage.Geometry}" VerticalAlignment="Center" Margin="16,0,0,0" />
         <u:IconButton x:Name="PlayButton" Grid.Column="2" Content="{local:Tr Transport.Play}" Classes="ghost" MinWidth="80"
                       animations:SukiPressMotion.Enable="True" Click="PlayClicked" ToolTip.Tip="SPACE" />
         <Button x:Name="FloatButton" Grid.Column="3" Content="{local:Tr Stage.Float}" Classes="ghost" Click="FloatClicked" ToolTip.Tip="CTRL + SHIFT + F" />
@@ -19,7 +18,6 @@
       <Panel>
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
           <TextBlock x:Name="StageStatusText" Text="{local:Tr Stage.Starting}" Classes="cyan" FontSize="15" HorizontalAlignment="Center" />
-          <TextBlock x:Name="LoadingText" Text="{local:Tr Stage.NativeHost}" Classes="caption" HorizontalAlignment="Center" />
         </StackPanel>
         <local:NativeStageHost x:Name="StageHost" />
       </Panel>

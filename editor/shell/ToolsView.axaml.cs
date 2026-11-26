@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.LogicalTree;
+using Avalonia.Controls.Primitives;
 using Avalonia.Markup.Xaml;
 using DynamiteUniverse.ChartEditor.Core;
 using DynamiteUniverse.Shared.Chart.V2;
@@ -62,14 +62,20 @@ public sealed partial class ToolsView : UserControl
 
     public void SelectTool(string tool)
     {
-        foreach (var item in this.GetLogicalDescendants().OfType<Ursa.Controls.IconButton>())
-            if (item.Tag is string tag) item.Classes.Set("active", tag == tool);
+        foreach (var item in this.FindControl<UniformGrid>("ToolModes")!.Children.OfType<Button>())
+            item.Classes.Set("current-mode", item.Tag as string == tool);
         ToolSelected?.Invoke(tool);
+    }
+
+    private void ToolModesSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        // Two 82-DIP cells plus the gap; measure inside the scroll viewer's available width.
+        if (sender is UniformGrid modes) modes.Columns = e.NewSize.Width >= 170 ? 2 : 1;
     }
 
     private void ToolClicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is Ursa.Controls.IconButton button) SelectTool(button.Tag?.ToString() ?? "SELECT");
+        if (sender is Button { Tag: string tool }) SelectTool(tool);
     }
 
     private void OnAuthoringChanged(object? sender, RoutedEventArgs e) => AuthoringChanged?.Invoke();

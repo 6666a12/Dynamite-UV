@@ -30,7 +30,6 @@
   <Grid RowDefinitions="Auto,*,Auto" Margin="14" RowSpacing="10">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
       <StackPanel Spacing="3">
-        <TextBlock Classes="cover-heading" Text="DYNAMAKER UV / COVER STUDIO" />
         <TextBlock x:Name="ProjectTitle" FontSize="22" TextTrimming="CharacterEllipsis" />
         <TextBlock Classes="caption" Text="{local:Tr Cover.NoWrite}" />
       </StackPanel>
@@ -42,10 +41,12 @@
     <TabControl x:Name="Modes" Grid.Row="1" SelectionChanged="ModeChanged">
       <TabItem Header="{local:Tr Cover.Square}">
         <Grid ColumnDefinitions="*,252" ColumnSpacing="14" Margin="0,8,0,0">
-          <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
-            <TextBlock Classes="cover-heading" Text="{local:Tr Cover.CropCanvas}" />
+          <Grid RowDefinitions="Auto,*" RowSpacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Classes="cover-heading" Text="{local:Tr Cover.CropCanvas}" VerticalAlignment="Center" />
+              <local:ContextHelpButton Text="{local:Tr Cover.CropHelp}" />
+            </StackPanel>
             <Border Grid.Row="1" x:Name="CropHost" />
-            <TextBlock Grid.Row="2" Classes="caption" Text="{local:Tr Cover.CropHelp}" TextWrapping="Wrap" />
           </Grid>
           <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Classes="cover-fields" Spacing="5" Margin="0,0,6,0">
@@ -69,15 +70,18 @@
       </TabItem>
       <TabItem Header="{local:Tr Cover.Wide}">
         <Grid ColumnDefinitions="*,252" ColumnSpacing="14" Margin="0,8,0,0">
-          <Grid RowDefinitions="Auto,*,Auto" RowSpacing="4">
+          <Grid RowDefinitions="Auto,*" RowSpacing="4">
             <WrapPanel Classes="cover-toolbar">
-              <ToggleButton x:Name="FramingToggle" Content="{local:Tr Cover.Frame}" IsCheckedChanged="PreviewSettingsChanged" />
+              <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,9,4" VerticalAlignment="Center">
+                <ToggleButton x:Name="FramingToggle" Content="{local:Tr Cover.Frame}" IsCheckedChanged="PreviewSettingsChanged"
+                              Height="32" VerticalAlignment="Center" VerticalContentAlignment="Center" />
+                <local:ContextHelpButton x:Name="WideHelp" />
+              </StackPanel>
               <CheckBox x:Name="SnapToggle" IsChecked="True" Content="{local:Tr Cover.Snap}" />
               <CheckBox x:Name="TopToggle" IsChecked="True" Content="{local:Tr Cover.TopBar}" IsCheckedChanged="TopChanged" />
               <Button x:Name="Recenter" Content="{local:Tr Cover.Recenter}" Click="RecenterClicked" />
             </WrapPanel>
             <Border Grid.Row="1" x:Name="WideHost" />
-            <TextBlock Grid.Row="2" x:Name="WideHint" Classes="caption" TextWrapping="Wrap" />
           </Grid>
           <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Classes="cover-fields" Spacing="5" Margin="0,0,6,0">

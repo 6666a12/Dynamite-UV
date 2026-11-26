@@ -425,8 +425,6 @@ public sealed partial class MainWindow : Window
                 SendPreviewPreferences();
                 SendAuthoring();
                 _service.Send(new { command = "wheelDirection", reversed = WheelReversed });
-                Report(_text["Message.GodotReady"]);
-                UpdateNativeStatus();
                 break;
             case "contextAction":
                 var kind = data.GetProperty("kind").GetString();
@@ -470,11 +468,11 @@ public sealed partial class MainWindow : Window
                 { _playerSpeed = speed; _playbackRate = rate; UpdatePlaybackParameters(); }
                 break;
             case "input":
+                // Keep the detailed stage trace for desktop verification only.
                 LastStageInput = data.GetProperty("detail").GetString() ?? "";
-                Report("Godot · " + LastStageInput);
                 break;
             case "key": HandleStageKey(data); break;
-            case "size": _stageView.Host.QueueSync(); UpdateNativeStatus(); break;
+            case "size": _stageView.Host.QueueSync(); break;
             case "error":
                 _loadedDocument = null;
                 Report("Stage error · " + data.GetProperty("message").GetString());
@@ -484,7 +482,6 @@ public sealed partial class MainWindow : Window
                 _stageView.Host.SetGodotHandle(0);
                 _clock.ResetSession();
                 UpdatePlaybackText();
-                UpdateNativeStatus();
                 _timingKeys.ResetHeld();
                 _workspace.Stopped();
                 Report(_text["Status.GodotStopped"]);
@@ -762,7 +759,6 @@ public sealed partial class MainWindow : Window
         if (_stageView.Host.Diagnostics().WindowTitle != Title) { Report(_text["Message.AlreadyFloating"]); return; }
         _factory.FloatStage();
         Report(_text["Message.Floated"]);
-        Dispatcher.UIThread.Post(UpdateNativeStatus, DispatcherPriority.Render);
     }
 
     private void DockStage()
@@ -771,7 +767,6 @@ public sealed partial class MainWindow : Window
         // the whole workspace, even when the stage is already docked.
         _factory.DockStage();
         Report(_text["Message.Restored"]);
-        Dispatcher.UIThread.Post(UpdateNativeStatus, DispatcherPriority.Render);
     }
 
     private void AddPanel()
@@ -816,7 +811,6 @@ public sealed partial class MainWindow : Window
         UpdateSnapText();
         UpdatePlaybackText();
         UpdatePlaybackParameters();
-        UpdateNativeStatus();
     }
 
     private void UpdateSnapText() => this.FindControl<TextBlock>("SnapText")!.Text = _text.Format("Transport.Snap", _snapDenominator);
@@ -830,13 +824,6 @@ public sealed partial class MainWindow : Window
     {
         _stageView.SetPlaying(_clock.Playing);
         this.FindControl<IconButton>("TransportButton")!.Content = _text[_clock.Playing ? "Transport.Pause" : "Transport.Play"];
-    }
-
-    private void UpdateNativeStatus()
-    {
-        var d = _stageView.Host.Diagnostics();
-        this.FindControl<TextBlock>("NativeText")!.Text = d.Child == 0 ? _text["Status.NativeWaiting"] :
-            $"PID {_service.ProcessId} · {_text[d.Embedded ? "Status.Embedded" : "Status.Reparenting"]} · {d.Bounds} · {d.Scale:0.##}×";
     }
 
     private void ToggleShortcuts()
@@ -853,7 +840,6 @@ public sealed partial class MainWindow : Window
     {
         _factory.RestoreWorkspace();
         Report(_text["Message.Restored"]);
-        Dispatcher.UIThread.Post(UpdateNativeStatus, DispatcherPriority.Render);
     }
     private void AddPanelClicked(object? sender, RoutedEventArgs e) => AddPanel();
     private void ShortcutsClicked(object? sender, RoutedEventArgs e) => ToggleShortcuts();
