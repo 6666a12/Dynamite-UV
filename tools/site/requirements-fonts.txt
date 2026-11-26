@@ -1,0 +1,3 @@
+# Only for regenerating/verifying the checked-in Chinese website subset.
+fonttools==4.69.1
+Brotli==1.2.1

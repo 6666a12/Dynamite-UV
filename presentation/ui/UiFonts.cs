@@ -5,16 +5,21 @@ namespace DynamiteUniverse.Ui;
 /// <summary>样式稿（docs/ui-mock）定稿的字体与配色，全客户端统一从这里取。</summary>
 public static class UiFonts
 {
-    /// <summary>Primary Latin and numeric interface font (OFL).</summary>
-    public static readonly Font Tech = GD.Load<Font>("res://assets/fonts/SpaceGrotesk-Regular.woff2");
+    // Keep the Latin and numeric face first even when a label mixes Chinese and English.
+    private const int WeightAxisTag = 0x77676874; // OpenType wght (match UiRegular.tres).
+    private static readonly Font Han = GD.Load<Font>("res://assets/fonts/SourceHanSansCN-VF.woff2");
+    public static readonly Font Tech = GD.Load<Font>("res://assets/fonts/UiRegular.tres");
+    public static readonly Font TechBold = WithCjk(GD.Load<Font>("res://assets/fonts/SpaceGrotesk-Bold.woff2"), 700);
+    public static Font Cjk => Tech;
 
-    /// <summary>Bold display and numeric interface font (OFL).</summary>
-    public static readonly Font TechBold = GD.Load<Font>("res://assets/fonts/SpaceGrotesk-Bold.woff2");
-
-    /// <summary>中文回退：系统黑体（正式发布前应打包 Noto Sans SC 等开源字体）。</summary>
-    public static readonly Font Cjk = new SystemFont
+    public static Font WithCjk(Font latin, int weight) => new FontVariation
     {
-        FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" },
+        BaseFont = latin,
+        Fallbacks = [new FontVariation
+        {
+            BaseFont = Han,
+            VariationOpentype = new Godot.Collections.Dictionary { [WeightAxisTag] = weight },
+        }],
     };
 
     public static readonly Color Bg = new("0a0e1a");

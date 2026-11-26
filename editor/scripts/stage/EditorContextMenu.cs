@@ -16,12 +16,7 @@ public partial class EditorContextMenu : Control
         Hover = new("28d9ff", .07f), Accent = new("28d9ff"), Ink = new("edf3fb"), Muted = new("a7b5c7");
     private IReadOnlyDictionary<string, string> _text = new Dictionary<string, string>();
     private string _tool = "SELECT", _type = "Tap", _track = "Center", _effects = "Full";
-    // Keep the packaged Latin face, but also request real semibold CJK glyphs for translated labels.
-    private readonly FontVariation _menuFont = new()
-    {
-        BaseFont = DynamiteUniverse.Ui.UiFonts.TechBold,
-        Fallbacks = [new SystemFont { FontNames = ["Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC"], FontWeight = 600 }],
-    };
+    private readonly Font _menuFont = DynamiteUniverse.Ui.UiFonts.TechBold;
     private string? _pendingTrack;
     private int _volume = 100, _hover = -1, _cursor = -1, _pressed = -1;
     private bool _moved, _keyboard;

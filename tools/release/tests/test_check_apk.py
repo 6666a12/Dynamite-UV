@@ -212,6 +212,8 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
             "assets/assets/fonts/Orbitron.woff2.import": b"[remap]\n",
             "assets/assets/fonts/SpaceGrotesk-Regular.woff2.import": b"[remap]\n",
             "assets/assets/fonts/SpaceGrotesk-Bold.woff2.import": b"[remap]\n",
+            "assets/assets/fonts/SourceHanSansCN-VF.woff2.import": b"[remap]\n",
+            "assets/.godot/imported/SourceHanSansCN-VF.woff2-45cd4a14534bce1267684007246c4143.fontdata": b"synthetic-source-han-sans-cn",
             "assets/.godot/imported/Orbitron.woff2-235b0a6662c224041d47d6f8fba9dfa1.fontdata": bytes.fromhex("4744464401000000030000000800000053796e7468657469634f72626974726f6e5061796c6f6164"),
             "assets/.godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata": b"synthetic-space-grotesk-regular",
             "assets/.godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata": b"synthetic-space-grotesk-bold",
@@ -228,6 +230,7 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
             for relative in (
                 "Orbitron-OFL-1.1.txt",
                 "SpaceGrotesk-OFL-1.1.txt",
+                "SourceHanSans-OFL-1.1.txt",
                 "Godot-LICENSE.txt",
                 "DotNet-LICENSE.txt",
                 "DotNet-THIRD-PARTY-NOTICES.txt",
@@ -264,6 +267,8 @@ print("V3.0 Signer: certificate SHA-256 digest: " + os.environ["DYNAMITE_UNIVERS
                 hashlib.sha256(b"synthetic-space-grotesk-regular").hexdigest(),
             "SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata":
                 hashlib.sha256(b"synthetic-space-grotesk-bold").hexdigest(),
+            "SourceHanSansCN-VF.woff2-45cd4a14534bce1267684007246c4143.fontdata":
+                hashlib.sha256(b"synthetic-source-han-sans-cn").hexdigest(),
         }
         policy_path = self.root / "policy.json"
         policy_path.write_text(json.dumps(policy), encoding="utf-8")

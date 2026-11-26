@@ -22,6 +22,8 @@
       "required_entry_suffixes": [
         "assets/fonts/SpaceGrotesk-Regular.woff2",
         "assets/fonts/SpaceGrotesk-Bold.woff2",
+        "assets/fonts/SourceHanSansCN-VF.woff2.import",
+        "assets/licenses/SourceHanSans-OFL-1.1.txt",
         "assets/models/detonation-orrery-mk6.glb",
         "assets/licenses/SpaceGrotesk-OFL-1.1.txt",
         "assets/licenses/Godot-LICENSE.txt",
@@ -30,13 +32,15 @@
       ],
       "required_entry_sha256": {
         "assets/licenses/SpaceGrotesk-OFL-1.1.txt": "564ce565c371c5e5bbf286006565a7c9aa55a9f56e7ca58d56e05d649dd61a72",
+        "assets/licenses/SourceHanSans-OFL-1.1.txt": "fcac737e761ec63dbfbdce11030a1780161920d80315edba9c8beff1c2bac5a2",
         "assets/licenses/Godot-LICENSE.txt": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80",
         "assets/licenses/DotNet-LICENSE.txt": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
         "assets/licenses/DotNet-THIRD-PARTY-NOTICES.txt": "fa3e9d0a2c52476f04fe798d7dc4f6e7edb7b68a3d2f4d5f59a39bce957eedc8"
       },
       "allowed_imported_payloads": {
         "SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata": "0ba8904f37dbe8a2a3599edab2beaf3d60989e572a9f1ea47bd2259193df8f47",
-        "SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata": "a8a810bd6648a07ada01e3805dd69daa3b84a01494049b090f06cdd4523d5192"
+        "SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata": "a8a810bd6648a07ada01e3805dd69daa3b84a01494049b090f06cdd4523d5192",
+        "SourceHanSansCN-VF.woff2-45cd4a14534bce1267684007246c4143.fontdata": "d116b8e331e31143f4d00e9d0a0efb7ce6f81cf1da62f1b15f81c847a9282a0a"
       },
       "required_nonempty_entry_suffixes": [
         "project.binary",
@@ -53,6 +57,7 @@
         "shaders/catalogue_drum.gdshader",
         ".godot/imported/SpaceGrotesk-Regular.woff2-97f1f237da861d64eaf2be167a326931.fontdata",
         ".godot/imported/SpaceGrotesk-Bold.woff2-a0bc21c3a3a4905d3dcd53302f96034a.fontdata",
+        ".godot/imported/SourceHanSansCN-VF.woff2-45cd4a14534bce1267684007246c4143.fontdata",
         ".godot/mono/publish/arm64/DynamiteUniverse.deps.json",
         ".godot/mono/publish/arm64/DynamiteUniverse.dll",
         ".godot/mono/publish/arm64/DynamiteUniverse.runtimeconfig.json",

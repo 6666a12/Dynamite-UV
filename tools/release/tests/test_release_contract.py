@@ -53,6 +53,9 @@ class ReleaseContractTests(unittest.TestCase):
             "res://shaders/catalogue_drum.gdshader",
             "res://assets/fonts/SpaceGrotesk-Regular.woff2",
             "res://assets/fonts/SpaceGrotesk-Bold.woff2",
+            "res://assets/fonts/UiRegular.tres",
+            "res://assets/fonts/SourceHanSansCN-VF.woff2",
+            "res://assets/licenses/SourceHanSans-OFL-1.1.txt",
             "res://assets/models/detonation-orrery-mk6.glb",
             "res://assets/licenses/SpaceGrotesk-OFL-1.1.txt",
             "res://assets/licenses/Godot-LICENSE.txt",
@@ -185,6 +188,8 @@ class ReleaseContractTests(unittest.TestCase):
             "res://shaders/note_surface.gdshader",
             "res://assets/fonts/SpaceGrotesk-Regular.woff2",
             "res://assets/fonts/SpaceGrotesk-Bold.woff2",
+            "res://assets/fonts/UiRegular.tres",
+            "res://assets/fonts/SourceHanSansCN-VF.woff2",
         ):
             self.assertIn(f'"{resource}"', editor_presets)
         self.assertIn("testdata/*", editor_presets)

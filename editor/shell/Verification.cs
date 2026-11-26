@@ -63,6 +63,8 @@ internal static class Verification
             PackageSettingsVerification.Run(Check);
             await ProjectStartVerification.Run(Path.Combine(root, "start-page"), source, Check);
             window.Show();
+            TypographyVerification.CheckTitle(window, "StatusText", "Main UI", Check);
+            TypographyVerification.CheckArtwork(Check);
             await window.OpenPackageForVerification(source);
             Dispatcher.UIThread.RunJobs();
             Check("Shell opens a strict v2 package", window.CurrentDocument?.Title == "Shell Fixture" &&

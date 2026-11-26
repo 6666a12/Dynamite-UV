@@ -12,6 +12,8 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets/**" />
     <AvaloniaResource Include="../assets/fonts/SpaceGrotesk-Medium.ttf" Link="Assets/SpaceGrotesk-Medium.ttf" />
+    <AvaloniaResource Include="../assets/fonts/SourceHanSansCN-Regular.otf" Link="Assets/Fonts/Chinese/SourceHanSansCN-Regular.otf" />
+    <AvaloniaResource Include="../assets/fonts/SourceHanSansCN-Bold.otf" Link="Assets/Fonts/Chinese/SourceHanSansCN-Bold.otf" />
     <EmbeddedResource Include="Localization/*.json" />
   </ItemGroup>
   <ItemGroup>

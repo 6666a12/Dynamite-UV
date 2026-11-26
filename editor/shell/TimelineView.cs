@@ -169,7 +169,7 @@ public sealed class TimelineView : Control
         var lastLabel = double.NegativeInfinity;
         var text = _text[Track switch { EditorTrack.Left => "Context.Left", EditorTrack.Right => "Context.Right", _ => "Context.Center" }];
         if (_trackCaption.Text != text)
-            _trackCaption = (text, new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Typeface.Default, 10, HeadInk));
+            _trackCaption = (text, new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, ShellTypography.OfficialTypeface, 10, HeadInk));
         var caption = _trackCaption.Label!;
         var showCaption = height >= 24 && WidthInside >= caption.Width + 70;
         var labelRight = Left + WidthInside - (showCaption ? caption.Width + 8 : 0);
@@ -185,7 +185,7 @@ public sealed class TimelineView : Control
             {
                 if (_labels.Count > 64) _labels.Clear();
                 _labels.Add(bar, label = new FormattedText(bar.ToString("0", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture,
-                    FlowDirection.LeftToRight, Typeface.Default, 10, Dim));
+                    FlowDirection.LeftToRight, ShellTypography.OfficialTypeface, 10, Dim));
             }
             if (x + 3 + label.Width > labelRight) continue;
             context.DrawText(label, new Point(x + 3, top)); lastLabel = x + 3 + label.Width;

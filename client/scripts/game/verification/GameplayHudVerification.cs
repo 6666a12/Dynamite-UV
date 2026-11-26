@@ -77,6 +77,23 @@ public partial class GameplayHudVerification : Node
             stage.BuildCommunityStageChrome(40, gameplayHud: true);
             var chrome = stage.GetNode<Node2D>("CommunityStageChrome");
             Require(chrome.GetChildCount() == 4, "game only backdrop + three lines, no old decoration");
+            var backdrop = chrome.GetChildren().OfType<GameplayBackdrop>().Single();
+            Require(backdrop.ZIndex == -2 && backdrop.TopPadding == 40 && !backdrop.IsProcessing(),
+                "static backdrop keeps the padded viewport and stays behind the stage lines");
+            var field = backdrop.GetChildren().OfType<ColorRect>().Single();
+            Require(backdrop.GetChildCount() == 1 && field.Position == new Vector2(0, -40)
+                && field.Size == new Vector2(1920, 1120) && field.MouseFilter == Control.MouseFilterEnum.Ignore,
+                "energy field is a single surface with the original bounds and no hit testing");
+            var energy = (ShaderMaterial)field.Material;
+            var uniforms = energy.Shader.GetShaderUniformList()
+                .Select(parameter => parameter.AsGodotDictionary()["name"].AsString()).ToArray();
+            Require(uniforms.Contains("ion_blue") && uniforms.Contains("lane_guides"),
+                "energy shader compiles its palette and guide uniform");
+            var guides = energy.GetShaderParameter("lane_guides").AsVector3();
+            Require(Mathf.IsEqualApprox(guides.X * field.Size.X, 184)
+                && Mathf.IsEqualApprox(guides.Y * field.Size.X, 1736)
+                && Mathf.IsEqualApprox(guides.Z * field.Size.Y + field.Position.Y, 861),
+                "energy tint follows all three judgment lines in backdrop space");
             Require(chrome.GetChildren().OfType<ColorRect>().Any(p => p.Position.X == 0 && p.Size.X == 1920), "bottom line reaches edges");
             stage.MirrorEnabled = true;
             stage.SetJudgmentLineBrightness(DynamiteUniverse.Shared.Chart.Track.Left, 1);

@@ -36,6 +36,16 @@ not licensed under the OFL.
 The Regular, SemiBold and Bold fonts are redistributed unmodified. The project's own
 code and assets are not licensed under the OFL.
 
+## Source Han Sans (思源黑体)
+
+- Copyright: Copyright 2014–2025 Adobe, with Reserved Font Name `Source`.
+- License: SIL Open Font License, Version 1.1; [license](<third_party/source-han-sans/OFL-1.1.txt>).
+- Source: [Adobe Source Han Sans 2.005R](https://github.com/adobe-fonts/source-han-sans/releases/tag/2.005R), China region.
+- The game and native editor stage use the unmodified region-specific variable WOFF2. The Avalonia shell uses the original regional static faces. The Public APK includes [the license](<client/assets/licenses/SourceHanSans-OFL-1.1.txt>); the combined desktop release includes it under `licenses/source-han-sans`.
+- Website: [Dyna UV CJK](<site/assets/fonts/DynaUVCJK.woff2>) is a renamed CJK-only subset of the same Adobe variable font; it is redistributed under the OFL with the [original license](<site/assets/licenses/SourceHanSans-OFL.txt>).
+
+The license applies to the font software, not the project's own code or assets.
+
 ## Godot Engine
 
 - Version used by this project: Godot Engine 4.7.1 .NET

@@ -5,10 +5,7 @@ namespace DynamiteUniverse.Ui;
 /// <summary>Online v2 visual primitives. Native controls retain keyboard and touch input.</summary>
 internal static class OnlineWidgets
 {
-    private static readonly Font Heading = new SystemFont
-    {
-        FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" }, FontWeight = 600,
-    };
+    private static Font Heading => MenuStyle.HeadingFont;
     public static Label Text(Node parent, string text, Rect2 rect, int size, Color color, bool tech = false)
     {
         var label = new Label { Text = text, Position = rect.Position, Size = rect.Size,

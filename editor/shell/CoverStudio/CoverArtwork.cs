@@ -19,9 +19,7 @@ internal static class CoverArtwork
     private static readonly Color Pink = Color.Parse("#FF4D8F");
     private static readonly Color Ink = Color.Parse("#0A0E1A");
     private static readonly Color RailBlue = Color.Parse("#8CC9E4");
-    private static readonly FontFamily CoverFont = new(
-        "avares://DynaMakerUv.Editor.Shell/Assets/SpaceGrotesk-Medium.ttf#Space Grotesk, Microsoft YaHei, Noto Sans CJK SC, PingFang SC");
-    private static readonly Typeface CoverBold = new(CoverFont, weight: FontWeight.Bold);
+    private static readonly Typeface CoverBold = new(ShellTypography.OfficialFont, weight: FontWeight.Bold);
 
     private static readonly IBrush Gloss = Gradient(Colors.White, .34, Colors.Black, .30,
         new GradientStop(Color.FromArgb(0, 255, 255, 255), .5));
@@ -120,14 +118,16 @@ internal static class CoverArtwork
         context.DrawLine(pen, new Point(.66 * inset, .34 * inset), new Point(.88 * inset, .12 * inset));
     }
 
+    // Preserve Avalonia's shaping and fallback for complete runs, including mixed Latin and CJK credits.
+    internal static TextLayout CreateTextLayout(string value, double size, IBrush brush, double maxWidth, double spacing = 0) =>
+        new(value, CoverBold, size, brush, maxWidth: maxWidth, maxLines: 1,
+            textTrimming: TextTrimming.CharacterEllipsis, letterSpacing: spacing);
+
     private static void DrawText(DrawingContext context, string value, double x, double baseline, double size,
         Color color, double maxWidth, double spacing = 0, TextAlignment anchor = TextAlignment.Left, double outline = 0)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
-        // Use Avalonia's shaping/fallback for complete runs, including mixed Latin and CJK credits.
-        TextLayout Layout(IBrush brush) => new(value, CoverBold, size, brush,
-            maxWidth: maxWidth, maxLines: 1, textTrimming: TextTrimming.CharacterEllipsis, letterSpacing: spacing);
-        using var text = Layout(Brush(color));
+        using var text = CreateTextLayout(value, size, Brush(color), maxWidth, spacing);
         var origin = new Point(x - (anchor switch
         {
             TextAlignment.Right => text.Width,
@@ -138,7 +138,7 @@ internal static class CoverArtwork
         if (outline > 0)
         {
             // A soft dark keyline keeps the numbers readable on lighter glass and artwork.
-            using var keyline = Layout(Brush(Ink));
+            using var keyline = CreateTextLayout(value, size, Brush(Ink), maxWidth, spacing);
             using var opacity = context.PushOpacity(.45);
             keyline.Draw(context, origin + new Vector(outline, 0));
             keyline.Draw(context, origin - new Vector(outline, 0));

@@ -7,7 +7,9 @@ dotnet build client/DynamiteUniverse.csproj --configuration Debug
 python -B tools/client-menu-qa/run.py --godot '<Godot Mono console 的绝对路径>' --suite all --record --fps 30 --timeout 150
 ```
 
-`--suite` 可选 `library`、`store`、`palette`、`calibration` 或 `all`。`--prepare-only` 只校验并准备隔离工程，不开窗口。不要同时启动多个录制套件争夺系统焦点。
+`--suite` 可选 `home`、`library`、`store`、`palette`、`calibration` 或 `all`。`--prepare-only` 只校验并准备隔离工程，不开窗口。不要同时启动多个录制套件争夺系统焦点。
+
+- `home` 默认无窗口运行，检查原滚动窗口、按钮尺寸与行距、往下滚动揭示两项灰色占位、鼠标／触摸无法激活、键盘焦点跳过，以及游玩／设置／商店原导航。加 `--record` 可采集初始和滚动后的视口图；无窗口运行不校验 GPU 像素。
 
 - 准备器按资源归属清单校验源码侧资产、复制正式 Debug 程序集及所需导入缓存；不读取 `client/testdata`。QA 输入节点只注入临时工程，不在任何正式场景或导出内。每次使用全新的 AppData 和 `user://`；只管理本次启动的进程。
 - 本地曲库是临时生成的原创短音频和 v2 谱包。商店测试服务只绑定回环地址，用一次性身份，提供真实发现、登录、鉴权、发行元数据和可安装的项目自制示例包，不连接公网。

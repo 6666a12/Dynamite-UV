@@ -112,7 +112,7 @@ $env:DYNAMITE_UNIVERSE_PUBLIC_SIGNER_SHA256 = "<64位产品证书SHA-256>"
 - 任意层级的 `testdata` 路径；
 - `.import` 中 testdata 来源及相应哈希导入产物；
 - 任何不在 Public policy 白名单内的孤立 Godot 导入 payload；
-- Orbitron、Godot 和 .NET 许可/第三方通知存在且 SHA-256 正确；
+- Space Grotesk、思源黑体、Godot 和 .NET 许可/第三方通知存在且 SHA-256 正确；思源黑体的导入映射和运行时字库也必须齐全，字库 SHA-256 必须匹配；
 - 已移除的 AI 原型曲绘及其导入产物。
 
 任何关键检查无法执行都会失败，而不是降级为 warning。上传时将检查器输出的 SHA-256 一并

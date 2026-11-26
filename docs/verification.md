@@ -55,6 +55,29 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-27 · 离子余辉对比与外场分色
+
+- [共用 shader](<../presentation/game/GameplayBackdrop.cs>)用两层低频扰动提升能量明暗和轮廓变化，左右外侧及底线下方渐变为紫色。颜色边界取自真实判定线坐标，只着色背景，不裁切越界音符。用户试过高对比外场后，改成同一层雾的轻微紫偏色，取消独立紫底和提亮，并加宽渐变。游戏／制谱舞台 Debug 构建均 0 警告、0 错误，补丁检查通过；未另起 Godot 实际渲染或截图。
+
+### 2026-11-26 · 静态游玩背景「离子余辉」
+
+- 按用户反馈移除舱框、退台和舱口，改为[单层静态 shader](<../presentation/game/GameplayBackdrop.cs>)。冷青和低饱和紫色侧场往中央及上下缘衰减；不采样屏幕、不读时间、不改舞台布局或触控。游戏及制谱舞台 Debug 均构建通过（0 警告、0 错误），架构和补丁检查通过。无窗口 Godot 检查因已有用户游戏窗口而未执行；未关闭该窗口、未截图或出包。
+
+### 2026-11-26 · 静态游玩背景「静默偏转舱」
+
+- [共享背景](<../presentation/game/GameplayBackdrop.cs>)改为一次生成、跨场景复用的静态纹理。原透视线、同心圆和地板网格撤去；判定线、HUD、音符、落速和触控路径未改。游戏与制谱舞台 Debug 构建均为 0 警告、0 错误；架构和差异检查通过。
+- [Godot HUD 无窗口检查](<../.tmp/deflection-chamber-hud.log>)通过，覆盖背景装配、原顶部留量、层级与无逐帧处理，以及既有判定线和 HUD 对象检查。用户反馈第一版偏素后，增加远处内舱、两侧退台和遮挡前方的厚舱框，仍不加动效；游戏与制谱舞台重新构建均为 0 警告、0 错误，[无窗口复验](<../.tmp/deflection-chamber-depth-hud.log>)通过。未启动可见游戏、未截图或打包，实际读谱观感留给用户进游戏确认。
+
+### 2026-11-26 · 首页滚动菜单与禁用入口
+
+- 保留原 735 × 387 滚动区域、130 行高与 17 间距。菜单依次为游玩、谱面商店、段位模式（未开放）、联机大厅（未开放）、设置；移除重复的页脚占位。
+- [隔离 Godot 窗口回归](<../.tmp/production-migration-qa/runs/20261126-231339-home-8fa6fd06/player.log#L7-L47>)通过：鼠标滚轮和触摸拖动都能滚动；鼠标点击和触摸轻点不能激活灰色行，Tab 跳过两行，滑到底可进入设置，游玩及未登录商店路由不变。[首屏](<../tmp_shots/home-scroll-final-20261126/home-initial.png>) · [下滑预览](<../tmp_shots/home-scroll-final-20261126/home-scrolled.png>)。[全套非图形验证](<../.tmp/home-menu-final-20261126.log#L1644>)通过；未重新出包，也未验 Android 真机触屏。
+
+### 2026-11-26 · 游戏、制谱器和网站统一中文字体
+
+- 接入 Adobe 思源黑体 2.005R 中国区域字库；英文与数字继续优先 Space Grotesk。Godot 4.7.1 两端导入同一 WOFF2 得到相同 `.fontdata` SHA-256；[游戏](<../.tmp/source-han/client-shaping.log#L3-L4>)、[制谱舞台](<../.tmp/source-han/editor-shaping.log#L3-L4>)用无窗口 TextServer 实际确认混排汉字为思源黑体 400、英文和数字为 Space Grotesk。校对了游戏/舞台源码和 Shell 简体资源的 939／514 个汉字，内置字体无缺字。
+- Shell 用真正的 Regular/Bold OTF；无窗口 glyph-run 测试核对主窗口、封面工具及封面预览／导出使用的内嵌字体，另有[工作台控件渲染](<../tmp_shots/source-han-20261126/workbench-layout.png>)。网页子集约 1 MB，覆盖当前中英文站的 749 个汉字／中文标点码位，重建字节一致。[完整非图形验证](<../.tmp/source-han/full-verify.log#L1603-L1643>)通过（含 73 项发布工具测试）；未部署网站，未输出新 APK 或桌面候选包，也未作可见窗口或 Android 设备验收。
+
 ### 2026-11-26 · Windows CI 的便携版卸载回归
 
 - 提交 `a1407b0` 的 [Windows 产品验证](https://github.com/6666a12/Dynamite-UV/actions/runs/45812877119/job/139884977858#step:7:1) 在发布工具测试中失败：卸载脚本所在的 Windows PowerShell 无法解析 `Get-FileHash`。在测试进程内屏蔽该命令，[修改前预检和卸载都失败](<../.tmp/portable-uninstall-before.log>)；改用 .NET 流式 SHA-256 后，[卸载专项 5 项通过](<../.tmp/portable-uninstall-after.log>)，预检和删除前的校验均保留，已修改文件和额外谱面仍保留。Windows 本地用 Python 3.12.13 按 CI 命令运行[完整非图形验证](<../.tmp/portable-uninstall-verify.log#L1603-L1624>)通过（含 72 项发布工具测试）；未重跑远端 CI 或更新既有候选包。

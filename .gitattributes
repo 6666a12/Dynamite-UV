@@ -1,6 +1,8 @@
 # Preserve the checkout bytes recorded in release/asset-provenance.json.
 /client/assets/licenses/*.txt text eol=lf
 /client/assets/licenses/SpaceGrotesk-OFL-1.1.txt text eol=crlf
+/third_party/source-han-sans/OFL-1.1.txt text eol=lf
+/client/assets/fonts/UiRegular.tres text eol=lf
 /client/assets/results/background_*.svg text eol=crlf
 /tools/grade-assets/build_runtime_outcomes.py text eol=lf
 /tools/synth_hitsounds.py text eol=lf

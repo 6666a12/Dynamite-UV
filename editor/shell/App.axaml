@@ -25,7 +25,6 @@
     <SolidColorBrush x:Key="Pink" Color="{StaticResource OfficialPink}" />
     <SolidColorBrush x:Key="Ink" Color="{StaticResource OfficialText}" />
     <SolidColorBrush x:Key="Dim" Color="{StaticResource OfficialDim}" />
-    <FontFamily x:Key="OfficialFont">avares://DynaMakerUv.Editor.Shell/Assets/SpaceGrotesk-Medium.ttf#Space Grotesk</FontFamily>
     <ControlRecycling x:Key="ControlRecyclingKey" TryToUseIdAsKey="True" />
     <Color x:Key="SystemBaseHighColor">#DFE6FF</Color>
     <Color x:Key="SystemAltHighColor">#0E1528</Color>

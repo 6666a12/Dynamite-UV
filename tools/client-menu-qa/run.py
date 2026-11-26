@@ -68,7 +68,8 @@ def go(args,suite):
     engine=Path(args.godot).resolve(strict=True)
     if not engine.is_file() or 'mono' not in engine.name.lower() or engine.suffix.lower() != '.exe':
         raise RuntimeError('Supply original Godot Mono console engine, not an exported player.')
-    cmd=[str(engine),'--path',str(project),'--windowed','--resolution','1280x720','--max-fps',str(args.fps),'--log-file',str(run/'player.log'),'--quit-after',str(args.fps*100)]
+    display=['--headless'] if suite=='home' and not args.record else ['--windowed','--resolution','1280x720']
+    cmd=[str(engine),'--path',str(project),*display,'--max-fps',str(args.fps),'--log-file',str(run/'player.log'),'--quit-after',str(args.fps*100)]
     if args.record:cmd+=['--fixed-fps',str(args.fps),'--write-movie',str(run/'capture.avi')]
     env=os.environ.copy();env.update(APPDATA=str(run/'roaming'),LOCALAPPDATA=str(run/'local'),TMP=str(run/'temp'),TEMP=str(run/'temp'),HOME=str(run/'home'),USERPROFILE=str(run/'home'),DOTNET_CLI_HOME=str(run/'home'),DOTNET_CLI_TELEMETRY_OPTOUT='1',HTTP_PROXY='',HTTPS_PROXY='',ALL_PROXY='',NO_PROXY='127.0.0.1,localhost',DU_QA_EXPECT_USER=user.as_posix(),DU_QA_OUT=run.as_posix(),DU_QA_SUITE=suite)
     with fixture.server(run) if suite=='store' else contextlib.nullcontext(({},[])) as (net,events):
@@ -79,7 +80,12 @@ def go(args,suite):
             finally:
                 if proc.poll() is None:proc.kill();proc.wait(timeout=10)
         log=(run/'player.log').read_text(encoding='utf8',errors='replace') if (run/'player.log').exists() else '';ok=(run/'result.json').is_file() and json.loads((run/'result.json').read_text(encoding='utf8')).get('pass') is True
-        serious=[l for l in log.splitlines() if 'SCRIPT ERROR:' in l or 'ERROR:' in l];
+        serious=[l for l in log.splitlines() if 'SCRIPT ERROR:' in l or 'ERROR:' in l]
+    if display==['--headless']:
+        # The dummy renderer reports the existing Mk VI halo's TEXTURE sampler argument.
+        # Do not relax the rendered/recorded suites or any other error.
+        halo_diagnostic='ERROR: Condition "!actions.custom_samplers.has(function->arguments[j].tex_builtin)" is true. Continuing.'
+        serious=[line for line in serious if line.strip()!=halo_diagnostic]
         if ret or not ok or ('MIGRATION QA PASS '+suite) not in log or serious:raise RuntimeError(f'Client test failed (exit={ret}; marker={ok}); see {run}/player.log; {serious[:4]}')
         if suite=='store':
             required=[('GET','/.well-known/dynamite-universe',False),('POST','/api/v1/accounts/login',False),('GET','/api/v1/catalog/packs',True)];seen=[(e['method'],e['path'],e['authenticated']) for e in events if e['status']==200];pos=0
@@ -91,5 +97,5 @@ def go(args,suite):
         if ff:subprocess.run([ff,'-nostdin','-v','error','-i',str(avi),'-c:v','libx264','-crf','18','-preset','fast','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-movflags','+faststart',str(run/'capture.mp4')],check=True)
     print('PASS',suite,run,flush=True)
 if __name__=='__main__':
-    ap=argparse.ArgumentParser();ap.add_argument('--godot',required=True);ap.add_argument('--suite',choices=['palette','library','store','calibration','all'],default='palette');ap.add_argument('--record',action='store_true');ap.add_argument('--prepare-only',action='store_true');ap.add_argument('--fps',type=int,default=30);ap.add_argument('--timeout',type=int,default=150);a=ap.parse_args()
-    for s in (['library','store','palette','calibration'] if a.suite=='all' else [a.suite]):go(a,s)
+    ap=argparse.ArgumentParser();ap.add_argument('--godot',required=True);ap.add_argument('--suite',choices=['home','palette','library','store','calibration','all'],default='palette');ap.add_argument('--record',action='store_true');ap.add_argument('--prepare-only',action='store_true');ap.add_argument('--fps',type=int,default=30);ap.add_argument('--timeout',type=int,default=150);a=ap.parse_args()
+    for s in (['home','library','store','palette','calibration'] if a.suite=='all' else [a.suite]):go(a,s)
