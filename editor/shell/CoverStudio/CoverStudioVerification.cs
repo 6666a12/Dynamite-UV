@@ -75,6 +75,7 @@ internal static class CoverStudioVerification
         if (window is null) return;
         try
         {
+            TypographyVerification.CheckTitle(window, "ProjectTitle", "Cover Studio UI", check);
             var squareExport = window.FindControl<Button>("ExportSquare")!;
             for (var attempt = 0; !squareExport.IsEnabled && attempt < 100; attempt++) await Task.Delay(10);
             check("Cover window automatically loads active package artwork", squareExport.IsEnabled &&

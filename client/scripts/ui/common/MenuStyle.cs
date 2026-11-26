@@ -14,7 +14,7 @@ internal static class MenuStyle
     public static readonly Color Muted = new("899DB7");
     public static readonly Color Accent = new("54E2EC");
     public static readonly Color Ink = new("082A37");
-    public static readonly Font HeadingFont = GD.Load<Font>("res://assets/fonts/SpaceGrotesk-SemiBold.ttf");
+    public static readonly Font HeadingFont = UiFonts.WithCjk(GD.Load<Font>("res://assets/fonts/SpaceGrotesk-SemiBold.ttf"), 600);
 
     public static void Heading(Label label) => UiLabels.Apply(label, HeadingFont, 36, Text);
 

@@ -39,13 +39,29 @@ python -m http.server 8765 --bind 127.0.0.1 --directory site
 ## 资产来源
 
 - 色彩沿用 `client/scripts/ui/home/HomePalette.cs` 的深色底、青色、粉色与字色；布局为网页重新排版。
-- Space Grotesk Regular/Bold 是仓库既有字体的原样副本，随网页提供 `assets/licenses/SpaceGrotesk-OFL.txt`；中文使用系统字体，不向第三方字体服务发请求。
+- 西文和数字优先使用 Space Grotesk Regular/Bold（仓库既有字体的原样副本），许可见 [Space Grotesk OFL](<../site/assets/licenses/SpaceGrotesk-OFL.txt>)。汉字与中文标点使用本地 [Dyna UV CJK](<../site/assets/fonts/DynaUVCJK.woff2>)；CSS 的 `unicode-range` 不包含西文和数字，子集外的字继续使用系统字体。网页不访问第三方字体服务。
+- Dyna UV CJK 是 Adobe [思源黑体 2.005R 中国区域版可变字体](https://github.com/adobe-fonts/source-han-sans/blob/2.005R/Variable/WOFF2/TTF/Subset/SourceHanSansCN-VF.ttf.woff2)的网页子集。保留原有字重轴、版权和许可记录；Adobe OFL 保留字体名称 `Source`，因此替换了子集的字体家族和 PostScript 等名称。网页随字体提供原版 [SIL OFL 1.1](<../site/assets/licenses/SourceHanSans-OFL.txt>)。
 - `assets/mark.svg` 为本轮网页绘制的简单几何字标，不是音乐封面。
 - 三张 WebP 已按用户反馈于 2026-11-15 重新采集：旧图混入桌面歌词，不再作为网页素材。当前来自 `tmp_shots/site-guide-clean-20261115/01-package.png`、`05-placement-ghost.png`、`05-hold-tail-ghost.png`；用户关闭歌词后重新运行真实窗口专项。使用现有 `Verification.CreatePackage` 的合成静音和自造 Note；未打开原作谱面/曲绘。WebP 为整张截图转码，没有拼接虚构控件。原图是本地证据，不随仓库取得。已对三张新图做本机 OCR 核对，未识别出先前混入的歌词；图片工具仍未提供可目视图像，不将 OCR 作为完整视觉审图证明。
 - `assets/practice-120bpm.wav` 是 16 秒、22050 Hz、单声道 PCM 合成节拍，120 BPM，每四拍首拍使用较高音高。由 `python -B tools/site/generate_practice.py site/assets/practice-120bpm.wav` 重建；不含采样歌曲或第三方音频。
 - 公开载荷资产 hash 与来源记录在 `tools/site/assets.json`。许可证 `.txt` 在计算哈希和比对源文件时仅将 CRLF 统一为 LF，避免 Windows/Git/Linux 检出换行差异；字体、音频、图片仍严格逐字节校验。图片替换后必须重新核对其公开适用性并更新 hash；白名单不意味着未来任意截图均适合发布。
 
 仓库没有项目级 LICENSE；网页没有替原创代码、图片、音频扩大许可。第三方字体按其自身许可提供。
+
+### 重建中文网页字体
+
+[生成脚本](<../tools/site/generate_cjk.py>)收集站点 HTML、CSS 和 JavaScript 中的汉字与中文标点（包括 HTML 字符实体），并保留 GB2312 一级的 3,755 个常用汉字和常用中文标点，供目录搜索等场景回退。原始字体只在重建时读取，不进入公开网页载荷。默认输入为 [仓库内的 Adobe 原版 WOFF2](<../client/assets/fonts/SourceHanSansCN-VF.woff2>)；也可用 `--source` 指定从上述 Adobe 标签下载的同一字节版本，脚本会核对 SHA-256。
+
+在仓库根目录执行（Python 3.14 已验证；依赖只用于重建和字体内部检查）：
+
+```powershell
+python -m pip install --target .tmp/font-match-deps -r tools/site/requirements-fonts.txt
+$env:PYTHONPATH = '.tmp/font-match-deps'
+python -B tools/site/generate_cjk.py
+python -B tools/site/generate_cjk.py --check
+```
+
+重建后将脚本输出的 SHA-256 和 `extraCharacters` 更新到 [网站资产清单](<../tools/site/assets.json>) 的字体条目。字体体积上限仍为单文件 2 MB；普通站点检查与 Pages 部署不安装字体工具，只检查已入库的字体、许可证及站点文本是否需要补字。`--check` 可在离线时核对已入库字体的实际 cmap、字重轴与名称，不需要原始字体。
 
 ## 验证
 
@@ -55,6 +71,6 @@ python -B -m unittest discover -s tools/release/tests -p test_website.py
 node --check site/assets/site.js
 ```
 
-站点检查包含公开载荷白名单、文件大小、symlink 拒绝、二进制 hash、字体原样复制、站内资源/锚点、项目路径兼容、基础元信息和练习音频格式。四页均检查 `lang`、`hreflang` 和切换目标；同一语言的首页与教程须互链，两版教程须保留相同章节锚点。网页回归也接入现有 `tools/verify.py` 的 unittest discovery。它们不等于浏览器视觉验收或真实 GitHub Pages 部署验证。
+站点检查包含公开载荷白名单、文件大小、symlink 拒绝、二进制 hash、字体来源及中文覆盖声明、站内资源/锚点、项目路径兼容、基础元信息和练习音频格式。四页均检查 `lang`、`hreflang` 和切换目标；同一语言的首页与教程须互链，两版教程须保留相同章节锚点。网页回归也接入现有 `tools/verify.py` 的 unittest discovery。它们不等于浏览器视觉验收或真实 GitHub Pages 部署验证。
 
 浏览器手测建议：桌面与 360px 窄屏、目录跳转、关键词/无结果/清空搜索、FAQ 展开、音频下载、关闭 JavaScript、键盘 Tab、打印与减少动态效果设置。主文本/次级文本/青色按钮前景背景的静态对比度均高于4.5:1；这不等于完整无障碍认证。执行结果统一见 [verification.md](verification.md)。

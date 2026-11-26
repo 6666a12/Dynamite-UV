@@ -110,8 +110,7 @@ func pixel_diffs(im:Image,box:Rect2i,offset:Vector2i,other:Image=null)->int:
    var a:Color=im.get_pixelv(Vector2i(Vector2(x,y)*sz));var b:Color=source.get_pixelv(Vector2i(Vector2(Vector2i(x,y)+offset)*sz));if absf(a.r-b.r)+absf(a.g-b.g)+absf(a.b-b.b)>.12:count+=1
  return count
 func palette():
- if visible_id('HomeSettings'):await click_id('HomeSettings')
- else:await click(Vector2(588,792))
+ if not await open_home_settings():return
  if not await active_page('settings'):return
  if visible_id('SettingsSections'):
   var area:Control=named('SettingsSections');var q:=area.get_global_rect().get_center();move(q);mb(q,true)
@@ -178,7 +177,8 @@ func revealed_row_is_highlighted(scroll:ScrollContainer,row:Control)->bool:
  var body:=image.get_pixelv(Vector2i((point+Vector2(12,0))*scale))
  return require(strip.b-body.b>.25,'revealed selected row has its violet marker without hovering')
 func library():
- await shot('00-home-station');await click(Vector2(350,586));if not await active_page('song_select'):return
+ await shot('00-home-station');if not await click_id('HomePlay'):return
+ if not await active_page('song_select'):return
  var c=named('ExpandedCard');if not require(c is Control and not c.is_visible_in_tree() and not playing(),'library initially collapsed and silent'):return
  var starting_selection:=selected_song_row()
  var rows=get_tree().current_scene.find_children('*','ScrollContainer',true,false);var scroll:ScrollContainer=null
@@ -236,7 +236,8 @@ func sign_in():
  var es:=edits();if not require(es.size()==2 and es[1].secret,'confirmed identity before account credentials'):return
  await enter(es[0],OS.get_environment('DU_QA_USER'));await enter(es[1],OS.get_environment('DU_QA_PASS'));await click(Vector2(1330,772))
 func store():
- await click(Vector2(350,733));if not await active_page('online'):return
+ if not await click_id('HomeStore'):return
+ if not await active_page('online'):return
  if not require(picker_edit()!=null,'fresh store intent opens picker automatically'):return
  key(KEY_ESCAPE);await wait_s(.3);if not require(scene('online') and picker_edit()==null,'first Escape dismisses server picker and cancels pending store'):return
  # Affirm cancellation by signing in on that same page: a valid response must NOT take us to store.
@@ -252,7 +253,8 @@ func store():
   await get_tree().process_frame
  await wait_s(.55);if not require(scene('online') and signout!=null,'cancelled store intent does not redirect even after real successful login'):return
  await click(signout.get_global_rect().get_center());await wait_s(.4);key(KEY_ESCAPE);if not await active_page('main'):return
- await click(Vector2(350,733));if not await active_page('online'):return
+ if not await click_id('HomeStore'):return
+ if not await active_page('online'):return
  if picker_edit()!=null:
   await discover_confirm();if failed:return
  await sign_in();if failed:return
@@ -291,7 +293,8 @@ func store():
  await click(chosen.get_global_rect().get_center());await wait_s(.5);if not require(visible_id('ExpandedCard') and playing(),'installed song opens and plays only after explicit tap'):return
  await shot('05-installed-in-library')
 func calibration():
- await click(Vector2(350,875));if not await active_page('settings'):return
+ if not await open_home_settings():return
+ if not await active_page('settings'):return
  await shot('00-settings-gameplay');if not await click_id('SettingsTabAudio'):return
  await wait_s(.7);var slider=named('MusicSlider');var rr:Rect2=slider.get_global_rect();await click(rr.position+rr.size*Vector2(.33,.5));await wait_s(.18)
  var saved=JSON.parse_string(FileAccess.get_file_as_string('user://settings.json'));if not require(saved is Dictionary and int(saved.get('musicVolume',80))<55,'real music bus slider persisted a changed gain'):return
@@ -310,9 +313,78 @@ func calibration():
  await click_id('CalibrationStart');await wait_s(.4)
  if not require(int(counter.text)==0,'stop resets samples without applying offset'):return
  await click_id('CalibrationBack');if not await active_page('settings'):return
+func home_wheel(p:Vector2,button:int,steps:=9):
+ move(p)
+ for i in steps:
+  for down in [true,false]:
+   var e:=InputEventMouseButton.new()
+   e.position=p;e.global_position=p;e.button_index=button;e.factor=1.;e.pressed=down
+   get_viewport().push_input(e,true)
+ await wait_s(.8)
+
+func open_home_settings()->bool:
+ var scroll:=named('HomePortScroll') as ScrollContainer
+ if not require(scroll!=null,'home has a real scroll pane'):return false
+ var pane:=scroll.get_global_rect()
+ await home_wheel(pane.get_center(),MOUSE_BUTTON_WHEEL_DOWN)
+ var settings:=named('HomeSettings') as Control
+ if not require(settings!=null and pane.grow(.5).encloses(settings.get_global_rect()),'settings is fully visible at the bottom'):return false
+ return await click_id('HomeSettings')
+
+func home():
+ var rows:=named('HomePorts') as VBoxContainer
+ var scroll:=named('HomePortScroll') as ScrollContainer
+ if not require(rows!=null and scroll!=null and rows.get_child_count()==5 and named('HomeUnavailable')==null,'five menu rows replace the old footer caption'):return
+ var expected_names:= ['HomePlay','HomeStore','HomeRanked','HomeLobby','HomeSettings']
+ var expected_titles:= ['游玩','谱面商店','段位模式','联机大厅','设置']
+ var pane:=scroll.get_global_rect()
+ if not require(scroll.size==Vector2(735,387) and scroll.scroll_vertical==0,'original home pane and initial position'):return
+ for i in expected_names.size():
+  var row:=rows.get_child(i) as Control
+  var expected_y:=pane.position.y+147.*i
+  if not require(row.name==expected_names[i] and row.get_node('Caption').text==expected_titles[i] and row.size==Vector2(735,130) and is_equal_approx(row.global_position.y,expected_y),'original row size and pitch: '+expected_titles[i]):return
+  if i<3:
+   if i<2 and not require(row.focus_mode==Control.FOCUS_ALL and row.mouse_filter==Control.MOUSE_FILTER_STOP and pane.encloses(row.get_global_rect()),'entry remains fully reachable on first view: '+expected_names[i]):return
+   if i==2 and not require(pane.intersects(row.get_global_rect()) and not pane.encloses(row.get_global_rect()),'part of the third tile indicates scrolling'):return
+  elif not require(not pane.intersects(row.get_global_rect()),'below the fold: '+expected_names[i]):return
+ var store:=named('HomeStore') as Control
+ var next:=store.find_next_valid_focus()
+ if not require(next!=null and next!=named('HomeRanked') and next!=named('HomeLobby'),'Tab order skips both disabled rows'):return
+ if DisplayServer.get_name()!='headless':await shot('00-home-initial')
+ await home_wheel(pane.get_center(),MOUSE_BUTTON_WHEEL_DOWN,6)
+ if not require(scroll.scroll_vertical>0,'wheel scrolls the original menu'):return
+ var covers:=formal_covers
+ for id in ['HomeRanked','HomeLobby']:
+  var row:=named(id) as Control
+  var status:=row.get_node_or_null('UnavailableStatus') as Label
+  if not require(pane.grow(.5).encloses(row.get_global_rect()) and row.focus_mode==Control.FOCUS_NONE and row.mouse_filter==Control.MOUSE_FILTER_IGNORE and status!=null and status.text=='未开放' and row.get_global_rect().encloses(status.get_global_rect()),'fully revealed disabled row: '+id):return
+  var p:=row.get_global_rect().get_center()
+  await click(p);touch_at(7,p,true);touch_at(7,p,false)
+  if not require(scene('main') and formal_covers==covers and not named('HomePortWiring').is_processing(),'mouse and touch cannot activate '+id):return
+ if DisplayServer.get_name()!='headless':
+  mark_at=Vector2(-400,-400)
+  await shot('01-home-scrolled')
+ var before_drag:=scroll.scroll_vertical
+ var drag_from:Vector2=named('HomeRanked').get_global_rect().get_center()
+ var drag_to:=drag_from+Vector2(0,110)
+ touch_at(12,drag_from,true)
+ var drag:=InputEventScreenDrag.new();drag.index=12;drag.position=drag_to;drag.relative=drag_to-drag_from
+ get_viewport().push_input(drag,true);touch_at(12,drag_to,false)
+ if not require(scroll.scroll_vertical<before_drag and scene('main'),'touch drag on disabled row still scrolls the menu'):return
+ await home_wheel(pane.get_center(),MOUSE_BUTTON_WHEEL_UP)
+ if not require(scroll.scroll_vertical==0,'wheel returns to original top'):return
+ if not await open_home_settings():return
+ if not await active_page('settings') or not await click_id('SettingsBack') or not await active_page('main'):return
+ if not await click_id('HomePlay'):return
+ if not await active_page('song_select') or not await click_id('SongBack') or not await active_page('main'):return
+ if not await click_id('HomeStore'):return
+ if not await active_page('online'):return
+ require(picker_edit()!=null,'store still opens the login/server picker when signed out')
+
 func run_tour():
  if not await active_page('main'):return
  match suite:
+  'home':await home()
   'palette':await palette()
   'library':await library()
   'store':await store()

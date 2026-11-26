@@ -7,11 +7,11 @@ public sealed record NotePaletteWarning(NoteColorChannel Channel, string Text);
 
 /// <summary>
 /// 配色可读性口径。只提醒、不钳制：任意颜色都能存，页面上用琥珀色 chip 标出来。
-/// 对比度按游玩背景 #05070F 计算；色差用 CIE76 ΔE。
+/// 对比度按固定深色样片 #05070F 计算；色差用 CIE76 ΔE。
 /// </summary>
 public static class NotePaletteMetrics
 {
-    /// <summary>游玩背景，取 GameplayBackdrop 的最暗底色。</summary>
+    /// <summary>调色工作台的标准深色样片，不是实际游玩背景采样。</summary>
     public static readonly Color Background = new("05070f");
 
     public const float MinContrast = 3.0f;

@@ -67,7 +67,7 @@ def collect_notices(output: Path) -> list[dict]:
     licenses = output / "licenses"
     licenses.mkdir()
     shutil.copy2(ROOT / "THIRD_PARTY_NOTICES.md", licenses)
-    for name in ["godot", "dotnet", "space-grotesk"]:
+    for name in ["godot", "dotnet", "space-grotesk", "source-han-sans"]:
         shutil.copytree(ROOT / "third_party" / name, licenses / name)
     assets = json.loads((ROOT / "editor/shell/obj/project.assets.json").read_text(encoding="utf-8"))
     folders = [Path(p) for p in assets["packageFolders"]]

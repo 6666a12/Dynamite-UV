@@ -25,7 +25,7 @@
 - 暗态保留 14% 亮度作几何参照，亮态只改变线本体，不加光晕。暂停不推进歌曲采样，seek 直接计算目标状态，不重播历史闪烁；镜像映射显示轨道。编辑器复用该时间轴启灯。
 - `GameplayProgressState` 只拥有显示比例/成就退化，`GameplayProgressBar` 负责绘制；`JudgmentLineTimeline` 拥有只读区间与按时间采样。场景继续拥有实际播放/判定/结算，公共 renderer 只接收亮度，不读取游戏会话。
 
-该调整的自动检查状态见 [验证记录](verification.md)，不沿用此前 v8 的用户验收作为此次新效果验收。
+[2026-11-27 Windows 补验](verification.md#2026-11-27-windows-用户验收)已获用户确认通过：顶部进度条和三轨判定线启灯不再列为 Windows 视觉待办；Android 本轮未测。
 
 ## 状态与对象边界
 

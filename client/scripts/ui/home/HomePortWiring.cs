@@ -35,10 +35,10 @@ internal sealed partial class HomePortWiring : Control
         _scroll!.GetGlobalTransform().AffineInverse() * (tile.GetGlobalTransform()*local);
     private Vector2 Display(Vector2 sheet) => GetGlobalTransformWithCanvas().AffineInverse() * _drum!.ProjectPoint(sheet);
 
-    public void Acknowledge(int i)
+    public void Acknowledge(HomeActionTile row)
     {
-        if (_drum is null || MenuContactFeedback.Mode == UiMotionMode.Off) return;
-        var row = _ports[i]; var material = InSheet(row, row.Contact);
+        if (_drum is null || !row.IsAvailable || MenuContactFeedback.Mode == UiMotionMode.Off) return;
+        var material = InSheet(row, row.Contact);
         // FollowFocus normally reveals the row. At an edge use the visible section of the
         // rail; never start a stray beam outside the band on keyboard activation.
         material.Y = Mathf.Clamp(material.Y, 2, Size.Y-2);

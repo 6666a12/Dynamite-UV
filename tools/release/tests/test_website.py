@@ -51,6 +51,23 @@ class WebsiteTests(unittest.TestCase):
                 self.assertTrue({assets / name for name in illustrations | {'practice-120bpm.wav'}} <= targets)
                 self.assertTrue({'#' + anchor for anchor in check.GUIDE_ANCHORS} <= set(page.navigation))
 
+    def test_chinese_coverage_tracks_html_entities_and_dynamic_copy(self) -> None:
+        check = load_tool('check')
+        css = (check.SITE / 'assets/site.css').read_text(encoding='utf-8')
+        assets = [{'path': check.CJK_FONT, 'extraCharacters': '龘'}]
+        with tempfile.TemporaryDirectory(prefix='du-site-cjk-') as directory:
+            site = Path(directory)
+            (site / 'guide.html').write_text('<p>中文 ABC 123 &#x9F98;</p>', encoding='utf-8')
+            (site / 'guide.js').write_text("const status = '。';", encoding='utf-8')
+            self.assertEqual(set(map(ord, '中文龘。')), check.site_cjk(site))
+            self.assertEqual([], check.typography_errors(site, css, assets))
+            self.assertTrue(any('U+9F98' in issue for issue in check.typography_errors(site, css, [
+                {'path': check.CJK_FONT, 'extraCharacters': ''},
+            ])))
+            wrong_order = css.replace("'Space Grotesk','Dyna UV CJK'", "'Dyna UV CJK','Space Grotesk'")
+            self.assertIn('expected a local Chinese-only font face after Space Grotesk',
+                          check.typography_errors(site, wrong_order, assets))
+
     def test_practice_audio_is_reproducible(self) -> None:
         with tempfile.TemporaryDirectory(prefix='du-site-') as directory:
             output = Path(directory) / 'practice.wav'

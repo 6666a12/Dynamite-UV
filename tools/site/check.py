@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from html import unescape
 from html.parser import HTMLParser
 import json
 from pathlib import Path
@@ -21,6 +22,44 @@ GUIDE_ANCHORS = {
     'timing', 'timing-panel', 'preview', 'export-video', 'save', 'cover-studio',
     'shortcuts', 'faq',
 }
+CJK_FAMILY = 'Dyna UV CJK'
+CJK_FONT = 'assets/fonts/DynaUVCJK.woff2'
+CJK_RANGES = (
+    (0x3000, 0x303F),                  # Ideographic space and punctuation
+    (0x3400, 0x4DBF), (0x4E00, 0x9FFF), # Han ideographs
+    (0xF900, 0xFAFF),                  # Han compatibility ideographs
+    (0xFE10, 0xFE1F), (0xFE30, 0xFE4F), # CJK vertical and compatibility forms
+    (0xFF01, 0xFF0F), (0xFF1A, 0xFF20), (0xFF3B, 0xFF40), (0xFF5B, 0xFF65),
+    (0x20000, 0x2FA1F), (0x30000, 0x323AF), # Supplementary Han blocks
+)
+CJK_CSS_RANGE = ','.join(f'U+{low:X}-{high:X}' for low, high in CJK_RANGES)
+
+
+def cjk_codepoints(text: str) -> set[int]:
+    return {cp for cp in map(ord, set(text)) if any(low <= cp <= high for low, high in CJK_RANGES)}
+
+
+def site_cjk(site: Path) -> set[int]:
+    points = set()
+    for path in site.rglob('*'):
+        if path.is_file() and path.suffix in ('.html', '.css', '.js'):
+            text = path.read_text(encoding='utf-8')
+            # Include literal strings in generated search messages, and HTML text/attributes.
+            points.update(cjk_codepoints(unescape(text) if path.suffix == '.html' else text))
+    return points
+
+
+def common_cjk() -> set[int]:
+    # GB2312 rows 16–55: all 3,755 level-1 ideographs, not the less common level 2.
+    level_one = (bytes((row, cell)).decode('gb2312')
+                 for row in range(0xB0, 0xD8) for cell in range(0xA1, 0xFF)
+                 if row != 0xD7 or cell <= 0xF9)
+    punctuation = '　、。〈〉《》「」『』【】〔〕！＂＃％＆（）＋，－／：；？＠［］＿｛｝～'
+    return cjk_codepoints(''.join(level_one) + punctuation)
+
+
+def describe_points(points: set[int]) -> str:
+    return ', '.join(f'U+{cp:04X}' for cp in sorted(points)[:20]) + (' …' if len(points) > 20 else '')
 
 
 class Page(HTMLParser):
@@ -72,6 +111,21 @@ def asset_bytes(path: Path) -> bytes:
     # Git normalizes text on check-in; Windows checkouts may restore CRLF.
     # Only license text is normalized. Fonts, audio and images stay byte-exact.
     return data.replace(b'\r\n', b'\n') if path.suffix == '.txt' else data
+
+
+def typography_errors(site: Path, css: str, assets: list[dict]) -> list[str]:
+    errors = []
+    font = next((asset for asset in assets if asset['path'] == CJK_FONT), {})
+    if not font:
+        errors.append(f'missing Chinese font asset entry: {CJK_FONT}')
+    extras = cjk_codepoints(font.get('extraCharacters', ''))
+    if missing := site_cjk(site) - common_cjk() - extras:
+        errors.append(f'Chinese website font needs regeneration for {describe_points(missing)}')
+    face = (f"@font-face{{font-family:'{CJK_FAMILY}';src:url('{Path(CJK_FONT).relative_to('assets').as_posix()}') "
+            f"format('woff2');font-weight:250 900;font-display:swap;unicode-range:{CJK_CSS_RANGE}}}")
+    if face not in css or f"--font:'Space Grotesk','{CJK_FAMILY}'," not in css:
+        errors.append('expected a local Chinese-only font face after Space Grotesk')
+    return errors
 
 
 def local_target(source: Path, url_path: str) -> Path:
@@ -144,7 +198,9 @@ def check() -> list[str]:
     errors.extend(edition_errors(pages))
     references = [(page.path, url) for page in pages.values() for url in page.links]
     css = SITE / 'assets/site.css'
-    references.extend((css, match) for match in re.findall(r'url\([\'"]?([^\)\'\"]+)', css.read_text(encoding='utf-8')))
+    stylesheet = css.read_text(encoding='utf-8')
+    errors.extend(typography_errors(SITE, stylesheet, manifest['assets']))
+    references.extend((css, match) for match in re.findall(r'url\([\'"]?([^\)\'\"]+)', stylesheet))
     for source, reference in references:
         url = urlsplit(reference)
         if url.scheme or url.netloc:
@@ -174,4 +230,4 @@ if __name__ == '__main__':
     if issues:
         print('\n'.join(issues), file=sys.stderr)
         raise SystemExit(1)
-    print('SITE CHECK PASS: curated payload, asset hashes, links, anchors, metadata and practice audio')
+    print('SITE CHECK PASS: curated payload, asset hashes, typography, links, anchors, metadata and practice audio')

@@ -57,7 +57,7 @@ python -B tools/verify.py
 ```
 
 [统一脚本](tools/verify.py)运行结构检查、游戏及制谱器构建、核心/编辑器/网络回归、Shell 无窗口回归、发布工具测试与差异检查。真实 PostgreSQL、Godot 窗口与导出验包不在默认流程内；分项操作见[验证说明](docs/verification.md#非图形复验命令)。
-[Product verification](<.github/workflows/product-verification.yml>)在 GitHub 托管 Windows 上复用同一脚本，支持推送到 `main`、目标为 `main` 的 PR 和手动运行，结果见仓库的 **Actions** 页。它不出包、不部署；尚待托管环境首次运行确认。
+[Product verification](<.github/workflows/product-verification.yml>)在 GitHub 托管 Windows 上复用同一脚本，支持推送到 `main`、目标为 `main` 的 PR 和手动运行，结果见仓库的 **Actions** 页。它不出包、不部署；已有一次托管运行失败，修复后本机复验通过，尚无[修复后托管通过记录](docs/verification.md#2026-11-26--windows-ci-的便携版卸载回归)。
 
 普通修改后不代替用户启动游戏目测；确需运行时使用 Mono 版并先结束残留 Godot。
 

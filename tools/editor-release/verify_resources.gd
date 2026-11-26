@@ -13,6 +13,8 @@ func _initialize():
         "res://shaders/note_surface.gdshader": "Shader",
         "res://assets/fonts/SpaceGrotesk-Regular.woff2": "Font",
         "res://assets/fonts/SpaceGrotesk-Bold.woff2": "Font",
+        "res://assets/fonts/SourceHanSansCN-VF.woff2": "Font",
+        "res://assets/fonts/UiRegular.tres": "Font",
     }
     var failed = false
     if args.size() == 2:
@@ -43,6 +45,9 @@ func _initialize():
                 failed = true
             else:
                 print("PACK_RESOURCE PASS ", path)
+        elif path.ends_with("/UiRegular.tres") and (not resource.has_char(0x8C31) or not resource.has_char(0x42)):
+            push_error("Exported composite font is missing Han or Latin glyphs: " + path)
+            failed = true
         else:
             print("PACK_RESOURCE PASS ", path)
     if not failed:

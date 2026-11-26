@@ -81,6 +81,51 @@
       "license": "SIL Open Font License 1.1"
     },
     {
+      "path": "client/assets/fonts/UiRegular.tres",
+      "sha256": "4a142808529c8a8f46c3b0ae1e62143e608d70808e69b567412df2459f1b52fb",
+      "kind": "project-font-configuration",
+      "source": "Project-authored Godot FontVariation: Space Grotesk with Source Han Sans CN weight 400 fallback"
+    },
+    {
+      "path": "client/assets/fonts/SourceHanSansCN-VF.woff2",
+      "sha256": "f971e3bff46f76b49e1d5510556c2297c618ec4b491a295a4e741cdd38257799",
+      "kind": "third-party-font",
+      "source": "https://github.com/adobe-fonts/source-han-sans/blob/2.005R/Variable/WOFF2/TTF/Subset/SourceHanSansCN-VF.ttf.woff2",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/source-han-sans/OFL-1.1.txt"
+    },
+    {
+      "path": "editor/assets/fonts/SourceHanSansCN-VF.woff2",
+      "sha256": "f971e3bff46f76b49e1d5510556c2297c618ec4b491a295a4e741cdd38257799",
+      "kind": "third-party-font",
+      "source": "https://github.com/adobe-fonts/source-han-sans/blob/2.005R/Variable/WOFF2/TTF/Subset/SourceHanSansCN-VF.ttf.woff2",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/source-han-sans/OFL-1.1.txt"
+    },
+    {
+      "path": "editor/assets/fonts/SourceHanSansCN-Regular.otf",
+      "sha256": "e2bc8a2e7f37474b774fff8db758681ece40bb6947a90d571bce9dd60671a8e4",
+      "kind": "third-party-font",
+      "source": "https://github.com/adobe-fonts/source-han-sans/blob/2.005R/SubsetOTF/CN/SourceHanSansCN-Regular.otf",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/source-han-sans/OFL-1.1.txt"
+    },
+    {
+      "path": "editor/assets/fonts/SourceHanSansCN-Bold.otf",
+      "sha256": "62383707c086a32f3afd5e293f34c7eff64c7fea31f579fdc6cbe34d920519a6",
+      "kind": "third-party-font",
+      "source": "https://github.com/adobe-fonts/source-han-sans/blob/2.005R/SubsetOTF/CN/SourceHanSansCN-Bold.otf",
+      "license": "SIL Open Font License 1.1",
+      "licenseFile": "third_party/source-han-sans/OFL-1.1.txt"
+    },
+    {
+      "path": "client/assets/licenses/SourceHanSans-OFL-1.1.txt",
+      "sha256": "fcac737e761ec63dbfbdce11030a1780161920d80315edba9c8beff1c2bac5a2",
+      "kind": "third-party-license",
+      "source": "https://github.com/adobe-fonts/source-han-sans/blob/2.005R/LICENSE.txt",
+      "license": "SIL Open Font License 1.1"
+    },
+    {
       "path": "client/assets/licenses/Godot-LICENSE.txt",
       "sha256": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80",
       "kind": "third-party-license",

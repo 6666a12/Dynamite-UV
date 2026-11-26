@@ -3,98 +3,99 @@ using DynamiteUniverse.Shared.Chart;
 
 namespace DynamiteUniverse.Game;
 
-/// <summary>
-/// Clean-room 游玩背景：仅用低透明度几何提供地平线、侧壁与纵深参照。
-/// 不参与判定布局，也不改变任何轨道几何。
-/// </summary>
+/// <summary>A still, diffuse ion field behind the playfield. One untextured pass; no timing,
+/// note data, overlay capture or geometry that could be confused for a lane.</summary>
 public partial class GameplayBackdrop : Node2D
 {
-    private static readonly Color Bg = new(0.025f, 0.032f, 0.065f);
-    private static readonly Color Cyan = new(0.21f, 0.88f, 1.0f);
-    private static readonly Color Pink = new(1.0f, 0.30f, 0.58f);
+    private static Shader? _shader;
     public float TopPadding { get; set; }
 
-    public override void _Draw()
+    public override void _Ready()
     {
+        _shader ??= new Shader { Code = EnergyFieldShader };
         const float width = GameplayStageGeometry.DesignWidth;
-        const float height = GameplayStageGeometry.DesignHeight;
-        const float horizonY = 248f;
-        const float judgeLineY = GameplayStageGeometry.CenterLineY;
-        var vanishing = new Vector2(GameplayStageGeometry.CenterTrackX, horizonY);
-
-        DrawRect(new Rect2(0, -TopPadding, width, height + TopPadding), Bg);
-
-        // 中央纵深辉光：多层半透明梯形叠加，最亮处仍低于 12%。
-        for (var i = 7; i >= 1; i--)
+        float height = GameplayStageGeometry.DesignHeight + TopPadding;
+        var material = new ShaderMaterial { Shader = _shader };
+        material.SetShaderParameter("lane_guides", new Vector3(
+            GameplayStageGeometry.LeftLineX / width,
+            GameplayStageGeometry.RightLineX / width,
+            (GameplayStageGeometry.CenterLineY + TopPadding) / height));
+        AddChild(new ColorRect
         {
-            var t = i / 7f;
-            var topHalf = 34f + 22f * i;
-            var bottomHalf = 220f + 92f * i;
-            Vector2[] glow =
-            {
-                new(vanishing.X - topHalf, horizonY - 22f),
-                new(vanishing.X + topHalf, horizonY - 22f),
-                new(vanishing.X + bottomHalf, height),
-                new(vanishing.X - bottomHalf, height),
-            };
-            DrawColoredPolygon(glow, new Color(Cyan.Lerp(Pink, 0.20f), 0.008f + 0.006f * t));
-        }
-
-        // 左右侧壁暗面，让三面轨道在纯色背景上有明确空间关系。
-        DrawColoredPolygon(new[]
-        {
-            Vector2.Zero, new Vector2(0, height), vanishing, new Vector2(0, horizonY - 80f),
-        }, new Color(Cyan, 0.022f));
-        DrawColoredPolygon(new[]
-        {
-            new Vector2(width, 0), new Vector2(width, horizonY - 80f), vanishing,
-            new Vector2(width, height),
-        }, new Color(Pink, 0.022f));
-
-        // 判定线以下不是空白区，而是隧道前景地板；几何仅作视觉分层。
-        DrawColoredPolygon(new[]
-        {
-            new Vector2(60f, judgeLineY), new Vector2(width - 60f, judgeLineY),
-            new Vector2(width, height), new Vector2(0, height),
-        }, new Color(Cyan.Lerp(Pink, 0.24f), 0.026f));
-
-        var rayColor = new Color(Cyan, 0.055f);
-        foreach (var x in new[] { 60f, GameplayStageGeometry.LeftLineX, 420f, 700f,
-            1220f, 1500f, GameplayStageGeometry.RightLineX, 1860f })
-            DrawLine(vanishing, new Vector2(x, height), rayColor, 1.5f, true);
-
-        // 非等距横截线模拟透视压缩，仅作为深度参照，不对应谱面坐标。
-        for (var i = 1; i <= 8; i++)
-        {
-            var t = i / 8f;
-            var eased = t * t;
-            var y = Mathf.Lerp(horizonY + 18f, judgeLineY - 16f, eased);
-            var half = Mathf.Lerp(90f, 870f, t);
-            var alpha = Mathf.Lerp(0.035f, 0.075f, t);
-            DrawLine(new Vector2(vanishing.X - half, y),
-                new Vector2(vanishing.X + half, y), new Color(Cyan, alpha), 1.2f, true);
-        }
-
-        // 前景横截线和外扩结构，让判定线成为地板接缝而不是舞台终点。
-        foreach (var (y, alpha) in new[]
-        {
-            (900f, 0.060f), (946f, 0.052f), (996f, 0.044f), (1048f, 0.036f),
-        })
-            DrawLine(new Vector2(24f, y), new Vector2(width - 24f, y),
-                new Color(Cyan, alpha), 1.2f, true);
-
-        DrawLine(new Vector2(GameplayStageGeometry.LeftLineX, judgeLineY), new Vector2(36f, height),
-            new Color(Cyan, 0.075f), 2f, true);
-        DrawLine(new Vector2(GameplayStageGeometry.RightLineX, judgeLineY), new Vector2(width - 36f, height),
-            new Color(Pink, 0.075f), 2f, true);
-        DrawLine(new Vector2(710f, judgeLineY), new Vector2(560f, height),
-            new Color(Cyan, 0.045f), 1.5f, true);
-        DrawLine(new Vector2(1210f, judgeLineY), new Vector2(1360f, height),
-            new Color(Pink, 0.045f), 1.5f, true);
-
-        DrawRect(new Rect2(0, 1030f, width, 50f), new Color(0.01f, 0.015f, 0.04f, 0.28f));
-
-        DrawCircle(vanishing, 116f, new Color(Cyan, 0.025f));
-        DrawCircle(vanishing, 54f, new Color(Pink, 0.035f));
+            Name = "EnergyField",
+            Position = new Vector2(0, -TopPadding),
+            Size = new Vector2(width, height),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Material = material,
+        });
     }
+
+    // Source-color uniforms preserve the intended dark palette when the canvas uses linear color.
+    private const string EnergyFieldShader = """
+        shader_type canvas_item;
+        render_mode unshaded;
+
+        uniform vec3 lane_guides;
+        uniform vec4 dark_ink : source_color = vec4(0.034, 0.046, 0.073, 1.0);
+        uniform vec4 depth_ink : source_color = vec4(0.059, 0.078, 0.109, 1.0);
+        uniform vec4 ion_blue : source_color = vec4(0.080, 0.345, 0.462, 1.0);
+
+        float mist(vec2 p) {
+            return exp2(-dot(p, p));
+        }
+
+        float cell_value(vec2 cell) {
+            vec3 h = fract(cell.xyx * vec3(0.1031, 0.11369, 0.13787));
+            h += dot(h, h.yzx + 33.33);
+            return fract((h.x + h.y) * h.z);
+        }
+
+        float cloud(vec2 p) {
+            vec2 cell = floor(p);
+            vec2 a = fract(p);
+            a = a * a * (3.0 - 2.0 * a);
+            float bottom = mix(cell_value(cell), cell_value(cell + vec2(1.0, 0.0)), a.x);
+            float top = mix(cell_value(cell + vec2(0.0, 1.0)), cell_value(cell + vec2(1.0, 1.0)), a.x);
+            return mix(bottom, top, a.y);
+        }
+
+        void fragment() {
+            float x = UV.x * 2.0 - 1.0;
+            float y = UV.y;
+            float top_clear = smoothstep(0.075, 0.31, y);
+            float floor_clear = 1.0 - smoothstep(0.69, lane_guides.z + 0.045, y);
+            float side_bias = mix(0.21, 1.0, smoothstep(0.10, 0.82, abs(x)));
+
+            // Two coarse scales bend the plumes and make their density uneven. No fine grain,
+            // contours, sparks, or on-beat flicker that could read as incoming chart objects.
+            float bend = cloud(UV * vec2(6.9, 4.4) + vec2(8.1, 1.3));
+            vec2 swirl = vec2(UV.x + 0.28 * y, y - 0.30 * UV.x);
+            float curl = cloud(swirl * vec2(9.8, 7.0) + vec2(2.9, bend * 0.48));
+            float w = y + (bend - 0.5) * 0.177 + (curl - 0.5) * 0.053;
+            float left = mist(vec2((x + 0.69) * 1.73, (w - 0.48 - 0.17 * x) * 5.6));
+            float right = mist(vec2((x - 0.61) * 1.96, (w - 0.52 + 0.16 * x) * 6.5));
+            float tuft = mist(vec2((x + 0.49) * 2.35, (w - 0.66 + 0.09 * x) * 7.2));
+            float density = smoothstep(0.23, 0.71, mix(bend, curl, 0.51));
+            float charge = (left * 0.67 + right * 0.77 + tuft * 0.27) * (0.32 + density * 0.68);
+            float air = mist(vec2(x * 0.91, (y - 0.47) * 3.12));
+            vec3 ink = mix(dark_ink.rgb, depth_ink.rgb, air * top_clear * floor_clear * 0.73);
+
+            // Union of the three exterior half-planes, blurred across the boundaries. This is
+            // color only: notes are composited on top on either side of all three lines.
+            float outside_distance = max(max(lane_guides.x - UV.x, UV.x - lane_guides.y),
+                                         (y - lane_guides.z) * 0.58);
+            float exterior = smoothstep(-0.041, 0.067, outside_distance);
+            float strength = charge * top_clear * floor_clear * side_bias * 0.68;
+            ink = mix(ink, ion_blue.rgb, strength * (1.0 - 0.18 * exterior));
+
+            // Recolor the same fog rather than blending in a separate purple layer. The violet
+            // vector has unit weighted luminance, so crossing a rail adds hue, not a glow step.
+            float luma = dot(ink, vec3(0.2126, 0.7152, 0.0722));
+            vec3 violet = luma * vec3(1.12, 0.92, 1.44);
+            ink = mix(ink, violet, exterior * (0.63 + 0.12 * density));
+
+            // Keep inherited canvas modulation so the existing stage transition still fades it.
+            COLOR = vec4(ink * COLOR.rgb, COLOR.a);
+        }
+        """;
 }

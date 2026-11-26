@@ -32,6 +32,7 @@ project/assembly_name="DynaMakerUv.Editor"
 
 [gui]
 
+theme/custom_font="res://assets/fonts/UiRegular.tres"
 theme/default_font_multichannel_signed_distance_field=true
 
 [rendering]

@@ -2,8 +2,7 @@ using Godot;
 
 namespace DynamiteUniverse.Ui;
 
-/// <summary>Single quiet mast and production identity; unavailable destinations are captions,
-/// not interactive menu rows. No mock credits, account, edition or release data.</summary>
+/// <summary>Single quiet mast, account entry and production identity.</summary>
 internal static class HomeUtilityRow
 {
     public static void Build(Node parent, string buildDescription, Action<Control, int> register)
@@ -31,7 +30,6 @@ internal static class HomeUtilityRow
         };
         login.Pressed += () => TransitionDirector.Navigate(UiRoutes.Online,TransitionKind.Standard,"CONNECT","ACCOUNT");
         parent.AddChild(login);register(login,6);
-        Caption(parent,register,"HomeUnavailable","段位模式   /   联机大厅     未开放",new(80,933),new(750,48),UiFonts.Cjk,20,new("8195a4"),HorizontalAlignment.Left,5);
         Caption(parent,register,"CoreDesignation","MK VI",new(1690,908),new(145,48),UiFonts.TechBold,19,new("b49bff"),HorizontalAlignment.Right,5);
         Caption(parent,register,"BuildIdentity",buildDescription,new(675,1015),new(1168,28),UiFonts.Tech,14,new("8297a4"),HorizontalAlignment.Right,6);
     }
