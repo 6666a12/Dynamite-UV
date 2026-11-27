@@ -18,6 +18,7 @@ public partial class GameplayStageRenderer : Node2D
     private Func<Note, double, float>? _previewDistanceProvider;
     private readonly ColorRect?[] _judgmentLines = new ColorRect?[3];
     private Node2D? _chromeRoot;
+    private Node2D? _backdropRoot;
     private Node2D? _noteRoot;
     public bool ShowControlNodes { get; set; } = true;
     /// <summary>Optional editor view filter; hidden tessellation points still form path links.</summary>
@@ -79,11 +80,16 @@ public partial class GameplayStageRenderer : Node2D
     public int RenderedLinkCount => _links.Count;
     public int RenderedCurvedLinkCount => _curvedLinkCount;
 
-    public void BuildCommunityStageChrome(float backdropTopPadding = 0f, bool gameplayHud = false)
+    public Vector2I StaticBackdropPixels => _backdropRoot?.GetChildOrNull<GameplayBackdrop>(0)?.StaticCachePixelSize ?? Vector2I.Zero;
+
+    public void BuildCommunityStageChrome(float backdropTopPadding = 0f, bool gameplayHud = false,
+        GameplayBackdropMode backdropMode = GameplayBackdropMode.Procedural)
     {
         EnsureLayers();
         foreach (var child in _chromeRoot!.GetChildren()) child.Free();
-        _chromeRoot.AddChild(new GameplayBackdrop { ZIndex = -2, TopPadding = backdropTopPadding });
+        _backdropRoot ??= CreateBackdropLayer();
+        foreach (var child in _backdropRoot.GetChildren()) child.Free();
+        _backdropRoot.AddChild(new GameplayBackdrop { TopPadding = backdropTopPadding, RenderMode = backdropMode });
         var lineColor = new Color(.35f, .35f, .4f);
         _judgmentLines[(int)Track.Center] = AddChromeLine(new Vector2(gameplayHud ? 0f : 60f, GameplayStageGeometry.CenterLineY - 2f), new Vector2(gameplayHud ? 1920f : 1800f, 4f), lineColor);
         var sideTop = gameplayHud ? 72f - backdropTopPadding : 70f;
@@ -107,6 +113,48 @@ public partial class GameplayStageRenderer : Node2D
             Position = new Vector2(675f, 642f), Size = new Vector2(569f, 2f),
             Color = new Color(NoteVisualSpec.MixerBar, .68f), MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = -1,
         });
+    }
+
+    private Node2D CreateBackdropLayer()
+    {
+        var layer = new Node2D { Name = "CommunityStageBackdrop", ZIndex = -5 };
+        AddChild(layer);
+        return layer;
+    }
+
+    /// <summary>Mount one validated performance between the backdrop and the gameplay chrome.</summary>
+    public Action AttachStoryboard(Node2D performance, float stageOffsetY, Color? replacement, float brightness = 1f)
+    {
+        var gray = Math.Clamp(brightness, 0f, 1f);
+        var slot = new Node2D
+        {
+            Name = "StoryboardLayer", ZIndex = -4, Position = new(0, -stageOffsetY),
+            // Modulate the RGB of children, without exposing the hidden or retained background through alpha.
+            Modulate = new Color(gray, gray, gray, 1f),
+        };
+        AddChild(slot);
+        var canvas = new Control
+        {
+            Name = "StoryboardBounds", ClipContents = true,
+            Size = new(GameplayStageGeometry.DesignWidth, GameplayStageGeometry.DesignHeight),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        slot.AddChild(canvas);
+        if (replacement is { } color)
+        {
+            canvas.AddChild(new ColorRect
+            {
+                Name = "OpaqueStoryboardBackdrop", Color = color, Size = canvas.Size,
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+            });
+            if (_backdropRoot is not null) _backdropRoot.Visible = false;
+        }
+        canvas.AddChild(performance);
+        return () =>
+        {
+            if (IsInstanceValid(slot)) slot.Hide();
+            if (replacement is not null && IsInstanceValid(_backdropRoot)) _backdropRoot!.Show();
+        };
     }
 
     public void Rebuild()

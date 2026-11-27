@@ -42,6 +42,14 @@ public partial class GameplayMain
 	// ---- UI ----
 	private void BuildStage()
 	{
+		var backdropMode = _verification is not null
+			? System.Environment.GetEnvironmentVariable("DUV_STORYBOARD_BACKDROP") switch
+			{
+				"cache" => GameplayBackdropMode.StaticCache,
+				"flat" => GameplayBackdropMode.Flat,
+				_ => GameplayBackdropMode.Procedural,
+			}
+			: GameplayBackdropMode.Procedural;
 		_stageRoot = new Node2D { Name = "StageVisuals" };
 		_hudRoot = new Node2D { Name = "GameplayHud", ZIndex = 20 };
 		AddChild(_stageRoot);
@@ -53,7 +61,7 @@ public partial class GameplayMain
 			Position = new Vector2(0f, StageOffsetY),
 		};
 		_stageRoot.AddChild(sharedStage);
-		sharedStage.BuildCommunityStageChrome(StageOffsetY, gameplayHud: true);
+		sharedStage.BuildCommunityStageChrome(StageOffsetY, gameplayHud: true, backdropMode: backdropMode);
 		// Gameplay-owned judgement state still controls spawn/recycle, but its
 		// NoteView and sustain children now live in the shared stage layer.
 		_noteRoot = sharedStage.NoteLayer;
@@ -71,9 +79,15 @@ public partial class GameplayMain
 	{
 		ClearPointerState();
 		_playback.Pause();
+		_storyboard?.SetPaused(true);
+		_storyboardBenchmark?.Interrupt();
 		_hud.PulsePause();
 	}
-	private void ResumeFromPause() => _playback.Resume();
+	private void ResumeFromPause()
+	{
+		_playback.Resume();
+		_storyboard?.SetPaused(false);
+	}
 
 	private void BuildResultLayer() =>
 		_results = new ResultFlow(this, PresentationMotionProfile);
@@ -113,6 +127,7 @@ public partial class GameplayMain
 		private void Restart()
 		{
 			_playback.Pause();
+			_storyboard?.SetPaused(true);
 			_pause.ResetPausedForNavigation();
 			var texture = CoverTextureCache.Current(_run.CoverPath) ??
 				CoverTextureCache.Load(_run.CoverPath);
@@ -130,6 +145,7 @@ public partial class GameplayMain
 		private void ExitToSelect()
 		{
 			_playback.Pause();
+			_storyboard?.SetPaused(true);
 			_pause.ResetPausedForNavigation();
 			TransitionDirector.Navigate(UiRoutes.SongSelect, TransitionKind.Back);
 		}
@@ -161,6 +177,12 @@ public partial class GameplayMain
 		if (_finished) return;
         if (!stageFailure) _hud.CompleteProgress();
 		_finished = true;
+		_storyboard?.Stop();
+		if (_storyboardBenchmark is { Done: false })
+		{
+			GD.PushError("Storyboard benchmark ended before reaching its requested measurement window");
+			GetTree().Quit(2);
+		}
 		_pointerBuffer.DiscardPending();
 		// Freeze judging, but let the song tail play beneath the shutter/result.
 		// Navigation still owns stopping playback when leaving or replaying.

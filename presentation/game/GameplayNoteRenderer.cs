@@ -27,13 +27,16 @@ public sealed partial class GameplayNoteRenderer
     private readonly IReadOnlyDictionary<int, SustainPath> _paths;
     private readonly Func<int, SustainVisualSnapshot?> _readSustain;
     private readonly GameplayEffects _effects;
+    private readonly bool _retainVisualInputs;
 
     public GameplayNoteRenderer(Node2D noteRoot, DynamiteUniverse.Shared.Chart.Chart chart, IGameplayVisualSettings settings,
         IReadOnlySet<int> syncAccentIds,
         IReadOnlyList<Note> notes, IReadOnlyDictionary<int, Note> noteById,
         IReadOnlyDictionary<int, double> runtimeNoteSeconds, IReadOnlyDictionary<int, SustainPath> paths,
-        VisualPoolPlanning.PeakCounts peaks, Func<int, SustainVisualSnapshot?> readSustain, bool deterministicCapture = false)
+        VisualPoolPlanning.PeakCounts peaks, Func<int, SustainVisualSnapshot?> readSustain, bool deterministicCapture = false,
+        bool retainBloomFrames = true, bool retainVisualInputs = true)
     {
+        _retainVisualInputs = retainVisualInputs;
         _noteRoot = noteRoot;
         _chart = chart;
         _syncAccentIds = syncAccentIds;
@@ -44,7 +47,7 @@ public sealed partial class GameplayNoteRenderer
         _runtimeNoteSeconds = runtimeNoteSeconds;
         _paths = paths;
         _readSustain = readSustain;
-        _effects = new(noteRoot, settings, deterministicCapture);
+        _effects = new(noteRoot, settings, deterministicCapture, retainBloomFrames);
         foreach (var path in paths.Values)
             if (path.Kind == SustainKind.Hold) _holdTailIds.Add(path.End.Id);
         _fallSpeedMultiplier = (float)settings.FallSpeedMultiplier;
@@ -55,6 +58,13 @@ public sealed partial class GameplayNoteRenderer
         if (_usesDifferentialScroll)
             _differentialSpawnNotes.AddRange(_notesByTime);
     }
+
+    /// <summary>Opt in to reusing fully oncoming Hold/Mixer link geometry by translation.</summary>
+    public bool RetainLinkGeometry { get; init; }
+
+    // Cumulative opt-in counts of skipped/written point uploads, not CanvasItem redraws.
+    public long RetainedLinkGeometryUpdates { get; private set; }
+    public long SubmittedLinkGeometryUpdates { get; private set; }
 
     public NoteView? FindBody(int noteId) => _mixerHeadViews.GetValueOrDefault(noteId) ?? _viewByNoteId.GetValueOrDefault(noteId);
     public IReadOnlyList<NoteView> ActiveViews => _active;
@@ -94,6 +104,11 @@ public sealed partial class GameplayNoteRenderer
         public SustainOutline? Frame; // Hold 面板的亮描边轮廓（实机面板边缘亮条）
         public Vector2[] PolyScratch = new Vector2[4]; // 复用缓冲，避免每帧 new
         public Vector2[] FrameScratch = new Vector2[5];
+        public bool CanRetainGeometry;
+        public bool HasRetainedGeometry;
+        public Vector2 RetainedA;
+        public Vector2 RetainedB;
+        public Vector2 GeometryTranslation;
     }
     private readonly List<NoteLink> _links = new();
 
@@ -127,7 +142,7 @@ public sealed partial class GameplayNoteRenderer
             for (var i = 0; i < VisualPoolPlanning.ClampCapacity(pair.Value); i++)
             {
                 var view = NoteView.Create(model, SizeFor(model), ColorFor(model),
-                    brightness: ViewBrightness);
+                    brightness: ViewBrightness, retainVisualInputs: _retainVisualInputs);
                 _noteRoot.AddChild(view);
                 view.ResetForPool();
                 pool.Push(view);
@@ -219,6 +234,7 @@ public sealed partial class GameplayNoteRenderer
             link.Frame?.Configure(n, toNote);
             link.Wa = LinkHalfFor(n);
             link.Wb = LinkHalfFor(toNote);
+            link.CanRetainGeometry = RetainLinkGeometry && IsRetainableLink(n, toNote);
             link.BaseColor = LinkColorFor(n);
             link.Poly.Color = link.BaseColor;
             if (link.Frame != null) _noteRoot.MoveChild(link.Frame, -1);
@@ -255,6 +271,10 @@ public sealed partial class GameplayNoteRenderer
         link.Track = Track.Center;
         link.Wa = 0f;
         link.Wb = 0f;
+        link.CanRetainGeometry = false;
+        link.HasRetainedGeometry = false;
+        link.RetainedA = link.RetainedB = Vector2.Zero;
+        SetLinkTranslation(link, Vector2.Zero);
         link.BaseColor = Colors.Transparent;
         link.Poly.Visible = false;
         link.Poly.Color = Colors.Transparent;
@@ -362,16 +382,30 @@ public sealed partial class GameplayNoteRenderer
             a = _geometry.PositionAt(from, 0f);
         if (!_geometry.ClipToLine(link.Track, ref a, ref b, ref wa, ref wb))
             return false;
-        if (link.PolyScratch.Length < 4)
-            link.PolyScratch = new Vector2[4];
-        GameplayVisualMapper.WriteLinkPolygon(link.Track, a, b, wa, wb, link.PolyScratch);
-        link.Poly.Polygon = link.PolyScratch;
-        if (link.Frame != null)
+        // Keep clipping authoritative; anything at/past the line, anchored, or fading uses
+        // the existing stage-space vertices. Non-degenerate shape samples may still be retained.
+        var canRetain = link.CanRetainGeometry && updateAppearance && !anchoredEarlyHold &&
+            rA > 0f && rB > rA && a.IsFinite() && b.IsFinite() &&
+            float.IsFinite(wa) && float.IsFinite(wb) &&
+            (link.Track == Track.Center ? a.Y != b.Y : a.X != b.X);
+        if (canRetain && TryMoveRetainedLinkGeometry(link, a, b))
         {
-            if (link.FrameScratch.Length < 5)
-                link.FrameScratch = new Vector2[5];
-            GameplayVisualMapper.WriteLinkFrame(link.Track, a, b, wa, wb, link.FrameScratch);
-            link.Frame.Points = link.FrameScratch;
+            RetainedLinkGeometryUpdates++;
+        }
+        else
+        {
+            if (RetainLinkGeometry)
+            {
+                SetLinkTranslation(link, Vector2.Zero);
+                link.HasRetainedGeometry = canRetain;
+                if (canRetain)
+                {
+                    link.RetainedA = a;
+                    link.RetainedB = b;
+                }
+                SubmittedLinkGeometryUpdates++;
+            }
+            WriteLinkGeometry(link, a, b, wa, wb);
         }
         if (!updateAppearance)
             return true;
@@ -391,17 +425,72 @@ public sealed partial class GameplayNoteRenderer
         }
         else if (link.IsHold)
             fillAlpha = Mathf.Lerp(0.08f, 0.28f, proximity);
-        link.Poly.Color = new Color(link.BaseColor, fillAlpha);
+        var fillColor = new Color(link.BaseColor, fillAlpha);
+        if (!canRetain || link.Poly.Color != fillColor)
+            link.Poly.Color = fillColor;
         link.Poly.Visible = from.Second != to.Second || from.V2Metadata?.IsShapeSample != true;
         if (link.Frame != null)
         {
             var frameAlpha = link.Track == Track.Center
                 ? 0.9f * TopFadeAlpha(Mathf.Max(a.Y, b.Y))
                 : Mathf.Lerp(0.25f, 0.9f, proximity);
-            link.Frame.DefaultColor = new Color(NoteVisualSpec.Hold, frameAlpha);
+            var frameColor = new Color(NoteVisualSpec.Hold, frameAlpha);
+            if (!canRetain || link.Frame.DefaultColor != frameColor)
+                link.Frame.DefaultColor = frameColor;
             link.Frame.Visible = true;
         }
         return true;
+    }
+
+    private static bool IsRetainableLink(Note from, Note to) =>
+        from.Track == to.Track && from.Second < to.Second &&
+        (from.V2Metadata?.ScrollSpeedMultiplier ?? 1.0) ==
+        (to.V2Metadata?.ScrollSpeedMultiplier ?? 1.0) &&
+        (from.Type switch
+        {
+            NoteType.HoldHead or NoteType.HoldNode => to.Type == NoteType.HoldNode,
+            NoteType.MixerHead or NoteType.MixerNode => to.Type == NoteType.MixerNode,
+            _ => false,
+        });
+
+    private static bool TryMoveRetainedLinkGeometry(NoteLink link, Vector2 a, Vector2 b)
+    {
+        if (!link.HasRetainedGeometry)
+            return false;
+        // Only the fall axis moves. Verify the freshly projected, unrounded endpoints exactly;
+        // scroll/span changes or a float rounding mismatch must re-submit the original geometry.
+        var delta = link.Track == Track.Center
+            ? new Vector2(0f, a.Y - link.RetainedA.Y)
+            : new Vector2(a.X - link.RetainedA.X, 0f);
+        if (link.RetainedA + delta != a || link.RetainedB + delta != b)
+            return false;
+        SetLinkTranslation(link, delta);
+        return true;
+    }
+
+    private static void SetLinkTranslation(NoteLink link, Vector2 translation)
+    {
+        if (link.GeometryTranslation == translation)
+            return;
+        link.Poly.Position = translation;
+        if (link.Frame != null)
+            link.Frame.Position = translation;
+        link.GeometryTranslation = translation;
+    }
+
+    private static void WriteLinkGeometry(NoteLink link, Vector2 a, Vector2 b, float wa, float wb)
+    {
+        if (link.PolyScratch.Length < 4)
+            link.PolyScratch = new Vector2[4];
+        GameplayVisualMapper.WriteLinkPolygon(link.Track, a, b, wa, wb, link.PolyScratch);
+        link.Poly.Polygon = link.PolyScratch;
+        if (link.Frame != null)
+        {
+            if (link.FrameScratch.Length < 5)
+                link.FrameScratch = new Vector2[5];
+            GameplayVisualMapper.WriteLinkFrame(link.Track, a, b, wa, wb, link.FrameScratch);
+            link.Frame.Points = link.FrameScratch;
+        }
     }
 
     private void UpdateHoldMissFades(double t, double currentBar, double delta)
@@ -484,7 +573,7 @@ public sealed partial class GameplayNoteRenderer
         {
             // 极晚接头时本体可能已经完成普通下穿；重新建立在线 Hold 头。
                 view = NoteView.Create(note, SizeFor(note), ColorFor(note),
-                    _syncAccentIds.Contains(note.Id), brightness: ViewBrightness);
+                    _syncAccentIds.Contains(note.Id), brightness: ViewBrightness, retainVisualInputs: _retainVisualInputs);
 
             view.Position = _geometry.PositionAt(note, 0f);
             view.SetDepthAlpha(1f);
@@ -553,7 +642,7 @@ public sealed partial class GameplayNoteRenderer
             _noteViewPools[type] = pool = new Stack<NoteView>();
         var view = pool.Count > 0
             ? pool.Pop()
-            : NoteView.Create(note, SizeFor(note), ColorFor(note), brightness: ViewBrightness);
+            : NoteView.Create(note, SizeFor(note), ColorFor(note), brightness: ViewBrightness, retainVisualInputs: _retainVisualInputs);
         if (view.GetParent() != _noteRoot)
         {
             if (view.GetParent() == null) _noteRoot.AddChild(view);

@@ -77,6 +77,7 @@ presentation 不引用 client/editor，不读取两端全局会话或设置；na
 | `SongDetailRequest` | 详情请求代际、独立 loader、作废、完成消费和释放 | 当前 pack/chart、展开状态、缓存、试听身份和页面生命周期 |
 | `GameplayPauseOverlay` | 暂停状态、覆盖层、按钮和三档动效 | 输入清理、播放暂停/恢复、导航、结算与成绩保存 |
 | `GameplayEndCondition` | 谱末 +2 秒与音频自然结束的双锁存、音频结束后的真实帧补时；纯 C# | 结束条件成立后的 `ShowResults`、判定/AudioStreamPlayer 状态、固定帧推进 |
+| [Storyboard 核心](<../shared/Storyboard/>) / [加载与会话](<../client/scripts/game/gameplay/GameplayStoryboardSession.cs>) / [舞台绘制](<../presentation/game/storyboard/>) | 纯文本校验、精确媒体区间表及求值 / 本地绑定、[预取与退役](<../client/scripts/game/gameplay/StoryboardTextureStore.cs>)、预算、每局状态 / 保序绘制与裁切，不开文件、不释放 residency 纹理 | `GameplayMain` 保留选谱、音频、暂停、结束和成绩；报错或缺图只降级视觉，详见 [流式驻留](<storyboard-residency-plan.md>) |
 | `ResultFlow` | 一次结算的“字标前奏 → 结算页”交付顺序与“只一次”闸门 | 成绩快照与保存、结算回调（隐藏舞台、返回/下一首/重开）、结算数据 |
 | `ResultOutcomePrelude` / `ResultPreludeTimeline` | 前奏节点（压暗/斜纹区/字标/着色器）与其纯时钟（Full/Reduced/Off、跳过落终值） | 何时进入前奏、结算页本身、音效与导航 |
 | `ResultOutcome` / `ResultInputGuard` | 七类结果分类（普通完成为 TRACK COMPLETE）与徽章映射 / 120ms 防穿透算术；纯 C# | 展示字标与徽章、结算页输入派发 |

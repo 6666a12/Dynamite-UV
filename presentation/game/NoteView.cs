@@ -65,6 +65,11 @@ public partial class NoteView : Node2D
 	private bool _gold;
 	private bool _vertical;
 	private int _kind;
+	private bool _retainVisualInputs = true;
+	private bool _materialApplied;
+	private MaterialInputs _applied;
+	private readonly record struct MaterialInputs(Vector2 Size, float Pad, Vector3 Color,
+		float Energy, float Opacity, int Kind, bool HaloOnly, bool Gold, bool Vertical);
 	private float _residualElapsed;
 	private float _ttl = -1f; // 命中后的残留显示时间（秒）
 	private float _depthAlpha = 1f;
@@ -78,6 +83,7 @@ public partial class NoteView : Node2D
 
 	public void ResetForPool()
 	{
+		_materialApplied = false; // Reset below changes mesh state; first use must submit all uniforms.
 		Visible = false;
 		Position = Vector2.Zero;
 		Rotation = 0f;
@@ -138,9 +144,10 @@ public partial class NoteView : Node2D
 	}
 
 	public static NoteView Create(Note model, Vector2 sizePx, Color color, bool goldFrame = false,
-		bool ghost = false, float brightness = 1f)
+		bool ghost = false, float brightness = 1f, bool retainVisualInputs = true)
 	{
-		var view = new NoteView { Model = model, ZIndex = 1, _sizePx = sizePx };
+		var view = new NoteView { Model = model, ZIndex = 1, _sizePx = sizePx,
+			_retainVisualInputs = retainVisualInputs };
 		if (model.Type == NoteType.BarLine)
 			view.BuildBarLine();
 		else
@@ -189,20 +196,26 @@ public partial class NoteView : Node2D
 		var pad = _haloOnly ? 130f : Mathf.Clamp(_energy * 38f, 64f, 130f);
 		// 侧轨在局部空间仍是横排：把长边放在局部 X，再由 mesh 子节点旋转 90°。
 		var inner = _vertical ? new Vector2(_sizePx.Y, _sizePx.X) : _sizePx;
-		var draw = inner + new Vector2(pad * 2f, pad * 2f);
-		_mesh.Scale = draw;
-		_mesh.Rotation = _vertical ? Mathf.Pi * 0.5f : 0f;
-		_material.SetShaderParameter("u_size", inner);
-		_material.SetShaderParameter("u_pad", pad);
-		_material.SetShaderParameter("u_color",
-			new Vector3(_baseColor.R, _baseColor.G, _baseColor.B));
-		_material.SetShaderParameter("u_energy", _energy);
-		_material.SetShaderParameter("u_glow", 1f);
-		_material.SetShaderParameter("u_kind", (float)_kind);
-		_material.SetShaderParameter("u_opacity", _opacity);
-		_material.SetShaderParameter("u_mode", _haloOnly ? 1f : 0f);
-		_material.SetShaderParameter("u_gold", _gold ? 1f : 0f);
-		_material.SetShaderParameter("u_gold_width", GoldWidthPx);
+		var next = new MaterialInputs(inner, pad, new Vector3(_baseColor.R, _baseColor.G, _baseColor.B),
+			_energy, _opacity, _kind, _haloOnly, _gold, _vertical);
+		var full = !_retainVisualInputs || !_materialApplied;
+		if (!full && next == _applied) return;
+		var sizeChanged = full || inner != _applied.Size;
+		var padChanged = full || pad != _applied.Pad;
+		if (sizeChanged || padChanged) _mesh.Scale = inner + new Vector2(pad * 2f, pad * 2f);
+		if (full || _vertical != _applied.Vertical) _mesh.Rotation = _vertical ? Mathf.Pi * 0.5f : 0f;
+		if (sizeChanged) _material.SetShaderParameter("u_size", inner);
+		if (padChanged) _material.SetShaderParameter("u_pad", pad);
+		if (full || next.Color != _applied.Color) _material.SetShaderParameter("u_color", next.Color);
+		if (full || _energy != _applied.Energy) _material.SetShaderParameter("u_energy", _energy);
+		if (full) _material.SetShaderParameter("u_glow", 1f);
+		if (full || _kind != _applied.Kind) _material.SetShaderParameter("u_kind", (float)_kind);
+		if (full || _opacity != _applied.Opacity) _material.SetShaderParameter("u_opacity", _opacity);
+		if (full || _haloOnly != _applied.HaloOnly) _material.SetShaderParameter("u_mode", _haloOnly ? 1f : 0f);
+		if (full || _gold != _applied.Gold) _material.SetShaderParameter("u_gold", _gold ? 1f : 0f);
+		if (full) _material.SetShaderParameter("u_gold_width", GoldWidthPx);
+		_applied = next;
+		_materialApplied = true;
 	}
 
 	private void ApplyBarLineSurface(Vector2 sizePx)

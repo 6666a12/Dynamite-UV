@@ -62,7 +62,7 @@ public partial class SettingsScreen
             delta=>s.TimingOffsetMs=Math.Clamp(s.TimingOffsetMs+delta*TimingStepMs,-300,300),"JudgeOffset");
         AddStepper(Row(root,1,"音符落速"),()=> $"{s.FallSpeedMultiplier:F1}×",
             delta=>s.FallSpeedLevel=GameplayFallSpeed.Clamp(s.FallSpeedLevel+delta),"FallSpeed");
-        AddToggle(Row(root,2,"判定浮字"),()=>s.JudgeTextEnabled,()=>s.JudgeTextEnabled=!s.JudgeTextEnabled);
+        AddToggle(Row(root,2,"判定浮字"),()=>s.JudgeTextEnabled,()=>s.JudgeTextEnabled=!s.JudgeTextEnabled,"JudgeText");
         AddSegments(Row(root,3,"判定模式"),ModeNames,()=> (int)s.GameplayMode,
             n=>s.GameplayMode=n==1?GameplayMode.Hardcore:GameplayMode.Standard,"Mode");
         Footer(root,"节拍校准   →",UiRoutes.Calibration);
@@ -81,6 +81,16 @@ public partial class SettingsScreen
         // The production settings model has a UI motion preference, not the lab's geometry dials.
         AddSegments(Row(root,0,"界面动效"),MotionNames,()=> (int)s.MotionMode,
             n=>s.MotionMode=n switch {1=>UiMotionMode.Reduced,2=>UiMotionMode.Off,_=>UiMotionMode.Full},"Motion");
+        if (ChartPack.IsEditorOrInternal)
+        {
+            AddToggle(Row(root,1,"Storyboard","本地演出需要完整界面动效；关闭演出不影响命中反馈。"),
+                ()=>s.StoryboardEnabled,()=>s.StoryboardEnabled=!s.StoryboardEnabled,"Storyboard");
+            AddSlider(Row(root,2,"演出亮度","只调暗演出及其替换底色；降低亮度不会停用演出。"),Teal,0,100,
+                ()=>s.StoryboardBrightnessPercent,v=>s.StoryboardBrightnessPercent=v,id:"StoryboardBrightness");
+            AddSegments(Row(root,3,"演出内存预算","两档均最多驻留 128 张物理纹理；下一局生效。"),
+                ["128 MiB", "256 MiB"], ()=>s.EffectiveStoryboardMemoryMiB == 128 ? 0 : 1,
+                n=>s.StoryboardMemoryMiB = n == 0 ? 128 : 256,"StoryboardMemory");
+        }
         Footer(root);
     }
     private void BuildEffectsTab(Control root)
@@ -112,12 +122,15 @@ public partial class SettingsScreen
         Line(entry,1,11,3,54,Teal);
     }
 
-    private Control Row(Control root,int index,string name)
+    private Control Row(Control root,int index,string name,string? description=null)
     {
         var row=new Control { Name="SettingRow"+index, Position=new(ColumnLeft,RowY(index)-RowHeight*.5f),
             Size=new(ColumnRight-ColumnLeft,RowHeight), MouseFilter=Control.MouseFilterEnum.Ignore };
         root.AddChild(row); _enterItems.Add(row);
-        Text(row,name,3,RowHeight*.5f,495,58,30,SettingsSectionRail.Ink);
+        var centerY=RowHeight*.5f;
+        Text(row,name,3,description is null ? centerY : centerY-19,495,58,30,SettingsSectionRail.Ink);
+        if (description is not null)
+            Text(row,description,3,centerY+26,850,30,20,SettingsSectionRail.Muted);
         Line(row,0,RowHeight-1,ColumnRight-ColumnLeft,1.5f,Rule);
         return row;
     }
@@ -149,17 +162,17 @@ public partial class SettingsScreen
         var label=Text(row,read(),1530-ColumnLeft,RowHeight*.5f,204,60,34,Teal,true,HorizontalAlignment.Center);
         _valueBindings.Add(new ValueBinding(label,read,label.Position,label.Text));
     }
-    private void AddToggle(Control row,Func<bool> read,Action toggle)
+    private void AddToggle(Control row,Func<bool> read,Action toggle,string id)
     {
-        var control = new SettingsToggle { Name="JudgeText",MotionProfileProvider=()=>UiMotionProfile.For(GameSession.Settings.MotionMode),
+        var control = new SettingsToggle { Name=id,MotionProfileProvider=()=>UiMotionProfile.For(GameSession.Settings.MotionMode),
             Position=new(1634-ColumnLeft,(RowHeight-68)*.5f),Size=new(195,68) };
         control.SetOn(read(),false);control.Pressed+=()=>{toggle();Commit();};row.AddChild(control);
         _stateRefreshers.Add(()=>control.SetOn(read(),true));
     }
-    private void AddSlider(Control row,Color accent,int min,int max,Func<int> read,Action<int> write,string? bus=null)
+    private void AddSlider(Control row,Color accent,int min,int max,Func<int> read,Action<int> write,string? bus=null,string? id=null)
     {
         var centerY=RowHeight*.5f;
-        var control=new SettingsSlider { Name=(bus??"Effect")+"Slider",Position=new(1168-ColumnLeft,0),
+        var control=new SettingsSlider { Name=(id??bus??"Effect")+"Slider",Position=new(1168-ColumnLeft,0),
             Size=new(SettingsSlider.TrackWidth+SettingsSlider.TrackHandle,RowHeight),Accent=accent,Min=min,Max=max };
         var percent=Text(row,$"{read()}%",1720-ColumnLeft,centerY,109,59,32,accent,true,HorizontalAlignment.Right);
         control.SetValue(read());row.AddChild(control);

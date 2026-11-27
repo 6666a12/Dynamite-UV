@@ -20,6 +20,8 @@ public partial class GameplayMain
 	{
 		if (what == NotificationWMWindowFocusOut)
 			ClearPointerState();
+		else if (what == NotificationOsMemoryWarning)
+			_storyboard?.MemoryPressure();
 	}
 
 	public override void _Input(InputEvent e)
@@ -63,6 +65,8 @@ public partial class GameplayMain
 			if (_pause.IsPaused) return;
 			if (key.Keycode == Key.F12) // 调试：跳到谱尾前 3s，快速验证结算
 			{
+				_storyboard?.TransportJump();
+				_storyboardBenchmark?.Interrupt();
 				_playback.Seek(Math.Max(0.0, _plan.EndTime - 3.0));
 				return;
 			}

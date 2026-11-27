@@ -21,19 +21,26 @@ public static class Program
         string? devTestdataDirectory;
         try
         {
-            devTestdataDirectory = ParseArguments(args);
+            devTestdataDirectory = args is ["--storyboard-only" or "--storyboard-benchmark"]
+                ? null : ParseArguments(args);
         }
         catch (ArgumentException ex)
         {
             Console.Error.WriteLine($"Argument error: {ex.Message}");
             Console.Error.WriteLine(
                 "Usage: dotnet run --project tools/core-tests/CoreTests.csproj -- " +
-                "[--dev-testdata <packs-dir>]");
+                "[--dev-testdata <packs-dir> | --storyboard-only | --storyboard-benchmark]");
             return 2;
         }
 
         try
         {
+            if (args is ["--storyboard-benchmark"])
+                return StoryboardBenchmark.Run();
+            StoryboardTests.Run(Check);
+            if (args is ["--storyboard-only"])
+                return Report();
+
             var chartPath = FindFixturePath();
             Console.WriteLine($"fixture: {chartPath}");
 
@@ -101,6 +108,11 @@ public static class Program
             return 1;
         }
 
+        return Report();
+    }
+
+    private static int Report()
+    {
         Console.WriteLine();
         if (Failures > 0)
         {

@@ -3,6 +3,9 @@ using DynamiteUniverse.Shared.Judge;
 
 namespace DynamiteUniverse.Audio;
 
+/// <summary>Uncalibrated audio and calibrated judgement time from one audio observation.</summary>
+public readonly record struct SongClockSample(double MediaSeconds, double JudgeSeconds);
+
 /// <summary>
 /// 歌曲时钟：AudioStreamPlayer 播放位置 + 混音补偿 - 输出延迟 + 用户校准。
 /// 公式参照 osu!：position = player.GetPlaybackPosition()
@@ -21,8 +24,9 @@ public partial class SongClock : Node
     private ulong _fallbackStartMsec;
 
     private bool _fixedFrameEnabled;
-    private double _fixedFrameStepSec;
-    private double _fixedFramePosition;
+    private int _fixedFramesPerSecond;
+    private double _fixedFrameStart;
+    private ulong _fixedElapsedFrames;
 
     private bool _movieClock;
     private double _moviePosition;
@@ -62,14 +66,14 @@ public partial class SongClock : Node
         if (framesPerSecond <= 0)
             throw new ArgumentOutOfRangeException(nameof(framesPerSecond));
         _fixedFrameEnabled = true;
-        _fixedFrameStepSec = 1.0 / framesPerSecond;
+        _fixedFramesPerSecond = framesPerSecond;
         _manualFallback = true;
     }
 
     public void AdvanceFixedFrame()
     {
         if (_fixedFrameEnabled && _playing)
-            _fixedFramePosition += _fixedFrameStepSec;
+            _fixedElapsedFrames++;
     }
 
     public void Attach(AudioStreamPlayer player)
@@ -93,7 +97,8 @@ public partial class SongClock : Node
         _playing = true;
         if (_fixedFrameEnabled)
         {
-            _fixedFramePosition = fromSec;
+            _fixedFrameStart = fromSec;
+            _fixedElapsedFrames = 0;
             return;
         }
         if (_movieClock)
@@ -146,15 +151,17 @@ public partial class SongClock : Node
     }
 
     /// <summary>当前歌曲时间（秒，含用户校准）。未播放时返回暂停位置（同样含校准）。</summary>
-    public double GetSongTime()
+    public double GetSongTime() => Sample().JudgeSeconds;
+
+    public SongClockSample Sample()
     {
         if (!_playing)
-            return _pausedPosition + UserOffsetMs / 1000.0;
+            return new(_pausedPosition, _pausedPosition + UserOffsetMs / 1000.0);
 
         double pos;
         if (_fixedFrameEnabled)
         {
-            pos = _fixedFramePosition;
+            pos = _fixedFrameStart + _fixedElapsedFrames / (double)_fixedFramesPerSecond;
         }
         else if (_movieClock)
         {
@@ -173,6 +180,7 @@ public partial class SongClock : Node
         }
         // Playback position, last-mix age and latency are separate audio-thread
         // observations. Their sum can briefly decrease across a mix boundary.
-        return _position.Observe(pos) + UserOffsetMs / 1000.0;
+        var media = _position.Observe(pos);
+        return new(media, media + UserOffsetMs / 1000.0);
     }
 }

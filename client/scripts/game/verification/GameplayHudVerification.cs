@@ -76,9 +76,10 @@ public partial class GameplayHudVerification : Node
             root.AddChild(stage);
             stage.BuildCommunityStageChrome(40, gameplayHud: true);
             var chrome = stage.GetNode<Node2D>("CommunityStageChrome");
-            Require(chrome.GetChildCount() == 4, "game only backdrop + three lines, no old decoration");
-            var backdrop = chrome.GetChildren().OfType<GameplayBackdrop>().Single();
-            Require(backdrop.ZIndex == -2 && backdrop.TopPadding == 40 && !backdrop.IsProcessing(),
+            Require(chrome.GetChildCount() == 3, "game chrome only holds three lines, no old decoration");
+            var backdropLayer = stage.GetNode<Node2D>("CommunityStageBackdrop");
+            var backdrop = backdropLayer.GetChildren().OfType<GameplayBackdrop>().Single();
+            Require(backdropLayer.ZIndex == -5 && backdrop.TopPadding == 40 && !backdrop.IsProcessing(),
                 "static backdrop keeps the padded viewport and stays behind the stage lines");
             var field = backdrop.GetChildren().OfType<ColorRect>().Single();
             Require(backdrop.GetChildCount() == 1 && field.Position == new Vector2(0, -40)
@@ -99,8 +100,30 @@ public partial class GameplayHudVerification : Node
             stage.SetJudgmentLineBrightness(DynamiteUniverse.Shared.Chart.Track.Left, 1);
             var sideLines = chrome.GetChildren().OfType<ColorRect>().Where(p => p.Size.X == 4).OrderBy(p => p.Position.X).ToArray();
             Require(sideLines[1].Color == new Color(0.82f, 0.85f, 0.91f) && sideLines[0].Color == new Color(.35f, .35f, .4f), "mirror maps left activity to right line only");
+            stage.Position = new Vector2(0, 40);
+            var performance = new Node2D();
+            var fallback = stage.AttachStoryboard(performance, 40, new Color("#10131a"), brightness: .45f);
+            var slot = stage.GetNode<Node2D>("StoryboardLayer");
+            var bounds = slot.GetNode<Control>("StoryboardBounds");
+            Require(slot.Modulate == new Color(.45f, .45f, .45f, 1f) && chrome.Modulate == Colors.White &&
+                !backdropLayer.Visible && backdropLayer.ZIndex < slot.ZIndex && slot.ZIndex < chrome.ZIndex &&
+                chrome.ZIndex < stage.NoteLayer.ZIndex && performance.GlobalPosition == Vector2.Zero &&
+                bounds.ClipContents && bounds.Size == new Vector2(1920, 1080) &&
+                bounds.MouseFilter == Control.MouseFilterEnum.Ignore &&
+                bounds.GetNode<ColorRect>("OpaqueStoryboardBackdrop").Color.A == 1f,
+                "replacement preserves gameplay layers and uses opaque bounded logical-stage backdrop");
+            fallback();
+            Require(backdropLayer.Visible && !slot.Visible, "failure restores original backdrop and hides replacement");
+            var keepStage = new GameplayStageRenderer { Position = new Vector2(0, 40) };
+            root.AddChild(keepStage);
+            keepStage.BuildCommunityStageChrome(40, gameplayHud: true);
+            keepStage.AttachStoryboard(new Node2D(), 40, replacement: null);
+            Require(keepStage.GetNode<Node2D>("CommunityStageBackdrop").Visible &&
+                !keepStage.HasNode("StoryboardLayer/StoryboardBounds/OpaqueStoryboardBackdrop"),
+                "keep does not hide or replace the stock backdrop");
             stage.BuildCommunityStageChrome();
-            Require(chrome.GetChildCount() == 8 && chrome.GetChildren().OfType<ColorRect>().First().Color == new Color(.35f, .35f, .4f), "editor default chrome unchanged");
+            Require(chrome.GetChildCount() == 7 && backdropLayer.GetChildCount() == 1 &&
+                chrome.GetChildren().OfType<ColorRect>().First().Color == new Color(.35f, .35f, .4f), "editor default chrome unchanged");
             root.Free();
             GD.Print("GAMEPLAY_HUD_NATIVE PASS");
             GetTree().Quit();

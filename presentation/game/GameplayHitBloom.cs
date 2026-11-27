@@ -18,18 +18,30 @@ public enum HitEffectKind
 /// </summary>
 public partial class GameplayHitBloom : Node2D
 {
-    public Color Accent { get; set; } = new(0.21f, 0.88f, 1.0f);
-    public HitEffectKind Kind { get; set; } = HitEffectKind.Tap;
-    public float SpanPx { get; set; } = 120f;
-    public float Strength { get; set; } = 1f;
+    private Color _accent = new(0.21f, 0.88f, 1.0f);
+    private HitEffectKind _kind = HitEffectKind.Tap;
+    private float _spanPx = 120f, _strength = 1f, _intensity = 1f;
+    public Color Accent { get => _accent; set => SetInput(ref _accent, value); }
+    public HitEffectKind Kind { get => _kind; set => SetInput(ref _kind, value); }
+    public float SpanPx { get => _spanPx; set => SetInput(ref _spanPx, value); }
+    public float Strength { get => _strength; set => SetInput(ref _strength, value); }
 
     /// <summary>爆发尺度（设置 FLASH INTENSITY）：1.0 = 设计原值，半径与展开范围同比例缩放。</summary>
-    public float Intensity { get; set; } = 1f;
+    public float Intensity { get => _intensity; set => SetInput(ref _intensity, value); }
+
+    private void SetInput<T>(ref T current, T value)
+    {
+        if (EqualityComparer<T>.Default.Equals(current, value)) return;
+        current = value;
+        _lastDrawnFrame = -1;
+    }
+    internal bool RetainFrames { get; init; } = true;
 
     private const int FrameCount = 12;
     private const double Lifetime = 0.36;
     private const float BrightnessBoost = 1.55f;
     private double _age;
+    private int _lastDrawnFrame = -1;
     private readonly Vector2[] _dragPoints = new Vector2[3];
 
     public void ResetFor(Vector2 position, float rotation, Color accent,
@@ -42,6 +54,7 @@ public partial class GameplayHitBloom : Node2D
         SpanPx = spanPx;
         Strength = strength;
         _age = 0.0;
+        _lastDrawnFrame = -1;
         Visible = true;
         Modulate = Colors.White;
         QueueRedraw();
@@ -54,6 +67,7 @@ public partial class GameplayHitBloom : Node2D
         Modulate = Colors.Transparent;
         Position = Vector2.Zero;
         Rotation = 0f;
+        _lastDrawnFrame = -1;
         QueueRedraw();
     }
 
@@ -62,13 +76,19 @@ public partial class GameplayHitBloom : Node2D
     public override void _Process(double delta)
     {
         _age += delta;
-        QueueRedraw();
+        // All draw parameters for a live burst are constant within its authored 12 steps.
+        if (!RetainFrames || (Visible && CurrentFrame() != _lastDrawnFrame)) QueueRedraw();
+    }
+
+    private int CurrentFrame()
+    {
+        var rawProgress = Mathf.Clamp((float)(_age / Lifetime), 0f, 1f);
+        return Mathf.Min(FrameCount - 1, (int)(rawProgress * FrameCount));
     }
 
     public override void _Draw()
     {
-        var rawProgress = Mathf.Clamp((float)(_age / Lifetime), 0f, 1f);
-        var frame = Mathf.Min(FrameCount - 1, (int)(rawProgress * FrameCount));
+        var frame = _lastDrawnFrame = CurrentFrame();
         var progress = frame / (float)(FrameCount - 1);
         var onset = Mathf.Clamp(progress / 0.08f, 0f, 1f);
         var fade = Mathf.Min(1f,

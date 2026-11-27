@@ -41,6 +41,7 @@ internal sealed class SongPlayback
 
     public bool HasNaturallyEnded => TracksNaturalEnd && Clock.IsPlaying && !_player.Playing;
     public bool IsAudioPlaying => _player.Playing;
+    public double AudioDurationSeconds => _player.Stream?.GetLength() ?? 0;
 
     public void Play(double startSecond) => Clock.Play(startSecond);
     public void Pause() => Clock.Pause();

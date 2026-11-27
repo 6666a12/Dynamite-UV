@@ -17,6 +17,17 @@ public sealed class GameSettings : IGameplayVisualSettings
     public int UiVolume { get; set; } = 80;
     public UiMotionMode MotionMode { get; set; } = UiMotionMode.Full;
 
+    /// <summary>是否允许加载谱面的 Storyboard 背景演出，不影响判定特效。</summary>
+    public bool StoryboardEnabled { get; set; } = true;
+
+    /// <summary>仅调制演出和替换底色的 RGB；100 = 保持制作时的亮度。</summary>
+    public int StoryboardBrightnessPercent { get; set; } = 100;
+
+    // Zero means no saved override; there are only two runtime tiers.
+    public int StoryboardMemoryMiB { get; set; }
+    public int EffectiveStoryboardMemoryMiB => StoryboardMemoryMiB is 128 or 256
+        ? StoryboardMemoryMiB : OS.HasFeature("mobile") ? 128 : 256;
+
     /// <summary>打击特效档位（取代旧的 GameplayEffectsEnabled 布尔，见 docs/gameplay-spec.md）。</summary>
     public HitEffectLevel HitEffectLevel { get; set; } = HitEffectLevel.Full;
 
@@ -112,6 +123,9 @@ public sealed class GameSettings : IGameplayVisualSettings
         HitVolume = 80;
         UiVolume = 80;
         MotionMode = UiMotionMode.Full;
+        StoryboardEnabled = true;
+        StoryboardBrightnessPercent = 100;
+        StoryboardMemoryMiB = 0;
         HitEffectLevel = HitEffectLevel.Full;
         NoteBrightnessPercent = 130;
         FlashIntensityPercent = 100;
@@ -220,6 +234,9 @@ public sealed class GameSettings : IGameplayVisualSettings
             "off" => UiMotionMode.Off,
             _ => UiMotionMode.Full,
         };
+        StoryboardEnabled = snapshot.StoryboardEnabled;
+        StoryboardBrightnessPercent = snapshot.StoryboardBrightnessPercent;
+        StoryboardMemoryMiB = snapshot.StoryboardMemoryMiB;
         HitEffectLevel = snapshot.HitEffectLevel switch
         {
             "reduced" => HitEffectLevel.Reduced,
@@ -269,6 +286,9 @@ public sealed class GameSettings : IGameplayVisualSettings
             UiMotionMode.Off => "off",
             _ => "full",
         },
+        StoryboardEnabled = StoryboardEnabled,
+        StoryboardBrightnessPercent = StoryboardBrightnessPercent,
+        StoryboardMemoryMiB = StoryboardMemoryMiB,
         HitEffectLevel = HitEffectLevel switch
         {
             HitEffectLevel.Reduced => "reduced",

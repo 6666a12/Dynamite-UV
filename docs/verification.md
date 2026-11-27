@@ -55,6 +55,13 @@ Auto 预览对象回归：`<Godot-Mono> --headless --path editor -- --verify-aut
 
 ## 最近验证记录
 
+### 2026-11-28 · Storyboard 审查修复与流式驻留
+
+- 修正本地附件异常回退、时间精度和裁切/渐变、视频快进/跑分窗口，以及离线工具的输入边界。Core 回归检查 1,024/1,025 声明、祖先精度和序列时点；38 项 Storyboard 工具测试通过。游戏 Debug 0 警告、0 错误；[Godot HUD 无窗口](<../.tmp/storyboard-evidence/streaming-hud.log>)通过，覆盖实际三轨舞台的 keep/replace、回落原背景和编辑舞台不变。
+- [原创五谱夹具](<../tools/storyboard-demo/generate_streaming_fixture.py>)经严格 v2 校验。[无窗口 128](<../.tmp/storyboard-evidence/streaming-pressure-headless-128.log>)／[256](<../.tmp/storyboard-evidence/streaming-pressure-headless-256.log>) 与 Windows Forward Mobile Vulkan 1280×720、限 60 FPS 的[低档](<../.tmp/storyboard-evidence/streaming-pressure-Vulkan-128.log>)／[标准档](<../.tmp/storyboard-evidence/streaming-pressure-Vulkan-256.log>)均通过：两档都未超过 128 槽，129 张过载只保留静态底并能恢复；八张各 16 MiB 的切场低档降级、标准档全就绪；两档字节账本峰值约 **112.0／224.0 MiB**。原生回归还覆盖退役额度回收至零、重复跳转/音频结束后回跳、内存压力保住当前图、裁口别名、1,024 个声明只驻留所需集合。headless 不是 GPU 证据，字节账本不是 RSS/实测 VRAM。
+- 实际游戏窗口单次冒烟：原创 [Prism Relay](<../.tmp/storyboard-evidence/streaming-prism-final/on-1.log>) 1280×720，256 档没有缺图；私有 [Twin Bloom 原尺寸片段](<../.tmp/storyboard-evidence/streaming-twin-native/on-1.log>) 2560×1440 全屏、1.4× 落速、256 档／2 秒候选窗，16 张成功提交，未记录缺图，帧间隔 P95 **11.68 ms**，不是 144 Hz 达标。另用 120 FPS 固定引擎 delta 与媒体时钟，对原创 Prism Relay 的 [Off](<../.tmp/storyboard-evidence/streaming-fixed-parity-off.jsonl>)／[On](<../.tmp/storyboard-evidence/streaming-fixed-parity-on.jsonl>) 各 1,920 帧的时刻、音符位置、判定与成绩轨迹比较，字节一致。仅固定媒体时钟的先行检查有一帧残影视图生命周期差异，判定和成绩始终一致；不把其当作像素测试。私有 [720p](<../.tmp/storyboard-evidence/streaming-video-retune/video-1.log>)／[360p](<../.tmp/storyboard-evidence/streaming-video-retune/video-low-1.log>) 各一轮验证了真全屏、同 Replace 底、8 秒窗口实际提交 **242／241** 张视频纹理，均仅启动时 seek 一次。视频不算入图片封套，不能把该窗口的吞吐外推到密集混合场景。
+- [完整非图形验证](<../.tmp/storyboard-evidence/verify-streaming-final.log>)与补丁检查通过。未出包，未验 Android/iPad、OpenGL 流式支持或高刷新率实呈现；未重做全曲像素对照、RSS／显存采样或长时间热稳。后续范围见[驻留专题](<storyboard-residency-plan.md>)。
+
 ### 2026-11-27 · 离子余辉对比与外场分色
 
 - [共用 shader](<../presentation/game/GameplayBackdrop.cs>)用两层低频扰动提升能量明暗和轮廓变化，左右外侧及底线下方渐变为紫色。颜色边界取自真实判定线坐标，只着色背景，不裁切越界音符。用户试过高对比外场后，改成同一层雾的轻微紫偏色，取消独立紫底和提亮，并加宽渐变。游戏／制谱舞台 Debug 构建均 0 警告、0 错误，补丁检查通过；未另起 Godot 实际渲染或截图。
@@ -572,6 +579,28 @@ ffmpeg -y -f gdigrab -offset_x 0 -offset_y 0 -video_size 1600x900 -framerate 30 
 
 `-frames:v` 放在 `-i` 后；yuv420p 尺寸须为偶数。开发 gameplay 可用 `DYNAMITE_UNIVERSE_START_SEC` 定位，Esc 暂停，F12 跳至谱尾前 3 秒。
 headless SongClock 使用系统计时器/固定验证时钟，不代替窗口音频结束、真实 I/O、听感、GPU 像素或真机触控验证。
+
+## Storyboard A1–A3 Windows 验证（2026-11-27）
+
+- 工程：执行 `python -B tools/verify.py --no-restore` 成功（含客户端／制谱器构建、core／editor／server／store 回归、结构检查）。原生 HUD 小场景输出 `GAMEPLAY_HUD_NATIVE PASS`，覆盖原背景位置、层级、替换模式屏幕裁切与输入穿透。
+- 真实游玩：原创 [Prism Relay](../tools/storyboard-demo/README.md) 在 Windows Vulkan Forward Mobile 正式游玩场景播放，取到标题、两个底图模式、节拍重复、加色、序列、曲线、渐变裁口和高密度 Sprite 画面。可见设置页 Storyboard 项已截图。以固定验证时钟完整跑同一差分：开、关均为 `rawScore=13200`、132 Perfect、100%、`newRecord=False`，且 Gameplay Digest 一致。错误脚本输出带位置的诊断并恢复默认背景；用实际场景取像素。无窗运行到结算时，结算前奏着色器会报告 headless-only 诊断，因此结算对照以可见 Vulkan 运行结果为准。
+- 采集：样片是本地 Editor/Internal 验证模式下正式游戏画面，1920×1080、60 FPS、约 20.3 秒、双声道；不是专用公开视频导出构建。另用不启用固定时钟的可见窗口，各跑三次 Off、100、500、1500 个同步 Sprite；环境、耗时与局限见 [Storyboard 实测](storyboard-runtime.md#实测2026-11-27)。没有 Android、发行配置或用户目测验收。
+
+### 游玩渲染优化复验
+
+同一 Windows／Vulkan Mobile 场景用 `--compare-batch --rounds 3` 跑了 21 个交错进程，基准断言实际 0／100／500／1500 活动项、启用实例化时 1 批、关闭或直接绘制时 0 批。1500 档 **208.20 → 242.51 FPS**，帧间隔 P95 **6.29 → 5.60 ms**；[完整对照与复跑方法](storyboard-runtime.md#优化后的-ab)。已验证独立亮度设置的序列化及范围、原生 HUD 回归、100%／45% 两组直接与批绘透明重叠像素一致、0% 替换底色不透、保留原背景的取样不变。两条渲染路径及关闭均取得同一差分 132 Perfect、100%、同一 Digest。一次用极短的强制退出截断结算转场时，开启 Storyboard 的两个路径均报原生纹理 RID 退出诊断；改为固定逻辑帧让结算跑完后再退出，三种 Storyboard 样本均不再重现。结果限于当前 Windows 后端与固定素材，未外推到手机、全屏透明过绘或更密的 Note/Hold。
+
+### Twin Bloom 真实素材 1440p 复验
+
+[详细数据与复跑方法](<storyboard-twin-bloom-profile.md>)。现行官方 4K 难度的 6,478 个 Tap／Hold 经时间与列号审计，转为正面四列、9,533 个 UV 判定单位；两个官方 Storyboard 原素材片段加载到实际游玩场景。RTX 4060 Laptop 样机确认实际 framebuffer 2560×1440，Vulkan Mobile，1.4× 音符流速、1× 歌曲速度，Off／同黑底／开启各三轮。分别记录帧间隔、脚本、viewport CPU/GPU 时间与 Canvas 调用；原素材及生成包没有进入版本库或发布流程。未在 Android 平板做设备验收，也未完整复刻片头视频或整首演出。
+
+### 高刷、预算及视频试验
+
+[高刷实测、视频与预算记录](<storyboard-high-refresh.md>)。修改后的命中爆发在原生 Vulkan 小场景通过 228 帧对，Twin Bloom 高叠层的实际帧间隔 P95 **14.80 → 10.66 ms**（Windows 1440p），仍未达到 144 FPS 帧时门槛。小图集减少调用但不默认启用。固定时钟验证默认纹理预算拒绝原尺寸片段、96 MiB 内部档通过且 Digest 不变。旧 Theora 帧间测试样片花屏并作废；重编码的两个样片完成独立严格解码，720p 在 Godot 回读了正确纹理且验证了暂停／恢复。媒体试验限 `.tmp/` 和验证进程；尚无 Public、iPadOS 或 Android 高刷／视频验收。
+
+### 三轨游玩渲染复验
+
+见 [三轨游玩渲染性能](<gameplay-render-performance.md>)。Windows Vulkan 1440p 的《MVURBD [Tech]》关闭 Storyboard，15 个交错进程分别单项测量。重复材质／投影去重默认启用，Note 阶段 P95 **0.098→0.057 ms**；保留连接和缓存背景仍为验证选项。真实谱固定帧轨迹一致；合成曲线谱的同输入实测覆盖 Hold 提前接头、断触、恢复、释放失败，判定、计分和位置轨迹一致。背景缓存做了全屏与比例窗口、继承调制像素对照。`tools/verify.py --no-restore`、16 项本地转换／驻留模型用例通过；无移动设备、实际呈现或公开包验收。
 
 ## 文档维护检查
 

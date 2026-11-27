@@ -17,21 +17,46 @@ public sealed partial class GameplayNoteRenderer
     private double ChartAudioSecond(double songClockSecond) =>
         songClockSecond - _settings.TimingOffsetMs / 1000.0;
 
+    private readonly record struct ProjectionInputs(double Time, double Bar, int TimingOffsetMs,
+        double Second, double Scroll, bool V2);
+    private ProjectionInputs? _lastProjectionInputs;
+
+    private ProjectionInputs ReadProjectionInputs(double t, double currentBar)
+    {
+        var timingOffset = _settings.TimingOffsetMs;
+        if (_retainVisualInputs && _lastProjectionInputs is { } last &&
+            last.Time == t && last.Bar == currentBar && last.TimingOffsetMs == timingOffset)
+            return last;
+
+        // Keep the original v2 audio-time conversion: some callers supply a legacy/preview bar.
+        // The settings key also handles offset changes at the same time during previews.
+        var metadata = _chart.V2Metadata;
+        var inputs = new ProjectionInputs(t, currentBar, timingOffset, t, 0, false);
+        if (metadata?.ScrollMap is { } scroll && metadata.BpmTimeline is { } bpm)
+        {
+            var second = t - timingOffset / 1000.0;
+            inputs = inputs with { Second = second, Scroll = scroll.RuntimeSpeedAt(bpm.RuntimeBarAt(second)), V2 = true };
+        }
+        else
+            inputs = inputs with { Scroll = _dropSpeedMap.SpeedAt(currentBar) };
+        if (_retainVisualInputs)
+            _lastProjectionInputs = inputs;
+        return inputs;
+    }
+
     private float VisualDistanceFor(Note n, double t, double currentBar)
     {
-        if (_chart.V2Metadata?.ScrollMap != null && _chart.V2Metadata?.BpmTimeline != null)
+        var projection = ReadProjectionInputs(t, currentBar);
+        if (projection.V2)
         {
-            var currentSecond = ChartAudioSecond(t);
-            var currentBarRuntime = _chart.V2Metadata!.BpmTimeline.RuntimeBarAt(currentSecond);
             var noteSecond = _runtimeNoteSeconds.TryGetValue(n.Id, out var cached)
                 ? cached : n.Second;
             return (float)VisualScrollMath.DistancePixels(
-                noteSecond, currentSecond, BaseFallSpeedPx,
-                _chart.V2Metadata!.ScrollMap.RuntimeSpeedAt(currentBarRuntime), _fallSpeedMultiplier,
+                noteSecond, projection.Second, BaseFallSpeedPx, projection.Scroll, _fallSpeedMultiplier,
                 n.V2Metadata?.ScrollSpeedMultiplier ?? 1.0);
         }
         return (float)VisualScrollMath.DistancePixels(
-            n.Second, t, BaseFallSpeedPx, _dropSpeedMap.SpeedAt(currentBar),
+            n.Second, t, BaseFallSpeedPx, projection.Scroll,
             _fallSpeedMultiplier);
     }
 
@@ -53,15 +78,7 @@ public sealed partial class GameplayNoteRenderer
     private static bool MovesPastJudgeLineContinuously(NoteType type) =>
         UsesOrdinaryMissFallthrough(type);
 
-    private double VisualScrollAt(double t, double currentBar)
-    {
-        if (_chart.V2Metadata?.ScrollMap != null && _chart.V2Metadata?.BpmTimeline != null)
-        {
-            var currentBarRuntime = _chart.V2Metadata!.BpmTimeline.RuntimeBarAt(ChartAudioSecond(t));
-            return _chart.V2Metadata!.ScrollMap.RuntimeSpeedAt(currentBarRuntime);
-        }
-        return _dropSpeedMap.SpeedAt(currentBar);
-    }
+    private double VisualScrollAt(double t, double currentBar) => ReadProjectionInputs(t, currentBar).Scroll;
 
     private float MissFallSpeedPx(Note note, double t, double currentBar)
     {

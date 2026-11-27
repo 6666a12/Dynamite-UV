@@ -22,6 +22,11 @@
 | [OCR 报告逐项核实](ocr-review-verification.md) | 2026-11-13 对 result.json 全部218条的源码核对、探针证据及后续用户授权的四组修复记录；不是全部条目的修复授权 |
 | [website.md](website.md) | 项目静态网页、DynaMaker UV 入门教程、公开资产边界和 GitHub Pages 部署步骤 |
 | [dyna-maker-uv.md](<dyna-maker-uv.md>) | 制谱器 Avalonia + Godot 主线、文件/命令接线、核心依赖与持久化边界；[editor README](<../editor/README.md>) 提供启动入口 |
+| [Storyboard 舞台原型与验证](<storyboard-runtime.md>) · [脚本与画面规格](<storyboard-script-spec.md>) | Editor/Internal 的本地 A1–A3、游戏设置开关、KDL 2.0 子集和 Windows 样片；未冻结／未公开发布。 |
+| [三轨游玩渲染性能](<gameplay-render-performance.md>) | 真实三轨谱的 1440p 基线、材质／投影去重与两个单因素渲染试验。 |
+| [高刷新率、视频与预算试验](<storyboard-high-refresh.md>) | Twin Bloom 1440p 帧时分解、静音视频试验、资源档位与目标设备验证缺口。 |
+| [Storyboard 流式驻留](<storyboard-residency-plan.md>) | 本地原型已接 1024 个声明、128 槽、128／256 MiB 两档；列出预算口径、降级和待验收项。 |
+| [独立 Storyboard 编辑器方案](<storyboard-editor-plan.md>) · [osu! 与作者工具调研](<storyboard-research.md>) | 下一阶段的场景编辑与 C#／C++ SDK，以及 osu! 功能参考与逐项取舍。 |
 | [制谱器暂不实现的提案](<editor-roadmap.md>) | 内置音频分析台和 Agent 均未排期；旧设计仅供追溯 |
 | [从一张谱开始做第二张：制谱器审查](<editor-difficulty-workflow-review.md>) | 差分对轨、媒体归属、编辑选区与保存复验。开头区分本轮实施范围和保留问题，正文保留修复前的复现条件 |
 | [制谱器 UI 回归清单](<editor-ui-regression.md>) | UI 分层覆盖、真实窗口交互与未覆盖项；具体执行结果仍以 verification 为准 |
@@ -56,7 +61,7 @@
 
 - [历史归档总索引](<archive/README.md>)：按时间/类型查阶段报告、旧盘点、已完成美术交付和未排期提案。
 - [2026-10-26 整理说明与原文清单](<archive/2026-10-26-cleanup/README.md>)：本次移动清单、整理前字节快照与 SHA-256。
-- [Storyboard 历史提案](<archive/proposals/storyboard-editor-proposal.md>)：首版不做、未来 sidecar 方向；未冻结/未排期，不是当前开发计划。
+- [Storyboard 历史提案](<archive/proposals/storyboard-editor-proposal.md>)：旧的制谱器内联动设想，只供追溯；当前方向见上面的独立编辑器方案。
 - [网页 UI 参考](<ui-mock/>)、本地 `design/` 是设计材料，不证明游戏/编辑器能力或设备效果；本次不搬动图片、网页、脚本或 Blender 工程。
 - 旧审计/重建入口中的跳转页只为兼容已有链接保留，不再列为接手必读。
 

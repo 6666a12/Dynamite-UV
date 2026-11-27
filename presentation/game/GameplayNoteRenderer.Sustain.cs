@@ -47,7 +47,8 @@ public sealed partial class GameplayNoteRenderer
         if (view == null)
         {
             view = NoteView.Create(path.Head,
-                SizeFor(path.Head), NoteVisualSpec.Mixer, brightness: ViewBrightness);
+                SizeFor(path.Head), NoteVisualSpec.Mixer, brightness: ViewBrightness,
+                retainVisualInputs: _retainVisualInputs);
             view.Name = $"MixerSlider_{path.HeadId}";
             view.ZIndex = 2;
             _noteRoot.AddChild(view);

@@ -187,13 +187,21 @@ public partial class GameplayMain : Node2D
 		_noteRenderer = new GameplayNoteRenderer(_noteRoot, _chart, GameSession.Settings, _loaded.SyncAccentRuntimeIds,
 			_notesByTime, _noteById, _runtimeNoteSeconds, _plan.Sustains,
 			VisualPoolPlanning.Analyze(_plan.Units, _notesByTime, _plan.Sustains.Values), ReadSustainVisual,
-			deterministicCapture: Video.VideoCaptureInvocation.Active);
+			deterministicCapture: Video.VideoCaptureInvocation.Active,
+			retainBloomFrames: _verification is null || System.Environment.GetEnvironmentVariable("DUV_VERIFY_REDRAW_HITS") != "1",
+			retainVisualInputs: _verification is null || System.Environment.GetEnvironmentVariable("DUV_VERIFY_VISUAL_INPUTS") != "0")
+		{
+			RetainLinkGeometry = _verification is not null && System.Environment.GetEnvironmentVariable("DUV_VERIFY_RETAIN_LINKS") == "1",
+		};
+		var fallSpeedLevel = VerificationFallSpeedLevel(GameSession.Settings.FallSpeedLevel);
+		_noteRenderer.SetFallSpeed(GameplayFallSpeed.Multiplier(fallSpeedLevel));
 		GD.Print($"chart '{_chart.Title}' notes={_notesByTime.Count} " +
 				 $"units={_plan.Units.Count} headline={_plan.HeadlineUnitCount} " +
-				 $"theoreticalMax={_plan.TheoreticalMax} speed={GameSession.Settings.FallSpeedLevel}");
+				 $"theoreticalMax={_plan.TheoreticalMax} speed={fallSpeedLevel}");
 
 		_playback = new SongPlayback(this, songPath, GameSession.Settings.TimingOffsetMs,
 			_verification);
+		PrepareStoryboard();
 		_endCondition = new GameplayEndCondition(_plan.EndTime + 2.0, _playback.TracksNaturalEnd);
 		_progressEnd = _playback.ProgressEndSeconds(_plan.EndTime);
 		UpdateHud(0);
@@ -207,7 +215,6 @@ public partial class GameplayMain : Node2D
 		if (_verification is not null)
 		{
 			StartPlayback();
-			_verification.SignalReady();
 		}
 			else
 			{
@@ -229,26 +236,44 @@ public partial class GameplayMain : Node2D
 	internal bool VideoCaptureResultRevealed => _results.RevealComplete;
 	internal bool VideoCaptureAutoResult { get; private set; }
 
-	private void ApplyLoadedSelection(ChartPack pack, ChartDiff diff, LoadedChart loaded) =>
+	private void ApplyLoadedSelection(ChartPack pack, ChartDiff diff, LoadedChart loaded)
+	{
 		_run = GameplayRunContext.FromSelection(pack, diff, loaded);
+		_storyboardPack = pack;
+	}
 
 	private void StartPlayback()
 	{
-		if (_playbackStarted || _finished || !IsInsideTree())
+		if (_playbackStarted || _finished || !IsInsideTree()) return;
+		if (_storyboard is not null && !_storyboard.Prime(_startSecond))
+		{
+			_storyboardWarmUntil = Time.GetTicksMsec() + 750;
 			return;
+		}
+		BeginPlayback();
+	}
+
+	private void BeginPlayback()
+	{
+		_storyboardWarmUntil = 0;
 		_playbackStarted = true;
 		_playback.Play(_startSecond);
+		_verification?.SignalReady();
 	}
 
 	public override void _ExitTree()
 	{
 		_onlineRun?.Dispose();
+		_storyboard?.Stop();
+		_storyboardBenchmark?.Dispose();
 		_trace?.Dispose();
 		_trace = null;
 	}
 
 	public override void _Process(double delta)
 	{
+		if (_storyboardWarmUntil != 0 && (_storyboard!.Prime(_startSecond) || Time.GetTicksMsec() >= _storyboardWarmUntil))
+			BeginPlayback();
 		// Pause state is owned by the overlay; the short-circuit keeps it unread before _Ready.
 		if (!_playbackStarted || _finished || _pause.IsPaused)
 		{
@@ -262,13 +287,18 @@ public partial class GameplayMain : Node2D
 			return;
 		}
 		_playback.AdvanceFrame(delta);
-		var t = _playback.GetSongTime();
+		var audio = _playback.Clock.Sample();
+		var t = audio.JudgeSeconds;
+		UpdateStoryboard(audio.MediaSeconds, delta);
+		var profile = _storyboardBenchmark;
+		profile?.MarkNotes();
 		var currentBar = _noteRenderer.CurrentBarAt(t);
 
 		// Frame order is a behavior contract. Input snapshots, sustain updates, sweeping, mixer
 		// finalization and the trace write must remain in this exact order during refactoring.
 		_noteRenderer.SpawnNotes(t, currentBar);
 		_noteRenderer.UpdateViews(t, currentBar, delta);
+		profile?.MarkJudge();
 		FlushPendingInputs(t);
 		UpdateSustainStates(t);
 		SweepJudges(t);
@@ -282,7 +312,9 @@ public partial class GameplayMain : Node2D
 			ShowResults(stageFailure: true);
 			return;
 		}
+		profile?.MarkHud();
 		UpdateHud(t);
+		if (profile is not null) profile.FinishLogic(_noteRenderer.ActiveViews.Count);
 		_trace?.Write(t, currentBar, _noteRenderer.ActiveViews, _plan, _engine);
 		if (_verification?.CompleteFrame() == true)
 		{

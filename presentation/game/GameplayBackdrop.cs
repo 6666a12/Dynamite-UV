@@ -3,12 +3,50 @@ using DynamiteUniverse.Shared.Chart;
 
 namespace DynamiteUniverse.Game;
 
-/// <summary>A still, diffuse ion field behind the playfield. One untextured pass; no timing,
-/// note data, overlay capture or geometry that could be confused for a lane.</summary>
+public enum GameplayBackdropMode
+{
+    Procedural,
+    StaticCache,
+    Flat,
+}
+
+/// <summary>A still, diffuse ion field behind the playfield; no timing, note data or overlay capture.</summary>
 public partial class GameplayBackdrop : Node2D
 {
+    private const int MaxCacheEdge = 4096;
+    private const int MaxCachePixels = 10_000_000;
+    private const int MaxBakeWaitFrames = 8;
+    private static readonly Color FlatInk = new(.034f, .046f, .073f, 1f);
     private static Shader? _shader;
+    private GameplayBackdropMode _renderMode;
+    private ColorRect? _field;
+    private ShaderMaterial? _fieldMaterial;
+    private Sprite2D? _cacheQuad;
+    private Window? _host;
+    private SubViewport? _bake;
+    private CacheLayout? _layout;
+    private bool _attempted;
+    private bool _waitingForDraw;
+    private bool _drawCompleted;
+    private int _waitFrames;
+
     public float TopPadding { get; set; }
+
+    /// <summary>StaticCache and Flat are opt-in experiments; production uses Procedural.</summary>
+    public GameplayBackdropMode RenderMode
+    {
+        get => _renderMode;
+        set
+        {
+            if (_renderMode == value) return;
+            _renderMode = value;
+            if (IsNodeReady()) ApplyRenderMode();
+        }
+    }
+
+    /// <summary>Zero while inactive, baking, or using the procedural fallback.</summary>
+    public Vector2I StaticCachePixelSize => _cacheQuad is { } quad && quad.IsVisibleInTree() && _layout is { } layout
+        ? layout.PixelSize : Vector2I.Zero;
 
     public override void _Ready()
     {
@@ -20,15 +58,216 @@ public partial class GameplayBackdrop : Node2D
             GameplayStageGeometry.LeftLineX / width,
             GameplayStageGeometry.RightLineX / width,
             (GameplayStageGeometry.CenterLineY + TopPadding) / height));
-        AddChild(new ColorRect
-        {
-            Name = "EnergyField",
-            Position = new Vector2(0, -TopPadding),
-            Size = new Vector2(width, height),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            Material = material,
-        });
+        _fieldMaterial = material;
+        var field = CreateField(new Rect2(0f, -TopPadding, width, height), material);
+        _field = field;
+        AddChild(field);
+        ApplyRenderMode();
     }
+
+    public override void _EnterTree()
+    {
+        if (_field is not null) ApplyRenderMode(); // Reattached instance; _Ready only runs once.
+    }
+
+    public override void _ExitTree()
+    {
+        WatchHost(null);
+        InvalidateCache();
+    }
+
+    private static ColorRect CreateField(Rect2 rect, ShaderMaterial material) => new()
+    {
+        Name = "EnergyField",
+        Position = rect.Position,
+        Size = rect.Size,
+        MouseFilter = Control.MouseFilterEnum.Ignore,
+        Material = material,
+    };
+
+    private void ApplyRenderMode()
+    {
+        if (_field is not { } field) return;
+        var host = RenderMode == GameplayBackdropMode.StaticCache && DisplayServer.GetName() != "headless" &&
+            GetViewport() is Window window && window == GetTree().Root ? window : null;
+        WatchHost(host);
+        if (host is null) InvalidateCache();
+        var flat = RenderMode == GameplayBackdropMode.Flat;
+        field.Material = flat ? null : _fieldMaterial;
+        field.Color = flat ? FlatInk : Colors.White;
+        SetProcess(host is not null);
+    }
+
+    private void WatchHost(Window? host)
+    {
+        if (_host == host) return;
+        if (_host is not null) _host.SizeChanged -= InvalidateCache;
+        _host = host;
+        if (host is not null) host.SizeChanged += InvalidateCache;
+    }
+
+    public override void _Process(double delta)
+    {
+        if (!IsVisibleInTree() || !TryGetCacheLayout(out var layout))
+        {
+            if (_layout.HasValue) InvalidateCache();
+            return;
+        }
+
+        if (_layout != layout)
+        {
+            InvalidateCache();
+            _layout = layout;
+            return; // Keep the live shader during resize; wait for a stable layout before baking.
+        }
+
+        if (!_attempted)
+        {
+            _attempted = true;
+            StartBake(layout);
+        }
+        else if (_drawCompleted)
+        {
+            _drawCompleted = false;
+            PublishBake(layout);
+        }
+        else if (_waitingForDraw && ++_waitFrames >= MaxBakeWaitFrames)
+        {
+            ReleaseBake(); // No render completion; stay procedural instead of retrying every frame.
+        }
+    }
+
+    private bool TryGetCacheLayout(out CacheLayout layout)
+    {
+        layout = default;
+        if (_field is not { } field || _host is not { Visible: true } host || !RenderingServer.RenderLoopEnabled ||
+            host.ContentScaleMode == Window.ContentScaleModeEnum.Viewport ||
+            host.UseHdr2D || host.HdrOutputRequested || host.UseDebanding ||
+            host.Msaa2D != Viewport.Msaa.Disabled || host.Snap2DTransformsToPixel || host.Snap2DVerticesToPixel)
+            return false;
+
+        // The root window stretch is the transform *inside* its physical render target.
+        // The later integer letterbox placement in the window does not change sample positions.
+        var toPixels = host.GetStretchTransform() * GetGlobalTransformWithCanvas();
+        if (!toPixels.IsFinite() || toPixels.X.Y != 0f || toPixels.Y.X != 0f ||
+            toPixels.X.X <= 0f || toPixels.Y.Y <= 0f)
+            return false;
+
+        var scale = new Vector2(toPixels.X.X, toPixels.Y.Y);
+        var bounds = new Rect2(toPixels * field.GetTransform().Origin, field.Size * scale);
+        if (!bounds.IsFinite() || !bounds.End.IsFinite()) return false;
+        var pixelOrigin = bounds.Position.Floor();
+        var size = bounds.End.Ceil() - pixelOrigin;
+        if (size.X < 2f || size.Y < 2f || size.X > MaxCacheEdge || size.Y > MaxCacheEdge ||
+            size.X * size.Y > MaxCachePixels)
+            return false;
+
+        // Retain subpixel phase in the bake, not just rounded width/height. The sprite maps the
+        // enclosing texel box 1:1; texels outside the original field are transparent.
+        layout = new CacheLayout((Vector2I)size, new Rect2(bounds.Position - pixelOrigin, bounds.Size),
+            toPixels.AffineInverse() * pixelOrigin, Vector2.One / scale);
+        return true;
+    }
+
+    private void StartBake(CacheLayout layout)
+    {
+        var bake = new SubViewport
+        {
+            Name = "EnergyFieldBake",
+            World2D = new World2D(),
+            Disable3D = true,
+            GuiDisableInput = true,
+            GuiSnapControlsToPixels = false,
+            Snap2DTransformsToPixel = false,
+            Snap2DVerticesToPixel = false,
+            Msaa2D = Viewport.Msaa.Disabled,
+            UseHdr2D = false,
+            UseDebanding = false,
+            TransparentBg = true,
+            Size = layout.PixelSize,
+            RenderTargetClearMode = SubViewport.ClearMode.Once,
+            RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled,
+        };
+        bake.AddChild(CreateField(layout.BakeRect, _fieldMaterial!));
+        AddChild(bake);
+        _bake = bake;
+        _waitFrames = 0;
+        _waitingForDraw = true;
+        RenderingServer.FramePostDraw += OnBakeFrameDrawn;
+        bake.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
+    }
+
+    private void OnBakeFrameDrawn()
+    {
+        DisconnectBakeSignal();
+        _drawCompleted = true;
+    }
+
+    private void PublishBake(CacheLayout layout)
+    {
+        if (_bake is not { } bake || _field is not { } field) return;
+        bake.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled;
+        // Confirm the offscreen pass actually submitted a draw and has the expected texture.
+        // Avoid a GPU-to-CPU readback/stall; this checks readiness, not pixel equivalence.
+        var texture = bake.GetTexture();
+        if (texture is null || !texture.GetRid().IsValid || texture.GetSize() != (Vector2)layout.PixelSize)
+        {
+            ReleaseBake();
+            return;
+        }
+
+        if (_cacheQuad is null)
+        {
+            _cacheQuad = new Sprite2D
+            {
+                Name = "CachedEnergyField",
+                Centered = false,
+                TextureFilter = TextureFilterEnum.Nearest, // One sample per host pixel, independent of its default filter.
+                Material = new CanvasItemMaterial { LightMode = CanvasItemMaterial.LightModeEnum.Unshaded },
+                Visible = false,
+            };
+            AddChild(_cacheQuad);
+        }
+        _cacheQuad.Position = layout.CompositePosition;
+        _cacheQuad.Scale = layout.CompositeScale;
+        _cacheQuad.Texture = texture;
+        // Composite under the same CanvasItem ancestry, where RGB modulation and fades stay live.
+        field.Hide();
+        _cacheQuad.Show();
+    }
+
+    private void DisconnectBakeSignal()
+    {
+        if (!_waitingForDraw) return;
+        RenderingServer.FramePostDraw -= OnBakeFrameDrawn;
+        _waitingForDraw = false;
+    }
+
+    private void InvalidateCache()
+    {
+        ReleaseBake();
+        _attempted = false;
+        _layout = null;
+    }
+
+    private void ReleaseBake()
+    {
+        DisconnectBakeSignal();
+        _drawCompleted = false;
+        if (_cacheQuad is { } quad)
+        {
+            quad.Hide();
+            quad.Texture = null;
+        }
+        _field?.Show();
+        if (_bake is not { } bake) return;
+        _bake = null;
+        bake.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled;
+        bake.QueueFree();
+    }
+
+    private readonly record struct CacheLayout(Vector2I PixelSize, Rect2 BakeRect,
+        Vector2 CompositePosition, Vector2 CompositeScale);
 
     // Source-color uniforms preserve the intended dark palette when the canvas uses linear color.
     private const string EnergyFieldShader = """

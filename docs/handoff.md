@@ -54,7 +54,7 @@
 - 2026-11-02 正式路线改为 `editor/shell` 的 Avalonia 12 外壳（Dock.Avalonia + Ursa + Suki Motion），通过 Win32 HWND 嵌入现有 Godot 4.7.1 Mono 项目；不引用 client，也不依赖 `.tmp` 中的 UI 源码。无项目时仅显示起始页；首次成功新建草稿或打开目录包后才挂接 Dock、恢复浮窗并启动 Godot。舞台启动时以 `--wid` 建立原生宿主关系，初始尺寸 1×1 且关闭 boot splash；Shell 清除 Godot 初始 popup owner 后转为子窗口，嵌入完成后再显示和调整尺寸，避免独立窗口与启动灰帧。顶层激活与舞台键盘焦点分离，不对 child 调用 `Window.GrabFocus()`；任务栏恢复已获用户确认修复。
 - 已接真实 strict v2 目录包新建/打开、保存/另存为、添加/切换/复制/删除/重排差分、dirty、包与差分设置、资源替换、Note 多选整组拖动/批量调速/步进/删除、单选精确几何/轨道/类型、BPM/Scroll 事件面板、Hold 节点判定和撤销/重做；文件与写包语义继续由 `EditorDocumentSession`/shared 拥有。
 - Godot 舞台使用 shared v2 RuntimeAdapter、BPM/Scroll 与游戏几何；支持 WAV/MP3/Ogg/FLAC 预览、播放/seek、Q/E 玩家流速（0.1–2.0）与 W/S 音乐倍率（0.2–2.0）。后两者只影响预览，不修改谱面。同差分编辑走带 revision 的 `update`，保留播放/播放头/选择并复用相同路径音频；切包、切差分或换音频完整 `load`。空草稿仅预览豁免计分 Note 要求，strict 写包不变；根控制器补收全局左键松开并转换到舞台局部坐标以完成放置/路径手势，单条 IPC 命令异常通过 `error` 事件隔离。
-- 已有中英文即时切换与统一快捷键入口。放置工具支持七类 Note、真实 hover ghost、精确吸附读数、跨轨导引、对齐标记、宽度记忆及 Hold/Mixer 两段式创建；SELECT 支持当前轨道谱面位置/时间框选（按住可随播放跨屏，Shift 追加，右键/Esc 取消）、拖动、边缘调宽与整体移动，PATH 支持双击插点、拖动头/节点及出向曲线，PAN 支持预览时间与横向视图。偏好与Dock布局持久化、基础复制粘贴已接入，具体窗口证据与多屏/DPI边界见verification；[内置音频分析台和 Agent](<editor-roadmap.md>)均暂不实现、未排期；不计划公开第三方插件接口，Storyboard 首版不做；合并桌面候选包已实现，正式发布检查尚未完成。
+- 已有中英文即时切换与统一快捷键入口。放置工具支持七类 Note、真实 hover ghost、精确吸附读数、跨轨导引、对齐标记、宽度记忆及 Hold/Mixer 两段式创建；SELECT 支持当前轨道谱面位置/时间框选（按住可随播放跨屏，Shift 追加，右键/Esc 取消）、拖动、边缘调宽与整体移动，PATH 支持双击插点、拖动头/节点及出向曲线，PAN 支持预览时间与横向视图。偏好与Dock布局持久化、基础复制粘贴已接入，具体窗口证据与多屏/DPI边界见verification；[内置音频分析台和 Agent](<editor-roadmap.md>)均暂不实现、未排期；不计划公开第三方插件接口；Storyboard 另立独立编辑器，不属于当前制谱工作台。合并桌面候选包已实现，正式发布检查尚未完成。
 - 播放预览已接共用游戏音符/残影/命中及 Hold/Mixer 持续视觉；seek/播放中编辑静默重建当前状态，普通暂停冻结、继续不重判；滚轮向前导航触发跨线命中/残影，向后静默恢复，暂停滚轮不启动音频。编辑器默认 Full，可通过空白处右键面板调预览音量与特效，不改游戏档位；本轮用户已确认这批制谱器功能整体满意、可收尾；具体自动证据与设备/性能覆盖边界见 verification。
 - 编辑态最小HUD保留标题/顶部进度/蓝线，顶部中央新增大播放/暂停按钮；游戏效果预览 UI 入口按用户决定保持隐藏；「文件 → 导出谱面视频」使用独立录制组件和正式游戏场景，不依赖编辑舞台。视频内测候选不替代固定测试基线，详见 [制谱器说明](<dyna-maker-uv.md#导出谱面视频windows-内测候选>)。只读展示组件共用 presentation，编辑器 Auto 统计独立、不写成绩；隐藏的完整 HUD／Auto 预览不在本次 Windows 补验范围。曲线采样点不再画闭合横线；阶跃使用左极限端点减少运行时对象，低端性能未验收；原生Auto回归退出清理失败见verification。
 - Windows编辑器已确定当前测试包基线，用户确认暂固定 `windows-x64-test-v1`：双托管裁剪、兼容系统.NET优先/包内兜底、已验证精简模板及便携卸载。当前包身份/hash和剩余覆盖见[测试基线](verification.md#当前-windows-编辑器测试包基线)，不自动继续瘦身，也不等同公开发行批准。
@@ -98,7 +98,7 @@
 - 制谱器：对象磁吸因坐标偏差已隐藏并强制停用（忽略旧开启偏好），不列手感验收。已在源码接入 [插件 → 导入 BPM](dyna-maker-uv.md#导入-bpm-与音频对轨)，只改当前差分的 BPM/音频偏移；左侧扩展的[封面制作](<dyna-maker-uv.md#封面制作>)可在独立窗口取景、排布和导出 PNG，不改谱包或舞台。它的徽章吸附与谱面对象磁吸无关。内置工具不代表已开放插件 API。
 - Internal 当前验证过的流程使用 `--export-debug`，历史 Release 配置探针曾改善低端卡顿。政策 `debuggable=true` 是 APK manifest 约束，不单独证明 .NET 编译/JIT 配置；替代配置需基准和政策核查，见 [发布说明](<releasing.md>)。
 - UI 每帧分配/首页核心渲染预算优化（原“批次 D”）用户暂缓，不按旧建议自动实施。
-- 首页分区启灯只是设计探索。Storyboard **首版不做、未排期**，仅保留禁用入口；未来 sidecar 不改 v2/Digest，但 writer 落地时必须避免清除 sidecar。原提案在 [归档](<archive/proposals/storyboard-editor-proposal.md>)。
+- 首页分区启灯只是设计探索。Storyboard 已接 Editor/Internal 本地 v2 谱包的[游玩 A1–A3](<storyboard-runtime.md>)及 [PNG 流式驻留](<storyboard-residency-plan.md>)：KDL 2.0 子集、1,024 声明、128／256 MiB 两档均最多 128 槽。资源晚到或超预算只退回静态底，不暂停游玩；非 RD 兼容渲染仍用原背景。开发指令未冻结，未接商店／公开发行。后续是真机帧率与内存验收、超大图切片／低档素材、正式视频预算；[独立编辑器和 C#／C++ SDK](<storyboard-editor-plan.md>)仍在下一阶段。旧制谱器内方案只作[历史追溯](<archive/proposals/storyboard-editor-proposal.md>)。
 
 ### 后续方向与未覆盖专项
 

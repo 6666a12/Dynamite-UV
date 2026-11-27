@@ -11,6 +11,9 @@ public sealed record GameSettingsSnapshot
     public int HitVolume { get; init; } = 80;
     public int UiVolume { get; init; } = 80;
     public string MotionMode { get; init; } = "full";
+    public bool StoryboardEnabled { get; init; } = true;
+    public int StoryboardBrightnessPercent { get; init; } = 100;
+    public int StoryboardMemoryMiB { get; init; }
     public string HitEffectLevel { get; init; } = "full";
     public int NoteBrightnessPercent { get; init; } = 130;
     public int FlashIntensityPercent { get; init; } = 100;
@@ -58,6 +61,11 @@ public static class GameSettingsCodec
             HitVolume = data.HitVolume,
             UiVolume = data.UiVolume,
             MotionMode = ParseString(data.MotionMode, "full", ("reduced", "reduced"), ("off", "off")),
+            StoryboardEnabled = data.StoryboardEnabled.ValueKind != JsonValueKind.False,
+            StoryboardBrightnessPercent = data.StoryboardBrightnessPercent.ValueKind == JsonValueKind.Number &&
+                data.StoryboardBrightnessPercent.TryGetInt32(out var brightness) ? Math.Clamp(brightness, 0, 100) : 100,
+            StoryboardMemoryMiB = data.StoryboardMemoryMiB.ValueKind == JsonValueKind.Number &&
+                data.StoryboardMemoryMiB.TryGetInt32(out var tier) && tier is 128 or 256 ? tier : 0,
             HitEffectLevel = hitEffect,
             NoteBrightnessPercent = data.NoteBrightnessPercent,
             FlashIntensityPercent = data.FlashIntensityPercent,
@@ -84,6 +92,9 @@ public static class GameSettingsCodec
             HitVolume = snapshot.HitVolume,
             UiVolume = snapshot.UiVolume,
             MotionMode = JsonSerializer.SerializeToElement(NormalizeMotion(snapshot.MotionMode)),
+            StoryboardEnabled = JsonSerializer.SerializeToElement(snapshot.StoryboardEnabled),
+            StoryboardBrightnessPercent = JsonSerializer.SerializeToElement(Math.Clamp(snapshot.StoryboardBrightnessPercent, 0, 100)),
+            StoryboardMemoryMiB = JsonSerializer.SerializeToElement(snapshot.StoryboardMemoryMiB is 128 or 256 ? snapshot.StoryboardMemoryMiB : 0),
             GameplayEffectsEnabled = snapshot.HitEffectLevel != "off",
             HitEffectLevel = JsonSerializer.SerializeToElement(NormalizeHitEffect(snapshot.HitEffectLevel)),
             NoteBrightnessPercent = snapshot.NoteBrightnessPercent,
@@ -169,6 +180,9 @@ public static class GameSettingsCodec
         [JsonPropertyName("hitVolume")] public int HitVolume { get; set; } = 80;
         [JsonPropertyName("uiVolume")] public int UiVolume { get; set; } = 80;
         [JsonPropertyName("motionMode")] public JsonElement MotionMode { get; set; }
+        [JsonPropertyName("storyboardEnabled")] public JsonElement StoryboardEnabled { get; set; }
+        [JsonPropertyName("storyboardBrightnessPercent")] public JsonElement StoryboardBrightnessPercent { get; set; }
+        [JsonPropertyName("storyboardMemoryMiB")] public JsonElement StoryboardMemoryMiB { get; set; }
         [JsonPropertyName("gameplayEffectsEnabled")] public bool? GameplayEffectsEnabled { get; set; }
         [JsonPropertyName("hitEffectLevel")] public JsonElement HitEffectLevel { get; set; }
         [JsonPropertyName("noteBrightnessPercent")] public int NoteBrightnessPercent { get; set; } = 130;

@@ -7,7 +7,8 @@ using static DynamiteUniverse.Game.GameplayRenderGeometry;
 namespace DynamiteUniverse.Game;
 
 /// <summary>Owns hit/sustain effect pools and release tails; never mutates judgement state.</summary>
-internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings settings, bool deterministicCapture)
+internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings settings, bool deterministicCapture,
+    bool retainBloomFrames)
 {
     private readonly Node2D _noteRoot = noteRoot;
     private readonly GameplayRenderGeometry _geometry = new(settings.MirrorEnabled);
@@ -31,7 +32,7 @@ internal sealed class GameplayEffects(Node2D noteRoot, IGameplayVisualSettings s
     {
         for (var i = 0; i < capacity; i++)
         {
-            var bloom = new GameplayHitBloom();
+            var bloom = new GameplayHitBloom { RetainFrames = retainBloomFrames };
             _noteRoot.AddChild(bloom);
             bloom.ResetForPool();
             _bloomPool.Push(bloom);
